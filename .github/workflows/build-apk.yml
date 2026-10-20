@@ -1,4 +1,5 @@
-﻿name: Build Noor Android APK
+
+name: Build Noor Android APK
 
 on:
   workflow_dispatch:
@@ -33,6 +34,9 @@ jobs:
 
       - name: Build web app
         run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
       - name: Sync Capacitor
         run: npx cap sync android
