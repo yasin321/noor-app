@@ -13,7 +13,16 @@ function gregorianToJalali(gy: number, gm: number, gd: number): [number, number,
   let jy = (gy <= 1600) ? 0 : 979;
   gy -= (gy <= 1600) ? 621 : 1600;
   const gy2 = (gm > 2) ? (gy + 1) : gy;
-  let days = (365 * gy) + (div(gy2, 4)) - (div(gy2, 100)) + (div(gy2, 400)) + gd + g_d_m[gm - 1];
+
+  // Correct Gregorian-to-Jalali epoch offset and leap-year accounting.
+  let days = (365 * gy)
+    + div(gy2 + 3, 4)
+    - div(gy2 + 99, 100)
+    + div(gy2 + 399, 400)
+    - 80
+    + gd
+    + g_d_m[gm - 1];
+
   jy += 33 * div(days, 12053);
   days = mod(days, 12053);
   jy += 4 * div(days, 1461);
@@ -22,7 +31,8 @@ function gregorianToJalali(gy: number, gm: number, gd: number): [number, number,
     jy += div((days - 1), 365);
     days = mod((days - 1), 365);
   }
-  let jm;
+
+  let jm: number;
   if (days < 186) {
     jm = 1 + div(days, 31);
     days = 1 + mod(days, 31);
