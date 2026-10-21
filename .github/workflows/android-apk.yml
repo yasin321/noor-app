@@ -60,13 +60,10 @@ jobs:
             adb shell am force-stop com.noor.app
             adb shell monkey -p com.noor.app 1
             sleep 25
-            adb shell pidof com.noor.app
+            test -n "$(adb shell pidof com.noor.app)" || { echo "Noor process is not running after launch"; exit 1; }
             adb logcat -d > /tmp/noor-logcat.txt
             adb exec-out screencap -p > /tmp/noor-emulator.png
-            if grep -E 'supabaseUrl is required|FATAL EXCEPTION.*com\.noor\.app|Process: com\.noor\.app.*died' /tmp/noor-logcat.txt; then
-              echo "App startup/runtime error detected in emulator logs"
-              exit 1
-            fi
+            if grep -E 'supabaseUrl is required|FATAL EXCEPTION.*com\.noor\.app|Process: com\.noor\.app.*died' /tmp/noor-logcat.txt; then echo "App startup/runtime error detected in emulator logs"; exit 1; fi
 
       - name: Upload emulator smoke-test evidence
         if: always()
