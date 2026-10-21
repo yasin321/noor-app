@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react';
-import { supabase, type Profile } from '@/lib/supabase';
+import { supabase, isSupabaseConfigured, type Profile } from '@/lib/supabase';
 
 type AuthContextType = {
   user: { id: string; email: string | null } | null;
@@ -12,6 +12,8 @@ type AuthContextType = {
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+const SUPABASE_CONFIG_ERROR = 'ورود و ثبت‌نام فعلاً تنظیم نشده است؛ تنظیمات Supabase برای این نسخه باید تکمیل شود.';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<{ id: string; email: string | null } | null>(null);
@@ -47,15 +49,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (!isSupabaseConfigured) {
+      setLoading(false);
+      return;
+    }
+
     let mounted = true;
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!mounted) return;
       if (session?.user) {
         setUser({ id: session.user.id, email: session.user.email ?? null });
-        fetchProfile(session.user.id);
+        void fetchProfile(session.user.id);
       }
       setLoading(false);
+    }).catch(() => {
+      if (mounted) setLoading(false);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -78,12 +87,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [fetchProfile]);
 
   const signIn = useCallback(async (email: string, password: string) => {
+    if (!isSupabaseConfigured) return { error: SUPABASE_CONFIG_ERROR };
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) return { error: error.message };
     return { error: null };
   }, []);
 
   const signUp = useCallback(async (email: string, password: string, displayName: string) => {
+    if (!isSupabaseConfigured) return { error: SUPABASE_CONFIG_ERROR };
     const { data, error } = await supabase.auth.signUp({ email, password });
     if (error) return { error: error.message };
     if (data.user) {
@@ -96,13 +107,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
-    await supabase.auth.signOut();
+    if (isSupabaseConfigured) await supabase.auth.signOut();
     setUser(null);
     setProfile(null);
   }, []);
 
   const updateProfile = useCallback(async (updates: Partial<Profile>) => {
-    if (!user) return;
+    if (!user || !isSupabaseConfigured) return;
     const { error } = await supabase
       .from('profiles')
       .update({ ...updates, updated_at: new Date().toISOString() })
