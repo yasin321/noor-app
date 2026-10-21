@@ -1,11 +1,11 @@
-import { Home, BookOpen, Bell, Settings, Hand } from 'lucide-react';
+import { Home, BookOpen, Bell, Settings, Heart } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 
 export type Tab = 'home' | 'tasbih' | 'library' | 'reminders' | 'settings';
 
 const tabs: { id: Tab; label: string; icon: typeof Home }[] = [
   { id: 'home', label: 'خانه', icon: Home },
-  { id: 'tasbih', label: 'تسبیح', icon: Hand },
+  { id: 'tasbih', label: 'ذکرشمار', icon: Heart },
   { id: 'library', label: 'ذکرها', icon: BookOpen },
   { id: 'reminders', label: 'یادآوری', icon: Bell },
   { id: 'settings', label: 'تنظیمات', icon: Settings },
