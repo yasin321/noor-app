@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { RotateCcw, Check, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { RotateCcw, Check, Sparkles, Heart, ListRestart } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
 import { useTasbih } from '@/hooks/useTasbih';
@@ -14,126 +14,148 @@ export function TasbihCounter() {
   const [selectedDhikr, setSelectedDhikr] = useState(
     dhikrLibrary.find((d) => d.id === session.dhikrId) ?? dhikrLibrary[0]
   );
+  const [tapPulse, setTapPulse] = useState(false);
+
+  useEffect(() => {
+    const current = dhikrLibrary.find((d) => d.id === session.dhikrId);
+    if (current) setSelectedDhikr(current);
+  }, [session.dhikrId]);
 
   const handleTap = () => {
     if (!session.dhikrId) {
       start(selectedDhikr.id, selectedDhikr.count);
       setShowPicker(false);
-      return;
     }
     increment();
+    setTapPulse(true);
+    window.setTimeout(() => setTapPulse(false), 130);
+    if ('vibrate' in navigator) navigator.vibrate?.(12);
   };
 
   const handleSelectDhikr = (dhikrId: string) => {
-    const d = dhikrLibrary.find((d) => d.id === dhikrId);
+    const d = dhikrLibrary.find((item) => item.id === dhikrId);
     if (!d) return;
     setSelectedDhikr(d);
     start(d.id, d.count);
     setShowPicker(false);
   };
 
-  const progress = session.target > 0 ? (session.count / session.target) * 100 : 0;
-  const circumference = 2 * Math.PI * 130;
+  const progress = session.target > 0 ? Math.min(100, (session.count / session.target) * 100) : 0;
+  const circumference = 2 * Math.PI * 118;
   const dashOffset = circumference - (progress / 100) * circumference;
 
   return (
-    <div className="px-5 pt-6 pb-28 animate-fade-in flex flex-col items-center min-h-screen">
-      {showPicker ? (
-        <div className="w-full max-w-md">
-          <h1 className="text-2xl font-bold text-app mb-2">انتخاب ذکر</h1>
-          <p className="text-muted text-xs mb-4">یک ذکر برای شمارش انتخاب کنید</p>
-          <div className="space-y-2">
-            {dhikrLibrary.map((d) => (
-              <button
-                key={d.id}
-                onClick={() => handleSelectDhikr(d.id)}
-                className="w-full card-flat p-4 text-right"
-              >
-                <p className="text-app font-bold text-base mb-1" dir="rtl">{d.arabic}</p>
-                <p className="text-muted text-xs">{d.translit} — {d.translation}</p>
-                <p className="text-primary text-xs mt-1">هدف: {toFaDigits(d.count)}</p>
+    <div className="px-5 pt-5 pb-32 animate-fade-in min-h-screen" dir="rtl">
+      <div className="max-w-md mx-auto">
+        <header className="flex items-center justify-between mb-5">
+          <div>
+            <p className="text-xs font-medium mb-1" style={{ color: theme.accent }}>لحظه‌ای برای آرامش تو</p>
+            <h1 className="text-2xl font-black text-app">ذکرشمار <span aria-hidden="true">♡</span></h1>
+          </div>
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: `color-mix(in srgb, ${theme.primary} 14%, transparent)`, border: `1px solid ${theme.border}` }}>
+            <Sparkles size={23} color={theme.primary} />
+          </div>
+        </header>
+
+        {showPicker ? (
+          <section className="card p-4">
+            <div className="text-center py-3 mb-3">
+              <div className="text-4xl mb-3" aria-hidden="true">🌷</div>
+              <h2 className="text-lg font-bold text-app">ذکر دلت رو انتخاب کن</h2>
+              <p className="text-muted text-sm mt-1">هر بار لمس، یک قدم به آرامش نزدیک‌تر</p>
+            </div>
+            <div className="space-y-2">
+              {dhikrLibrary.map((d) => (
+                <button
+                  key={d.id}
+                  type="button"
+                  onClick={() => handleSelectDhikr(d.id)}
+                  className="w-full card-flat p-4 text-right active:scale-[0.99] transition-transform"
+                  style={{ borderColor: selectedDhikr.id === d.id ? theme.primary : theme.border }}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-app font-bold text-lg leading-relaxed">{d.arabic}</p>
+                      <p className="text-muted text-xs mt-1">{d.translit} · {d.translation}</p>
+                    </div>
+                    <div className="shrink-0 rounded-2xl px-3 py-2 text-xs font-bold" style={{ background: `color-mix(in srgb, ${theme.primary} 12%, transparent)`, color: theme.primary }}>
+                      {toFaDigits(d.count)} بار
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </section>
+        ) : (
+          <>
+            <section className="card p-5 text-center overflow-hidden relative" style={{ boxShadow: `0 10px 34px color-mix(in srgb, ${theme.primary} 12%, transparent)` }}>
+              <div className="absolute top-3 left-4 opacity-40" aria-hidden="true"><Heart size={17} color={theme.primary} /></div>
+              <p className="text-app text-xl font-bold leading-relaxed mt-2">{selectedDhikr.arabic}</p>
+              <p className="text-muted text-sm mt-2">{selectedDhikr.translit}</p>
+              <p className="text-muted text-xs mt-1">{selectedDhikr.translation}</p>
+
+              <div className="flex justify-center my-6">
+                <div className="relative flex items-center justify-center" style={{ width: 'min(76vw, 292px)', height: 'min(76vw, 292px)' }}>
+                  <svg className="absolute inset-0 -rotate-90" width="100%" height="100%" viewBox="0 0 280 280" aria-hidden="true">
+                    <circle cx="140" cy="140" r="118" fill="none" stroke={theme.border} strokeWidth="9" />
+                    <circle cx="140" cy="140" r="118" fill="none" stroke={theme.primary} strokeWidth="9" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={dashOffset} style={{ transition: 'stroke-dashoffset 180ms ease' }} />
+                  </svg>
+                  <button
+                    type="button"
+                    onClick={handleTap}
+                    aria-label="افزودن یک شمارش ذکر"
+                    className={`relative rounded-full flex flex-col items-center justify-center select-none active:scale-[0.97] transition-transform ${tapPulse ? 'scale-[0.97]' : ''}`}
+                    style={{
+                      width: 'min(63vw, 238px)', height: 'min(63vw, 238px)',
+                      background: `radial-gradient(circle at 30% 20%, color-mix(in srgb, ${theme.primary} 22%, ${theme.surface}), ${theme.surface})`,
+                      border: `1px solid color-mix(in srgb, ${theme.primary} 48%, transparent)`,
+                      boxShadow: `inset 0 2px 18px color-mix(in srgb, ${theme.primary} 9%, transparent), 0 8px 24px color-mix(in srgb, ${theme.primary} 12%, transparent)`,
+                      touchAction: 'manipulation',
+                    }}
+                  >
+                    <span className="text-6xl font-black tracking-tight text-primary tabular-nums">{toFaDigits(session.count)}</span>
+                    <span className="text-muted text-sm mt-2">از {toFaDigits(session.target)}</span>
+                    <span className="text-xs font-bold mt-3" style={{ color: theme.primary }}>لمس کن ♡</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-center gap-2 text-xs text-muted">
+                <Sparkles size={14} color={theme.accent} />
+                <span>{toFaDigits(Math.round(progress))}٪ از این دور انجام شد</span>
+              </div>
+            </section>
+
+            <section className="grid grid-cols-2 gap-3 mt-4">
+              <div className="card-flat p-4 text-center">
+                <p className="text-2xl font-black text-primary tabular-nums">{toFaDigits(session.completed)}</p>
+                <p className="text-muted text-xs mt-1">دور کامل 🌸</p>
+              </div>
+              <div className="card-flat p-4 text-center">
+                <p className="text-2xl font-black text-accent tabular-nums">{toFaDigits(session.count)}</p>
+                <p className="text-muted text-xs mt-1">ذکرهای این دور</p>
+              </div>
+            </section>
+
+            {session.completed > 0 && (
+              <div className="mt-4 p-3 rounded-2xl flex items-center justify-center gap-2 animate-slide-up" style={{ background: `color-mix(in srgb, ${theme.primary} 12%, transparent)` }}>
+                <Check size={17} color={theme.primary} />
+                <p className="text-sm font-bold text-primary">آفرین، {toFaDigits(session.completed)} دور کامل شد!</p>
+              </div>
+            )}
+
+            <div className="flex gap-3 mt-5">
+              <button type="button" onClick={reset} className="flex-1 py-3 rounded-2xl text-sm font-bold flex items-center justify-center gap-2" style={{ background: `color-mix(in srgb, ${theme.primary} 10%, transparent)`, color: theme.primary }}>
+                <RotateCcw size={17} /> شروع دور از صفر
               </button>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <>
-          <div className="text-center mb-4">
-            <p className="text-app font-bold text-lg" dir="rtl">{selectedDhikr.arabic}</p>
-            <p className="text-muted text-sm mt-1">{selectedDhikr.translit}</p>
-            <p className="text-muted text-xs mt-0.5">{selectedDhikr.translation}</p>
-          </div>
-
-          <div className="relative flex items-center justify-center my-8" style={{ width: 300, height: 300 }}>
-            <svg className="absolute inset-0 -rotate-90" width={300} height={300}>
-              <circle
-                cx={150} cy={150} r={130}
-                fill="none"
-                stroke={theme.border}
-                strokeWidth={6}
-              />
-              <circle
-                cx={150} cy={150} r={130}
-                fill="none"
-                stroke={theme.primary}
-                strokeWidth={6}
-                strokeLinecap="round"
-                strokeDasharray={circumference}
-                strokeDashoffset={dashOffset}
-                style={{ transition: 'stroke-dashoffset 0.3s ease' }}
-              />
-            </svg>
-            <button
-              onClick={handleTap}
-              className="rounded-full flex flex-col items-center justify-center active:scale-95 transition-transform"
-              style={{
-                width: 240, height: 240,
-                background: `color-mix(in srgb, ${theme.primary} 12%, transparent)`,
-                border: `2px solid ${theme.primary}`,
-              }}
-            >
-              <p className="text-6xl font-bold text-primary">{toFaDigits(session.count)}</p>
-              <p className="text-muted text-xs mt-2">از {toFaDigits(session.target)}</p>
-            </button>
-          </div>
-
-          <div className="flex items-center gap-8 mb-6">
-            <div className="text-center">
-              <p className="text-3xl font-bold text-accent">{toFaDigits(session.completed)}</p>
-              <p className="text-muted text-xs mt-1">دور کامل</p>
+              <button type="button" onClick={() => setShowPicker(true)} className="flex-1 py-3 rounded-2xl text-sm font-bold flex items-center justify-center gap-2" style={{ background: `color-mix(in srgb, ${theme.accent} 10%, transparent)`, color: theme.accent }}>
+                <ListRestart size={17} /> انتخاب ذکر
+              </button>
             </div>
-          </div>
-
-          <div className="flex gap-3">
-            <button
-              onClick={reset}
-              className="px-5 py-2.5 rounded-2xl text-sm font-medium flex items-center gap-2"
-              style={{ background: `color-mix(in srgb, ${theme.primary} 10%, transparent)`, color: theme.primary }}
-            >
-              <RotateCcw size={16} /> صفر
-            </button>
-            <button
-              onClick={() => { clear(); setShowPicker(true); }}
-              className="px-5 py-2.5 rounded-2xl text-sm font-medium flex items-center gap-2"
-              style={{ background: `color-mix(in srgb, ${theme.primary} 10%, transparent)`, color: theme.primary }}
-            >
-              <X size={16} /> تغییر ذکر
-            </button>
-          </div>
-
-          {session.completed > 0 && (
-            <div
-              className="mt-6 px-5 py-3 rounded-2xl flex items-center gap-2 animate-slide-up"
-              style={{ background: `color-mix(in srgb, ${theme.primary} 10%, transparent)` }}
-            >
-              <Check size={18} color={theme.primary} />
-              <p className="text-sm text-primary font-medium">
-                {toFaDigits(session.completed)} دور کامل شد!
-              </p>
-            </div>
-          )}
-        </>
-      )}
+            <p className="text-muted text-center text-xs mt-4">شمارش به‌صورت خودکار روی همین گوشی ذخیره می‌شود.</p>
+          </>
+        )}
+      </div>
     </div>
   );
 }
