@@ -13,9 +13,9 @@ const GUEST_NOTIF_KEY = 'noor_guest_notif_enabled';
 
 function getGuestNotifEnabled(): boolean {
   try {
-    return localStorage.getItem(GUEST_NOTIF_KEY) !== 'false';
+    return localStorage.getItem(GUEST_NOTIF_KEY) === 'true';
   } catch {
-    return true;
+    return false;
   }
 }
 
@@ -34,15 +34,32 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   const [guestCityId, setGuestCityIdState] = useState(getGuestCityId());
   const [guestNotif, setGuestNotif] = useState(getGuestNotifEnabled());
   const [notifSupported, setNotifSupported] = useState(true);
+  const [notifMessage, setNotifMessage] = useState<string | null>(null);
 
   useEffect(() => {
     setNotifSupported(Capacitor.isNativePlatform());
-  }, []);
+    if (Capacitor.isNativePlatform()) {
+      void checkPermission().then((permission) => {
+        if (permission !== 'granted' && (profile?.notif_enabled ?? getGuestNotifEnabled())) {
+          setNotifMessage('اعلان‌ها روشن‌اند، اما اجازهٔ اندروید هنوز داده نشده است. برای فعال‌کردن واقعی، دکمهٔ اجازه را بزن.');
+        }
+      });
+    }
+  }, [profile?.notif_enabled]);
 
   const notifEnabled = profile?.notif_enabled ?? guestNotif;
 
   const toggleNotifications = async () => {
+    setNotifMessage(null);
     const next = !notifEnabled;
+    if (next && Capacitor.isNativePlatform()) {
+      let permission = await checkPermission();
+      if (permission !== 'granted') permission = await requestPermission();
+      if (permission !== 'granted') {
+        setNotifMessage('مجوز اعلان داده نشد؛ یادآوری‌ها هنوز ارسال نمی‌شوند. از تنظیمات گوشی، اعلان‌های نور را مجاز کن.');
+        return;
+      }
+    }
     if (profile) {
       await updateProfile({ notif_enabled: next });
     } else {
@@ -50,15 +67,23 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
       setGuestNotif(next);
     }
     if (next) {
-      if (Capacitor.isNativePlatform()) {
-        const perm = await checkPermission();
-        if (perm !== 'granted') {
-          await requestPermission();
-        }
-        await rescheduleAllReminders(true);
-      }
+      const result = await rescheduleAllReminders(true);
+      if (result.failed > 0) setNotifMessage(`مجوز فعال است، اما ${result.failed} یادآوری زمان‌بندی نشد. وارد بخش یادآوری‌ها شو و زمان‌ها را بررسی کن.`);
+      else setNotifMessage('مجوز اعلان فعال شد. توجه: این تنظیم، به‌تنهایی پخش فایل صوتی اذان را تضمین نمی‌کند.');
     } else {
       await cancelAllScheduledNotifications();
+      setNotifMessage('اعلان‌های یادآوری خاموش شدند.');
+    }
+  };
+
+  const requestNotificationAccess = async () => {
+    const permission = await requestPermission();
+    if (permission === 'granted') {
+      setNotifMessage('اجازهٔ اعلان داده شد. اکنون اعلان‌های زمان‌بندی‌شده را بررسی می‌کنم.');
+      const result = await rescheduleAllReminders(notifEnabled);
+      if (result.failed > 0) setNotifMessage(`اجازه داده شد، ولی ${result.failed} یادآوری زمان‌بندی نشد.`);
+    } else {
+      setNotifMessage('اندروید اجازه را نداد. از تنظیمات گوشی ← برنامه‌ها ← نور ← اعلان‌ها آن را فعال کن.');
     }
   };
 
@@ -294,6 +319,16 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
               <p className="text-muted text-xs leading-relaxed">
                 اعلان زمان‌بندی‌شده فقط در نسخه اندروید کار می‌کند. در مرورگر، یادآوری‌ها فقط وقتی برنامه باز است نمایش داده می‌شوند.
               </p>
+            </div>
+          )}
+          {notifMessage && (
+            <div className="mt-3 p-3 rounded-xl" style={{ background: `color-mix(in srgb, ${theme.accent} 10%, transparent)`, border: `1px solid ${theme.border}` }}>
+              <p className="text-muted text-xs leading-relaxed">{notifMessage}</p>
+              {notifSupported && (
+                <button type="button" onClick={requestNotificationAccess} className="mt-2 text-sm font-bold" style={{ color: theme.primary }}>
+                  بررسی / درخواست اجازهٔ اعلان
+                </button>
+              )}
             </div>
           )}
         </div>
