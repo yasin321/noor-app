@@ -14,7 +14,7 @@ import {
   getDayLabel,
   type LocalReminder,
 } from '@/lib/reminderService';
-import { dhikrLibrary } from '@/lib/dhikrLibrary';
+import { getAllDhikr } from '@/lib/dhikrLibrary';
 
 const ALL_DAYS = [0, 1, 2, 3, 4, 5, 6];
 
@@ -37,6 +37,7 @@ export function RemindersScreen() {
   const [refreshKey, setRefreshKey] = useState(0);
 
   const notifEnabled = profile?.notif_enabled ?? getGuestNotifEnabled();
+  const dhikrItems = getAllDhikr();
 
   useEffect(() => {
     setNotifSupported(Capacitor.isNativePlatform());
@@ -311,7 +312,7 @@ function AddReminderModal({ notifEnabled, onClose, onCreated }: { notifEnabled: 
               style={{ borderColor: theme.border, background: `color-mix(in srgb, ${theme.bg} 50%, transparent)` }}
             >
               <option value="">بدون ذکر</option>
-              {dhikrLibrary.map((d) => (
+              {dhikrItems.map((d) => (
                 <option key={d.id} value={d.id}>{d.translit}</option>
               ))}
             </select>
