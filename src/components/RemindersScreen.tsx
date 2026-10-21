@@ -37,7 +37,6 @@ export function RemindersScreen() {
   const [refreshKey, setRefreshKey] = useState(0);
 
   const notifEnabled = profile?.notif_enabled ?? getGuestNotifEnabled();
-  const dhikrItems = getAllDhikr();
 
   useEffect(() => {
     setNotifSupported(Capacitor.isNativePlatform());
@@ -164,6 +163,7 @@ export function RemindersScreen() {
 
 function AddReminderModal({ notifEnabled, onClose, onCreated }: { notifEnabled: boolean; onClose: () => void; onCreated: () => void }) {
   const { theme } = useTheme();
+  const dhikrItems = getAllDhikr();
   const [title, setTitle] = useState('');
   const [time, setTime] = useState('08:00');
   const [type, setType] = useState<'recurring' | 'once'>('recurring');
