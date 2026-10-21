@@ -18,19 +18,23 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
     setError(null);
     setLoading(true);
 
-    if (mode === 'signup') {
-      if (!displayName.trim()) {
-        setError('نام نمایشی را وارد کنید');
-        setLoading(false);
-        return;
+    try {
+      if (mode === 'signup') {
+        if (!displayName.trim()) {
+          setError('نام نمایشی را وارد کنید');
+          return;
+        }
+        const { error: err } = await signUp(email, password, displayName.trim());
+        if (err) setError(translateError(err));
+      } else {
+        const { error: err } = await signIn(email, password);
+        if (err) setError(translateError(err));
       }
-      const { error: err } = await signUp(email, password, displayName.trim());
-      if (err) setError(translateError(err));
-    } else {
-      const { error: err } = await signIn(email, password);
-      if (err) setError(translateError(err));
+    } catch {
+      setError('ارتباط برقرار نشد. اتصال اینترنت را بررسی کنید و دوباره تلاش کنید.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
