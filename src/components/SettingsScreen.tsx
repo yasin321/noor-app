@@ -10,6 +10,11 @@ import { cancelAllScheduledNotifications, rescheduleAllReminders, checkPermissio
 import { getAvailableMethods } from '@/lib/prayerTimes';
 
 const GUEST_NOTIF_KEY = 'noor_guest_notif_enabled';
+const GUEST_ADHAN_KEY = 'noor_guest_adhan_id';
+
+function getGuestAdhanId(): string {
+  try { return localStorage.getItem(GUEST_ADHAN_KEY) || 'default'; } catch { return 'default'; }
+}
 
 function getGuestNotifEnabled(): boolean {
   try {
@@ -33,6 +38,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   const [section, setSection] = useState<'main' | 'theme' | 'adhan' | 'city' | 'method'>('main');
   const [guestCityId, setGuestCityIdState] = useState(getGuestCityId());
   const [guestNotif, setGuestNotif] = useState(getGuestNotifEnabled());
+  const [guestAdhanId, setGuestAdhanId] = useState(getGuestAdhanId());
   const [notifSupported, setNotifSupported] = useState(true);
   const [notifMessage, setNotifMessage] = useState<string | null>(null);
 
@@ -112,6 +118,9 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   const applyAdhan = async (id: string) => {
     if (profile) {
       await updateProfile({ adhan_id: id });
+    } else {
+      try { localStorage.setItem(GUEST_ADHAN_KEY, id); } catch { /* ignore unavailable storage */ }
+      setGuestAdhanId(id);
     }
   };
 
@@ -239,13 +248,13 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
               key={a.id}
               onClick={() => applyAdhan(a.id)}
               className="w-full card-flat p-4 flex items-center justify-between"
-              style={{ borderColor: profile?.adhan_id === a.id ? theme.primary : theme.border }}
+              style={{ borderColor: (profile?.adhan_id ?? guestAdhanId) === a.id ? theme.primary : theme.border }}
             >
               <div>
                 <p className="text-app font-medium text-sm">{a.nameFa}</p>
                 <p className="text-muted text-xs">{a.reciter}</p>
               </div>
-              {profile?.adhan_id === a.id && (
+              {(profile?.adhan_id ?? guestAdhanId) === a.id && (
                 <Check size={18} color={theme.primary} />
               )}
             </button>
