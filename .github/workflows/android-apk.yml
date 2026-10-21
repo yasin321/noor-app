@@ -1,4 +1,4 @@
-name: Android debug APK
+name: Android debug APK and emulator smoke test
 
 on:
   pull_request:
@@ -46,7 +46,38 @@ jobs:
 
       - name: Build debug APK
         working-directory: android
-        run: ./gradlew assembleDebug --stacktrace
+        run: bash ./gradlew assembleDebug --stacktrace
+
+      - name: Install and launch APK in Android emulator
+        uses: ReactiveCircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          script: |
+            adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+            adb shell am force-stop com.noor.app
+            adb shell monkey -p com.noor.app 1
+            sleep 25
+            adb shell pidof com.noor.app
+            adb logcat -d > /tmp/noor-logcat.txt
+            adb exec-out screencap -p > /tmp/noor-emulator.png
+            if grep -E 'supabaseUrl is required|FATAL EXCEPTION.*com\.noor\.app|Process: com\.noor\.app.*died' /tmp/noor-logcat.txt; then
+              echo "App startup/runtime error detected in emulator logs"
+              exit 1
+            fi
+
+      - name: Upload emulator smoke-test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: noor-emulator-smoke-test
+          path: |
+            /tmp/noor-emulator.png
+            /tmp/noor-logcat.txt
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
