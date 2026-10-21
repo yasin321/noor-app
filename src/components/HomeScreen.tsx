@@ -139,24 +139,41 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
         </button>
       )}
 
-      <div className="card p-5 mb-4 animate-slide-up" style={{ boxShadow: `0 0 16px ${theme.primaryGlow}` }}>
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <p className="text-muted text-xs mb-1">نماز بعدی</p>
-            <h2 className="text-2xl font-bold text-primary">{next?.nameFa ?? '—'}</h2>
+      <section
+        className="relative overflow-hidden rounded-[1.7rem] p-5 mb-4 animate-slide-up"
+        aria-label="نماز بعدی"
+        style={{
+          background: `radial-gradient(circle at 90% 8%, color-mix(in srgb, ${theme.accent} 20%, transparent), transparent 38%), linear-gradient(145deg, ${theme.surfaceAlt ?? theme.surface}, ${theme.surface} 68%, ${theme.bg})`,
+          border: `1px solid color-mix(in srgb, ${theme.primary} 28%, ${theme.border})`,
+          boxShadow: `0 14px 34px color-mix(in srgb, ${theme.primary} 10%, transparent)`,
+        }}
+      >
+        <div className="absolute -left-5 -top-7 w-28 h-28 rounded-full pointer-events-none" style={{ border: `1px solid color-mix(in srgb, ${theme.accent} 14%, transparent)` }} />
+        <div className="absolute -left-1 top-2 w-20 h-20 rounded-full pointer-events-none" style={{ border: `1px solid color-mix(in srgb, ${theme.accent} 10%, transparent)` }} />
+        <div className="relative flex items-center justify-between gap-3 mb-5">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: theme.accent }} />
+              <p className="text-muted text-xs font-medium">قرار بعدی با آرامش</p>
+            </div>
+            <h2 className="text-3xl font-extrabold tracking-tight text-primary">{next?.nameFa ?? '—'}</h2>
+            <p className="text-muted text-xs mt-1">تا وقت نماز بعدی</p>
           </div>
-          <div className="text-left">
-            <p className="text-muted text-xs mb-1">زمان</p>
-            <p className="text-lg font-bold text-app" dir="ltr">{next?.time ?? '--:--'}</p>
+          <div className="w-[76px] h-[76px] rounded-[1.5rem] flex items-center justify-center flex-shrink-0" style={{ background: `color-mix(in srgb, ${theme.primary} 12%, transparent)`, border: `1px solid color-mix(in srgb, ${theme.primary} 20%, transparent)` }}>
+            <Moon size={34} strokeWidth={1.4} color={theme.accent} />
           </div>
         </div>
-        <div className="flex items-center gap-2 pt-3" style={{ borderTop: `1px solid ${theme.border}` }}>
-          <Clock size={15} color={theme.accent} />
-          <p className="text-accent text-sm font-medium">
-            {next?.remaining ? `مانده: ${next.remaining}` : ''}
-          </p>
+        <div className="relative flex items-center justify-between gap-3 rounded-2xl px-4 py-3" style={{ background: 'color-mix(in srgb, black 12%, transparent)', border: `1px solid color-mix(in srgb, ${theme.border} 75%, transparent)` }}>
+          <div className="flex items-center gap-2 min-w-0">
+            <Clock size={16} color={theme.accent} />
+            <p className="text-accent text-sm font-semibold truncate">{next?.remaining ? `مانده: ${next.remaining}` : 'در حال محاسبه…'}</p>
+          </div>
+          <div className="text-left flex-shrink-0">
+            <p className="text-muted text-[10px] mb-0.5">ساعت اذان</p>
+            <p className="text-lg font-bold text-app tabular-nums" dir="ltr">{next?.time ?? '--:--'}</p>
+          </div>
         </div>
-      </div>
+      </section>
 
       <div className="card-flat p-4 mb-4 flex items-center justify-between">
         <div>
