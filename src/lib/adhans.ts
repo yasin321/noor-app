@@ -3,6 +3,7 @@ export type Adhan = {
   name: string;
   nameFa: string;
   reciter: string;
+  audioUrl?: string;
 };
 
 export const adhans: Adhan[] = [
