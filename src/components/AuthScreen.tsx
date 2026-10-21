@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { Moon, Mail, Lock, User, AlertCircle } from 'lucide-react';
+import { Moon, Mail, Lock, User, AlertCircle, ArrowRight } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
 
-export function AuthScreen() {
+export function AuthScreen({ onBack }: { onBack?: () => void }) {
   const { theme } = useTheme();
   const { signIn, signUp } = useAuth();
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
@@ -36,6 +36,15 @@ export function AuthScreen() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-6 animate-fade-in">
       <div className="w-full max-w-sm">
+        {onBack && (
+          <button
+            type="button"
+            onClick={onBack}
+            className="flex items-center gap-2 text-sm text-muted mb-5"
+          >
+            <ArrowRight size={18} /> بازگشت به برنامه
+          </button>
+        )}
         <div className="flex flex-col items-center mb-8">
           <div
             className="w-20 h-20 rounded-3xl flex items-center justify-center mb-4"
