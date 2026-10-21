@@ -3,7 +3,7 @@ import { RotateCcw, Check, Sparkles, Heart, ListRestart } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
 import { useTasbih } from '@/hooks/useTasbih';
-import { dhikrLibrary } from '@/lib/dhikrLibrary';
+import { getAllDhikr, addCustomDhikr } from '@/lib/dhikrLibrary';
 import { toFaDigits } from '@/lib/jalali';
 
 export function TasbihCounter() {
@@ -12,12 +12,18 @@ export function TasbihCounter() {
   const { session, start, increment, reset, clear } = useTasbih(user?.id ?? null);
   const [showPicker, setShowPicker] = useState(!session.dhikrId);
   const [selectedDhikr, setSelectedDhikr] = useState(
-    dhikrLibrary.find((d) => d.id === session.dhikrId) ?? dhikrLibrary[0]
+    getAllDhikr().find((d) => d.id === session.dhikrId) ?? getAllDhikr()[0]
   );
   const [tapPulse, setTapPulse] = useState(false);
+  const [showAddDhikr, setShowAddDhikr] = useState(false);
+  const [customArabic, setCustomArabic] = useState('');
+  const [customTranslation, setCustomTranslation] = useState('');
+  const [customCount, setCustomCount] = useState('33');
+  const [customError, setCustomError] = useState<string | null>(null);
+  const dhikrItems = getAllDhikr();
 
   useEffect(() => {
-    const current = dhikrLibrary.find((d) => d.id === session.dhikrId);
+    const current = getAllDhikr().find((d) => d.id === session.dhikrId);
     if (current) setSelectedDhikr(current);
   }, [session.dhikrId]);
 
@@ -33,7 +39,7 @@ export function TasbihCounter() {
   };
 
   const handleSelectDhikr = (dhikrId: string) => {
-    const d = dhikrLibrary.find((item) => item.id === dhikrId);
+    const d = getAllDhikr().find((item) => item.id === dhikrId);
     if (!d) return;
     setSelectedDhikr(d);
     start(d.id, d.count);
@@ -65,7 +71,7 @@ export function TasbihCounter() {
               <p className="text-muted text-sm mt-1">هر بار لمس، یک قدم به آرامش نزدیک‌تر</p>
             </div>
             <div className="space-y-2">
-              {dhikrLibrary.map((d) => (
+              {dhikrItems.map((d) => (
                 <button
                   key={d.id}
                   type="button"
@@ -85,6 +91,48 @@ export function TasbihCounter() {
                 </button>
               ))}
             </div>
+            <button
+              type="button"
+              onClick={() => { setShowAddDhikr((v) => !v); setCustomError(null); }}
+              className="w-full mt-3 py-3 rounded-2xl text-sm font-bold"
+              style={{ background: `color-mix(in srgb, ${theme.primary} 12%, transparent)`, color: theme.primary }}
+            >
+              {showAddDhikr ? 'بستن فرم ذکر جدید' : '+ افزودن ذکر دلخواه'}
+            </button>
+            {showAddDhikr && (
+              <div className="card-flat p-4 mt-3 space-y-3">
+                <label className="block text-xs text-muted">متن ذکر</label>
+                <textarea value={customArabic} onChange={(e) => setCustomArabic(e.target.value)} placeholder="متن ذکر را بنویس..." className="w-full px-3 py-3 rounded-xl text-app text-base border outline-none" style={{ borderColor: theme.border, background: theme.bg }} rows={2} />
+                <label className="block text-xs text-muted">ترجمه یا توضیح (اختیاری)</label>
+                <input value={customTranslation} onChange={(e) => setCustomTranslation(e.target.value)} placeholder="معنی ذکر" className="w-full px-3 py-3 rounded-xl text-app text-sm border outline-none" style={{ borderColor: theme.border, background: theme.bg }} />
+                <label className="block text-xs text-muted">تعداد هدف</label>
+                <input type="number" min="1" max="100000" value={customCount} onChange={(e) => setCustomCount(e.target.value)} className="w-full px-3 py-3 rounded-xl text-app text-sm border outline-none" style={{ borderColor: theme.border, background: theme.bg }} dir="ltr" />
+                {customError && <p className="text-xs" style={{ color: '#fca5a5' }}>{customError}</p>}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const count = Number(customCount);
+                    if (!customArabic.trim()) { setCustomError('متن ذکر را وارد کن.'); return; }
+                    if (!Number.isInteger(count) || count < 1 || count > 100000) { setCustomError('تعداد باید عددی بین ۱ تا ۱۰۰۰۰۰ باشد.'); return; }
+                    try {
+                      const item = addCustomDhikr({ arabic: customArabic, translation: customTranslation, count });
+                      setSelectedDhikr(item);
+                      start(item.id, item.count);
+                      setShowPicker(false);
+                      setShowAddDhikr(false);
+                      setCustomArabic('');
+                      setCustomTranslation('');
+                      setCustomCount('33');
+                      setCustomError(null);
+                    } catch (e) { setCustomError(e instanceof Error ? e.message : 'ذکر ذخیره نشد.'); }
+                  }}
+                  className="w-full py-3 rounded-xl text-sm font-bold"
+                  style={{ background: theme.primary, color: theme.bg }}
+                >
+                  ذخیره و شروع ذکر
+                </button>
+              </div>
+            )}
           </section>
         ) : (
           <>
