@@ -79,8 +79,13 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   const requestNotificationAccess = async () => {
     const permission = await requestPermission();
     if (permission === 'granted') {
+      if (profile) await updateProfile({ notif_enabled: true });
+      else {
+        setGuestNotifEnabled(true);
+        setGuestNotif(true);
+      }
       setNotifMessage('اجازهٔ اعلان داده شد. اکنون اعلان‌های زمان‌بندی‌شده را بررسی می‌کنم.');
-      const result = await rescheduleAllReminders(notifEnabled);
+      const result = await rescheduleAllReminders(true);
       if (result.failed > 0) setNotifMessage(`اجازه داده شد، ولی ${result.failed} یادآوری زمان‌بندی نشد.`);
     } else {
       setNotifMessage('اندروید اجازه را نداد. از تنظیمات گوشی ← برنامه‌ها ← نور ← اعلان‌ها آن را فعال کن.');
