@@ -69,7 +69,6 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
     if (next) {
       await rescheduleAllReminders(true);
       setNotifMessage('مجوز اعلان فعال شد و یادآوری‌ها دوباره زمان‌بندی شدند. توجه: این تنظیم به‌تنهایی پخش فایل صوتی اذان را تضمین نمی‌کند.');
-      else setNotifMessage('مجوز اعلان فعال شد. توجه: این تنظیم، به‌تنهایی پخش فایل صوتی اذان را تضمین نمی‌کند.');
     } else {
       await cancelAllScheduledNotifications();
       setNotifMessage('اعلان‌های یادآوری خاموش شدند.');
