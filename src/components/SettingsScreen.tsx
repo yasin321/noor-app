@@ -67,8 +67,8 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
       setGuestNotif(next);
     }
     if (next) {
-      const result = await rescheduleAllReminders(true);
-      if (result.failed > 0) setNotifMessage(`مجوز فعال است، اما ${result.failed} یادآوری زمان‌بندی نشد. وارد بخش یادآوری‌ها شو و زمان‌ها را بررسی کن.`);
+      await rescheduleAllReminders(true);
+      setNotifMessage('مجوز اعلان فعال شد و یادآوری‌ها دوباره زمان‌بندی شدند. توجه: این تنظیم به‌تنهایی پخش فایل صوتی اذان را تضمین نمی‌کند.');
       else setNotifMessage('مجوز اعلان فعال شد. توجه: این تنظیم، به‌تنهایی پخش فایل صوتی اذان را تضمین نمی‌کند.');
     } else {
       await cancelAllScheduledNotifications();
@@ -85,8 +85,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
         setGuestNotif(true);
       }
       setNotifMessage('اجازهٔ اعلان داده شد. اکنون اعلان‌های زمان‌بندی‌شده را بررسی می‌کنم.');
-      const result = await rescheduleAllReminders(true);
-      if (result.failed > 0) setNotifMessage(`اجازه داده شد، ولی ${result.failed} یادآوری زمان‌بندی نشد.`);
+      await rescheduleAllReminders(true);
     } else {
       setNotifMessage('اندروید اجازه را نداد. از تنظیمات گوشی ← برنامه‌ها ← نور ← اعلان‌ها آن را فعال کن.');
     }
