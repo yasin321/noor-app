@@ -72,10 +72,7 @@ jobs:
             test -n "$(adb shell pidof com.noor.app)" || { echo "Noor process is not running after launch"; exit 1; }
             adb logcat -d > /tmp/noor-logcat.txt
             adb exec-out screencap -p > /tmp/noor-emulator.png
-            if grep -E 'supabaseUrl is required|FATAL EXCEPTION.*com\.noor\.app|Process: com\.noor\.app.*died' /tmp/noor-logcat.txt; then
-              echo "App startup/runtime error detected in emulator logs"
-              exit 1
-            fi
+            grep -E 'supabaseUrl is required|FATAL EXCEPTION.*com\\.noor\\.app|Process: com\\.noor\\.app.*died' /tmp/noor-logcat.txt && { echo "App startup/runtime error detected in emulator logs"; exit 1; } || true
 
       - name: Upload emulator smoke-test evidence
         if: always()
