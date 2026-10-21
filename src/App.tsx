@@ -44,7 +44,7 @@ function AppContent() {
   }
 
   if (showAuth && !user) {
-    return <AuthScreen />;
+    return <AuthScreen onBack={() => setShowAuth(false)} />;
   }
 
   return (
