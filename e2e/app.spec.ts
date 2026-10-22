@@ -1,6 +1,11 @@
 import { test, expect, type Page } from '@playwright/test';
 
 async function expectNoHorizontalOverflow(page: Page) {
+  // Wait for the short screen-transition animation to finish so its temporary
+  // translateX does not look like a real layout overflow.
+  await page.locator('.page-transition').evaluate(async element => {
+    await Promise.all(element.getAnimations().map(animation => animation.finished.catch(() => undefined)));
+  });
   const dimensions = await page.evaluate(() => ({
     viewport: document.documentElement.clientWidth,
     document: document.documentElement.scrollWidth,
