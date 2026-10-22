@@ -14,7 +14,7 @@ import { getGuestCityId } from '@/lib/cities';
 
 function getGuestNotifEnabled(): boolean {
   try {
-    return localStorage.getItem('noor_guest_notif_enabled') !== 'false';
+    return localStorage.getItem('noor_guest_notif_enabled') === 'true';
   } catch {
     return true;
   }
