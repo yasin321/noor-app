@@ -6,11 +6,32 @@ async function expectNoHorizontalOverflow(page: Page) {
   await page.locator('.page-transition').evaluate(async element => {
     await Promise.all(element.getAnimations().map(animation => animation.finished.catch(() => undefined)));
   });
-  const dimensions = await page.evaluate(() => ({
-    viewport: document.documentElement.clientWidth,
-    document: document.documentElement.scrollWidth,
-    body: document.body.scrollWidth,
-  }));
+  const dimensions = await page.evaluate(() => {
+    const viewport = document.documentElement.clientWidth;
+    const offenders = [...document.querySelectorAll('body *')].map(element => {
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      return {
+        tag: element.tagName.toLowerCase(),
+        className: typeof element.className === 'string' ? element.className : '',
+        text: (element.textContent || '').trim().slice(0, 45),
+        left: Math.round(rect.left * 10) / 10,
+        right: Math.round(rect.right * 10) / 10,
+        width: Math.round(rect.width * 10) / 10,
+        position: style.position,
+        transform: style.transform,
+        overflowX: style.overflowX,
+      };
+    }).filter(element => element.right > viewport + 1 || element.left < -1)
+      .sort((a, b) => b.right - a.right)
+      .slice(0, 12);
+    return {
+      viewport,
+      document: document.documentElement.scrollWidth,
+      body: document.body.scrollWidth,
+      offenders,
+    };
+  });
   expect(dimensions.document, `document overflow: ${JSON.stringify(dimensions)}`).toBeLessThanOrEqual(dimensions.viewport + 1);
   expect(dimensions.body, `body overflow: ${JSON.stringify(dimensions)}`).toBeLessThanOrEqual(dimensions.viewport + 1);
 }
