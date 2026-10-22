@@ -335,7 +335,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
             <Volume2 size={20} color={theme.primary} />
             <span className="text-app font-medium text-sm">صدای اذان</span>
           </div>
-          <span className="text-muted text-xs">{adhans.find((a) => a.id === profile?.adhan_id)?.nameFa}</span>
+          <span className="text-muted text-xs">{adhans.find((a) => a.id === (profile?.adhan_id ?? guestAdhanId))?.nameFa}</span>
         </button>
 
         <div className="card-flat p-4">
