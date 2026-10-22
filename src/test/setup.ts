@@ -32,6 +32,8 @@ vi.mock('@capacitor/local-notifications', () => ({
     cancel: vi.fn().mockResolvedValue({}),
     createChannel: vi.fn().mockResolvedValue({}),
     getPending: vi.fn().mockResolvedValue({ notifications: [] }),
+    checkExactNotificationSetting: vi.fn().mockResolvedValue({ exact_alarm: 'granted' }),
+    changeExactNotificationSetting: vi.fn().mockResolvedValue({ exact_alarm: 'granted' }),
   },
 }));
 
