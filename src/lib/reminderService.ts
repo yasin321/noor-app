@@ -177,6 +177,21 @@ export async function scheduleReminder(reminder: LocalReminder, notifEnabled: bo
     return { success: false, error: 'اجازه اعلان داده نشده است' };
   }
 
+  try {
+    const { exact_alarm } = await LocalNotifications.checkExactNotificationSetting();
+    if (exact_alarm !== 'granted') {
+      return {
+        success: false,
+        error: 'اجازه آلارم‌ها و یادآوری‌ها داده نشده است؛ دسترسی آلارم دقیق اندروید را بررسی کن.',
+      };
+    }
+  } catch {
+    return {
+      success: false,
+      error: 'وضعیت اجازه آلارم دقیق قابل بررسی نیست؛ تنظیمات اعلان اندروید را بررسی کن.',
+    };
+  }
+
   await ensureChannel();
 
   const dhikr = reminder.dhikrId ? getDhikr(reminder.dhikrId) : null;
@@ -356,7 +371,7 @@ export async function rescheduleAll(notifEnabled: boolean = true): Promise<{ tot
     else failed++;
   }
 
-  return { total: all.length, succeeded, failed };
+  return { total: all.filter((reminder) => reminder.enabled).length, succeeded, failed };
 }
 
 export async function getPendingNotifications(): Promise<number[]> {
