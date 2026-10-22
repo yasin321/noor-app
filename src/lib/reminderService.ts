@@ -374,9 +374,13 @@ export async function cancelAllScheduledNotifications(): Promise<void> {
   }
 }
 
-export async function rescheduleAllReminders(notifEnabled: boolean = true): Promise<void> {
-  await rescheduleAll(notifEnabled);
+
+export async function rescheduleAllReminders(
+  notifEnabled: boolean = true
+): Promise<{ total: number; succeeded: number; failed: number }> {
+  return rescheduleAll(notifEnabled);
 }
+
 
 export type { LocalReminder };
 export { DAY_NAMES_FA, ROLLING_HORIZON_DAYS };
