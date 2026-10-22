@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Palette, Volume2, Bell, LogOut, User, Check, LogIn, MapPin, AlertCircle } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
@@ -58,14 +59,17 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   const toggleNotifications = async () => {
     setNotifMessage(null);
     const next = !notifEnabled;
+
     if (next && Capacitor.isNativePlatform()) {
       let permission = await checkPermission();
       if (permission !== 'granted') permission = await requestPermission();
+
       if (permission !== 'granted') {
         setNotifMessage('مجوز اعلان داده نشد؛ یادآوری‌ها هنوز ارسال نمی‌شوند. از تنظیمات گوشی، اعلان‌های نور را مجاز کن.');
         return;
       }
     }
+
     if (profile) {
       await updateProfile({ notif_enabled: next });
     } else {
@@ -73,32 +77,46 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
       setGuestNotif(next);
     }
 
-if (next) {
-  const result = await rescheduleAllReminders(true);
+    if (next) {
+      const result = await rescheduleAllReminders(true);
 
-  if (result.failed > 0) {
-    setNotifMessage(
-      `اجازهٔ اعلان فعال شد؛ از ${result.total} یادآوری ذخیره‌شده، ${result.succeeded} مورد زمان‌بندی شد و ${result.failed} مورد ناموفق بود. مجوز آلارم دقیق و تنظیمات اعلان گوشی را بررسی کن. این تنظیم به‌تنهایی پخش فایل صوتی اذان را تضمین نمی‌کند.`
-    );
-  } else {
-    setNotifMessage(
-      `اجازهٔ اعلان فعال شد؛ ${result.succeeded} یادآوری دوباره زمان‌بندی شد. توجه: این تنظیم به‌تنهایی پخش فایل صوتی اذان را تضمین نمی‌کند.`
-    );
-  }
-} else {
-
+      if (result.failed > 0) {
+        setNotifMessage(
+          `از ${result.total} یادآوری ذخیره‌شده، ${result.succeeded} مورد زمان‌بندی شد و ${result.failed} مورد ناموفق بود. تنظیمات اعلان و آلارم دقیق گوشی را بررسی کن.`
+        );
+      } else {
+        setNotifMessage(
+          `${result.succeeded} یادآوری دوباره زمان‌بندی شد. توجه: این تنظیم به‌تنهایی پخش فایل صوتی اذان را تضمین نمی‌کند.`
+        );
+      }
+    } else {
+      await cancelAllScheduledNotifications();
+      setNotifMessage('اعلان‌های یادآوری خاموش شدند.');
+    }
   };
 
   const requestNotificationAccess = async () => {
     const permission = await requestPermission();
+
     if (permission === 'granted') {
-      if (profile) await updateProfile({ notif_enabled: true });
-      else {
+      if (profile) {
+        await updateProfile({ notif_enabled: true });
+      } else {
         setGuestNotifEnabled(true);
         setGuestNotif(true);
       }
-      setNotifMessage('اجازهٔ اعلان داده شد. اکنون اعلان‌های زمان‌بندی‌شده را بررسی می‌کنم.');
-      await rescheduleAllReminders(true);
+
+      const result = await rescheduleAllReminders(true);
+
+      if (result.failed > 0) {
+        setNotifMessage(
+          `اجازهٔ اعلان داده شد؛ ${result.succeeded} یادآوری زمان‌بندی شد و ${result.failed} مورد ناموفق بود. تنظیمات اعلان و آلارم دقیق اندروید را بررسی کن.`
+        );
+      } else {
+        setNotifMessage(
+          `اجازهٔ اعلان داده شد؛ ${result.succeeded} یادآوری زمان‌بندی شد.`
+        );
+      }
     } else {
       setNotifMessage('اندروید اجازه را نداد. از تنظیمات گوشی ← برنامه‌ها ← نور ← اعلان‌ها آن را فعال کن.');
     }
@@ -176,6 +194,7 @@ if (next) {
       (acc[c.countryFa] ??= []).push(c);
       return acc;
     }, {});
+
     return (
       <div className="px-5 pt-6 pb-28 animate-fade-in">
         <div className="flex items-center gap-3 mb-5">
