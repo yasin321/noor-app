@@ -9,8 +9,8 @@ describe('reminderService scheduling', () => {
     vi.mocked(LocalNotifications.checkPermissions).mockResolvedValue({ display: 'granted' });
     vi.mocked(LocalNotifications.checkExactNotificationSetting).mockResolvedValue({ exact_alarm: 'granted' });
     vi.mocked(LocalNotifications.schedule).mockResolvedValue({ notifications: [] });
-    vi.mocked(LocalNotifications.cancel).mockResolvedValue({});
-    vi.mocked(LocalNotifications.createChannel).mockResolvedValue();
+    vi.mocked(LocalNotifications.cancel).mockResolvedValue(undefined);
+    vi.mocked(LocalNotifications.createChannel).mockResolvedValue(undefined);
   });
 
   afterEach(() => {
