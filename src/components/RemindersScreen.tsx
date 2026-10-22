@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, Bell, Trash2, Calendar, Clock, Repeat, X, Check, AlertCircle, Pencil } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
+import { LocalNotifications } from '@capacitor/local-notifications';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -353,7 +354,26 @@ function AddReminderModal({ notifEnabled, onClose, onCreated, initialReminder }:
           {error && (
             <div className="flex items-start gap-2 p-3 rounded-xl" style={{ background: 'rgba(239,68,68,0.1)' }}>
               <AlertCircle size={14} color="#fca5a5" className="flex-shrink-0 mt-0.5" />
-              <p className="text-xs" style={{ color: '#fca5a5' }}>{error}</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs" style={{ color: '#fca5a5' }}>{error}</p>
+                {error.includes('آلارم‌ها و یادآوری‌ها') && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        await LocalNotifications.changeExactNotificationSetting();
+                        setError('اگر مجوز را فعال کردی، دوباره دکمه ذخیره را بزن.');
+                      } catch {
+                        setError('تنظیمات آلارم دقیق باز نشد؛ از تنظیمات اندروید، مجوز «آلارم‌ها و یادآوری‌ها» را برای نور فعال کن.');
+                      }
+                    }}
+                    className="mt-2 rounded-lg px-3 py-2 text-xs font-bold"
+                    style={{ background: 'rgba(239,68,68,0.16)', color: '#fecaca' }}
+                  >
+                    باز کردن تنظیمات آلارم دقیق
+                  </button>
+                )}
+              </div>
             </div>
           )}
 
