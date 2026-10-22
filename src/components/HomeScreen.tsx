@@ -213,12 +213,12 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
         </div>
       </section>
 
-      <div className="card-flat p-4 mb-4 flex items-center justify-between">
-        <div>
-          <p className="text-app font-semibold text-sm">{getJalaliWeekday(now)}، {toJalaliShort(now)}</p>
-          <p className="text-muted text-xs mt-0.5">{times.hijriDate}</p>
+      <div className="card-flat p-4 mb-4 flex min-w-0 items-center justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-app font-semibold text-sm truncate">{getJalaliWeekday(now)}، {toJalaliShort(now)}</p>
+          <p className="text-muted text-xs mt-0.5 truncate">{times.hijriDate}</p>
         </div>
-        <p className="text-xl font-bold text-primary" dir="ltr">{timeStr}</p>
+        <p className="text-xl font-bold text-primary flex-shrink-0" dir="ltr">{timeStr}</p>
       </div>
 
       <div className="grid grid-cols-2 gap-2.5 mb-4">
@@ -226,17 +226,17 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
           const Icon = prayerIcons[p.key] ?? Sun;
           const isNext = next?.nameFa === p.nameFa && p.key !== 'sunrise';
           return (
-            <div key={p.key} className="card-flat p-3.5 flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
+            <div key={p.key} className="card-flat min-w-0 p-2.5 flex items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2">
                 <div
-                  className="w-9 h-9 rounded-xl flex items-center justify-center"
+                  className="w-8 h-8 rounded-xl flex-shrink-0 flex items-center justify-center"
                   style={{ background: isNext ? theme.primary : `color-mix(in srgb, ${theme.primary} 10%, transparent)` }}
                 >
                   <Icon size={16} color={isNext ? theme.bg : theme.primary} />
                 </div>
-                <span className="text-app font-medium text-sm">{p.nameFa}</span>
+                <span className="text-app font-medium text-xs whitespace-nowrap">{p.nameFa}</span>
               </div>
-              <span className="text-app font-bold text-sm" dir="ltr">{p.time}</span>
+              <span className="text-app font-bold text-xs flex-shrink-0" dir="ltr">{p.time}</span>
             </div>
           );
         })}
