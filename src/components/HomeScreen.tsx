@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { MapPin, Clock, Sunrise, Sunset, Moon, Sun, CloudSun, ArrowLeft, Hand } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
-import { calculatePrayerTimes, getNextPrayer, getLocalDateString, PrayerTimes } from '@/lib/prayerTimes';
+import { calculatePrayerTimes, getNextPrayer, getLocalDateString, timeToMinutes, PrayerTimes } from '@/lib/prayerTimes';
 import { getCityById, getGuestCityId } from '@/lib/cities';
 import { getTodayTotal, getTodayRounds, getSession, fetchTodayStats } from '@/lib/tasbihStorage';
 import { toJalaliShort, getJalaliWeekday } from '@/lib/jalali';
@@ -30,7 +30,7 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
   const { theme } = useTheme();
   const { profile, user } = useAuth();
   const [times, setTimes] = useState<PrayerTimes | null>(null);
-  const [next, setNext] = useState<{ nameFa: string; time: string; remaining: string } | null>(null);
+  const [next, setNext] = useState<{ nameFa: string; time: string; remaining: string; progress: number } | null>(null);
   const [now, setNow] = useState(new Date());
   const [stats, setStats] = useState({ total: 0, rounds: 0 });
   const [hasActiveSession, setHasActiveSession] = useState(false);
@@ -73,7 +73,33 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
   useEffect(() => {
     if (times) {
       const n = getNextPrayer(times, city.timezone);
-      if (n) setNext({ nameFa: n.nameFa, time: n.time, remaining: n.remaining });
+      if (n) {
+        const ordered = [
+          { key: 'fajr', time: times.fajr },
+          { key: 'dhuhr', time: times.dhuhr },
+          { key: 'asr', time: times.asr },
+          { key: 'maghrib', time: times.maghrib },
+          { key: 'isha', time: times.isha },
+        ];
+        const index = ordered.findIndex((p) => p.key === n.key);
+        const previous = ordered[(index - 1 + ordered.length) % ordered.length];
+        const nextMinute = timeToMinutes(n.time);
+        const previousMinute = timeToMinutes(previous.time);
+        const clockParts = new Intl.DateTimeFormat('en-GB', {
+          timeZone: city.timezone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+        }).formatToParts(now);
+        const hour = Number(clockParts.find((p) => p.type === 'hour')?.value ?? 0);
+        const minute = Number(clockParts.find((p) => p.type === 'minute')?.value ?? 0);
+        const nowMinute = hour * 60 + minute;
+        let remaining = nextMinute - nowMinute;
+        if (remaining < 0) remaining += 1440;
+        let interval = nextMinute - previousMinute;
+        if (interval <= 0) interval += 1440;
+        const progress = Number.isFinite(interval) && interval > 0
+          ? Math.max(0, Math.min(100, ((interval - remaining) / interval) * 100))
+          : 0;
+        setNext({ nameFa: n.nameFa, time: n.time, remaining: n.remaining, progress });
+      }
     }
   }, [times, now, city.timezone]);
 
@@ -166,11 +192,23 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
         <div className="relative flex items-center justify-between gap-3 rounded-2xl px-4 py-3" style={{ background: 'color-mix(in srgb, black 12%, transparent)', border: `1px solid color-mix(in srgb, ${theme.border} 75%, transparent)` }}>
           <div className="flex items-center gap-2 min-w-0">
             <Clock size={16} color={theme.accent} />
-            <p className="text-accent text-sm font-semibold truncate">{next?.remaining ? `مانده: ${next.remaining}` : 'در حال محاسبه…'}</p>
+            <p className="text-accent text-sm font-semibold truncate">{next?.remaining ? `تا اذان ${next.nameFa}: ${next.remaining}` : 'در حال محاسبه…'}</p>
           </div>
           <div className="text-left flex-shrink-0">
-            <p className="text-muted text-[10px] mb-0.5">ساعت اذان</p>
+            <p className="text-muted text-[10px] mb-0.5">وقت اذان</p>
             <p className="text-lg font-bold text-app tabular-nums" dir="ltr">{next?.time ?? '--:--'}</p>
+          </div>
+        </div>
+        <div className="relative mt-3" aria-label="میزان نزدیک شدن به نماز بعدی">
+          <div className="h-2 rounded-full overflow-hidden" style={{ background: `color-mix(in srgb, ${theme.primary} 12%, transparent)` }}>
+            <div
+              className="h-full rounded-full transition-[width] duration-1000 ease-linear"
+              style={{ width: `${next?.progress ?? 0}%`, background: `linear-gradient(90deg, ${theme.primary}, ${theme.accent})` }}
+            />
+          </div>
+          <div className="flex justify-between mt-1.5 text-[10px] text-muted">
+            <span>آرام‌آرام نزدیک می‌شیم ✨</span>
+            <span>{Math.round(next?.progress ?? 0).toLocaleString('fa-IR')}٪</span>
           </div>
         </div>
       </section>
