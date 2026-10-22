@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Plus, Bell, Trash2, Calendar, Clock, Repeat, X, Check, AlertCircle } from 'lucide-react';
+import { Plus, Bell, Trash2, Calendar, Clock, Repeat, X, Check, AlertCircle, Pencil } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
 import {
   loadReminders,
   createReminder,
+  updateReminder,
   toggleReminder,
   deleteReminder,
   rescheduleAll,
@@ -33,6 +34,7 @@ export function RemindersScreen() {
   const { profile } = useAuth();
   const [reminders, setReminders] = useState<LocalReminder[]>([]);
   const [showAdd, setShowAdd] = useState(false);
+  const [editingReminder, setEditingReminder] = useState<LocalReminder | null>(null);
   const [notifSupported, setNotifSupported] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -99,15 +101,25 @@ export function RemindersScreen() {
       ) : (
         <div className="space-y-2">
           {reminders.map((r) => (
-            <div key={r.id} className="card-flat p-4">
+            <div key={r.id} className="card-flat p-4 cursor-pointer" onClick={() => setEditingReminder(r)}>
               <div className="flex items-start justify-between mb-2">
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <p className="text-app font-bold text-sm">{r.title}</p>
                   <div className="flex items-center gap-2 mt-1">
                     <Clock size={12} color={theme.textMuted} />
                     <span className="text-muted text-xs" dir="ltr">{r.time}</span>
                   </div>
                 </div>
+                <div className="flex items-center gap-2 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                <button
+                  type="button"
+                  aria-label="ویرایش یادآوری"
+                  onClick={() => setEditingReminder(r)}
+                  className="w-9 h-9 rounded-xl flex items-center justify-center"
+                  style={{ background: `color-mix(in srgb, ${theme.primary} 10%, transparent)`, color: theme.primary }}
+                >
+                  <Pencil size={16} />
+                </button>
                 <button
                   onClick={() => handleToggle(r.id)}
                   className="w-11 h-6 rounded-full transition-all relative flex-shrink-0"
@@ -118,6 +130,7 @@ export function RemindersScreen() {
                     style={{ right: r.enabled ? '2px' : '22px' }}
                   />
                 </button>
+                </div>
               </div>
               {r.type === 'recurring' && r.days.length > 0 && (
                 <div className="flex flex-wrap gap-1 mt-2">
@@ -139,7 +152,7 @@ export function RemindersScreen() {
                 </div>
               )}
               <button
-                onClick={() => handleDelete(r.id)}
+                onClick={(e) => { e.stopPropagation(); void handleDelete(r.id); }}
                 className="mt-3 flex items-center gap-1 text-xs"
                 style={{ color: '#fca5a5' }}
               >
@@ -157,19 +170,28 @@ export function RemindersScreen() {
           onCreated={() => { setShowAdd(false); refresh(); }}
         />
       )}
+
+      {editingReminder && (
+        <AddReminderModal
+          notifEnabled={notifEnabled}
+          initialReminder={editingReminder}
+          onClose={() => setEditingReminder(null)}
+          onCreated={() => { setEditingReminder(null); refresh(); }}
+        />
+      )}
     </div>
   );
 }
 
-function AddReminderModal({ notifEnabled, onClose, onCreated }: { notifEnabled: boolean; onClose: () => void; onCreated: () => void }) {
+function AddReminderModal({ notifEnabled, onClose, onCreated, initialReminder }: { notifEnabled: boolean; onClose: () => void; onCreated: () => void; initialReminder?: LocalReminder }) {
   const { theme } = useTheme();
   const dhikrItems = getAllDhikr();
-  const [title, setTitle] = useState('');
-  const [time, setTime] = useState('08:00');
-  const [type, setType] = useState<'recurring' | 'once'>('recurring');
-  const [days, setDays] = useState<number[]>([]);
-  const [date, setDate] = useState('');
-  const [dhikrId, setDhikrId] = useState<string | null>(null);
+  const [title, setTitle] = useState(initialReminder?.title ?? '');
+  const [time, setTime] = useState(initialReminder?.time ?? '08:00');
+  const [type, setType] = useState<'recurring' | 'once'>(initialReminder?.type ?? 'recurring');
+  const [days, setDays] = useState<number[]>(initialReminder?.days ?? []);
+  const [date, setDate] = useState(initialReminder?.date ?? '');
+  const [dhikrId, setDhikrId] = useState<string | null>(initialReminder?.dhikrId ?? null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -187,20 +209,30 @@ function AddReminderModal({ notifEnabled, onClose, onCreated }: { notifEnabled: 
     setLoading(true);
     setError(null);
 
-    const result = await createReminder({
-      title: title.trim(),
-      time,
-      days: type === 'recurring' ? days : [],
-      dhikrId,
-      type,
-      date: type === 'once' ? date : null,
-      notifEnabled,
-    });
+    const result = initialReminder
+      ? await updateReminder(initialReminder.id, {
+          title: title.trim(),
+          time,
+          days: type === 'recurring' ? days : [],
+          dhikrId,
+          type,
+          date: type === 'once' ? date : null,
+          enabled: true,
+        }, notifEnabled)
+      : await createReminder({
+          title: title.trim(),
+          time,
+          days: type === 'recurring' ? days : [],
+          dhikrId,
+          type,
+          date: type === 'once' ? date : null,
+          notifEnabled,
+        });
 
     setLoading(false);
 
     if (!result.schedule.success) {
-      setError(result.schedule.error ?? 'خطا در ایجاد یادآوری');
+      setError(result.schedule.error ?? 'خطا در ذخیره یادآوری');
       return;
     }
 
@@ -214,7 +246,7 @@ function AddReminderModal({ notifEnabled, onClose, onCreated }: { notifEnabled: 
         style={{ background: theme.surface }}
       >
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-xl font-bold text-app">یادآوری جدید</h2>
+          <h2 className="text-xl font-bold text-app">{initialReminder ? 'ویرایش یادآوری' : 'یادآوری جدید'}</h2>
           <button onClick={onClose} className="text-muted">
             <X size={22} />
           </button>
@@ -331,7 +363,7 @@ function AddReminderModal({ notifEnabled, onClose, onCreated }: { notifEnabled: 
             className="w-full py-3.5 rounded-2xl text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-50"
             style={{ background: theme.primary, color: theme.bg }}
           >
-            <Check size={18} /> {loading ? '...' : 'ایجاد یادآوری'}
+            <Check size={18} /> {loading ? '...' : initialReminder ? 'ذخیره تغییرات' : 'ایجاد یادآوری'}
           </button>
         </div>
       </div>
