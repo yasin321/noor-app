@@ -1,3 +1,4 @@
+
 import { LocalNotifications } from '@capacitor/local-notifications';
 import {
   LocalReminder,
@@ -162,7 +163,6 @@ export async function cancelReminder(reminderId: string): Promise<ScheduleResult
 
 export async function scheduleReminder(reminder: LocalReminder, notifEnabled: boolean = true): Promise<ScheduleResult> {
   if (!reminder.enabled) {
-    // Clear any previously scheduled occurrences when a reminder is disabled.
     await cancelReminder(reminder.id);
     return { success: true, scheduledIds: [] };
   }
@@ -175,18 +175,6 @@ export async function scheduleReminder(reminder: LocalReminder, notifEnabled: bo
   const perm = await checkPermission();
   if (perm !== 'granted') {
     return { success: false, error: 'اجازه اعلان داده نشده است' };
-  }
-
-  try {
-    const exactAlarm = await LocalNotifications.checkExactNotificationSetting();
-    if (exactAlarm.exact_alarm !== 'granted') {
-      return {
-        success: false,
-        error: 'برای اجرای دقیق یادآوری، مجوز «آلارم‌ها و یادآوری‌ها» را در تنظیمات اندروید فعال کن و دوباره ذخیره کن.',
-      };
-    }
-  } catch {
-    return { success: false, error: 'وضعیت مجوز آلارم دقیق بررسی نشد؛ تنظیمات اعلان‌های نور را بررسی کن.' };
   }
 
   await ensureChannel();
@@ -229,6 +217,7 @@ export async function scheduleReminder(reminder: LocalReminder, notifEnabled: bo
 
   const scheduledIds: number[] = [];
   const failed: string[] = [];
+
   for (let i = 0; i < occurrences.length; i++) {
     const notifId = reminderOccurrenceId(reminder.id, i);
     try {
@@ -386,8 +375,10 @@ export async function cancelAllScheduledNotifications(): Promise<void> {
   }
 }
 
-export async function rescheduleAllReminders(notifEnabled: boolean = true): Promise<void> {
-  await rescheduleAll(notifEnabled);
+export async function rescheduleAllReminders(
+  notifEnabled: boolean = true
+): Promise<{ total: number; succeeded: number; failed: number }> {
+  return rescheduleAll(notifEnabled);
 }
 
 export type { LocalReminder };
