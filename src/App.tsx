@@ -23,7 +23,15 @@ function getGuestNotifEnabled(): boolean {
 function AppContent() {
   const { user, profile, loading } = useAuth();
   const [tab, setTab] = useState<Tab>('home');
+  const [navigationDirection, setNavigationDirection] = useState<'forward' | 'backward'>('forward');
   const [showAuth, setShowAuth] = useState(false);
+
+  const tabOrder: Tab[] = ['home', 'tasbih', 'library', 'reminders', 'settings'];
+  const navigateTo = (nextTab: Tab) => {
+    if (nextTab === tab) return;
+    setNavigationDirection(tabOrder.indexOf(nextTab) >= tabOrder.indexOf(tab) ? 'forward' : 'backward');
+    setTab(nextTab);
+  };
 
   const notifEnabled = profile?.notif_enabled ?? getGuestNotifEnabled();
 
@@ -49,12 +57,14 @@ function AppContent() {
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)', color: 'var(--text)' }}>
-      {tab === 'home' && <HomeScreen onNavigate={setTab} />}
-      {tab === 'tasbih' && <TasbihCounter />}
-      {tab === 'library' && <LibraryScreen onNavigate={setTab} />}
-      {tab === 'reminders' && <RemindersScreen />}
-      {tab === 'settings' && <SettingsScreen onExitGuest={() => setShowAuth(true)} />}
-      <BottomNav active={tab} onChange={setTab} />
+      <main key={tab} className={`page-transition page-transition-${navigationDirection}`} aria-live="polite">
+        {tab === 'home' && <HomeScreen onNavigate={navigateTo} />}
+        {tab === 'tasbih' && <TasbihCounter />}
+        {tab === 'library' && <LibraryScreen onNavigate={navigateTo} />}
+        {tab === 'reminders' && <RemindersScreen />}
+        {tab === 'settings' && <SettingsScreen onExitGuest={() => setShowAuth(true)} />}
+      </main>
+      <BottomNav active={tab} onChange={navigateTo} />
     </div>
   );
 }
