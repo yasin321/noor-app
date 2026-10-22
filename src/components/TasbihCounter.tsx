@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { RotateCcw, Check, Sparkles, Heart, ListRestart } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
@@ -10,22 +10,20 @@ export function TasbihCounter() {
   const { theme } = useTheme();
   const { user } = useAuth();
   const { session, start, increment, reset, clear } = useTasbih(user?.id ?? null);
+  const dhikrItems = useMemo(() => getAllDhikr(), []);
+  const initialDhikr = dhikrItems.find((d) => d.id === session.dhikrId) ?? dhikrItems[0];
   const [showPicker, setShowPicker] = useState(!session.dhikrId);
-  const [selectedDhikr, setSelectedDhikr] = useState(
-    getAllDhikr().find((d) => d.id === session.dhikrId) ?? getAllDhikr()[0]
-  );
+  const [selectedDhikr, setSelectedDhikr] = useState(initialDhikr);
   const [tapPulse, setTapPulse] = useState(false);
   const [showAddDhikr, setShowAddDhikr] = useState(false);
   const [customArabic, setCustomArabic] = useState('');
   const [customTranslation, setCustomTranslation] = useState('');
   const [customCount, setCustomCount] = useState('33');
   const [customError, setCustomError] = useState<string | null>(null);
-  const dhikrItems = getAllDhikr();
-
   useEffect(() => {
-    const current = getAllDhikr().find((d) => d.id === session.dhikrId);
+    const current = dhikrItems.find((d) => d.id === session.dhikrId);
     if (current) setSelectedDhikr(current);
-  }, [session.dhikrId]);
+  }, [session.dhikrId, dhikrItems]);
 
   const handleTap = () => {
     if (!session.dhikrId) {
@@ -39,7 +37,7 @@ export function TasbihCounter() {
   };
 
   const handleSelectDhikr = (dhikrId: string) => {
-    const d = getAllDhikr().find((item) => item.id === dhikrId);
+    const d = dhikrItems.find((item) => item.id === dhikrId);
     if (!d) return;
     setSelectedDhikr(d);
     start(d.id, d.count);
