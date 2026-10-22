@@ -15,7 +15,7 @@ export function BottomNav({ active, onChange }: { active: Tab; onChange: (t: Tab
   const { theme } = useTheme();
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around gap-0 px-1 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] backdrop-blur-lg"
+      className="fixed inset-x-0 bottom-0 z-50 box-border flex w-auto items-center justify-around gap-0 px-1 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] backdrop-blur-lg"
       style={{
         background: `color-mix(in srgb, ${theme.surface} 85%, transparent)`,
         borderTop: `1px solid ${theme.border}`,
@@ -28,7 +28,7 @@ export function BottomNav({ active, onChange }: { active: Tab; onChange: (t: Tab
           <button
             key={t.id}
             onClick={() => onChange(t.id)}
-            className="flex min-w-0 flex-1 flex-col items-center justify-center gap-1 px-1 py-1.5 rounded-xl transition-all"
+            className="box-border flex min-w-0 flex-1 flex-col items-center justify-center gap-1 px-0.5 py-1.5 rounded-xl transition-all"
             style={{
               background: isActive ? `color-mix(in srgb, ${theme.primary} 15%, transparent)` : 'transparent',
             }}
