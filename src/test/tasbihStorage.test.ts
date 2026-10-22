@@ -60,6 +60,13 @@ describe('tasbihStorage', () => {
     expect(getTodayRounds()).toBe(1);
   });
 
+  it('recovers safely from malformed saved session data', () => {
+    localStorage.setItem('noor_tasbih_session', JSON.stringify({
+      dhikrId: 12, count: 'many', target: 0, completed: -3,
+    }));
+    expect(getSession()).toEqual({ dhikrId: '', count: 0, target: 33, completed: 0 });
+  });
+
   it('should return 0 for today when no records', () => {
     expect(getTodayTotal()).toBe(0);
     expect(getTodayRounds()).toBe(0);
