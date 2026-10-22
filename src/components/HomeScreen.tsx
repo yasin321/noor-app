@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { MapPin, Clock, Sunrise, Sunset, Moon, Sun, CloudSun, ArrowLeft, Hand } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
-import { calculatePrayerTimes, getNextPrayer, getLocalDateString, PrayerTimes } from '@/lib/prayerTimes';
+import { calculatePrayerTimes, getNextPrayer, getLocalDateString, timeToMinutes, PrayerTimes } from '@/lib/prayerTimes';
 import { getCityById, getGuestCityId } from '@/lib/cities';
 import { getTodayTotal, getTodayRounds, getSession, fetchTodayStats } from '@/lib/tasbihStorage';
 import { toJalaliShort, getJalaliWeekday } from '@/lib/jalali';
@@ -30,7 +30,7 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
   const { theme } = useTheme();
   const { profile, user } = useAuth();
   const [times, setTimes] = useState<PrayerTimes | null>(null);
-  const [next, setNext] = useState<{ nameFa: string; time: string; remaining: string } | null>(null);
+  const [next, setNext] = useState<{ nameFa: string; time: string; remaining: string; progress: number } | null>(null);
   const [now, setNow] = useState(new Date());
   const [stats, setStats] = useState({ total: 0, rounds: 0 });
   const [hasActiveSession, setHasActiveSession] = useState(false);
@@ -73,7 +73,33 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
   useEffect(() => {
     if (times) {
       const n = getNextPrayer(times, city.timezone);
-      if (n) setNext({ nameFa: n.nameFa, time: n.time, remaining: n.remaining });
+      if (n) {
+        const ordered = [
+          { key: 'fajr', time: times.fajr },
+          { key: 'dhuhr', time: times.dhuhr },
+          { key: 'asr', time: times.asr },
+          { key: 'maghrib', time: times.maghrib },
+          { key: 'isha', time: times.isha },
+        ];
+        const index = ordered.findIndex((p) => p.key === n.key);
+        const previous = ordered[(index - 1 + ordered.length) % ordered.length];
+        const nextMinute = timeToMinutes(n.time);
+        const previousMinute = timeToMinutes(previous.time);
+        const clockParts = new Intl.DateTimeFormat('en-GB', {
+          timeZone: city.timezone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+        }).formatToParts(now);
+        const hour = Number(clockParts.find((p) => p.type === 'hour')?.value ?? 0);
+        const minute = Number(clockParts.find((p) => p.type === 'minute')?.value ?? 0);
+        const nowMinute = hour * 60 + minute;
+        let remaining = nextMinute - nowMinute;
+        if (remaining < 0) remaining += 1440;
+        let interval = nextMinute - previousMinute;
+        if (interval <= 0) interval += 1440;
+        const progress = Number.isFinite(interval) && interval > 0
+          ? Math.max(0, Math.min(100, ((interval - remaining) / interval) * 100))
+          : 0;
+        setNext({ nameFa: n.nameFa, time: n.time, remaining: n.remaining, progress });
+      }
     }
   }, [times, now, city.timezone]);
 
@@ -139,31 +165,60 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
         </button>
       )}
 
-      <div className="card p-5 mb-4 animate-slide-up" style={{ boxShadow: `0 0 16px ${theme.primaryGlow}` }}>
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <p className="text-muted text-xs mb-1">نماز بعدی</p>
-            <h2 className="text-2xl font-bold text-primary">{next?.nameFa ?? '—'}</h2>
+      <section
+        className="relative overflow-hidden rounded-[1.7rem] p-5 mb-4 animate-slide-up"
+        aria-label="نماز بعدی"
+        style={{
+          background: `radial-gradient(circle at 90% 8%, color-mix(in srgb, ${theme.accent} 20%, transparent), transparent 38%), linear-gradient(145deg, ${theme.surfaceAlt ?? theme.surface}, ${theme.surface} 68%, ${theme.bg})`,
+          border: `1px solid color-mix(in srgb, ${theme.primary} 28%, ${theme.border})`,
+          boxShadow: `0 14px 34px color-mix(in srgb, ${theme.primary} 10%, transparent)`,
+        }}
+      >
+        <div className="absolute -left-5 -top-7 w-28 h-28 rounded-full pointer-events-none" style={{ border: `1px solid color-mix(in srgb, ${theme.accent} 14%, transparent)` }} />
+        <div className="absolute -left-1 top-2 w-20 h-20 rounded-full pointer-events-none" style={{ border: `1px solid color-mix(in srgb, ${theme.accent} 10%, transparent)` }} />
+        <div className="relative flex items-center justify-between gap-3 mb-5">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: theme.accent }} />
+              <p className="text-muted text-xs font-medium">قرار بعدی با آرامش</p>
+            </div>
+            <h2 className="text-3xl font-extrabold tracking-tight text-primary">{next?.nameFa ?? '—'}</h2>
+            <p className="text-muted text-xs mt-1">تا وقت نماز بعدی</p>
           </div>
-          <div className="text-left">
-            <p className="text-muted text-xs mb-1">زمان</p>
-            <p className="text-lg font-bold text-app" dir="ltr">{next?.time ?? '--:--'}</p>
+          <div className="w-[76px] h-[76px] rounded-[1.5rem] flex items-center justify-center flex-shrink-0" style={{ background: `color-mix(in srgb, ${theme.primary} 12%, transparent)`, border: `1px solid color-mix(in srgb, ${theme.primary} 20%, transparent)` }}>
+            <Moon size={34} strokeWidth={1.4} color={theme.accent} />
           </div>
         </div>
-        <div className="flex items-center gap-2 pt-3" style={{ borderTop: `1px solid ${theme.border}` }}>
-          <Clock size={15} color={theme.accent} />
-          <p className="text-accent text-sm font-medium">
-            {next?.remaining ? `مانده: ${next.remaining}` : ''}
-          </p>
+        <div className="relative flex items-center justify-between gap-3 rounded-2xl px-4 py-3" style={{ background: 'color-mix(in srgb, black 12%, transparent)', border: `1px solid color-mix(in srgb, ${theme.border} 75%, transparent)` }}>
+          <div className="flex items-center gap-2 min-w-0">
+            <Clock size={16} color={theme.accent} />
+            <p className="text-accent text-sm font-semibold truncate">{next?.remaining ? `تا اذان ${next.nameFa}: ${next.remaining}` : 'در حال محاسبه…'}</p>
+          </div>
+          <div className="text-left flex-shrink-0">
+            <p className="text-muted text-[10px] mb-0.5">وقت اذان</p>
+            <p className="text-lg font-bold text-app tabular-nums" dir="ltr">{next?.time ?? '--:--'}</p>
+          </div>
         </div>
-      </div>
+        <div className="relative mt-3" aria-label="میزان نزدیک شدن به نماز بعدی">
+          <div className="h-2 rounded-full overflow-hidden" style={{ background: `color-mix(in srgb, ${theme.primary} 12%, transparent)` }}>
+            <div
+              className="h-full rounded-full transition-[width] duration-1000 ease-linear"
+              style={{ width: `${next?.progress ?? 0}%`, background: `linear-gradient(90deg, ${theme.primary}, ${theme.accent})` }}
+            />
+          </div>
+          <div className="flex justify-between mt-1.5 text-[10px] text-muted">
+            <span>آرام‌آرام نزدیک می‌شیم ✨</span>
+            <span>{Math.round(next?.progress ?? 0).toLocaleString('fa-IR')}٪</span>
+          </div>
+        </div>
+      </section>
 
-      <div className="card-flat p-4 mb-4 flex items-center justify-between">
-        <div>
-          <p className="text-app font-semibold text-sm">{getJalaliWeekday(now)}، {toJalaliShort(now)}</p>
-          <p className="text-muted text-xs mt-0.5">{times.hijriDate}</p>
+      <div className="card-flat p-4 mb-4 flex min-w-0 items-center justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-app font-semibold text-sm truncate">{getJalaliWeekday(now)}، {toJalaliShort(now)}</p>
+          <p className="text-muted text-xs mt-0.5 truncate">{times.hijriDate}</p>
         </div>
-        <p className="text-xl font-bold text-primary" dir="ltr">{timeStr}</p>
+        <p className="text-xl font-bold text-primary flex-shrink-0" dir="ltr">{timeStr}</p>
       </div>
 
       <div className="grid grid-cols-2 gap-2.5 mb-4">
@@ -171,17 +226,17 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
           const Icon = prayerIcons[p.key] ?? Sun;
           const isNext = next?.nameFa === p.nameFa && p.key !== 'sunrise';
           return (
-            <div key={p.key} className="card-flat p-3.5 flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
+            <div key={p.key} className="card-flat min-w-0 p-2.5 flex items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2">
                 <div
-                  className="w-9 h-9 rounded-xl flex items-center justify-center"
+                  className="w-8 h-8 rounded-xl flex-shrink-0 flex items-center justify-center"
                   style={{ background: isNext ? theme.primary : `color-mix(in srgb, ${theme.primary} 10%, transparent)` }}
                 >
                   <Icon size={16} color={isNext ? theme.bg : theme.primary} />
                 </div>
-                <span className="text-app font-medium text-sm">{p.nameFa}</span>
+                <span className="text-app font-medium text-xs whitespace-nowrap">{p.nameFa}</span>
               </div>
-              <span className="text-app font-bold text-sm" dir="ltr">{p.time}</span>
+              <span className="text-app font-bold text-xs flex-shrink-0" dir="ltr">{p.time}</span>
             </div>
           );
         })}

@@ -92,9 +92,51 @@ export const dhikrLibrary: Dhikr[] = [
   },
 ];
 
+const CUSTOM_DHIKR_KEY = 'noor_custom_dhikr_v1';
+
+export function getCustomDhikr(): Dhikr[] {
+  try {
+    const raw = localStorage.getItem(CUSTOM_DHIKR_KEY);
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((item): item is Dhikr =>
+      !!item && typeof item.id === 'string' &&
+      typeof item.arabic === 'string' && typeof item.translation === 'string' &&
+      typeof item.translit === 'string' && typeof item.virtue === 'string' &&
+      typeof item.count === 'number' && item.count > 0
+    );
+  } catch {
+    return [];
+  }
+}
+
+export function getAllDhikr(): Dhikr[] {
+  return [...dhikrLibrary, ...getCustomDhikr()];
+}
+
+export function addCustomDhikr(input: { arabic: string; translation: string; count: number }): Dhikr {
+  const item: Dhikr = {
+    id: `custom_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    arabic: input.arabic.trim(),
+    translit: 'ذکر دلخواه',
+    translation: input.translation.trim() || 'ذکر شخصی',
+    virtue: 'ذکر افزوده‌شده توسط شما',
+    count: Math.max(1, Math.floor(input.count)),
+    category: 'tasbih',
+  };
+  const next = [...getCustomDhikr(), item];
+  try {
+    localStorage.setItem(CUSTOM_DHIKR_KEY, JSON.stringify(next));
+  } catch {
+    throw new Error('ذکر ذخیره نشد؛ فضای ذخیره‌سازی گوشی را بررسی کنید.');
+  }
+  return item;
+}
+
 export function getDhikr(id: string | null | undefined): Dhikr | null {
   if (!id) return null;
-  return dhikrLibrary.find((d) => d.id === id) ?? null;
+  return getAllDhikr().find((d) => d.id === id) ?? null;
 }
 
 export const dhikrCategories: Record<string, string> = {

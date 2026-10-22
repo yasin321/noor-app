@@ -12,18 +12,45 @@
   --text: #e8f5f0;
   --text-muted: #7a9b91;
   --border: rgba(16, 185, 129, 0.15);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
 }
 
 * {
   -webkit-tap-highlight-color: transparent;
 }
 
+html {
+  min-height: 100%;
+  background: var(--bg);
+  color-scheme: dark;
+  overflow-x: clip;
+}
+
 body {
+  min-height: 100%;
   margin: 0;
   font-family: 'Vazirmatn', 'Segoe UI', system-ui, -apple-system, sans-serif;
-  background: var(--bg);
+  background:
+    radial-gradient(ellipse at 50% -15%, rgba(16, 185, 129, 0.14), transparent 58%),
+    var(--bg);
   color: var(--text);
   overscroll-behavior: none;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+button, input, select, textarea {
+  font-family: inherit;
+}
+
+button {
+  touch-action: manipulation;
+}
+
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
 
 .text-app { color: var(--text); }
@@ -37,58 +64,91 @@ body {
 .border-app { border-color: var(--border); }
 
 .card {
-  background: var(--surface);
-  border-radius: 1.25rem;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--surface) 98%, white 2%), var(--surface));
+  border-radius: 1.35rem;
   border: 1px solid var(--border);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.09);
 }
 
 .card-flat {
-  background: color-mix(in srgb, var(--surface) 60%, transparent);
-  border-radius: 1.25rem;
-  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 76%, transparent);
+  border-radius: 1.2rem;
+  border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+  transition: background-color 180ms ease, border-color 180ms ease, transform 180ms ease;
 }
 
 .glass-card {
-  background: color-mix(in srgb, var(--surface) 70%, transparent);
-  border-radius: 1.25rem;
+  background: color-mix(in srgb, var(--surface) 78%, transparent);
+  border-radius: 1.35rem;
   border: 1px solid var(--border);
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
 }
 
 .glass-card-flat {
-  background: color-mix(in srgb, var(--surface) 50%, transparent);
-  border-radius: 1.25rem;
+  background: color-mix(in srgb, var(--surface) 58%, transparent);
+  border-radius: 1.2rem;
   border: 1px solid var(--border);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .primary-btn {
-  background: var(--primary);
+  background: linear-gradient(135deg, var(--primary), color-mix(in srgb, var(--primary) 75%, #f7e8b2));
   color: var(--bg);
   border-radius: 1rem;
-  font-weight: 700;
+  font-weight: 800;
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--primary) 18%, transparent);
+  transition: transform 160ms ease, filter 160ms ease, box-shadow 160ms ease;
 }
+
+.primary-btn:active {
+  transform: scale(0.98);
+  filter: brightness(0.96);
+}
+
+@keyframes page-enter-forward {
+  from { opacity: 0; transform: translate3d(12px, 0, 0) scale(0.995); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+@keyframes page-enter-backward {
+  from { opacity: 0; transform: translate3d(-12px, 0, 0) scale(0.995); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); filter: blur(0); }
+}
+.page-transition { min-height: 100vh; min-width: 0; transform-origin: center top; padding-top: var(--safe-top); }
+
+/* Prevent narrow-device overflow and respect gesture/navigation areas. */
+html, body, #root { width: 100%; min-width: 0; }
+body { overflow-x: clip; }
+img, svg, video, canvas { max-width: 100%; }
+button, input, textarea, select { min-width: 0; }
+
+@media (max-width: 360px) {
+  .card { border-radius: 1rem; }
+  .page-transition-forward { animation-duration: 190ms; }
+  .page-transition-backward { animation-duration: 190ms; }
+}
+.page-transition-forward { animation: page-enter-forward 240ms cubic-bezier(0.2, 0.75, 0.25, 1) both; }
+.page-transition-backward { animation: page-enter-backward 240ms cubic-bezier(0.2, 0.75, 0.25, 1) both; }
 
 @keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-.animate-fade-in { animation: fade-in 0.3s ease-out; }
-
-@keyframes slide-up {
-  from { opacity: 0; transform: translateY(12px); }
+  from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
 }
-.animate-slide-up { animation: slide-up 0.3s ease-out; }
+.animate-fade-in { animation: fade-in 0.32s ease-out both; }
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-slide-up { animation: slide-up 0.34s cubic-bezier(0.2, 0.75, 0.25, 1) both; }
 
 @keyframes pulse-ring {
-  0% { transform: scale(0.8); opacity: 1; }
-  100% { transform: scale(1.4); opacity: 0; }
+  0% { transform: scale(0.82); opacity: 0.7; }
+  100% { transform: scale(1.35); opacity: 0; }
 }
-.animate-pulse-ring { animation: pulse-ring 1.5s ease-out infinite; }
-
-input, select, textarea, button {
-  font-family: inherit;
-}
+.animate-pulse-ring { animation: pulse-ring 1.6s ease-out infinite; }
 
 ::-webkit-scrollbar {
   width: 4px;
@@ -96,4 +156,25 @@ input, select, textarea, button {
 ::-webkit-scrollbar-thumb {
   background: var(--border);
   border-radius: 4px;
+}
+
+::selection {
+  color: var(--bg);
+  background: color-mix(in srgb, var(--primary) 45%, transparent);
+}
+
+@media (hover: hover) {
+  .card-flat:hover {
+    border-color: color-mix(in srgb, var(--primary) 28%, var(--border));
+    background: color-mix(in srgb, var(--surface-alt) 72%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }

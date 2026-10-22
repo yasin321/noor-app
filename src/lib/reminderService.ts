@@ -177,6 +177,18 @@ export async function scheduleReminder(reminder: LocalReminder, notifEnabled: bo
     return { success: false, error: 'اجازه اعلان داده نشده است' };
   }
 
+  try {
+    const exactAlarm = await LocalNotifications.checkExactNotificationSetting();
+    if (exactAlarm.exact_alarm !== 'granted') {
+      return {
+        success: false,
+        error: 'برای اجرای دقیق یادآوری، مجوز «آلارم‌ها و یادآوری‌ها» را در تنظیمات اندروید فعال کن و دوباره ذخیره کن.',
+      };
+    }
+  } catch {
+    return { success: false, error: 'وضعیت مجوز آلارم دقیق بررسی نشد؛ تنظیمات اعلان‌های نور را بررسی کن.' };
+  }
+
   await ensureChannel();
 
   const dhikr = reminder.dhikrId ? getDhikr(reminder.dhikrId) : null;
