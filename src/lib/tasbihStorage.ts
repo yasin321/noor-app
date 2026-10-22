@@ -46,19 +46,31 @@ function getLocalDateString(date: Date = new Date()): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+const DEFAULT_SESSION: TasbihSession = { dhikrId: '', count: 0, target: 33, completed: 0 };
+
+function nonNegativeInteger(value: unknown, fallback: number): number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : fallback;
+}
+
 export function getSession(): TasbihSession {
   try {
     const raw = localStorage.getItem(GUEST_SESSION_KEY);
-    if (!raw) return { dhikrId: '', count: 0, target: 33, completed: 0 };
-    const s = JSON.parse(raw);
+    if (!raw) return { ...DEFAULT_SESSION };
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return { ...DEFAULT_SESSION };
+    const s = parsed as Partial<TasbihSession>;
+    const target = typeof s.target === 'number' && Number.isSafeInteger(s.target) && s.target > 0 && s.target <= 100000
+      ? s.target
+      : DEFAULT_SESSION.target;
+    const count = Math.min(nonNegativeInteger(s.count, 0), target - 1);
     return {
-      dhikrId: s.dhikrId ?? '',
-      count: s.count ?? 0,
-      target: s.target ?? 33,
-      completed: s.completed ?? 0,
+      dhikrId: typeof s.dhikrId === 'string' ? s.dhikrId : '',
+      count,
+      target,
+      completed: nonNegativeInteger(s.completed, 0),
     };
   } catch {
-    return { dhikrId: '', count: 0, target: 33, completed: 0 };
+    return { ...DEFAULT_SESSION };
   }
 }
 
@@ -79,11 +91,15 @@ export function clearSession(): void {
 }
 
 export function startSession(dhikrId: string, target: number): void {
-  saveSession({ dhikrId, count: 0, target, completed: 0 });
+  const safeTarget = Number.isSafeInteger(target) && target > 0 && target <= 100000 ? target : DEFAULT_SESSION.target;
+  saveSession({ dhikrId: typeof dhikrId === 'string' ? dhikrId : '', count: 0, target: safeTarget, completed: 0 });
 }
 
 export function incrementCount(userId?: string | null): { count: number; completed: number; reachedTarget: boolean } {
   const session = getSession();
+  if (!session.dhikrId) {
+    return { count: session.count, completed: session.completed, reachedTarget: false };
+  }
   let newCount = session.count + 1;
   let newCompleted = session.completed;
   let reachedTarget = false;
