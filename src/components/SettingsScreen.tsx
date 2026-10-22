@@ -72,13 +72,21 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
       setGuestNotifEnabled(next);
       setGuestNotif(next);
     }
-    if (next) {
-      await rescheduleAllReminders(true);
-      setNotifMessage('مجوز اعلان فعال شد و یادآوری‌ها دوباره زمان‌بندی شدند. توجه: این تنظیم به‌تنهایی پخش فایل صوتی اذان را تضمین نمی‌کند.');
-    } else {
-      await cancelAllScheduledNotifications();
-      setNotifMessage('اعلان‌های یادآوری خاموش شدند.');
-    }
+
+if (next) {
+  const result = await rescheduleAllReminders(true);
+
+  if (result.failed > 0) {
+    setNotifMessage(
+      `اجازهٔ اعلان فعال شد؛ از ${result.total} یادآوری ذخیره‌شده، ${result.succeeded} مورد زمان‌بندی شد و ${result.failed} مورد ناموفق بود. مجوز آلارم دقیق و تنظیمات اعلان گوشی را بررسی کن. این تنظیم به‌تنهایی پخش فایل صوتی اذان را تضمین نمی‌کند.`
+    );
+  } else {
+    setNotifMessage(
+      `اجازهٔ اعلان فعال شد؛ ${result.succeeded} یادآوری دوباره زمان‌بندی شد. توجه: این تنظیم به‌تنهایی پخش فایل صوتی اذان را تضمین نمی‌کند.`
+    );
+  }
+} else {
+
   };
 
   const requestNotificationAccess = async () => {
