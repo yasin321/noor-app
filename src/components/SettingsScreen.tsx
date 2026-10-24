@@ -370,7 +370,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
           <h1 className="text-2xl font-bold text-app">اذان‌ها</h1>
         </div>
         <p className="text-muted text-xs mb-3">انتخاب صدا و شنیدن نمونهٔ اذان‌های ایرانی</p>
-        <p className="text-muted text-xs mb-4 leading-relaxed">پخش خودکار اذان از زنگ یادآوری جداست. در حال حاضر فقط صدای ماهور فایل آنلاین قابل استفاده دارد؛ برای پخش، اینترنت لازم است.</p>
+        <p className="text-muted text-xs mb-4 leading-relaxed">هر پنج گزینه فایل صوتی دارند. صدای انتخابی برای پخش خودکار اذان استفاده می‌شود؛ فعلاً برای دریافت فایل‌ها اتصال اینترنت لازم است.</p>
         <div className="card-flat p-4 mb-4">
           <div className="flex items-center justify-between gap-3">
             <div className="flex-1">
@@ -418,7 +418,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
                 <div>
                   <p className="text-app font-medium text-sm">{a.nameFa}</p>
                   <p className="text-muted text-xs mt-1">{a.reciter}</p>
-                  {!a.audioUrl && <p className="text-muted text-[11px] mt-1">به‌زودی؛ فایل صوتی هنوز آماده نیست</p>}
+                  {!a.audioUrl && <p className="text-muted text-[11px] mt-1">فایل صوتی آنلاین</p>}
                 </div>
                 {(profile?.adhan_id ?? guestAdhanId) === a.id && (
                   <Check size={18} color={theme.primary} />
