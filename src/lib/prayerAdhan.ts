@@ -61,6 +61,19 @@ function loadScheduledIds(): string[] {
   }
 }
 
+export async function checkPrayerAdhanExactAlarmAccess(): Promise<boolean> {
+  try {
+    const result = await NativeAlarm.checkExactAlarmAccess();
+    return result.allowed;
+  } catch {
+    return false;
+  }
+}
+
+export async function openPrayerAdhanExactAlarmSettings(): Promise<void> {
+  await NativeAlarm.openExactAlarmSettings();
+}
+
 export async function checkPrayerAdhanFullScreenAccess(): Promise<boolean> {
   try {
     const result = await NativeAlarm.checkFullScreenAccess();
