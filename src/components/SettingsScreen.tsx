@@ -56,7 +56,6 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   const [prayerAdhanMessage, setPrayerAdhanMessage] = useState<string | null>(null);
   const [fullScreenAllowed, setFullScreenAllowed] = useState(false);
   const [exactAlarmAllowed, setExactAlarmAllowed] = useState(false);
-  const [exactAlarmAllowed, setExactAlarmAllowed] = useState(false);
 
   useEffect(() => {
     setNotifSupported(Capacitor.isNativePlatform());
