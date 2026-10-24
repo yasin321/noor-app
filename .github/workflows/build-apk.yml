@@ -4,7 +4,7 @@ name: Build Noor Android APK
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, review/fix-notification-and-startup]
 
 permissions:
   contents: read
