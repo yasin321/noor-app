@@ -1,4 +1,5 @@
 
+import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import {
   LocalReminder,
@@ -175,6 +176,25 @@ export async function scheduleReminder(reminder: LocalReminder, notifEnabled: bo
   const perm = await checkPermission();
   if (perm !== 'granted') {
     return { success: false, error: 'اجازه اعلان داده نشده است' };
+  }
+
+  // Exact-alarm access is an Android-only setting. Calling this API on web/iOS
+  // can fail even though those platforms do not require Android's exact-alarm grant.
+  if (Capacitor.getPlatform() === 'android') {
+    try {
+      const { exact_alarm } = await LocalNotifications.checkExactNotificationSetting();
+      if (exact_alarm !== 'granted') {
+        return {
+          success: false,
+          error: 'اجازه آلارم‌ها و یادآوری‌ها داده نشده است؛ دسترسی آلارم دقیق اندروید را بررسی کن.',
+        };
+      }
+    } catch {
+      return {
+        success: false,
+        error: 'وضعیت اجازه آلارم دقیق قابل بررسی نیست؛ تنظیمات اعلان اندروید را بررسی کن.',
+      };
+    }
   }
 
   await ensureChannel();
@@ -356,7 +376,7 @@ export async function rescheduleAll(notifEnabled: boolean = true): Promise<{ tot
     else failed++;
   }
 
-  return { total: all.length, succeeded, failed };
+  return { total: all.filter((reminder) => reminder.enabled).length, succeeded, failed };
 }
 
 export async function getPendingNotifications(): Promise<number[]> {

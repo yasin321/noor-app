@@ -4,6 +4,8 @@ name: Build Noor Android APK
 on:
   workflow_dispatch:
   push:
+    branches: [main, review/fix-notification-and-startup]
+  pull_request:
     branches: [main]
 
 permissions:
@@ -31,6 +33,12 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Run unit tests
+        run: npm test
 
       - name: Build web app
         run: npm run build
@@ -74,6 +82,42 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Install and launch APK in Android emulator
+        uses: ReactiveCircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          emulator-boot-timeout: 900
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          script: |
+            adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+            adb shell am force-stop com.noor.app
+            adb shell monkey -p com.noor.app 1
+            sleep 25
+            test -n "$(adb shell pidof com.noor.app)" || { echo "Noor process is not running after launch"; exit 1; }
+            adb logcat -d > /tmp/noor-logcat.txt
+            adb exec-out screencap -p > /tmp/noor-emulator.png
+            python3 -c 'import pathlib,re,sys; log=pathlib.Path("/tmp/noor-logcat.txt").read_text(errors="replace"); pattern=r"supabaseUrl is required|Invalid supabaseUrl|FATAL EXCEPTION|Process: com\.noor\.app.*died"; found=re.search(pattern,log); print("App startup/runtime error detected in emulator logs: "+found.group(0) if found else "No known fatal startup errors found"); sys.exit(1 if found else 0)'
+
+      - name: Upload emulator smoke-test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: noor-emulator-smoke-test
+          path: |
+            /tmp/noor-emulator.png
+            /tmp/noor-logcat.txt
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Upload APK
         uses: actions/upload-artifact@v4

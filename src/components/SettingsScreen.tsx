@@ -1,7 +1,7 @@
-
 import { useState, useEffect } from 'react';
 import { Palette, Volume2, Bell, LogOut, User, Check, LogIn, MapPin, AlertCircle } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
+import { LocalNotifications } from '@capacitor/local-notifications';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
 import { themes } from '@/lib/themes';
@@ -68,6 +68,19 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
         setNotifMessage('مجوز اعلان داده نشد؛ یادآوری‌ها هنوز ارسال نمی‌شوند. از تنظیمات گوشی، اعلان‌های نور را مجاز کن.');
         return;
       }
+
+      if (Capacitor.getPlatform() === 'android') {
+        try {
+          const { exact_alarm } = await LocalNotifications.checkExactNotificationSetting();
+          if (exact_alarm !== 'granted') {
+            setNotifMessage('برای یادآوری دقیق، دسترسی «آلارم‌ها و یادآوری‌ها» را هم فعال کن.');
+            return;
+          }
+        } catch {
+          setNotifMessage('وضعیت آلارم دقیق بررسی نشد. از تنظیمات اندروید، دسترسی «آلارم‌ها و یادآوری‌ها» را بررسی کن.');
+          return;
+        }
+      }
     }
 
     if (profile) {
@@ -96,29 +109,48 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   };
 
   const requestNotificationAccess = async () => {
-    const permission = await requestPermission();
+    setNotifMessage(null);
+    let permission = await checkPermission();
+    if (permission !== 'granted') permission = await requestPermission();
 
-    if (permission === 'granted') {
-      if (profile) {
-        await updateProfile({ notif_enabled: true });
-      } else {
-        setGuestNotifEnabled(true);
-        setGuestNotif(true);
+    if (permission !== 'granted') {
+      setNotifMessage('اندروید اجازهٔ اعلان را نداد. از تنظیمات گوشی ← برنامه‌ها ← نور ← اعلان‌ها آن را فعال کن.');
+      return;
+    }
+
+    if (Capacitor.getPlatform() === 'android') {
+      try {
+        let { exact_alarm } = await LocalNotifications.checkExactNotificationSetting();
+        if (exact_alarm !== 'granted') {
+          const result = await LocalNotifications.changeExactNotificationSetting();
+          exact_alarm = result.exact_alarm;
+        }
+
+        if (exact_alarm !== 'granted') {
+          setNotifMessage('دسترسی آلارم دقیق هنوز فعال نیست. آن را در صفحهٔ تنظیمات اندروید فعال کن و دوباره بررسی را بزن.');
+          return;
+        }
+      } catch {
+        setNotifMessage('نتوانستم صفحهٔ دسترسی آلارم دقیق را باز یا بررسی کنم. از تنظیمات گوشی ← برنامه‌ها ← نور ← آلارم‌ها و یادآوری‌ها بررسی کن.');
+        return;
       }
+    }
 
-      const result = await rescheduleAllReminders(true);
-
-      if (result.failed > 0) {
-        setNotifMessage(
-          `اجازهٔ اعلان داده شد؛ ${result.succeeded} یادآوری زمان‌بندی شد و ${result.failed} مورد ناموفق بود. تنظیمات اعلان و آلارم دقیق اندروید را بررسی کن.`
-        );
-      } else {
-        setNotifMessage(
-          `اجازهٔ اعلان داده شد؛ ${result.succeeded} یادآوری زمان‌بندی شد.`
-        );
-      }
+    if (profile) {
+      await updateProfile({ notif_enabled: true });
     } else {
-      setNotifMessage('اندروید اجازه را نداد. از تنظیمات گوشی ← برنامه‌ها ← نور ← اعلان‌ها آن را فعال کن.');
+      setGuestNotifEnabled(true);
+      setGuestNotif(true);
+    }
+
+    const result = await rescheduleAllReminders(true);
+
+    if (result.failed > 0) {
+      setNotifMessage(
+        `اجازه‌ها بررسی شد؛ ${result.succeeded} یادآوری زمان‌بندی شد و ${result.failed} مورد ناموفق بود. تنظیمات اعلان و آلارم دقیق اندروید را بررسی کن.`
+      );
+    } else {
+      setNotifMessage(`اجازه‌ها بررسی شد؛ ${result.succeeded} یادآوری زمان‌بندی شد.`);
     }
   };
 
@@ -268,23 +300,44 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
           <button onClick={() => setSection('main')} className="text-muted text-sm">بازگشت</button>
           <h1 className="text-2xl font-bold text-app">اذان‌ها</h1>
         </div>
-        <p className="text-muted text-xs mb-4">اذان‌های شیعه ایرانی</p>
-        <div className="space-y-2">
+        <p className="text-muted text-xs mb-3">انتخاب صدا و شنیدن نمونهٔ اذان‌های ایرانی</p>
+        <p className="text-muted text-xs mb-4 leading-relaxed">توجه: در این مرحله فقط نمونهٔ ماهور آنلاین پخش می‌شود؛ پخش خودکار اذان در وقت نماز و هنگام قفل بودن گوشی هنوز پیاده‌سازی نشده است.</p>
+        <div className="space-y-3">
           {adhans.map((a) => (
-            <button
+            <div
               key={a.id}
-              onClick={() => applyAdhan(a.id)}
-              className="w-full card-flat p-4 flex items-center justify-between"
+              className="w-full card-flat p-4"
               style={{ borderColor: (profile?.adhan_id ?? guestAdhanId) === a.id ? theme.primary : theme.border }}
             >
-              <div>
-                <p className="text-app font-medium text-sm">{a.nameFa}</p>
-                <p className="text-muted text-xs">{a.reciter}</p>
-              </div>
-              {(profile?.adhan_id ?? guestAdhanId) === a.id && (
-                <Check size={18} color={theme.primary} />
+              <button
+                type="button"
+                onClick={() => a.audioUrl && applyAdhan(a.id)}
+                disabled={!a.audioUrl}
+                aria-label={a.audioUrl ? `انتخاب ${a.nameFa}` : `${a.nameFa}، فایل صوتی هنوز آماده نیست`}
+                className="w-full flex items-center justify-between text-right disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <div>
+                  <p className="text-app font-medium text-sm">{a.nameFa}</p>
+                  <p className="text-muted text-xs mt-1">{a.reciter}</p>
+                  {!a.audioUrl && <p className="text-muted text-[11px] mt-1">به‌زودی؛ فایل صوتی هنوز آماده نیست</p>}
+                </div>
+                {(profile?.adhan_id ?? guestAdhanId) === a.id && (
+                  <Check size={18} color={theme.primary} />
+                )}
+              </button>
+              {a.audioUrl ? (
+                <div className="mt-3">
+                  <audio controls preload="none" src={a.audioUrl} className="w-full" aria-label={`نمونهٔ صوتی ${a.nameFa}`} />
+                  <p className="text-muted text-xs mt-2 leading-relaxed">
+                    مجوز: {a.license}. صاحب اثر: {a.reciter}.
+                    {' '}<a href={a.sourceUrl} target="_blank" rel="noreferrer" className="underline">منبع فایل</a>
+                    {' '}· <a href={a.licenseUrl} target="_blank" rel="noreferrer" className="underline">متن مجوز</a>
+                  </p>
+                </div>
+              ) : (
+                <p className="text-muted text-xs mt-2">فایل صوتی این گزینه هنوز به‌صورت مجاز به برنامه اضافه نشده است.</p>
               )}
-            </button>
+            </div>
           ))}
         </div>
       </div>
@@ -335,7 +388,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
             <Volume2 size={20} color={theme.primary} />
             <span className="text-app font-medium text-sm">صدای اذان</span>
           </div>
-          <span className="text-muted text-xs">{adhans.find((a) => a.id === profile?.adhan_id)?.nameFa}</span>
+          <span className="text-muted text-xs">{adhans.find((a) => a.id === (profile?.adhan_id ?? guestAdhanId))?.nameFa}</span>
         </button>
 
         <div className="card-flat p-4">

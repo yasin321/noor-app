@@ -1,15 +1,31 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim();
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim();
+const configuredSupabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim();
+const configuredSupabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim();
 
-export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
+function isValidSupabaseUrl(value: string | undefined): value is string {
+  if (!value) return false;
 
-// Keep the app renderable in guest mode when deployment environment variables
-// are missing. Auth operations are explicitly disabled until configuration exists.
+  try {
+    const url = new URL(value);
+    return (url.protocol === 'https:' || url.protocol === 'http:') &&
+      Boolean(url.hostname) &&
+      !url.username &&
+      !url.password;
+  } catch {
+    return false;
+  }
+}
+
+const validSupabaseUrl = isValidSupabaseUrl(configuredSupabaseUrl);
+export const isSupabaseConfigured = validSupabaseUrl && Boolean(configuredSupabaseAnonKey);
+
+// Keep guest mode renderable even if build-time Supabase secrets are missing or
+// malformed. Never pass an invalid environment value to createClient: it throws
+// during module initialization and leaves the Android WebView on the splash screen.
 export const supabase = createClient(
-  supabaseUrl || 'https://configuration-missing.supabase.co',
-  supabaseAnonKey || 'configuration-missing-anon-key',
+  validSupabaseUrl ? configuredSupabaseUrl : 'https://configuration-missing.supabase.co',
+  isSupabaseConfigured ? configuredSupabaseAnonKey : 'configuration-missing-anon-key',
   {
     auth: {
       persistSession: true,

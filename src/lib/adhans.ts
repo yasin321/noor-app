@@ -4,11 +4,24 @@ export type Adhan = {
   nameFa: string;
   reciter: string;
   audioUrl?: string;
+  license?: string;
+  licenseUrl?: string;
+  sourceUrl?: string;
 };
 
 export const adhans: Adhan[] = [
-  { id: 'default', name: 'Default Adhan', nameFa: 'اذان افقی', reciter: 'مجموعه افقی' },
+  {
+    id: 'mahur_saeed',
+    name: 'Iranian Adhan — Mahur',
+    nameFa: 'اذان ایرانی؛ دستگاه ماهور',
+    reciter: 'سعید حاتم‌زاده ورمزیار',
+    audioUrl: 'https://upload.wikimedia.org/wikipedia/commons/a/ae/AzaanMaahur.ogg',
+    license: 'CC BY-SA 4.0',
+    licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0/',
+    sourceUrl: 'https://commons.wikimedia.org/wiki/File:AzaanMaahur.ogg',
+  },
+  { id: 'default', name: 'Default Adhan', nameFa: 'اذان پیش‌فرض', reciter: 'صدای پیش‌فرض برنامه' },
   { id: 'makkah', name: 'Makkah Adhan', nameFa: 'اذان مکه', reciter: 'مسجدالحرام' },
-  { id: 'madinah', name: 'Madinah Adhan', nameFa: 'اذان مدینه', reciter: 'مسجد النبی' },
-  { id: 'shia_traditional', name: 'Shia Traditional', nameFa: 'اذان شیعی سنتی', reciter: 'نوهه‌خوانان' },
+  { id: 'madinah', name: 'Madinah Adhan', nameFa: 'اذان مدینه', reciter: 'مسجدالنبی' },
+  { id: 'shia_traditional', name: 'Shia Traditional', nameFa: 'اذان شیعی سنتی', reciter: 'سبک سنتی شیعی' },
 ];
