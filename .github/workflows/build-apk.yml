@@ -5,6 +5,8 @@ on:
   workflow_dispatch:
   push:
     branches: [main, review/fix-notification-and-startup]
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: read
