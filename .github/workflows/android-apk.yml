@@ -72,7 +72,7 @@ jobs:
             test -n "$(adb shell pidof com.noor.app)" || { echo "Noor process is not running after launch"; exit 1; }
             adb exec-out screencap -p > /tmp/noor-emulator.png
             adb logcat -c
-            adb shell am start-foreground-service -n com.noor.app/.PrayerAdhanService -a com.noor.app.action.PLAY_ADHAN --es id ci-smoke-test --es title "Noor Adhan Test" --es audioUrl "https://upload.wikimedia.org/wikipedia/commons/a/ae/AzaanMaahur.ogg"
+            adb shell am broadcast -n com.noor.app/.AdhanSmokeTestReceiver -a com.noor.app.action.CI_TEST_PLAY_ADHAN --es id ci-smoke-test --es title "Noor Adhan Test" --es audioUrl "https://upload.wikimedia.org/wikipedia/commons/a/ae/AzaanMaahur.ogg"
             sleep 20
             adb logcat -d > /tmp/noor-logcat.txt
             grep -E 'supabaseUrl is required|FATAL EXCEPTION.*com\\.noor\\.app|Process: com\\.noor\\.app.*died' /tmp/noor-logcat.txt && { echo "App startup/runtime error detected in emulator logs"; exit 1; } || true
