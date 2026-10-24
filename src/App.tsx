@@ -10,7 +10,6 @@ import { RemindersScreen } from '@/components/RemindersScreen';
 import { SettingsScreen } from '@/components/SettingsScreen';
 import { rescheduleAll } from '@/lib/reminderService';
 import { Capacitor } from '@capacitor/core';
-import { getGuestCityId } from '@/lib/cities';
 
 function getGuestNotifEnabled(): boolean {
   try {
