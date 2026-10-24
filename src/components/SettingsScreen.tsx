@@ -14,6 +14,8 @@ import {
   syncPrayerAdhanAlarms,
   checkPrayerAdhanFullScreenAccess,
   openPrayerAdhanFullScreenSettings,
+  checkPrayerExactAlarmAccess,
+  openPrayerExactAlarmSettings,
 } from '@/lib/prayerAdhan';
 
 const GUEST_NOTIF_KEY = 'noor_guest_notif_enabled';
@@ -53,6 +55,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   });
   const [prayerAdhanMessage, setPrayerAdhanMessage] = useState<string | null>(null);
   const [fullScreenAllowed, setFullScreenAllowed] = useState(false);
+  const [exactAlarmAllowed, setExactAlarmAllowed] = useState(false);
 
   useEffect(() => {
     setNotifSupported(Capacitor.isNativePlatform());
@@ -207,6 +210,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   useEffect(() => {
     if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'android') return;
     void checkPrayerAdhanFullScreenAccess().then(setFullScreenAllowed);
+    void checkPrayerExactAlarmAccess().then(setExactAlarmAllowed);
   }, []);
 
   useEffect(() => {
@@ -370,6 +374,14 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
             </button>
           </div>
           {prayerAdhanMessage && <p className="text-muted text-xs mt-3 leading-relaxed">{prayerAdhanMessage}</p>}
+          {Capacitor.getPlatform() === 'android' && !exactAlarmAllowed && (
+            <button type="button"
+              onClick={() => void openPrayerExactAlarmSettings().then(() => setPrayerAdhanMessage('در تنظیمات اندروید، اجازهٔ «آلارم‌ها و یادآوری‌ها» را فعال کن؛ بعد به نور برگرد.')).catch(() => setPrayerAdhanMessage('تنظیمات آلارم دقیق باز نشد. از تنظیمات گوشی ← برنامه‌ها ← نور ← آلارم‌ها و یادآوری‌ها را فعال کن.'))}
+              className="mt-3 w-full rounded-xl p-3 text-sm font-semibold"
+              style={{ background: 'color-mix(in srgb, ' + theme.primary + ' 12%, transparent)', color: theme.primary }}>
+              اجازهٔ زمان‌بندی دقیق اذان
+            </button>
+          )}
           {Capacitor.getPlatform() === 'android' && !fullScreenAllowed && (
             <button type="button"
               onClick={() => void openPrayerAdhanFullScreenSettings().then(() => setPrayerAdhanMessage('اجازهٔ نمایش تمام‌صفحه را در تنظیمات اندروید فعال کن و سپس به برنامه برگرد.')).catch(() => setPrayerAdhanMessage('تنظیمات نمایش تمام‌صفحه باز نشد؛ از تنظیمات برنامهٔ نور بررسی کن.'))}
