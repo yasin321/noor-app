@@ -300,7 +300,8 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
           <button onClick={() => setSection('main')} className="text-muted text-sm">بازگشت</button>
           <h1 className="text-2xl font-bold text-app">اذان‌ها</h1>
         </div>
-        <p className="text-muted text-xs mb-4">انتخاب صدا و شنیدن نمونهٔ اذان‌های ایرانی</p>
+        <p className="text-muted text-xs mb-3">انتخاب صدا و شنیدن نمونهٔ اذان‌های ایرانی</p>
+        <p className="text-muted text-xs mb-4 leading-relaxed">توجه: در این مرحله فقط نمونهٔ ماهور آنلاین پخش می‌شود؛ پخش خودکار اذان در وقت نماز و هنگام قفل بودن گوشی هنوز پیاده‌سازی نشده است.</p>
         <div className="space-y-3">
           {adhans.map((a) => (
             <div
