@@ -16,8 +16,6 @@ import {
   openPrayerAdhanExactAlarmSettings,
   checkPrayerAdhanFullScreenAccess,
   openPrayerAdhanFullScreenSettings,
-  checkPrayerExactAlarmAccess,
-  openPrayerExactAlarmSettings,
 } from '@/lib/prayerAdhan';
 
 const GUEST_NOTIF_KEY = 'noor_guest_notif_enabled';
@@ -212,8 +210,13 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
 
   useEffect(() => {
     if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'android') return;
-    void checkPrayerAdhanFullScreenAccess().then(setFullScreenAllowed);
-    void checkPrayerExactAlarmAccess().then(setExactAlarmAllowed);
+    const refreshAlarmPermissions = () => {
+      void checkPrayerAdhanExactAlarmAccess().then(setExactAlarmAllowed);
+      void checkPrayerAdhanFullScreenAccess().then(setFullScreenAllowed);
+    };
+    refreshAlarmPermissions();
+    document.addEventListener('visibilitychange', refreshAlarmPermissions);
+    return () => document.removeEventListener('visibilitychange', refreshAlarmPermissions);
   }, []);
 
   useEffect(() => {
@@ -384,7 +387,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
           {prayerAdhanMessage && <p className="text-muted text-xs mt-3 leading-relaxed">{prayerAdhanMessage}</p>}
           {Capacitor.getPlatform() === 'android' && !exactAlarmAllowed && (
             <button type="button"
-              onClick={() => void openPrayerExactAlarmSettings().then(() => setPrayerAdhanMessage('در تنظیمات اندروید، اجازهٔ «آلارم‌ها و یادآوری‌ها» را فعال کن؛ بعد به نور برگرد.')).catch(() => setPrayerAdhanMessage('تنظیمات آلارم دقیق باز نشد. از تنظیمات گوشی ← برنامه‌ها ← نور ← آلارم‌ها و یادآوری‌ها را فعال کن.'))}
+              onClick={() => void openPrayerAdhanExactAlarmSettings().then(() => setPrayerAdhanMessage('در تنظیمات اندروید، اجازهٔ «آلارم‌ها و یادآوری‌ها» را فعال کن؛ بعد به نور برگرد.')).catch(() => setPrayerAdhanMessage('تنظیمات آلارم دقیق باز نشد. از تنظیمات گوشی ← برنامه‌ها ← نور ← آلارم‌ها و یادآوری‌ها را فعال کن.'))}
               className="mt-3 w-full rounded-xl p-3 text-sm font-semibold"
               style={{ background: 'color-mix(in srgb, ' + theme.primary + ' 12%, transparent)', color: theme.primary }}>
               اجازهٔ زمان‌بندی دقیق اذان
