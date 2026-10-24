@@ -12,6 +12,8 @@ import { getAvailableMethods } from '@/lib/prayerTimes';
 import {
   PRAYER_ADHAN_ENABLED_KEY,
   syncPrayerAdhanAlarms,
+  checkPrayerAdhanExactAlarmAccess,
+  openPrayerAdhanExactAlarmSettings,
   checkPrayerAdhanFullScreenAccess,
   openPrayerAdhanFullScreenSettings,
   checkPrayerExactAlarmAccess,
@@ -55,6 +57,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   });
   const [prayerAdhanMessage, setPrayerAdhanMessage] = useState<string | null>(null);
   const [fullScreenAllowed, setFullScreenAllowed] = useState(false);
+  const [exactAlarmAllowed, setExactAlarmAllowed] = useState(false);
   const [exactAlarmAllowed, setExactAlarmAllowed] = useState(false);
 
   useEffect(() => {
@@ -243,6 +246,11 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
       return;
     }
     const next = !prayerAdhanEnabled;
+    if (next && !exactAlarmAllowed) {
+      setPrayerAdhanMessage('برای پخش دقیق اذان، ابتدا اجازهٔ «آلارم‌ها و یادآوری‌ها» را در اندروید فعال کن.');
+      void openPrayerAdhanExactAlarmSettings().catch(() => setPrayerAdhanMessage('تنظیمات آلارم دقیق باز نشد؛ از تنظیمات گوشی ← برنامه‌ها ← نور ← آلارم‌ها و یادآوری‌ها آن را فعال کن.'));
+      return;
+    }
     try { localStorage.setItem(PRAYER_ADHAN_ENABLED_KEY, String(next)); } catch { /* storage unavailable */ }
     setPrayerAdhanEnabled(next);
     setPrayerAdhanMessage(next
