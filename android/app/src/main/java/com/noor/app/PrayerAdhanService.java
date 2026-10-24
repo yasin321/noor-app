@@ -80,7 +80,10 @@ public class PrayerAdhanService extends Service {
                     .setUsage(AudioAttributes.USAGE_ALARM)
                     .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
                     .build());
-            player.setOnPreparedListener(mp -> mp.start());
+            player.setOnPreparedListener(mp -> {
+                mp.start();
+                android.util.Log.i("NoorAlarm", "ADHAN_PLAYBACK_STARTED url=" + url);
+            });
             player.setOnCompletionListener(mp -> {
                 stopPlayback();
                 stopForeground(STOP_FOREGROUND_REMOVE);
