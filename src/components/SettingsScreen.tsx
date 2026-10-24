@@ -311,12 +311,15 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
             >
               <button
                 type="button"
-                onClick={() => applyAdhan(a.id)}
-                className="w-full flex items-center justify-between text-right"
+                onClick={() => a.audioUrl && applyAdhan(a.id)}
+                disabled={!a.audioUrl}
+                aria-label={a.audioUrl ? `انتخاب ${a.nameFa}` : `${a.nameFa}، فایل صوتی هنوز آماده نیست`}
+                className="w-full flex items-center justify-between text-right disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <div>
                   <p className="text-app font-medium text-sm">{a.nameFa}</p>
                   <p className="text-muted text-xs mt-1">{a.reciter}</p>
+                  {!a.audioUrl && <p className="text-muted text-[11px] mt-1">به‌زودی؛ فایل صوتی هنوز آماده نیست</p>}
                 </div>
                 {(profile?.adhan_id ?? guestAdhanId) === a.id && (
                   <Check size={18} color={theme.primary} />
