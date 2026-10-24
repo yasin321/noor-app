@@ -300,23 +300,40 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
           <button onClick={() => setSection('main')} className="text-muted text-sm">بازگشت</button>
           <h1 className="text-2xl font-bold text-app">اذان‌ها</h1>
         </div>
-        <p className="text-muted text-xs mb-4">اذان‌های شیعه ایرانی</p>
-        <div className="space-y-2">
+        <p className="text-muted text-xs mb-4">انتخاب صدا و شنیدن نمونهٔ اذان‌های ایرانی</p>
+        <div className="space-y-3">
           {adhans.map((a) => (
-            <button
+            <div
               key={a.id}
-              onClick={() => applyAdhan(a.id)}
-              className="w-full card-flat p-4 flex items-center justify-between"
+              className="w-full card-flat p-4"
               style={{ borderColor: (profile?.adhan_id ?? guestAdhanId) === a.id ? theme.primary : theme.border }}
             >
-              <div>
-                <p className="text-app font-medium text-sm">{a.nameFa}</p>
-                <p className="text-muted text-xs">{a.reciter}</p>
-              </div>
-              {(profile?.adhan_id ?? guestAdhanId) === a.id && (
-                <Check size={18} color={theme.primary} />
+              <button
+                type="button"
+                onClick={() => applyAdhan(a.id)}
+                className="w-full flex items-center justify-between text-right"
+              >
+                <div>
+                  <p className="text-app font-medium text-sm">{a.nameFa}</p>
+                  <p className="text-muted text-xs mt-1">{a.reciter}</p>
+                </div>
+                {(profile?.adhan_id ?? guestAdhanId) === a.id && (
+                  <Check size={18} color={theme.primary} />
+                )}
+              </button>
+              {a.audioUrl ? (
+                <div className="mt-3">
+                  <audio controls preload="none" src={a.audioUrl} className="w-full" aria-label={`نمونهٔ صوتی ${a.nameFa}`} />
+                  <p className="text-muted text-xs mt-2 leading-relaxed">
+                    مجوز: {a.license}. صاحب اثر: {a.reciter}.
+                    {' '}<a href={a.sourceUrl} target="_blank" rel="noreferrer" className="underline">منبع فایل</a>
+                    {' '}· <a href={a.licenseUrl} target="_blank" rel="noreferrer" className="underline">متن مجوز</a>
+                  </p>
+                </div>
+              ) : (
+                <p className="text-muted text-xs mt-2">فایل صوتی این گزینه هنوز به‌صورت مجاز به برنامه اضافه نشده است.</p>
               )}
-            </button>
+            </div>
           ))}
         </div>
       </div>
