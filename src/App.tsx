@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Bell, Volume2, ShieldCheck } from 'lucide-react';
+import { LocalNotifications } from '@capacitor/local-notifications';
 import { checkPermission, requestPermission } from '@/lib/reminderService';
 import { AuthProvider, useAuth } from '@/hooks/useAuth';
 import { ThemeProvider } from '@/hooks/useTheme';
@@ -53,10 +54,21 @@ function AppContent() {
       return;
     }
     try { localStorage.setItem('noor_permission_intro_seen', 'true'); } catch { /* ignore */ }
+    if (Capacitor.getPlatform() === 'android') {
+      try {
+        const { exact_alarm } = await LocalNotifications.checkExactNotificationSetting();
+        if (exact_alarm !== 'granted') {
+          await LocalNotifications.changeExactNotificationSetting();
+        }
+      } catch {
+        // Keep the app usable; SettingsScreen explains how to grant exact-alarm access.
+      }
+    }
     setShowPermissionIntro(false);
     const result = await rescheduleAll(notifEnabled);
     if (result.failed > 0) {
-      setPermissionIntroMessage(`${result.succeeded} یادآوری فعال شد و ${result.failed} مورد ناموفق بود. اجازهٔ آلارم دقیق اندروید را هم بررسی کن.`);
+      // The permission dialog has closed; the Settings screen provides actionable diagnostics.
+      console.info(`Noor reminders scheduled: ${result.succeeded}; failed: ${result.failed}`);
     }
   };
 
