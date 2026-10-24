@@ -16,7 +16,7 @@ function getGuestNotifEnabled(): boolean {
   try {
     return localStorage.getItem('noor_guest_notif_enabled') === 'true';
   } catch {
-    return true;
+    return false;
   }
 }
 
