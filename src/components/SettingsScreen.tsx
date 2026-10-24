@@ -9,6 +9,12 @@ import { adhans } from '@/lib/adhans';
 import { CITIES, getCityById, getGuestCityId, setGuestCityId, type City } from '@/lib/cities';
 import { cancelAllScheduledNotifications, rescheduleAllReminders, checkPermission, requestPermission } from '@/lib/reminderService';
 import { getAvailableMethods } from '@/lib/prayerTimes';
+import {
+  PRAYER_ADHAN_ENABLED_KEY,
+  syncPrayerAdhanAlarms,
+  checkPrayerAdhanFullScreenAccess,
+  openPrayerAdhanFullScreenSettings,
+} from '@/lib/prayerAdhan';
 
 const GUEST_NOTIF_KEY = 'noor_guest_notif_enabled';
 const GUEST_ADHAN_KEY = 'noor_guest_adhan_id';
@@ -42,6 +48,11 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   const [guestAdhanId, setGuestAdhanId] = useState(getGuestAdhanId());
   const [notifSupported, setNotifSupported] = useState(true);
   const [notifMessage, setNotifMessage] = useState<string | null>(null);
+  const [prayerAdhanEnabled, setPrayerAdhanEnabled] = useState(() => {
+    try { return localStorage.getItem(PRAYER_ADHAN_ENABLED_KEY) === 'true'; } catch { return false; }
+  });
+  const [prayerAdhanMessage, setPrayerAdhanMessage] = useState<string | null>(null);
+  const [fullScreenAllowed, setFullScreenAllowed] = useState(false);
 
   useEffect(() => {
     setNotifSupported(Capacitor.isNativePlatform());
@@ -190,6 +201,50 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
 
   const currentMethod = profile?.calculation_method ?? 'jafari';
   const methods = getAvailableMethods();
+  const selectedAdhanId = profile?.adhan_id ?? guestAdhanId;
+  const selectedAdhan = adhans.find((item) => item.id === selectedAdhanId);
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'android') return;
+    void checkPrayerAdhanFullScreenAccess().then(setFullScreenAllowed);
+  }, []);
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'android') return;
+    let cancelled = false;
+    void syncPrayerAdhanAlarms({
+      enabled: prayerAdhanEnabled,
+      city: currentCity,
+      method: currentMethod,
+      adhanId: selectedAdhanId,
+      audioUrl: selectedAdhan?.audioUrl,
+    }).then((result) => {
+      if (cancelled) return;
+      if (!prayerAdhanEnabled) {
+        setPrayerAdhanMessage('پخش خودکار اذان خاموش است؛ یادآوری‌های معمولی جداگانه کار می‌کنند.');
+      } else if (result.error) {
+        setPrayerAdhanMessage(result.error);
+      } else {
+        setPrayerAdhanMessage(String(result.scheduled) + ' زمان اذان برای ۳۰ روز آینده زمان‌بندی شد.');
+      }
+    }).catch((error) => {
+      if (!cancelled) setPrayerAdhanMessage('زمان‌بندی اذان ناموفق بود: ' + String(error));
+    });
+    return () => { cancelled = true; };
+  }, [prayerAdhanEnabled, currentCity, currentMethod, selectedAdhanId, selectedAdhan?.audioUrl]);
+
+  const togglePrayerAdhan = () => {
+    if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'android') {
+      setPrayerAdhanMessage('پخش خودکار اذان فقط در نسخهٔ اندروید پشتیبانی می‌شود.');
+      return;
+    }
+    const next = !prayerAdhanEnabled;
+    try { localStorage.setItem(PRAYER_ADHAN_ENABLED_KEY, String(next)); } catch { /* storage unavailable */ }
+    setPrayerAdhanEnabled(next);
+    setPrayerAdhanMessage(next
+      ? 'در حال زمان‌بندی اذان‌ها؛ باید فایل صوتی واقعی برای صدای انتخاب‌شده موجود باشد.'
+      : 'پخش خودکار اذان خاموش شد.');
+  };
 
   if (section === 'theme') {
     return (
@@ -301,7 +356,29 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
           <h1 className="text-2xl font-bold text-app">اذان‌ها</h1>
         </div>
         <p className="text-muted text-xs mb-3">انتخاب صدا و شنیدن نمونهٔ اذان‌های ایرانی</p>
-        <p className="text-muted text-xs mb-4 leading-relaxed">توجه: در این مرحله فقط نمونهٔ ماهور آنلاین پخش می‌شود؛ پخش خودکار اذان در وقت نماز و هنگام قفل بودن گوشی هنوز پیاده‌سازی نشده است.</p>
+        <p className="text-muted text-xs mb-4 leading-relaxed">پخش خودکار اذان از زنگ یادآوری جداست. در حال حاضر فقط صدای ماهور فایل آنلاین قابل استفاده دارد؛ برای پخش، اینترنت لازم است.</p>
+        <div className="card-flat p-4 mb-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex-1">
+              <p className="text-app font-semibold text-sm">پخش خودکار در وقت نماز</p>
+              <p className="text-muted text-xs mt-1">فقط فایل اذان انتخاب‌شده پخش می‌شود؛ صدای زنگ جایگزین اذان نخواهد شد.</p>
+            </div>
+            <button type="button" role="switch" aria-checked={prayerAdhanEnabled} onClick={togglePrayerAdhan}
+              className="w-12 h-7 rounded-full relative flex-shrink-0"
+              style={{ background: prayerAdhanEnabled ? theme.primary : theme.border }}>
+              <span className="absolute top-1 w-5 h-5 rounded-full bg-white transition-all" style={{ right: prayerAdhanEnabled ? '3px' : '23px' }} />
+            </button>
+          </div>
+          {prayerAdhanMessage && <p className="text-muted text-xs mt-3 leading-relaxed">{prayerAdhanMessage}</p>}
+          {Capacitor.isNativePlatform() && !fullScreenAllowed && (
+            <button type="button"
+              onClick={() => void openPrayerAdhanFullScreenSettings().then(() => setPrayerAdhanMessage('اجازهٔ نمایش تمام‌صفحه را در تنظیمات اندروید فعال کن و سپس به برنامه برگرد.')).catch(() => setPrayerAdhanMessage('تنظیمات نمایش تمام‌صفحه باز نشد؛ از تنظیمات برنامهٔ نور بررسی کن.'))}
+              className="mt-3 w-full rounded-xl p-3 text-sm font-semibold"
+              style={{ background: 'color-mix(in srgb, ' + theme.primary + ' 12%, transparent)', color: theme.primary }}>
+              اجازهٔ نمایش آلارم روی صفحهٔ قفل
+            </button>
+          )}
+        </div>
         <div className="space-y-3">
           {adhans.map((a) => (
             <div
