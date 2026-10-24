@@ -10,6 +10,9 @@ import { RemindersScreen } from '@/components/RemindersScreen';
 import { SettingsScreen } from '@/components/SettingsScreen';
 import { rescheduleAll } from '@/lib/reminderService';
 import { Capacitor } from '@capacitor/core';
+import { getCityById, getGuestCityId } from '@/lib/cities';
+import { adhans } from '@/lib/adhans';
+import { PRAYER_ADHAN_ENABLED_KEY, syncPrayerAdhanAlarms } from '@/lib/prayerAdhan';
 
 function getGuestNotifEnabled(): boolean {
   try {
@@ -33,6 +36,44 @@ function AppContent() {
   };
 
   const notifEnabled = profile?.notif_enabled ?? getGuestNotifEnabled();
+
+  useEffect(() => {
+    if (loading || Capacitor.getPlatform() !== 'android') return;
+
+    const refreshPrayerAlarms = () => {
+      let enabled = false;
+      let guestAdhanId = 'default';
+      try {
+        enabled = localStorage.getItem(PRAYER_ADHAN_ENABLED_KEY) === 'true';
+        guestAdhanId = localStorage.getItem('noor_guest_adhan_id') || 'default';
+      } catch {
+        // If storage is unavailable, do not create new alarms unexpectedly.
+      }
+      if (!enabled) return;
+      const city = getCityById(profile?.city_id ?? getGuestCityId());
+      const adhanId = profile?.adhan_id ?? guestAdhanId;
+      const adhan = adhans.find((item) => item.id === adhanId);
+      if (!adhan?.audioUrl) return;
+      void syncPrayerAdhanAlarms({
+        enabled: true,
+        city,
+        method: profile?.calculation_method ?? 'jafari',
+        adhanId,
+        audioUrl: adhan.audioUrl,
+      });
+    };
+
+    refreshPrayerAlarms();
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refreshPrayerAlarms();
+    };
+    window.addEventListener('focus', refreshPrayerAlarms);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.removeEventListener('focus', refreshPrayerAlarms);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [loading, profile?.city_id, profile?.adhan_id, profile?.calculation_method]);
 
   useEffect(() => {
     // Wait for the auth/profile state before rescheduling. Otherwise the initial
