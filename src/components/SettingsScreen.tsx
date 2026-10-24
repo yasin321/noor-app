@@ -1,7 +1,7 @@
-
 import { useState, useEffect } from 'react';
 import { Palette, Volume2, Bell, LogOut, User, Check, LogIn, MapPin, AlertCircle } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
+import { LocalNotifications } from '@capacitor/local-notifications';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
 import { themes } from '@/lib/themes';
@@ -68,6 +68,19 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
         setNotifMessage('مجوز اعلان داده نشد؛ یادآوری‌ها هنوز ارسال نمی‌شوند. از تنظیمات گوشی، اعلان‌های نور را مجاز کن.');
         return;
       }
+
+      if (Capacitor.getPlatform() === 'android') {
+        try {
+          const { exact_alarm } = await LocalNotifications.checkExactNotificationSetting();
+          if (exact_alarm !== 'granted') {
+            setNotifMessage('برای یادآوری دقیق، دسترسی «آلارم‌ها و یادآوری‌ها» را هم فعال کن.');
+            return;
+          }
+        } catch {
+          setNotifMessage('وضعیت آلارم دقیق بررسی نشد. از تنظیمات اندروید، دسترسی «آلارم‌ها و یادآوری‌ها» را بررسی کن.');
+          return;
+        }
+      }
     }
 
     if (profile) {
@@ -96,29 +109,48 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   };
 
   const requestNotificationAccess = async () => {
-    const permission = await requestPermission();
+    setNotifMessage(null);
+    let permission = await checkPermission();
+    if (permission !== 'granted') permission = await requestPermission();
 
-    if (permission === 'granted') {
-      if (profile) {
-        await updateProfile({ notif_enabled: true });
-      } else {
-        setGuestNotifEnabled(true);
-        setGuestNotif(true);
+    if (permission !== 'granted') {
+      setNotifMessage('اندروید اجازهٔ اعلان را نداد. از تنظیمات گوشی ← برنامه‌ها ← نور ← اعلان‌ها آن را فعال کن.');
+      return;
+    }
+
+    if (Capacitor.getPlatform() === 'android') {
+      try {
+        let { exact_alarm } = await LocalNotifications.checkExactNotificationSetting();
+        if (exact_alarm !== 'granted') {
+          const result = await LocalNotifications.changeExactNotificationSetting();
+          exact_alarm = result.exact_alarm;
+        }
+
+        if (exact_alarm !== 'granted') {
+          setNotifMessage('دسترسی آلارم دقیق هنوز فعال نیست. آن را در صفحهٔ تنظیمات اندروید فعال کن و دوباره بررسی را بزن.');
+          return;
+        }
+      } catch {
+        setNotifMessage('نتوانستم صفحهٔ دسترسی آلارم دقیق را باز یا بررسی کنم. از تنظیمات گوشی ← برنامه‌ها ← نور ← آلارم‌ها و یادآوری‌ها بررسی کن.');
+        return;
       }
+    }
 
-      const result = await rescheduleAllReminders(true);
-
-      if (result.failed > 0) {
-        setNotifMessage(
-          `اجازهٔ اعلان داده شد؛ ${result.succeeded} یادآوری زمان‌بندی شد و ${result.failed} مورد ناموفق بود. تنظیمات اعلان و آلارم دقیق اندروید را بررسی کن.`
-        );
-      } else {
-        setNotifMessage(
-          `اجازهٔ اعلان داده شد؛ ${result.succeeded} یادآوری زمان‌بندی شد.`
-        );
-      }
+    if (profile) {
+      await updateProfile({ notif_enabled: true });
     } else {
-      setNotifMessage('اندروید اجازه را نداد. از تنظیمات گوشی ← برنامه‌ها ← نور ← اعلان‌ها آن را فعال کن.');
+      setGuestNotifEnabled(true);
+      setGuestNotif(true);
+    }
+
+    const result = await rescheduleAllReminders(true);
+
+    if (result.failed > 0) {
+      setNotifMessage(
+        `اجازه‌ها بررسی شد؛ ${result.succeeded} یادآوری زمان‌بندی شد و ${result.failed} مورد ناموفق بود. تنظیمات اعلان و آلارم دقیق اندروید را بررسی کن.`
+      );
+    } else {
+      setNotifMessage(`اجازه‌ها بررسی شد؛ ${result.succeeded} یادآوری زمان‌بندی شد.`);
     }
   };
 
