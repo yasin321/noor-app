@@ -99,7 +99,9 @@ public class NoorAlarmPlugin extends Plugin {
                 (android.app.NotificationManager) getContext().getSystemService(Context.NOTIFICATION_SERVICE);
             allowed = manager != null && manager.canUseFullScreenIntent();
         }
-        call.resolve(new com.getcapacitor.JSObject().put("allowed", allowed));
+        com.getcapacitor.JSObject result = new com.getcapacitor.JSObject();
+        result.put("allowed", allowed);
+        call.resolve(result);
     }
 
     @PluginMethod
