@@ -83,13 +83,6 @@ export async function checkPrayerAdhanFullScreenAccess(): Promise<boolean> {
   }
 }
 
-export async function checkPrayerExactAlarmAccess(): Promise<boolean> {
-  try { return (await NativeAlarm.checkExactAlarmAccess()).allowed; } catch { return false; }
-}
-
-export async function openPrayerExactAlarmSettings(): Promise<void> {
-  await NativeAlarm.openExactAlarmSettings();
-}
 
 export async function openPrayerAdhanFullScreenSettings(): Promise<void> {
   await NativeAlarm.openFullScreenSettings();
