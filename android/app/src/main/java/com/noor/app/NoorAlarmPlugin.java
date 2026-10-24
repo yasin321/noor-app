@@ -95,6 +95,35 @@ public class NoorAlarmPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void checkExactAlarmAccess(PluginCall call) {
+        boolean allowed = true;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            AlarmManager manager = (AlarmManager) getContext().getSystemService(Context.ALARM_SERVICE);
+            allowed = manager != null && manager.canScheduleExactAlarms();
+        }
+        com.getcapacitor.JSObject result = new com.getcapacitor.JSObject();
+        result.put("allowed", allowed);
+        call.resolve(result);
+    }
+
+    @PluginMethod
+    public void openExactAlarmSettings(PluginCall call) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            Intent intent = new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM);
+            intent.setData(android.net.Uri.parse("package:" + getContext().getPackageName()));
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            try {
+                getContext().startActivity(intent);
+                call.resolve();
+            } catch (Exception e) {
+                call.reject("باز کردن تنظیمات آلارم دقیق ممکن نشد", "EXACT_ALARM_SETTINGS_FAILED");
+            }
+        } else {
+            call.resolve();
+        }
+    }
+
+    @PluginMethod
     public void checkFullScreenAccess(PluginCall call) {
         boolean allowed = true;
         if (Build.VERSION.SDK_INT >= 34) {
