@@ -70,9 +70,14 @@ jobs:
             adb shell monkey -p com.noor.app 1
             sleep 25
             test -n "$(adb shell pidof com.noor.app)" || { echo "Noor process is not running after launch"; exit 1; }
-            adb logcat -d > /tmp/noor-logcat.txt
             adb exec-out screencap -p > /tmp/noor-emulator.png
+            adb logcat -c
+            adb shell am start-foreground-service -n com.noor.app/.PrayerAdhanService -a com.noor.app.action.PLAY_ADHAN --es id ci-smoke-test --es title "Noor Adhan Test" --es audioUrl "https://upload.wikimedia.org/wikipedia/commons/a/ae/AzaanMaahur.ogg"
+            sleep 20
+            adb logcat -d > /tmp/noor-logcat.txt
             grep -E 'supabaseUrl is required|FATAL EXCEPTION.*com\\.noor\\.app|Process: com\\.noor\\.app.*died' /tmp/noor-logcat.txt && { echo "App startup/runtime error detected in emulator logs"; exit 1; } || true
+            grep -q 'ADHAN_PLAYBACK_STARTED' /tmp/noor-logcat.txt || { echo "Adhan audio did not reach MediaPlayer playback-start confirmation"; grep -E 'NoorAlarm|MediaPlayer|ExoPlayer' /tmp/noor-logcat.txt || true; exit 1; }
+            if grep -q 'ADHAN_PLAYBACK_FAILED' /tmp/noor-logcat.txt; then echo "Adhan playback reported an error"; grep 'ADHAN_PLAYBACK_FAILED' /tmp/noor-logcat.txt; exit 1; fi
 
       - name: Upload emulator smoke-test evidence
         if: always()
