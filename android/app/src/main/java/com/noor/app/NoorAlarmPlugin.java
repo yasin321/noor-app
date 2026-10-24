@@ -78,7 +78,10 @@ public class NoorAlarmPlugin extends Plugin {
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         AlarmManager manager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         if (manager == null) throw new IllegalStateException("AlarmManager unavailable");
-        AlarmManager.AlarmClockInfo info = new AlarmManager.AlarmClockInfo(at, pending);
+        Intent showIntent = new Intent(context, MainActivity.class);
+        PendingIntent showPending = PendingIntent.getActivity(context, id.hashCode() ^ 0x4e4f4f52,
+                showIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        AlarmManager.AlarmClockInfo info = new AlarmManager.AlarmClockInfo(at, showPending);
         manager.setAlarmClock(info, pending);
     }
 
