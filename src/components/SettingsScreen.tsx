@@ -370,7 +370,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
             </button>
           </div>
           {prayerAdhanMessage && <p className="text-muted text-xs mt-3 leading-relaxed">{prayerAdhanMessage}</p>}
-          {Capacitor.isNativePlatform() && !fullScreenAllowed && (
+          {Capacitor.getPlatform() === 'android' && !fullScreenAllowed && (
             <button type="button"
               onClick={() => void openPrayerAdhanFullScreenSettings().then(() => setPrayerAdhanMessage('اجازهٔ نمایش تمام‌صفحه را در تنظیمات اندروید فعال کن و سپس به برنامه برگرد.')).catch(() => setPrayerAdhanMessage('تنظیمات نمایش تمام‌صفحه باز نشد؛ از تنظیمات برنامهٔ نور بررسی کن.'))}
               className="mt-3 w-full rounded-xl p-3 text-sm font-semibold"
