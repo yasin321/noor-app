@@ -106,10 +106,7 @@ jobs:
             test -n "$(adb shell pidof com.noor.app)" || { echo "Noor process is not running after launch"; exit 1; }
             adb logcat -d > /tmp/noor-logcat.txt
             adb exec-out screencap -p > /tmp/noor-emulator.png
-            if grep -Eq 'supabaseUrl is required|Invalid supabaseUrl|FATAL EXCEPTION|Process: com.noor.app.*died' /tmp/noor-logcat.txt; then
-              echo "App startup/runtime error detected in emulator logs"
-              exit 1
-            fi
+            python3 -c 'import pathlib,re,sys; log=pathlib.Path("/tmp/noor-logcat.txt").read_text(errors="replace"); pattern=r"supabaseUrl is required|Invalid supabaseUrl|FATAL EXCEPTION|Process: com\.noor\.app.*died"; found=re.search(pattern,log); print("App startup/runtime error detected in emulator logs: "+found.group(0) if found else "No known fatal startup errors found"); sys.exit(1 if found else 0)'
 
       - name: Upload emulator smoke-test evidence
         if: always()
