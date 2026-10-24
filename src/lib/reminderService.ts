@@ -1,4 +1,5 @@
 
+import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import {
   LocalReminder,
@@ -177,19 +178,23 @@ export async function scheduleReminder(reminder: LocalReminder, notifEnabled: bo
     return { success: false, error: 'اجازه اعلان داده نشده است' };
   }
 
-  try {
-    const { exact_alarm } = await LocalNotifications.checkExactNotificationSetting();
-    if (exact_alarm !== 'granted') {
+  // Exact-alarm access is an Android-only setting. Calling this API on web/iOS
+  // can fail even though those platforms do not require Android's exact-alarm grant.
+  if (Capacitor.getPlatform() === 'android') {
+    try {
+      const { exact_alarm } = await LocalNotifications.checkExactNotificationSetting();
+      if (exact_alarm !== 'granted') {
+        return {
+          success: false,
+          error: 'اجازه آلارم‌ها و یادآوری‌ها داده نشده است؛ دسترسی آلارم دقیق اندروید را بررسی کن.',
+        };
+      }
+    } catch {
       return {
         success: false,
-        error: 'اجازه آلارم‌ها و یادآوری‌ها داده نشده است؛ دسترسی آلارم دقیق اندروید را بررسی کن.',
+        error: 'وضعیت اجازه آلارم دقیق قابل بررسی نیست؛ تنظیمات اعلان اندروید را بررسی کن.',
       };
     }
-  } catch {
-    return {
-      success: false,
-      error: 'وضعیت اجازه آلارم دقیق قابل بررسی نیست؛ تنظیمات اعلان اندروید را بررسی کن.',
-    };
   }
 
   await ensureChannel();
