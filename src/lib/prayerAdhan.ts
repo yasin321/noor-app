@@ -7,6 +7,8 @@ type NativePrayerAlarm = {
   cancel(options: { id: string }): Promise<void>;
   cancelAll(): Promise<void>;
   checkFullScreenAccess(): Promise<{ allowed: boolean }>;
+  checkExactAlarmAccess(): Promise<{ allowed: boolean }>;
+  openExactAlarmSettings(): Promise<void>;
   openFullScreenSettings(): Promise<void>;
 };
 
@@ -66,6 +68,14 @@ export async function checkPrayerAdhanFullScreenAccess(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+export async function checkPrayerExactAlarmAccess(): Promise<boolean> {
+  try { return (await NativeAlarm.checkExactAlarmAccess()).allowed; } catch { return false; }
+}
+
+export async function openPrayerExactAlarmSettings(): Promise<void> {
+  await NativeAlarm.openExactAlarmSettings();
 }
 
 export async function openPrayerAdhanFullScreenSettings(): Promise<void> {
