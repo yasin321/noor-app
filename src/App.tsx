@@ -155,7 +155,12 @@ function AppContent() {
       checking = true;
       try {
         const permission = await checkPermission();
-        if (!active || permission !== 'granted') return;
+        if (!active) return;
+        const introSeen = localStorage.getItem('noor_permission_intro_seen_v2') === 'true';
+        if (permission !== 'granted') {
+          if (!introSeen) setShowPermissionIntro(true);
+          return;
+        }
 
         let exactAlarmAllowed = false;
         try {
@@ -164,7 +169,11 @@ function AppContent() {
         } catch {
           // Fail closed: an unknown permission state must not be treated as granted.
         }
-        if (!active || !exactAlarmAllowed) return;
+        if (!active) return;
+        if (!exactAlarmAllowed) {
+          if (!introSeen) setShowExactAlarmIntro(true);
+          return;
+        }
 
         const result = await rescheduleAll(notifEnabled);
         if (result.failed > 0) {
