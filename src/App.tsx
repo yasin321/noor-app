@@ -26,11 +26,12 @@ function getGuestNotifEnabled(): boolean {
 }
 
 function AppContent() {
-  const { user, profile, loading } = useAuth();
+  const { user, profile, loading, updateProfile } = useAuth();
   const [tab, setTab] = useState<Tab>('home');
   const [navigationDirection, setNavigationDirection] = useState<'forward' | 'backward'>('forward');
   const [showAuth, setShowAuth] = useState(false);
   const [showPermissionIntro, setShowPermissionIntro] = useState(false);
+  const [guestNotifEnabled, setGuestNotifEnabledState] = useState(getGuestNotifEnabled);
   const [showExactAlarmIntro, setShowExactAlarmIntro] = useState(false);
   const [permissionIntroMessage, setPermissionIntroMessage] = useState<string | null>(null);
 
@@ -83,14 +84,17 @@ function AppContent() {
       }
       if (!exactAlarmAllowed) {
         // Explain the separate Android Settings screen before opening it.
+        try { localStorage.setItem('noor_permission_setup_pending_v1', 'true'); } catch { /* ignore */ }
         setShowPermissionIntro(false);
         setShowExactAlarmIntro(true);
         return;
       }
     }
+    await enableReminderPreference();
     try { localStorage.setItem('noor_permission_intro_seen_v2', 'true'); } catch { /* ignore */ }
+    try { localStorage.removeItem('noor_permission_setup_pending_v1'); } catch { /* ignore */ }
     setShowPermissionIntro(false);
-    const result = await rescheduleAll(notifEnabled);
+    const result = await rescheduleAll(true);
     if (result.failed > 0) {
       // The permission dialog has closed; the Settings screen provides actionable diagnostics.
       console.info(`Noor reminders scheduled: ${result.succeeded}; failed: ${result.failed}`);
@@ -98,7 +102,6 @@ function AppContent() {
   };
 
   const dismissPermissionIntro = () => {
-    try { localStorage.setItem('noor_permission_intro_seen_v2', 'true'); } catch { /* ignore */ }
     setShowPermissionIntro(false);
   };
 
@@ -116,10 +119,12 @@ function AppContent() {
     try {
       const { exact_alarm } = await LocalNotifications.checkExactNotificationSetting();
       if (exact_alarm !== 'granted') return;
-      try { localStorage.setItem('noor_permission_intro_seen_v2', 'true'); } catch { /* ignore */ }
       const permission = await checkPermission();
       if (permission !== 'granted') return;
-      const result = await rescheduleAll(notifEnabled);
+      await enableReminderPreference();
+      try { localStorage.setItem('noor_permission_intro_seen_v2', 'true'); } catch { /* ignore */ }
+      try { localStorage.removeItem('noor_permission_setup_pending_v1'); } catch { /* ignore */ }
+      const result = await rescheduleAll(true);
       if (result.failed > 0) {
         console.info(`Noor reminders scheduled after permission flow: ${result.succeeded}; failed: ${result.failed}`);
       }
@@ -129,7 +134,6 @@ function AppContent() {
   };
 
   const dismissExactAlarmIntro = () => {
-    try { localStorage.setItem('noor_permission_intro_seen_v2', 'true'); } catch { /* ignore */ }
     setShowExactAlarmIntro(false);
   };
 
@@ -140,7 +144,16 @@ function AppContent() {
     setTab(nextTab);
   };
 
-  const notifEnabled = profile?.notif_enabled ?? getGuestNotifEnabled();
+  const notifEnabled = profile?.notif_enabled ?? guestNotifEnabled;
+
+  const enableReminderPreference = async () => {
+    if (profile) {
+      await updateProfile({ notif_enabled: true });
+    } else {
+      try { localStorage.setItem('noor_guest_notif_enabled', 'true'); } catch { /* ignore */ }
+      setGuestNotifEnabledState(true);
+    }
+  };
 
   // Android Settings does not return the permission result to this web layer.
   // Re-check permissions when Noor becomes visible again, then retry scheduling.
