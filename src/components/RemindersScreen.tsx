@@ -12,7 +12,6 @@ import {
   deleteReminder,
   rescheduleAll,
   checkPermission,
-  requestPermission,
   getDayLabel,
   type LocalReminder,
 } from '@/lib/reminderService';
@@ -45,14 +44,15 @@ export function RemindersScreen() {
     setNotifSupported(Capacitor.isNativePlatform());
     setReminders(loadReminders());
     if (Capacitor.isNativePlatform()) {
-      (async () => {
-        const perm = await checkPermission();
-        if (perm !== 'granted') {
-          await requestPermission();
+      // Never open a system permission prompt just by entering this tab.
+      // Permission is requested from the first-run explainer or Settings after
+      // an explicit user action; opening Reminders only refreshes existing schedules.
+      void checkPermission().then(async (permission) => {
+        if (permission === 'granted') {
+          await rescheduleAll(notifEnabled);
+          setReminders(loadReminders());
         }
-        await rescheduleAll(notifEnabled);
-        setReminders(loadReminders());
-      })();
+      });
     }
   }, [refreshKey, notifEnabled]);
 
