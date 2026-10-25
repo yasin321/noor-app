@@ -41,11 +41,11 @@ function AppContent() {
       try {
         // Do not mark setup as complete merely because notification permission
         // is already granted: Android's exact-alarm access is a separate grant.
-        if (localStorage.getItem('noor_permission_intro_seen') === 'true') return;
+        const introSeen = localStorage.getItem('noor_permission_intro_seen_v2') === 'true';
         const permission = await checkPermission();
         if (!active) return;
         if (permission !== 'granted') {
-          setShowPermissionIntro(true);
+          if (!introSeen) setShowPermissionIntro(true);
           return;
         }
 
@@ -58,7 +58,7 @@ function AppContent() {
             // Unknown special-access state must not be treated as granted.
           }
           if (!active) return;
-          if (!exactAlarmAllowed) setShowExactAlarmIntro(true);
+          if (!exactAlarmAllowed && !introSeen) setShowExactAlarmIntro(true);
         }
       } catch (error) {
         console.info('Noor could not check notification setup on startup', error);
@@ -89,7 +89,7 @@ function AppContent() {
         return;
       }
     }
-    try { localStorage.setItem('noor_permission_intro_seen', 'true'); } catch { /* ignore */ }
+    try { localStorage.setItem('noor_permission_intro_seen_v2', 'true'); } catch { /* ignore */ }
     setShowPermissionIntro(false);
     const result = await rescheduleAll(notifEnabled);
     if (result.failed > 0) {
@@ -99,7 +99,7 @@ function AppContent() {
   };
 
   const dismissPermissionIntro = () => {
-    try { localStorage.setItem('noor_permission_intro_seen', 'true'); } catch { /* ignore */ }
+    try { localStorage.setItem('noor_permission_intro_seen_v2', 'true'); } catch { /* ignore */ }
     setShowPermissionIntro(false);
   };
 
@@ -109,14 +109,15 @@ function AppContent() {
     } catch {
       // The user can enable this later from Settings; do not block the app.
     }
-    try { localStorage.setItem('noor_permission_intro_seen', 'true'); } catch { /* ignore */ }
     setShowExactAlarmIntro(false);
 
     // Opening Android Settings does not mean access was granted. Verify it before
-    // scheduling; the visibility/focus listener retries when the user returns.
+    // marking onboarding complete or scheduling; if skipped, offer the guide again
+    // on the next launch.
     try {
       const { exact_alarm } = await LocalNotifications.checkExactNotificationSetting();
       if (exact_alarm !== 'granted') return;
+      try { localStorage.setItem('noor_permission_intro_seen_v2', 'true'); } catch { /* ignore */ }
       const permission = await checkPermission();
       if (permission !== 'granted') return;
       const result = await rescheduleAll(notifEnabled);
@@ -129,7 +130,7 @@ function AppContent() {
   };
 
   const dismissExactAlarmIntro = () => {
-    try { localStorage.setItem('noor_permission_intro_seen', 'true'); } catch { /* ignore */ }
+    try { localStorage.setItem('noor_permission_intro_seen_v2', 'true'); } catch { /* ignore */ }
     setShowExactAlarmIntro(false);
   };
 
