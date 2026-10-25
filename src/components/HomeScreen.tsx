@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { MapPin, Clock, Sunrise, Sunset, Moon, Sun, CloudSun, ArrowLeft, Hand } from 'lucide-react';
+import { MapPin, Clock, Sunrise, Sunset, Moon, Sun, CloudSun, ArrowLeft, Hand, Bell, BellOff, Type } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
 import { calculatePrayerTimes, getNextPrayer, getLocalDateString, timeToMinutes, PrayerTimes } from '@/lib/prayerTimes';
@@ -7,6 +7,9 @@ import { getCityById, getGuestCityId } from '@/lib/cities';
 import { getTodayTotal, getTodayRounds, getSession, fetchTodayStats } from '@/lib/tasbihStorage';
 import { toJalaliShort, getJalaliWeekday } from '@/lib/jalali';
 import { dhikrLibrary } from '@/lib/dhikrLibrary';
+import { loadReminders, scheduleReminder, cancelReminder, checkPermission, requestPermission } from '@/lib/reminderService';
+import { saveReminder, type LocalReminder } from '@/lib/reminderStorage';
+import { logEvent } from '@/lib/logger';
 import type { Tab } from '@/components/BottomNav';
 
 const prayerIcons: Record<string, typeof Sun> = {
@@ -18,6 +21,8 @@ const prayerIcons: Record<string, typeof Sun> = {
   isha: Moon,
   midnight: Moon,
 };
+
+const LARGE_FONT_KEY = 'noor_large_font_enabled';
 
 function getGreeting(hour: number): string {
   if (hour >= 5 && hour < 12) return 'صبح بخیر';
@@ -34,13 +39,29 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
   const [now, setNow] = useState(new Date());
   const [stats, setStats] = useState({ total: 0, rounds: 0 });
   const [hasActiveSession, setHasActiveSession] = useState(false);
+  const [enabledAlarms, setEnabledAlarms] = useState<Record<string, boolean>>({});
+  const [statusToast, setStatusToast] = useState<string | null>(null);
+  const [largeFont, setLargeFont] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(LARGE_FONT_KEY) === 'true';
+    } catch {
+      return false;
+    }
+  });
 
   const cityId = profile?.city_id ?? getGuestCityId();
   const city = useMemo(() => getCityById(cityId), [cityId]);
   const method = profile?.calculation_method ?? 'jafari';
-  // Use the selected city's calendar date, not the device's date. This matters
-  // when the user is travelling or the device timezone differs from the city.
   const todayDate = getLocalDateString(now, city.timezone);
+
+  useEffect(() => {
+    document.documentElement.style.fontSize = largeFont ? '18.5px' : '16px';
+    try {
+      localStorage.setItem(LARGE_FONT_KEY, largeFont ? 'true' : 'false');
+    } catch {
+      // ignore
+    }
+  }, [largeFont]);
 
   useEffect(() => {
     const refreshNow = () => setNow(new Date());
@@ -68,6 +89,33 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
     const t = calculatePrayerTimes(now, city.lat, city.lng, city.timezone, method);
     t.location = city.nameFa;
     setTimes(t);
+
+    const all = loadReminders();
+    const map: Record<string, boolean> = {};
+    const prayerMap: Record<string, { title: string; time: string }> = {
+      fajr: { title: `اذان صبح (${city.nameFa})`, time: t.fajr },
+      dhuhr: { title: `اذان ظهر (${city.nameFa})`, time: t.dhuhr },
+      asr: { title: `وقت عصر (${city.nameFa})`, time: t.asr },
+      maghrib: { title: `اذان مغرب (${city.nameFa})`, time: t.maghrib },
+      isha: { title: `وقت عشاء (${city.nameFa})`, time: t.isha },
+    };
+
+    for (const [key, info] of Object.entries(prayerMap)) {
+      const remId = `prayer_auto_${key}`;
+      const existing = all.find((r) => r.id === remId);
+      map[key] = Boolean(existing?.enabled);
+      if (existing && existing.enabled && existing.time !== info.time) {
+        const updated: LocalReminder = {
+          ...existing,
+          title: info.title,
+          time: info.time,
+          updatedAt: new Date().toISOString(),
+        };
+        saveReminder(updated);
+        void scheduleReminder(updated, true);
+      }
+    }
+    setEnabledAlarms(map);
   }, [city, method, todayDate]);
 
   useEffect(() => {
@@ -103,6 +151,69 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
     }
   }, [times, now, city.timezone]);
 
+  const showToast = (msg: string) => {
+    setStatusToast(msg);
+    setTimeout(() => setStatusToast(null), 3200);
+  };
+
+  const togglePrayerAdhanAlarm = async (key: string, nameFa: string, timeStrVal: string) => {
+    if (key === 'sunrise') return;
+    const remId = `prayer_auto_${key}`;
+    const currentlyEnabled = Boolean(enabledAlarms[key]);
+    const nextState = !currentlyEnabled;
+
+    if (nextState) {
+      let perm = await checkPermission();
+      if (perm !== 'granted') {
+        perm = await requestPermission();
+      }
+      if (perm !== 'granted') {
+        showToast('لطفاً ابتدا مجوز اعلان را تایید کنید تا آلارم اذان فعال شود.');
+        return;
+      }
+    }
+
+    const nowIso = new Date().toISOString();
+    const reminder: LocalReminder = {
+      id: remId,
+      title: `اذان ${nameFa} به افق ${city.nameFa}`,
+      body: `حَیَّ عَلَی الصَّلَاة — وقت فضیلت نماز ${nameFa} فرا رسیده است`,
+      time: timeStrVal,
+      days: [0, 1, 2, 3, 4, 5, 6],
+      enabled: nextState,
+      dhikrId: null,
+      type: 'recurring',
+      date: null,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    };
+
+    saveReminder(reminder);
+
+    if (nextState) {
+      const res = await scheduleReminder(reminder, true);
+      logEvent(res.success ? 'info' : 'warn', 'HomeScreen', `تغییر وضعیت آلارم اذان ${nameFa}`, {
+        enabled: true,
+        time: timeStrVal,
+        success: res.success,
+        error: res.error,
+      });
+      if (res.success) {
+        setEnabledAlarms((prev) => ({ ...prev, [key]: true }));
+        showToast(`🔔 آلارم اذان ${nameFa} (${timeStrVal}) فعال شد`);
+      } else {
+        reminder.enabled = false;
+        saveReminder(reminder);
+        showToast(res.error ?? 'خطا در فعال‌سازی آلارم اذان');
+      }
+    } else {
+      await cancelReminder(remId);
+      logEvent('info', 'HomeScreen', `آلارم اذان ${nameFa} غیرفعال شد`);
+      setEnabledAlarms((prev) => ({ ...prev, [key]: false }));
+      showToast(`آلارم اذان ${nameFa} خاموش شد`);
+    }
+  };
+
   if (!times) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -127,6 +238,15 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
 
   return (
     <div className="px-5 pt-6 pb-28 animate-fade-in">
+      {statusToast && (
+        <div
+          className="fixed top-4 inset-x-5 z-50 rounded-2xl px-4 py-3 text-xs font-bold text-center shadow-xl animate-fade-in"
+          style={{ background: theme.primary, color: theme.bg }}
+        >
+          {statusToast}
+        </div>
+      )}
+
       <div className="flex items-start justify-between mb-5">
         <div>
           <p className="text-muted text-sm">{greeting}</p>
@@ -135,9 +255,26 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
           </h1>
           <p className="text-muted text-xs mt-1">{getJalaliWeekday(now)}</p>
         </div>
-        <div className="flex items-center gap-1.5 text-muted text-sm" aria-label="موقعیت">
-          <MapPin size={15} />
-          <span>{times.location}</span>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setLargeFont((v) => !v)}
+            aria-label="درشت‌نمایی متن"
+            title="تغییر اندازه نوشته برای مطالعه راحت‌تر"
+            className="px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 border"
+            style={{
+              borderColor: largeFont ? theme.primary : theme.border,
+              background: largeFont ? `color-mix(in srgb, ${theme.primary} 18%, transparent)` : 'transparent',
+              color: largeFont ? theme.primary : theme.textMuted,
+            }}
+          >
+            <Type size={14} />
+            <span>{largeFont ? 'متن درشت' : 'A+'}</span>
+          </button>
+          <div className="flex items-center gap-1.5 text-muted text-sm" aria-label="موقعیت">
+            <MapPin size={15} />
+            <span>{times.location}</span>
+          </div>
         </div>
       </div>
 
@@ -221,12 +358,26 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
         <p className="text-xl font-bold text-primary flex-shrink-0" dir="ltr">{timeStr}</p>
       </div>
 
+      <div className="flex items-center justify-between mb-2 px-1">
+        <span className="text-muted text-[11px]">اوقات شرعی به افق {times.location}</span>
+        <span className="text-muted text-[11px]">با لمس 🔔 آلارم اذان فعال می‌شود</span>
+      </div>
+
       <div className="grid grid-cols-2 gap-2.5 mb-4">
         {prayers.map((p) => {
           const Icon = prayerIcons[p.key] ?? Sun;
           const isNext = next?.nameFa === p.nameFa && p.key !== 'sunrise';
+          const isAlarmOn = Boolean(enabledAlarms[p.key]);
+          const canAlarm = p.key !== 'sunrise';
+
           return (
-            <div key={p.key} className="card-flat min-w-0 p-2.5 flex items-center justify-between gap-2">
+            <div
+              key={p.key}
+              className="card-flat min-w-0 p-2.5 flex items-center justify-between gap-1.5"
+              style={{
+                borderColor: isAlarmOn ? theme.primary : undefined,
+              }}
+            >
               <div className="flex min-w-0 items-center gap-2">
                 <div
                   className="w-8 h-8 rounded-xl flex-shrink-0 flex items-center justify-center"
@@ -236,7 +387,25 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
                 </div>
                 <span className="text-app font-medium text-xs whitespace-nowrap">{p.nameFa}</span>
               </div>
-              <span className="text-app font-bold text-xs flex-shrink-0" dir="ltr">{p.time}</span>
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <span className="text-app font-bold text-xs tabular-nums" dir="ltr">{p.time}</span>
+                {canAlarm && (
+                  <button
+                    type="button"
+                    aria-label={isAlarmOn ? `خاموش کردن آلارم اذان ${p.nameFa}` : `فعال کردن آلارم اذان ${p.nameFa}`}
+                    onClick={() => void togglePrayerAdhanAlarm(p.key, p.nameFa, p.time)}
+                    className="w-7 h-7 rounded-lg flex items-center justify-center transition-all"
+                    style={{
+                      background: isAlarmOn
+                        ? theme.primary
+                        : `color-mix(in srgb, ${theme.textMuted} 15%, transparent)`,
+                      color: isAlarmOn ? theme.bg : theme.textMuted,
+                    }}
+                  >
+                    {isAlarmOn ? <Bell size={13} /> : <BellOff size={13} />}
+                  </button>
+                )}
+              </div>
             </div>
           );
         })}
