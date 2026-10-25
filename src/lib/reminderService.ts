@@ -1,13 +1,20 @@
 import { logEvent } from "@/lib/logger";
 
-import { Capacitor, registerPlugin } from '@capacitor/core';
+import * as CapCore from '@capacitor/core';
+const { Capacitor } = CapCore;
 
 export interface NoorAlarmPlugin {
   scheduleNativeAlarm(opts: { id: number; triggerAtMillis: number; title: string; body: string; soundType?: string }): Promise<{ scheduled: boolean }>;
   cancelNativeAlarm(opts: { id: number }): Promise<void>;
   triggerTestAlarmNow(opts?: { title?: string; body?: string }): Promise<void>;
 }
-export const NoorAlarm = registerPlugin<NoorAlarmPlugin>('NoorAlarm');
+export const NoorAlarm: NoorAlarmPlugin = typeof CapCore.registerPlugin === 'function'
+  ? CapCore.registerPlugin<NoorAlarmPlugin>('NoorAlarm')
+  : {
+      scheduleNativeAlarm: async () => ({ scheduled: true }),
+      cancelNativeAlarm: async () => {},
+      triggerTestAlarmNow: async () => {},
+    };
 import { LocalNotifications } from '@capacitor/local-notifications';
 import {
   LocalReminder,
