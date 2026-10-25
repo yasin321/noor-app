@@ -73,6 +73,12 @@ jobs:
             adb exec-out screencap -p > /tmp/noor-emulator.png
             adb logcat -c
             # Exercise every configured adhan URL, not just the Mahur sample.
+            printf '%s\\n' \
+              'mahur_saeed|https://upload.wikimedia.org/wikipedia/commons/a/ae/AzaanMaahur.ogg' \
+              'default|https://commons.wikimedia.org/wiki/Special:Redirect/file/Adhan.ogg' \
+              'makkah|https://commons.wikimedia.org/wiki/Special:Redirect/file/Beautiful_adhan.ogg' \
+              'madinah|https://commons.wikimedia.org/wiki/Special:Redirect/file/33937_ejaz215_call-to-prayer-from-the-prophet-s-mo.ogg' \
+              'shia_traditional|https://commons.wikimedia.org/wiki/Special:Redirect/file/Azan.ogg' |
             while IFS='|' read -r adhan_id audio_url; do
               echo "Testing adhan audio source: $adhan_id"
               adb shell am broadcast -n com.noor.app/.AdhanSmokeTestReceiver -a com.noor.app.action.CI_TEST_PLAY_ADHAN --es id "$adhan_id" --es title NoorTest --es audioUrl "$audio_url"
@@ -80,13 +86,7 @@ jobs:
               adb shell am force-stop com.noor.app
               adb shell monkey -p com.noor.app 1 >/dev/null
               sleep 3
-            done <<'ADHAN_SOURCES'
-            mahur_saeed|https://upload.wikimedia.org/wikipedia/commons/a/ae/AzaanMaahur.ogg
-            default|https://commons.wikimedia.org/wiki/Special:Redirect/file/Adhan.ogg
-            makkah|https://commons.wikimedia.org/wiki/Special:Redirect/file/Beautiful_adhan.ogg
-            madinah|https://commons.wikimedia.org/wiki/Special:Redirect/file/33937_ejaz215_call-to-prayer-from-the-prophet-s-mo.ogg
-            shia_traditional|https://commons.wikimedia.org/wiki/Special:Redirect/file/Azan.ogg
-            ADHAN_SOURCES
+            done
             adb logcat -d > /tmp/noor-logcat.txt
             grep -E 'supabaseUrl is required|FATAL EXCEPTION.*com\\.noor\\.app|Process: com\\.noor\\.app.*died' /tmp/noor-logcat.txt && { echo "App startup/runtime error detected in emulator logs"; exit 1; } || true
             started_count=$(grep -c 'ADHAN_PLAYBACK_STARTED' /tmp/noor-logcat.txt || true)
