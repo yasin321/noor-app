@@ -110,6 +110,49 @@ function AppContent() {
 
   const notifEnabled = profile?.notif_enabled ?? getGuestNotifEnabled();
 
+  // Android Settings does not return the permission result to this web layer.
+  // Re-check permissions when Noor becomes visible again, then retry scheduling.
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'android') return;
+
+    let active = true;
+    let checking = false;
+    const refreshPermissionsAfterReturn = async () => {
+      if (document.visibilityState !== 'visible' || checking) return;
+      checking = true;
+      try {
+        const permission = await checkPermission();
+        if (!active || permission !== 'granted') return;
+
+        let exactAlarmAllowed = true;
+        try {
+          const { exact_alarm } = await LocalNotifications.checkExactNotificationSetting();
+          exactAlarmAllowed = exact_alarm === 'granted';
+        } catch {
+          // Older Android/plugin combinations may not expose this check reliably.
+        }
+        if (!active || !exactAlarmAllowed) return;
+
+        const result = await rescheduleAll(notifEnabled);
+        if (result.failed > 0) {
+          console.info(`Noor reminders rescheduled after returning from Android Settings: ${result.succeeded} succeeded; ${result.failed} failed`);
+        }
+      } catch (error) {
+        console.info('Noor could not refresh reminder permissions after returning from Android Settings', error);
+      } finally {
+        checking = false;
+      }
+    };
+
+    document.addEventListener('visibilitychange', refreshPermissionsAfterReturn);
+    window.addEventListener('focus', refreshPermissionsAfterReturn);
+    return () => {
+      active = false;
+      document.removeEventListener('visibilitychange', refreshPermissionsAfterReturn);
+      window.removeEventListener('focus', refreshPermissionsAfterReturn);
+    };
+  }, [loading, notifEnabled]);
+
   useEffect(() => {
     if (loading || Capacitor.getPlatform() !== 'android') return;
 
