@@ -26,21 +26,16 @@ export function logEvent(
   };
 
   const formatted = `[Noor][${entry.timestamp}][${level.toUpperCase()}][${scope}] ${message}`;
-  if (level === 'error') {
-    console.error(formatted, meta ?? '');
-  } else if (level === 'warn') {
-    console.warn(formatted, meta ?? '');
-  } else {
-    console.info(formatted, meta ?? '');
-  }
+  if (level === 'error') console.error(formatted, meta ?? '');
+  else if (level === 'warn') console.warn(formatted, meta ?? '');
+  else console.info(formatted, meta ?? '');
 
   try {
     const raw = localStorage.getItem(LOG_STORAGE_KEY);
     const existing: AppLogEntry[] = raw ? JSON.parse(raw) : [];
-    const updated = [entry, ...existing].slice(0, MAX_LOGS);
-    localStorage.setItem(LOG_STORAGE_KEY, JSON.stringify(updated));
+    localStorage.setItem(LOG_STORAGE_KEY, JSON.stringify([entry, ...existing].slice(0, MAX_LOGS)));
   } catch {
-    // ignore storage errors
+    // ignore
   }
 }
 

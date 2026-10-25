@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
-import { MapPin, Clock, Sunrise, Sunset, Moon, Sun, CloudSun, ArrowLeft, Hand, Bell, BellOff, Type } from 'lucide-react';
+import { MapPin, Clock, Sunrise, Sunset, Moon, Sun, CloudSun, ArrowLeft, Hand, Bell, BellOff, Type, Compass } from 'lucide-react';
+import { QiblaCompassModal } from '@/components/QiblaCompassModal';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
 import { calculatePrayerTimes, getNextPrayer, getLocalDateString, timeToMinutes, PrayerTimes } from '@/lib/prayerTimes';
@@ -41,6 +42,7 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
   const [hasActiveSession, setHasActiveSession] = useState(false);
   const [enabledAlarms, setEnabledAlarms] = useState<Record<string, boolean>>({});
   const [statusToast, setStatusToast] = useState<string | null>(null);
+  const [showQibla, setShowQibla] = useState(false);
   const [largeFont, setLargeFont] = useState<boolean>(() => {
     try {
       return localStorage.getItem(LARGE_FONT_KEY) === 'true';
@@ -238,6 +240,14 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
 
   return (
     <div className="px-5 pt-6 pb-28 animate-fade-in">
+      {showQibla && (
+        <QiblaCompassModal
+          cityName={city.nameFa}
+          lat={city.lat}
+          lng={city.lng}
+          onClose={() => setShowQibla(false)}
+        />
+      )}
       {statusToast && (
         <div
           className="fixed top-4 inset-x-5 z-50 rounded-2xl px-4 py-3 text-xs font-bold text-center shadow-xl animate-fade-in"
@@ -256,6 +266,16 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
           <p className="text-muted text-xs mt-1">{getJalaliWeekday(now)}</p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowQibla(true)}
+            aria-label="قبله‌نما"
+            className="px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 border"
+            style={{ borderColor: theme.border, color: theme.primary, background: `color-mix(in srgb, ${theme.primary} 12%, transparent)` }}
+          >
+            <Compass size={14} />
+            <span>قبله‌نما</span>
+          </button>
           <button
             type="button"
             onClick={() => setLargeFont((v) => !v)}

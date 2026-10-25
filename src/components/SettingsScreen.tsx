@@ -9,6 +9,7 @@ import { adhans } from '@/lib/adhans';
 import { CITIES, getCityById, getGuestCityId, setGuestCityId, type City } from '@/lib/cities';
 import { cancelAllScheduledNotifications, rescheduleAllReminders, checkPermission, requestPermission, NoorAlarm } from '@/lib/reminderService';
 import { getAvailableMethods } from '@/lib/prayerTimes';
+import { getDiagnosticLogs, clearDiagnosticLogs, type AppLogEntry } from '@/lib/logger';
 
 const GUEST_NOTIF_KEY = 'noor_guest_notif_enabled';
 const GUEST_ADHAN_KEY = 'noor_guest_adhan_id';
@@ -42,6 +43,8 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   const [guestAdhanId, setGuestAdhanId] = useState(getGuestAdhanId());
   const [notifSupported, setNotifSupported] = useState(true);
   const [notifMessage, setNotifMessage] = useState<string | null>(null);
+  const [showLogs, setShowLogs] = useState(false);
+  const [logs, setLogs] = useState<AppLogEntry[]>([]);
 
   useEffect(() => {
     setNotifSupported(Capacitor.isNativePlatform());
@@ -424,6 +427,55 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
             </div>
           )}
         </div>
+      </div>
+
+      <div className="mt-4 card-flat p-4">
+        <div className="flex items-center justify-between">
+          <span className="text-app font-medium text-xs">گزارش فنی و لاگ‌های آلارم</span>
+          <button
+            type="button"
+            onClick={() => { setLogs(getDiagnosticLogs()); setShowLogs((v) => !v); }}
+            className="text-xs font-bold"
+            style={{ color: theme.primary }}
+          >
+            {showLogs ? 'بستن گزارش' : 'مشاهده لاگ‌ها'}
+          </button>
+        </div>
+        {showLogs && (
+          <div className="mt-3 space-y-2">
+            <div className="flex gap-2 mb-2">
+              <button
+                type="button"
+                onClick={() => { setLogs(getDiagnosticLogs()); }}
+                className="px-3 py-1.5 rounded-lg text-[11px] font-bold"
+                style={{ background: theme.primary, color: theme.bg }}
+              >
+                بروزرسانی
+              </button>
+              <button
+                type="button"
+                onClick={() => { clearDiagnosticLogs(); setLogs([]); }}
+                className="px-3 py-1.5 rounded-lg text-[11px] text-muted border"
+                style={{ borderColor: theme.border }}
+              >
+                پاک کردن لاگ‌ها
+              </button>
+            </div>
+            {logs.length === 0 ? (
+              <p className="text-muted text-xs">هنوز لاگی ثبت نشده است.</p>
+            ) : (
+              <div className="max-h-56 overflow-y-auto space-y-1.5 text-left" dir="ltr">
+                {logs.map((l, idx) => (
+                  <div key={idx} className="p-2 rounded-lg text-[10px] font-mono border" style={{ borderColor: theme.border }}>
+                    <div className="font-bold" style={{ color: l.level === 'error' ? '#fca5a5' : theme.primary }}>[{l.level.toUpperCase()}] {l.scope} - {l.timestamp.slice(11, 19)}</div>
+                    <div className="text-app mt-0.5" dir="rtl">{l.message}</div>
+                    {l.meta && <div className="text-muted truncate">{JSON.stringify(l.meta)}</div>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {user ? (
