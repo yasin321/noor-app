@@ -1,6 +1,13 @@
 import { logEvent } from "@/lib/logger";
 
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, registerPlugin } from '@capacitor/core';
+
+export interface NoorAlarmPlugin {
+  scheduleNativeAlarm(opts: { id: number; triggerAtMillis: number; title: string; body: string; soundType?: string }): Promise<{ scheduled: boolean }>;
+  cancelNativeAlarm(opts: { id: number }): Promise<void>;
+  triggerTestAlarmNow(opts?: { title?: string; body?: string }): Promise<void>;
+}
+export const NoorAlarm = registerPlugin<NoorAlarmPlugin>('NoorAlarm');
 import { LocalNotifications } from '@capacitor/local-notifications';
 import {
   LocalReminder,
@@ -166,6 +173,9 @@ export async function cancelReminder(reminderId: string): Promise<ScheduleResult
   const ids = getReminderNotificationIds(reminderId);
   try {
     await LocalNotifications.cancel({ notifications: ids.map((id) => ({ id })) });
+    if (Capacitor.getPlatform() === 'android') {
+      for (const id of ids) { try { await NoorAlarm.cancelNativeAlarm({ id }); } catch {} }
+    }
     return { success: true, scheduledIds: ids };
   } catch (err) {
     return { success: false, error: `خطا در لغو: ${err}` };
@@ -234,6 +244,9 @@ export async function scheduleReminder(reminder: LocalReminder, notifEnabled: bo
           smallIcon: 'ic_stat_icon',
         }],
       });
+      if (Capacitor.getPlatform() === 'android') {
+        try { await NoorAlarm.scheduleNativeAlarm({ id: notifId, triggerAtMillis: at.getTime(), title: reminder.title, body, soundType: 'adhan' }); } catch {}
+      }
       return { success: true, scheduledIds: [notifId] };
     } catch (err) {
       return { success: false, error: `خطا در زمان‌بندی: ${err}` };
@@ -261,6 +274,9 @@ export async function scheduleReminder(reminder: LocalReminder, notifEnabled: bo
           smallIcon: 'ic_stat_icon',
         }],
       });
+      if (Capacitor.getPlatform() === 'android' && i < 3) {
+        try { await NoorAlarm.scheduleNativeAlarm({ id: notifId, triggerAtMillis: occurrences[i].getTime(), title: reminder.title, body, soundType: 'adhan' }); } catch {}
+      }
       scheduledIds.push(notifId);
     } catch (err) {
       failed.push(`${occurrences[i].toISOString()}: ${err}`);

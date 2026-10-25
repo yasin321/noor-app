@@ -7,7 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { themes } from '@/lib/themes';
 import { adhans } from '@/lib/adhans';
 import { CITIES, getCityById, getGuestCityId, setGuestCityId, type City } from '@/lib/cities';
-import { cancelAllScheduledNotifications, rescheduleAllReminders, checkPermission, requestPermission } from '@/lib/reminderService';
+import { cancelAllScheduledNotifications, rescheduleAllReminders, checkPermission, requestPermission, NoorAlarm } from '@/lib/reminderService';
 import { getAvailableMethods } from '@/lib/prayerTimes';
 
 const GUEST_NOTIF_KEY = 'noor_guest_notif_enabled';
@@ -301,7 +301,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
           <h1 className="text-2xl font-bold text-app">اذان‌ها</h1>
         </div>
         <p className="text-muted text-xs mb-3">انتخاب صدا و شنیدن نمونهٔ اذان‌های ایرانی</p>
-        <p className="text-muted text-xs mb-4 leading-relaxed">توجه: در این مرحله فقط نمونهٔ ماهور آنلاین پخش می‌شود؛ پخش خودکار اذان در وقت نماز و هنگام قفل بودن گوشی هنوز پیاده‌سازی نشده است.</p>
+        <div className="mb-4 p-3 rounded-2xl border" style={{ borderColor: theme.border, background: `color-mix(in srgb, ${theme.primary} 10%, transparent)` }}><p className="text-xs text-app leading-relaxed mb-2">✨ سیستم پخش خودکار اذان و روشن شدن صفحه در حالت قفل فعال شد.</p>{Capacitor.getPlatform() === 'android' && (<button type="button" onClick={() => void NoorAlarm.triggerTestAlarmNow({ title: 'اذان ظهر به افق شهر شما', body: 'حَیَّ عَلَی الصَّلَاة — تست صفحه تمام‌صفحه و پخش اذان' })} className="w-full py-2.5 rounded-xl text-xs font-bold" style={{ background: theme.primary, color: theme.bg }}>🔊 تست فوری صفحه آلارم و پخش اذان</button>)}</div>
         <div className="space-y-3">
           {adhans.map((a) => (
             <div
