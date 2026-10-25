@@ -37,8 +37,7 @@ export function NotificationPermissionModal({ onGranted }: Props) {
         return;
       }
 
-      // نمایش مودال در اولین ورود اگر هنوز مجوز داده نشده است
-      if (!alreadyPrompted && (isNative || 'Notification' in window)) {
+      if (!alreadyPrompted && (isNative || (typeof window !== 'undefined' && 'Notification' in window))) {
         timer = setTimeout(() => {
           setVisible(true);
           logEvent('info', 'OnboardingModal', 'مودال معرفی مجوز اعلان به کاربر نمایش داده شد');
