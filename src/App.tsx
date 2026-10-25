@@ -55,16 +55,18 @@ function AppContent() {
       return;
     }
     if (Capacitor.getPlatform() === 'android') {
+      let exactAlarmAllowed = false;
       try {
         const { exact_alarm } = await LocalNotifications.checkExactNotificationSetting();
-        if (exact_alarm !== 'granted') {
-          // Explain the separate Android Settings screen before opening it.
-          setShowPermissionIntro(false);
-          setShowExactAlarmIntro(true);
-          return;
-        }
+        exactAlarmAllowed = exact_alarm === 'granted';
       } catch {
-        // Keep the app usable; SettingsScreen explains how to grant exact-alarm access.
+        // Fail closed when the plugin cannot verify access; Settings can explain the next step.
+      }
+      if (!exactAlarmAllowed) {
+        // Explain the separate Android Settings screen before opening it.
+        setShowPermissionIntro(false);
+        setShowExactAlarmIntro(true);
+        return;
       }
     }
     try { localStorage.setItem('noor_permission_intro_seen', 'true'); } catch { /* ignore */ }
@@ -89,10 +91,20 @@ function AppContent() {
     }
     try { localStorage.setItem('noor_permission_intro_seen', 'true'); } catch { /* ignore */ }
     setShowExactAlarmIntro(false);
-    // The app remains usable even if the user chooses not to grant exact alarms.
-    const result = await rescheduleAll(notifEnabled);
-    if (result.failed > 0) {
-      console.info(`Noor reminders scheduled after permission flow: ${result.succeeded}; failed: ${result.failed}`);
+
+    // Opening Android Settings does not mean access was granted. Verify it before
+    // scheduling; the visibility/focus listener retries when the user returns.
+    try {
+      const { exact_alarm } = await LocalNotifications.checkExactNotificationSetting();
+      if (exact_alarm !== 'granted') return;
+      const permission = await checkPermission();
+      if (permission !== 'granted') return;
+      const result = await rescheduleAll(notifEnabled);
+      if (result.failed > 0) {
+        console.info(`Noor reminders scheduled after permission flow: ${result.succeeded}; failed: ${result.failed}`);
+      }
+    } catch (error) {
+      console.info('Noor could not verify exact-alarm access yet; scheduling will retry when the app returns from Settings', error);
     }
   };
 
@@ -124,12 +136,12 @@ function AppContent() {
         const permission = await checkPermission();
         if (!active || permission !== 'granted') return;
 
-        let exactAlarmAllowed = true;
+        let exactAlarmAllowed = false;
         try {
           const { exact_alarm } = await LocalNotifications.checkExactNotificationSetting();
           exactAlarmAllowed = exact_alarm === 'granted';
         } catch {
-          // Older Android/plugin combinations may not expose this check reliably.
+          // Fail closed: an unknown permission state must not be treated as granted.
         }
         if (!active || !exactAlarmAllowed) return;
 
