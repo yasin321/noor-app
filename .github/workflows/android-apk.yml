@@ -72,11 +72,29 @@ jobs:
             test -n "$(adb shell pidof com.noor.app)" || { echo "Noor process is not running after launch"; exit 1; }
             adb exec-out screencap -p > /tmp/noor-emulator.png
             adb logcat -c
-            adb shell am broadcast -n com.noor.app/.AdhanSmokeTestReceiver -a com.noor.app.action.CI_TEST_PLAY_ADHAN --es id ci-smoke-test --es title NoorTest --es audioUrl https://upload.wikimedia.org/wikipedia/commons/a/ae/AzaanMaahur.ogg
-            sleep 20
+            # Exercise every configured adhan URL, not just the Mahur sample.
+            while IFS='|' read -r adhan_id audio_url; do
+              echo "Testing adhan audio source: $adhan_id"
+              adb shell am broadcast -n com.noor.app/.AdhanSmokeTestReceiver -a com.noor.app.action.CI_TEST_PLAY_ADHAN --es id "$adhan_id" --es title NoorTest --es audioUrl "$audio_url"
+              sleep 18
+              adb shell am force-stop com.noor.app
+              adb shell monkey -p com.noor.app 1 >/dev/null
+              sleep 3
+            done <<'ADHAN_SOURCES'
+            mahur_saeed|https://upload.wikimedia.org/wikipedia/commons/a/ae/AzaanMaahur.ogg
+            default|https://commons.wikimedia.org/wiki/Special:Redirect/file/Adhan.ogg
+            makkah|https://commons.wikimedia.org/wiki/Special:Redirect/file/Beautiful_adhan.ogg
+            madinah|https://commons.wikimedia.org/wiki/Special:Redirect/file/33937_ejaz215_call-to-prayer-from-the-prophet-s-mo.ogg
+            shia_traditional|https://commons.wikimedia.org/wiki/Special:Redirect/file/Azan.ogg
+            ADHAN_SOURCES
             adb logcat -d > /tmp/noor-logcat.txt
             grep -E 'supabaseUrl is required|FATAL EXCEPTION.*com\\.noor\\.app|Process: com\\.noor\\.app.*died' /tmp/noor-logcat.txt && { echo "App startup/runtime error detected in emulator logs"; exit 1; } || true
-            grep -q 'ADHAN_PLAYBACK_STARTED' /tmp/noor-logcat.txt || { echo "Adhan audio did not reach MediaPlayer playback-start confirmation"; grep -E 'NoorAlarm|MediaPlayer|ExoPlayer' /tmp/noor-logcat.txt || true; exit 1; }
+            started_count=$(grep -c 'ADHAN_PLAYBACK_STARTED' /tmp/noor-logcat.txt || true)
+            if [ "$started_count" -lt 5 ]; then
+              echo "Expected playback-start confirmation for all 5 adhan sources; got $started_count"
+              grep -E 'NoorAlarm|MediaPlayer|ExoPlayer' /tmp/noor-logcat.txt || true
+              exit 1
+            fi
             if grep -q 'ADHAN_PLAYBACK_FAILED' /tmp/noor-logcat.txt; then echo "Adhan playback reported an error"; grep 'ADHAN_PLAYBACK_FAILED' /tmp/noor-logcat.txt; exit 1; fi
 
       - name: Upload emulator smoke-test evidence
