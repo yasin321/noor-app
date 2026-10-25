@@ -31,6 +31,7 @@ function AppContent() {
   const [navigationDirection, setNavigationDirection] = useState<'forward' | 'backward'>('forward');
   const [showAuth, setShowAuth] = useState(false);
   const [showPermissionIntro, setShowPermissionIntro] = useState(false);
+  const [showExactAlarmIntro, setShowExactAlarmIntro] = useState(false);
   const [permissionIntroMessage, setPermissionIntroMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -53,17 +54,20 @@ function AppContent() {
       setPermissionIntroMessage('اجازه داده نشد. یادآوری‌ها تا زمان فعال‌شدن اجازهٔ اعلان ممکن است بی‌صدا یا غیرفعال باشند.');
       return;
     }
-    try { localStorage.setItem('noor_permission_intro_seen', 'true'); } catch { /* ignore */ }
     if (Capacitor.getPlatform() === 'android') {
       try {
         const { exact_alarm } = await LocalNotifications.checkExactNotificationSetting();
         if (exact_alarm !== 'granted') {
-          await LocalNotifications.changeExactNotificationSetting();
+          // Explain the separate Android Settings screen before opening it.
+          setShowPermissionIntro(false);
+          setShowExactAlarmIntro(true);
+          return;
         }
       } catch {
         // Keep the app usable; SettingsScreen explains how to grant exact-alarm access.
       }
     }
+    try { localStorage.setItem('noor_permission_intro_seen', 'true'); } catch { /* ignore */ }
     setShowPermissionIntro(false);
     const result = await rescheduleAll(notifEnabled);
     if (result.failed > 0) {
@@ -75,6 +79,26 @@ function AppContent() {
   const dismissPermissionIntro = () => {
     try { localStorage.setItem('noor_permission_intro_seen', 'true'); } catch { /* ignore */ }
     setShowPermissionIntro(false);
+  };
+
+  const allowExactAlarmFromIntro = async () => {
+    try {
+      await LocalNotifications.changeExactNotificationSetting();
+    } catch {
+      // The user can enable this later from Settings; do not block the app.
+    }
+    try { localStorage.setItem('noor_permission_intro_seen', 'true'); } catch { /* ignore */ }
+    setShowExactAlarmIntro(false);
+    // The app remains usable even if the user chooses not to grant exact alarms.
+    const result = await rescheduleAll(notifEnabled);
+    if (result.failed > 0) {
+      console.info(`Noor reminders scheduled after permission flow: ${result.succeeded}; failed: ${result.failed}`);
+    }
+  };
+
+  const dismissExactAlarmIntro = () => {
+    try { localStorage.setItem('noor_permission_intro_seen', 'true'); } catch { /* ignore */ }
+    setShowExactAlarmIntro(false);
   };
 
   const tabOrder: Tab[] = ['home', 'tasbih', 'library', 'reminders', 'settings'];
@@ -154,6 +178,17 @@ function AppContent() {
         {tab === 'settings' && <SettingsScreen onExitGuest={() => setShowAuth(true)} />}
       </main>
       <BottomNav active={tab} onChange={navigateTo} />
+      {showExactAlarmIntro && (
+        <div className="fixed inset-0 z-[101] flex items-center justify-center p-5" style={{ background: 'rgba(0,0,0,0.62)', backdropFilter: 'blur(8px)' }}>
+          <section role="dialog" aria-modal="true" aria-labelledby="noor-exact-alarm-title" className="w-full max-w-sm rounded-3xl p-6 shadow-2xl" style={{ background: 'var(--card)', color: 'var(--text)', border: '1px solid var(--border)' }}>
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl" style={{ background: 'color-mix(in srgb, var(--primary) 15%, transparent)', color: 'var(--primary)' }}><ShieldCheck size={27} /></div>
+            <h2 id="noor-exact-alarm-title" className="text-center text-xl font-bold mb-2">برای یادآوری سرِ وقت 🌿</h2>
+            <p className="text-center text-sm leading-7 opacity-80 mb-5">مجوز اعلان فعال شد. برای اینکه یادآوری‌های زمان‌بندی‌شده دقیق‌تر اجرا شوند، اندروید ممکن است اجازهٔ جداگانهٔ «آلارم‌ها و یادآوری‌ها» بخواهد. این مرحله در تنظیمات گوشی انجام می‌شود و اختیاری است.</p>
+            <button type="button" onClick={() => void allowExactAlarmFromIntro()} className="w-full rounded-2xl py-3 font-bold text-white" style={{ background: 'var(--primary)' }}>رفتن به تنظیمات</button>
+            <button type="button" onClick={dismissExactAlarmIntro} className="w-full rounded-2xl py-3 mt-2 text-sm opacity-70">بعداً انجام می‌دهم</button>
+          </section>
+        </div>
+      )}
       {showPermissionIntro && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-5" style={{ background: 'rgba(0,0,0,0.62)', backdropFilter: 'blur(8px)' }}>
           <section role="dialog" aria-modal="true" aria-labelledby="noor-permission-title" className="w-full max-w-sm rounded-3xl p-6 shadow-2xl" style={{ background: 'var(--card)', color: 'var(--text)', border: '1px solid var(--border)' }}>
