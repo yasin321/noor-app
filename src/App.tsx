@@ -58,7 +58,10 @@ function AppContent() {
             // Unknown special-access state must not be treated as granted.
           }
           if (!active) return;
-          if (!exactAlarmAllowed) setShowExactAlarmIntro(true);
+          if (!exactAlarmAllowed) {
+            try { localStorage.setItem('noor_permission_setup_pending_v1', 'true'); } catch { /* ignore */ }
+            setShowExactAlarmIntro(true);
+          }
         }
       } catch (error) {
         console.info('Noor could not check notification setup on startup', error);
