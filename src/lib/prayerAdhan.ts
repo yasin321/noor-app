@@ -14,8 +14,31 @@ type NativePrayerAlarm = {
 
 const NativeAlarm = registerPlugin<NativePrayerAlarm>('NoorAlarm');
 const STORAGE_KEY = 'noor_prayer_adhan_alarm_ids';
+const SYNC_STATE_KEY = 'noor_prayer_adhan_sync_state';
 export const PRAYER_ADHAN_ENABLED_KEY = 'noor_prayer_adhan_enabled';
 const HORIZON_DAYS = 30;
+const RESYNC_AFTER_MS = 12 * 60 * 60 * 1000;
+
+let syncQueue: Promise<unknown> = Promise.resolve();
+
+type SyncState = { signature: string; syncedAt: number; localDate: string };
+
+function getSyncState(): SyncState | null {
+  try {
+    const value: unknown = JSON.parse(localStorage.getItem(SYNC_STATE_KEY) || 'null');
+    if (!value || typeof value !== 'object') return null;
+    const state = value as Partial<SyncState>;
+    if (typeof state.signature !== 'string' || typeof state.syncedAt !== 'number' || typeof state.localDate !== 'string') return null;
+    return state as SyncState;
+  } catch {
+    return null;
+  }
+}
+
+function getLocalDateKey(date: Date, timezone: string): string {
+  const parts = getLocalDateParts(date, timezone);
+  return `${parts.year}-${String(parts.month).padStart(2, '0')}-${String(parts.day).padStart(2, '0')}`;
+}
 const PRAYERS = [
   { key: 'fajr', name: 'اذان صبح' },
   { key: 'dhuhr', name: 'اذان ظهر' },
@@ -92,25 +115,60 @@ export async function openPrayerAdhanFullScreenSettings(): Promise<void> {
  * Schedules a rolling month of prayer alarms independently from user-created reminders.
  * Only adhan records with a real audio URL can be scheduled; no ringtone fallback is used.
  */
-export async function syncPrayerAdhanAlarms(options: {
+export function syncPrayerAdhanAlarms(options: {
   enabled: boolean;
   city: City;
   method: string;
   adhanId: string;
   audioUrl?: string;
 }): Promise<{ scheduled: number; error?: string }> {
+  // Serialize callers from startup, focus and visibility events so two syncs
+  // cannot cancel each other's alarms while scheduling a new rolling horizon.
+  const task = syncQueue.then(() => syncPrayerAdhanAlarmsInternal(options));
+  syncQueue = task.then(() => undefined, () => undefined);
+  return task;
+}
+
+async function syncPrayerAdhanAlarmsInternal(options: {
+  enabled: boolean;
+  city: City;
+  method: string;
+  adhanId: string;
+  audioUrl?: string;
+}): Promise<{ scheduled: number; error?: string }> {
+  const signature = JSON.stringify({
+    enabled: options.enabled,
+    cityId: options.city.id,
+    latitude: options.city.lat,
+    longitude: options.city.lng,
+    timezone: options.city.timezone,
+    method: options.method,
+    adhanId: options.adhanId,
+    audioUrl: options.audioUrl ?? '',
+  });
+  const now = new Date();
+  const localDateKey = getLocalDateKey(now, options.city.timezone);
+  const previousState = getSyncState();
+  if (options.enabled && previousState?.signature === signature
+      && previousState.localDate === localDateKey
+      && now.getTime() - previousState.syncedAt < RESYNC_AFTER_MS) {
+    return { scheduled: loadScheduledIds().length };
+  }
+
   const oldIds = loadScheduledIds();
   for (const id of oldIds) {
     try { await NativeAlarm.cancel({ id }); } catch { /* stale alarm */ }
   }
   localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
 
-  if (!options.enabled) return { scheduled: 0 };
+  if (!options.enabled) {
+    try { localStorage.removeItem(SYNC_STATE_KEY); } catch { /* ignore unavailable storage */ }
+    return { scheduled: 0 };
+  }
   if (!options.audioUrl || !options.audioUrl.startsWith('https://')) {
     return { scheduled: 0, error: 'برای این اذان هنوز فایل صوتی قابل پخش آماده نیست.' };
   }
 
-  const now = new Date();
   const local = getLocalDateParts(now, options.city.timezone);
   const start = new Date(Date.UTC(local.year, local.month - 1, local.day, 12));
   const ids: string[] = [];
@@ -141,7 +199,17 @@ export async function syncPrayerAdhanAlarms(options: {
   }
 
   localStorage.setItem(STORAGE_KEY, JSON.stringify(ids));
-  if (ids.length === 0) return { scheduled: 0, error: 'هیچ آلارم اذانی زمان‌بندی نشد؛ مجوز آلارم دقیق و اتصال اینترنت را بررسی کن.' };
+  if (ids.length === 0) {
+    try { localStorage.removeItem(SYNC_STATE_KEY); } catch { /* ignore unavailable storage */ }
+    return { scheduled: 0, error: 'هیچ آلارم اذانی زمان‌بندی نشد؛ مجوز آلارم دقیق و اتصال اینترنت را بررسی کن.' };
+  }
+  if (failed === 0) {
+    try {
+      localStorage.setItem(SYNC_STATE_KEY, JSON.stringify({ signature, syncedAt: Date.now(), localDate: localDateKey } satisfies SyncState));
+    } catch { /* a future app focus can retry if sync state cannot be persisted */ }
+  } else {
+    try { localStorage.removeItem(SYNC_STATE_KEY); } catch { /* ignore unavailable storage */ }
+  }
   return {
     scheduled: ids.length,
     error: failed ? `${failed} آلارم از زمان‌بندی ناموفق بود.` : undefined,
