@@ -189,7 +189,14 @@ function AppContent() {
           return;
         }
 
-        const result = await rescheduleAll(notifEnabled);
+        let setupPending = false;
+        try { setupPending = localStorage.getItem('noor_permission_setup_pending_v1') === 'true'; } catch { /* ignore */ }
+        if (setupPending) {
+          await enableReminderPreference();
+          try { localStorage.setItem('noor_permission_intro_seen_v2', 'true'); } catch { /* ignore */ }
+          try { localStorage.removeItem('noor_permission_setup_pending_v1'); } catch { /* ignore */ }
+        }
+        const result = await rescheduleAll(setupPending ? true : notifEnabled);
         if (result.failed > 0) {
           console.info(`Noor reminders rescheduled after returning from Android Settings: ${result.succeeded} succeeded; ${result.failed} failed`);
         }
