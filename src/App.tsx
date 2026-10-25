@@ -8,14 +8,17 @@ import { TasbihCounter } from '@/components/TasbihCounter';
 import { LibraryScreen } from '@/components/LibraryScreen';
 import { RemindersScreen } from '@/components/RemindersScreen';
 import { SettingsScreen } from '@/components/SettingsScreen';
+import { NotificationPermissionModal } from '@/components/NotificationPermissionModal';
 import { rescheduleAll } from '@/lib/reminderService';
+import { logEvent } from '@/lib/logger';
 import { Capacitor } from '@capacitor/core';
 
-function getGuestNotifEnabled(): boolean {
+export function getGuestNotifEnabled(): boolean {
   try {
-    return localStorage.getItem('noor_guest_notif_enabled') === 'true';
+    const val = localStorage.getItem('noor_guest_notif_enabled');
+    return val === null ? true : val === 'true';
   } catch {
-    return false;
+    return true;
   }
 }
 
@@ -35,10 +38,14 @@ function AppContent() {
   const notifEnabled = profile?.notif_enabled ?? getGuestNotifEnabled();
 
   useEffect(() => {
-    // Wait for the auth/profile state before rescheduling. Otherwise the initial
-    // default (enabled) can briefly override a saved disabled preference.
     if (!loading && Capacitor.isNativePlatform()) {
-      void rescheduleAll(notifEnabled);
+      logEvent('info', 'AppStartup', 'شروع زمان‌بندی مجدد یادآوری‌ها در بدو ورود', {
+        notifEnabled,
+        userId: user?.id ?? 'guest',
+      });
+      void rescheduleAll(notifEnabled).then((res) => {
+        logEvent('info', 'AppStartup', 'نتیجه زمان‌بندی مجدد در بدو ورود', res);
+      });
     }
   }, [loading, user?.id, notifEnabled]);
 
@@ -56,6 +63,7 @@ function AppContent() {
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)', color: 'var(--text)' }}>
+      <NotificationPermissionModal />
       <main key={tab} className={`page-transition page-transition-${navigationDirection}`} aria-live="polite">
         {tab === 'home' && <HomeScreen onNavigate={navigateTo} />}
         {tab === 'tasbih' && <TasbihCounter />}

@@ -1,3 +1,4 @@
+import { logEvent } from "@/lib/logger";
 
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
@@ -115,6 +116,10 @@ export function getReminderNotificationIds(reminderId: string, count: number = R
 }
 
 export async function checkPermission(): Promise<PermissionState> {
+  if (!Capacitor.isNativePlatform() && typeof window !== "undefined" && "Notification" in window) {
+    const webPerm = Notification.permission === "default" ? "prompt" : (Notification.permission as PermissionState);
+    return webPerm;
+  }
   try {
     const { display } = await LocalNotifications.checkPermissions();
     if (display === 'granted') return 'granted';
@@ -127,6 +132,11 @@ export async function checkPermission(): Promise<PermissionState> {
 }
 
 export async function requestPermission(): Promise<PermissionState> {
+  logEvent("info", "ReminderService", "فراخوانی requestPermission");
+  if (!Capacitor.isNativePlatform() && typeof window !== "undefined" && "Notification" in window) {
+    const res = await Notification.requestPermission();
+    return res === "default" ? "prompt" : (res as PermissionState);
+  }
   try {
     const { display } = await LocalNotifications.requestPermissions();
     if (display === 'granted') return 'granted';
