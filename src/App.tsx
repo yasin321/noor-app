@@ -41,11 +41,10 @@ function AppContent() {
       try {
         // Do not mark setup as complete merely because notification permission
         // is already granted: Android's exact-alarm access is a separate grant.
-        const introSeen = localStorage.getItem('noor_permission_intro_seen_v2') === 'true';
         const permission = await checkPermission();
         if (!active) return;
         if (permission !== 'granted') {
-          if (!introSeen) setShowPermissionIntro(true);
+          setShowPermissionIntro(true);
           return;
         }
 
@@ -58,7 +57,7 @@ function AppContent() {
             // Unknown special-access state must not be treated as granted.
           }
           if (!active) return;
-          if (!exactAlarmAllowed && !introSeen) setShowExactAlarmIntro(true);
+          if (!exactAlarmAllowed) setShowExactAlarmIntro(true);
         }
       } catch (error) {
         console.info('Noor could not check notification setup on startup', error);
@@ -156,9 +155,8 @@ function AppContent() {
       try {
         const permission = await checkPermission();
         if (!active) return;
-        const introSeen = localStorage.getItem('noor_permission_intro_seen_v2') === 'true';
         if (permission !== 'granted') {
-          if (!introSeen) setShowPermissionIntro(true);
+          setShowPermissionIntro(true);
           return;
         }
 
@@ -171,7 +169,7 @@ function AppContent() {
         }
         if (!active) return;
         if (!exactAlarmAllowed) {
-          if (!introSeen) setShowExactAlarmIntro(true);
+          setShowExactAlarmIntro(true);
           return;
         }
 
