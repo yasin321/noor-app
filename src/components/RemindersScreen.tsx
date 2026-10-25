@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Plus, Bell, Trash2, Calendar, Clock, Repeat, X, Check, AlertCircle, Pencil } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
@@ -12,7 +12,6 @@ import {
   deleteReminder,
   rescheduleAll,
   checkPermission,
-  requestPermission,
   getDayLabel,
   type LocalReminder,
 } from '@/lib/reminderService';
@@ -45,14 +44,15 @@ export function RemindersScreen() {
     setNotifSupported(Capacitor.isNativePlatform());
     setReminders(loadReminders());
     if (Capacitor.isNativePlatform()) {
-      (async () => {
-        const perm = await checkPermission();
-        if (perm !== 'granted') {
-          await requestPermission();
+      // Never open a system permission prompt just by entering this tab.
+      // Permission is requested from the first-run explainer or Settings after
+      // an explicit user action; opening Reminders only refreshes existing schedules.
+      void checkPermission().then(async (permission) => {
+        if (permission === 'granted') {
+          await rescheduleAll(notifEnabled);
+          setReminders(loadReminders());
         }
-        await rescheduleAll(notifEnabled);
-        setReminders(loadReminders());
-      })();
+      });
     }
   }, [refreshKey, notifEnabled]);
 
@@ -195,6 +195,38 @@ function AddReminderModal({ notifEnabled, onClose, onCreated, initialReminder }:
   const [dhikrId, setDhikrId] = useState<string | null>(initialReminder?.dhikrId ?? null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const titleInputRef = useRef<HTMLInputElement>(null);
+  const modalContentRef = useRef<HTMLDivElement>(null);
+
+  // The Android WebView can keep the old viewport height when the keyboard opens.
+  // Track the visual viewport so the bottom sheet stays usable on short screens.
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+
+    const syncViewport = () => {
+      const content = modalContentRef.current;
+      if (!content) return;
+      content.style.setProperty('--reminder-visual-height', `${viewport.height}px`);
+      if (document.activeElement === titleInputRef.current) {
+        titleInputRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+    };
+
+    syncViewport();
+    viewport.addEventListener('resize', syncViewport);
+    viewport.addEventListener('scroll', syncViewport);
+    return () => {
+      viewport.removeEventListener('resize', syncViewport);
+      viewport.removeEventListener('scroll', syncViewport);
+    };
+  }, []);
+
+  const keepFieldVisible = (element: HTMLElement) => {
+    window.requestAnimationFrame(() => {
+      element.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    });
+  };
 
   const toggleDay = (d: number) => {
     setDays((prev) => prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d]);
@@ -241,10 +273,14 @@ function AddReminderModal({ notifEnabled, onClose, onCreated, initialReminder }:
   };
 
   return (
-    <div className="fixed inset-0 z-60 flex items-end justify-center" style={{ background: 'rgba(0,0,0,0.5)' }}>
+    <div
+      className="fixed inset-0 z-[60] flex items-end justify-center"
+      style={{ background: 'rgba(0,0,0,0.5)', paddingTop: 'max(8px, env(safe-area-inset-top))' }}
+    >
       <div
-        className="w-full max-w-md rounded-t-3xl p-5 max-h-[85vh] overflow-y-auto animate-slide-up"
-        style={{ background: theme.surface }}
+        ref={modalContentRef}
+        className="reminder-modal-content w-full max-w-md rounded-t-3xl p-5 overflow-y-auto overscroll-contain animate-slide-up"
+        style={{ background: theme.surface, maxHeight: 'min(85vh, calc(var(--reminder-visual-height, 100dvh) - env(safe-area-inset-top) - 8px))', paddingBottom: 'max(20px, env(safe-area-inset-bottom))' }}
       >
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-xl font-bold text-app">{initialReminder ? 'ویرایش یادآوری' : 'یادآوری جدید'}</h2>
@@ -257,8 +293,10 @@ function AddReminderModal({ notifEnabled, onClose, onCreated, initialReminder }:
           <div>
             <label className="text-muted text-xs mb-1.5 block">عنوان</label>
             <input
+              ref={titleInputRef}
               type="text"
               value={title}
+              onFocus={(e) => keepFieldVisible(e.currentTarget)}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="مثلاً: ذکر صبح"
               className="w-full px-4 py-3 rounded-2xl text-sm text-app border outline-none"
@@ -288,6 +326,7 @@ function AddReminderModal({ notifEnabled, onClose, onCreated, initialReminder }:
             <input
               type="time"
               value={time}
+              onFocus={(e) => keepFieldVisible(e.currentTarget)}
               onChange={(e) => setTime(e.target.value)}
               className="w-full px-4 py-3 rounded-2xl text-sm text-app border outline-none"
               style={{ borderColor: theme.border, background: `color-mix(in srgb, ${theme.bg} 50%, transparent)` }}
@@ -328,6 +367,7 @@ function AddReminderModal({ notifEnabled, onClose, onCreated, initialReminder }:
               <input
                 type="date"
                 value={date}
+                onFocus={(e) => keepFieldVisible(e.currentTarget)}
                 onChange={(e) => setDate(e.target.value)}
                 className="w-full px-4 py-3 rounded-2xl text-sm text-app border outline-none"
                 style={{ borderColor: theme.border, background: `color-mix(in srgb, ${theme.bg} 50%, transparent)` }}

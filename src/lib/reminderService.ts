@@ -140,9 +140,9 @@ export async function requestPermission(): Promise<PermissionState> {
 async function ensureChannel(): Promise<void> {
   try {
     await LocalNotifications.createChannel({
-      id: 'noor-reminders',
-      name: 'یادآوری‌های نور',
-      description: 'یادآوری‌های ذکر و نماز',
+      id: 'noor-reminders-alert-v2',
+      name: 'هشدارهای یادآوری نور',
+      description: 'هشدارهای شنیداری یادآوری‌های ذکر و نماز',
       importance: 4,
       visibility: 1,
       sound: undefined,
@@ -219,7 +219,7 @@ export async function scheduleReminder(reminder: LocalReminder, notifEnabled: bo
           id: notifId,
           title: reminder.title,
           body,
-          channelId: 'noor-reminders',
+          channelId: 'noor-reminders-alert-v2',
           schedule: { at, allowWhileIdle: true },
           smallIcon: 'ic_stat_icon',
         }],
@@ -246,7 +246,7 @@ export async function scheduleReminder(reminder: LocalReminder, notifEnabled: bo
           id: notifId,
           title: reminder.title,
           body,
-          channelId: 'noor-reminders',
+          channelId: 'noor-reminders-alert-v2',
           schedule: { at: occurrences[i], allowWhileIdle: true },
           smallIcon: 'ic_stat_icon',
         }],

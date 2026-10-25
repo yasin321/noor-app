@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { MapPin, Clock, Sunrise, Sunset, Moon, Sun, CloudSun, ArrowLeft, Hand } from 'lucide-react';
+import { MapPin, Clock, Sunrise, Sunset, Moon, Sun, CloudSun, ArrowLeft, Hand, Sparkles, Star } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
 import { calculatePrayerTimes, getNextPrayer, getLocalDateString, timeToMinutes, PrayerTimes } from '@/lib/prayerTimes';
@@ -30,7 +30,7 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
   const { theme } = useTheme();
   const { profile, user } = useAuth();
   const [times, setTimes] = useState<PrayerTimes | null>(null);
-  const [next, setNext] = useState<{ nameFa: string; time: string; remaining: string; progress: number } | null>(null);
+  const [next, setNext] = useState<{ key: string; nameFa: string; time: string; remaining: string; progress: number } | null>(null);
   const [now, setNow] = useState(new Date());
   const [stats, setStats] = useState({ total: 0, rounds: 0 });
   const [hasActiveSession, setHasActiveSession] = useState(false);
@@ -98,7 +98,7 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
         const progress = Number.isFinite(interval) && interval > 0
           ? Math.max(0, Math.min(100, ((interval - remaining) / interval) * 100))
           : 0;
-        setNext({ nameFa: n.nameFa, time: n.time, remaining: n.remaining, progress });
+        setNext({ key: n.key, nameFa: n.nameFa, time: n.time, remaining: n.remaining, progress });
       }
     }
   }, [times, now, city.timezone]);
@@ -120,20 +120,42 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
     { key: 'isha', nameFa: 'عشاء', time: times.isha },
   ];
 
-  const timeStr = now.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
-  const greeting = getGreeting(now.getHours());
+  const cityTimeParts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: city.timezone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  }).formatToParts(now);
+  const cityHour = Number(cityTimeParts.find((part) => part.type === 'hour')?.value ?? 0);
+  const cityMinute = Number(cityTimeParts.find((part) => part.type === 'minute')?.value ?? 0);
+  const timeStr = new Intl.DateTimeFormat('fa-IR', {
+    timeZone: city.timezone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  }).format(now);
+  const greeting = getGreeting(cityHour);
   const session = getSession();
   const activeDhikr = dhikrLibrary.find((d) => d.id === session.dhikrId);
+  const ActivePrayerIcon = prayerIcons[next?.key ?? 'fajr'] ?? Sun;
+  const cityNowMinute = cityHour * 60 + cityMinute;
+  // Modular elapsed time also handles prayers shortly after midnight.
+  const justReached = [
+    { nameFa: 'نماز صبح', time: times.fajr },
+    { nameFa: 'نماز ظهر', time: times.dhuhr },
+    { nameFa: 'نماز عصر', time: times.asr },
+    { nameFa: 'نماز مغرب', time: times.maghrib },
+    { nameFa: 'نماز عشاء', time: times.isha },
+  ].find((prayer) => {
+    const minute = timeToMinutes(prayer.time);
+    if (!Number.isFinite(minute)) return false;
+    const elapsed = (cityNowMinute - minute + 1440) % 1440;
+    return elapsed < 8;
+  });
 
   return (
-    <div className="px-5 pt-6 pb-28 animate-fade-in">
+    <div className="relative px-4 pt-5 pb-28 animate-fade-in sm:px-5">
       <div className="flex items-start justify-between mb-5">
         <div>
-          <p className="text-muted text-sm">{greeting}</p>
-          <h1 className="text-2xl font-bold text-app mt-0.5">
+          <p className="text-muted text-xs">{greeting}، به لحظه‌ای برای آرامش خوش اومدی</p>
+          <h1 className="text-2xl font-black tracking-tight text-app mt-0.5">
             {profile?.display_name ? profile.display_name : 'نور'}
           </h1>
-          <p className="text-muted text-xs mt-1">{getJalaliWeekday(now)}</p>
+          <p className="text-muted text-xs mt-1">{getJalaliWeekday(now)} <span style={{ color: theme.accent }}>✦</span> پناهِ دل، یاد خداست</p>
         </div>
         <div className="flex items-center gap-1.5 text-muted text-sm" aria-label="موقعیت">
           <MapPin size={15} />
@@ -180,14 +202,12 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
           <div className="min-w-0">
             <div className="flex items-center gap-2 mb-2">
               <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: theme.accent }} />
-              <p className="text-muted text-xs font-medium">قرار بعدی با آرامش</p>
+              <p className="text-muted text-xs font-medium">لحظه‌های نورانی امروز</p>
             </div>
             <h2 className="text-3xl font-extrabold tracking-tight text-primary">{next?.nameFa ?? '—'}</h2>
-            <p className="text-muted text-xs mt-1">تا وقت نماز بعدی</p>
+            <p className="text-muted text-xs mt-1">قدم‌به‌قدم نزدیکِ آرامش</p>
           </div>
-          <div className="w-[76px] h-[76px] rounded-[1.5rem] flex items-center justify-center flex-shrink-0" style={{ background: `color-mix(in srgb, ${theme.primary} 12%, transparent)`, border: `1px solid color-mix(in srgb, ${theme.primary} 20%, transparent)` }}>
-            <Moon size={34} strokeWidth={1.4} color={theme.accent} />
-          </div>
+          <div className="relative flex h-36 w-[7.1rem] shrink-0 items-end justify-center overflow-hidden rounded-t-[4rem] rounded-b-2xl pb-4 pt-5" style={{ background: `linear-gradient(180deg, color-mix(in srgb, ${theme.accent} 14%, transparent), color-mix(in srgb, ${theme.primary} 8%, transparent))`, border: `1px solid color-mix(in srgb, ${theme.accent} 34%, ${theme.border})` }}><div className="absolute inset-x-2 top-2 bottom-2 rounded-t-[3.5rem] rounded-b-xl" style={{ border: `1px solid color-mix(in srgb, ${theme.accent} 25%, transparent)` }} /><div className="absolute top-4 h-2 w-2 rotate-45" style={{ background: theme.accent }} /><div className="relative z-10 flex h-[5.1rem] w-[5.1rem] items-center justify-center rounded-[1.8rem]" style={{ color: theme.accent, background: `radial-gradient(circle, color-mix(in srgb, ${theme.accent} 18%, transparent), color-mix(in srgb, ${theme.primary} 8%, transparent))` }}><ActivePrayerIcon key={next?.key} size={60} strokeWidth={1.25} /></div><span className="relative z-10 mt-1 text-[9px] font-semibold" style={{ color: theme.accent }}>وقتِ بندگی</span></div>
         </div>
         <div className="relative flex items-center justify-between gap-3 rounded-2xl px-4 py-3" style={{ background: 'color-mix(in srgb, black 12%, transparent)', border: `1px solid color-mix(in srgb, ${theme.border} 75%, transparent)` }}>
           <div className="flex items-center gap-2 min-w-0">
@@ -212,6 +232,8 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
           </div>
         </div>
       </section>
+
+      {justReached && <section className="relative mb-4 flex items-center gap-3 overflow-hidden rounded-2xl p-4 animate-slide-up" role="status" style={{ background: `linear-gradient(120deg, color-mix(in srgb, ${theme.accent} 16%, ${theme.surface}), ${theme.surface})`, border: `1px solid color-mix(in srgb, ${theme.accent} 48%, ${theme.border})` }}><div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl" style={{ background: `color-mix(in srgb, ${theme.accent} 17%, transparent)`, color: theme.accent }}><Sparkles size={30} strokeWidth={1.6} /></div><div className="min-w-0"><p className="font-black text-app">{justReached.nameFa} فرا رسیده 🌙</p><p className="mt-1 text-xs leading-5 text-muted">لحظه‌ای مکث کن؛ وقتِ گفت‌وگو با خداست.</p></div><Star className="ml-auto shrink-0" size={18} color={theme.accent} /></section>}
 
       <div className="card-flat p-4 mb-4 flex min-w-0 items-center justify-between gap-3">
         <div className="min-w-0 flex-1">

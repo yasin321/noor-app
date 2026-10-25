@@ -9,7 +9,7 @@ import { toFaDigits } from '@/lib/jalali';
 export function TasbihCounter() {
   const { theme } = useTheme();
   const { user } = useAuth();
-  const { session, start, increment, reset, clear } = useTasbih(user?.id ?? null);
+  const { session, start, increment, reset } = useTasbih(user?.id ?? null);
   const dhikrItems = useMemo(() => getAllDhikr(), []);
   const initialDhikr = dhikrItems.find((d) => d.id === session.dhikrId) ?? dhikrItems[0];
   const [showPicker, setShowPicker] = useState(!session.dhikrId);

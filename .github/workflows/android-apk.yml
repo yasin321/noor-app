@@ -5,7 +5,7 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [main, "fix/**"]
+    branches: [main, "fix/**", "feature/**"]
   workflow_dispatch:
 
 permissions:
@@ -70,9 +70,8 @@ jobs:
             adb shell monkey -p com.noor.app 1
             sleep 25
             test -n "$(adb shell pidof com.noor.app)" || { echo "Noor process is not running after launch"; exit 1; }
-            adb logcat -d > /tmp/noor-logcat.txt
             adb exec-out screencap -p > /tmp/noor-emulator.png
-            grep -E 'supabaseUrl is required|FATAL EXCEPTION.*com\\.noor\\.app|Process: com\\.noor\\.app.*died' /tmp/noor-logcat.txt && { echo "App startup/runtime error detected in emulator logs"; exit 1; } || true
+            bash .github/scripts/adhan-emulator-smoke-test.sh
 
       - name: Upload emulator smoke-test evidence
         if: always()
