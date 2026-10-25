@@ -148,6 +148,24 @@ async function syncPrayerAdhanAlarmsInternal(options: {
   });
   const now = new Date();
   const localDateKey = getLocalDateKey(now, options.city.timezone);
+
+  // Permission can be revoked in Android Settings while the app is backgrounded.
+  // Never trust the cached schedule until Android confirms exact-alarm access;
+  // clear only the cache marker so a later return/regrant performs a full resync.
+  if (options.enabled) {
+    let exactAlarmAllowed = false;
+    try {
+      const permission = await NativeAlarm.checkExactAlarmAccess();
+      exactAlarmAllowed = permission.allowed === true;
+    } catch {
+      exactAlarmAllowed = false;
+    }
+    if (!exactAlarmAllowed) {
+      try { localStorage.removeItem(SYNC_STATE_KEY); } catch { /* ignore unavailable storage */ }
+      return { scheduled: 0, error: 'برای پخش به‌موقع اذان، اجازه آلارم دقیق اندروید را فعال کن.' };
+    }
+  }
+
   const previousState = getSyncState();
   if (options.enabled && previousState?.signature === signature
       && previousState.localDate === localDateKey
