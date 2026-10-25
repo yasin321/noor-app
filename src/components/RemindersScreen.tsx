@@ -327,7 +327,7 @@ function AddReminderModal({ notifEnabled, onClose, onCreated, initialReminder }:
               type="time"
               value={time}
               onFocus={(e) => keepFieldVisible(e.currentTarget)}
-              onChange={(e) => setTime(e.target.value)
+              onChange={(e) => setTime(e.target.value)}
               className="w-full px-4 py-3 rounded-2xl text-sm text-app border outline-none"
               style={{ borderColor: theme.border, background: `color-mix(in srgb, ${theme.bg} 50%, transparent)` }}
               dir="ltr"
@@ -368,7 +368,7 @@ function AddReminderModal({ notifEnabled, onClose, onCreated, initialReminder }:
                 type="date"
                 value={date}
                 onFocus={(e) => keepFieldVisible(e.currentTarget)}
-                onChange={(e) => setDate(e.target.value)
+                onChange={(e) => setDate(e.target.value)}
                 className="w-full px-4 py-3 rounded-2xl text-sm text-app border outline-none"
                 style={{ borderColor: theme.border, background: `color-mix(in srgb, ${theme.bg} 50%, transparent)` }}
                 dir="ltr"
