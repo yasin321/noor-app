@@ -297,7 +297,7 @@ function AddReminderModal({ notifEnabled, onClose, onCreated, initialReminder }:
               type="text"
               value={title}
               onFocus={(e) => keepFieldVisible(e.currentTarget)}
-              onChange={(e) => setTitle(e.target.value)
+              onChange={(e) => setTitle(e.target.value)}
               placeholder="مثلاً: ذکر صبح"
               className="w-full px-4 py-3 rounded-2xl text-sm text-app border outline-none"
               style={{ borderColor: theme.border, background: `color-mix(in srgb, ${theme.bg} 50%, transparent)` }}
