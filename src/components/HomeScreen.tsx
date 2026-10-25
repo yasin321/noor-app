@@ -120,14 +120,32 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
     { key: 'isha', nameFa: 'عشاء', time: times.isha },
   ];
 
-  const timeStr = now.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
-  const greeting = getGreeting(now.getHours());
+  const cityTimeParts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: city.timezone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  }).formatToParts(now);
+  const cityHour = Number(cityTimeParts.find((part) => part.type === 'hour')?.value ?? 0);
+  const cityMinute = Number(cityTimeParts.find((part) => part.type === 'minute')?.value ?? 0);
+  const timeStr = new Intl.DateTimeFormat('fa-IR', {
+    timeZone: city.timezone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  }).format(now);
+  const greeting = getGreeting(cityHour);
   const session = getSession();
   const activeDhikr = dhikrLibrary.find((d) => d.id === session.dhikrId);
   const ActivePrayerIcon = prayerIcons[next?.key ?? 'fajr'] ?? Sun;
-  const cityClock = new Intl.DateTimeFormat('en-GB', { timeZone: city.timezone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(now);
-  const cityNowMinute = Number(cityClock.find((part) => part.type === 'hour')?.value ?? 0) * 60 + Number(cityClock.find((part) => part.type === 'minute')?.value ?? 0);
-  const justReached = [{ nameFa: 'نماز صبح', time: times.fajr }, { nameFa: 'نماز ظهر', time: times.dhuhr }, { nameFa: 'نماز عصر', time: times.asr }, { nameFa: 'نماز مغرب', time: times.maghrib }, { nameFa: 'نماز عشاء', time: times.isha }].find((prayer) => { const minute = timeToMinutes(prayer.time); const elapsed = cityNowMinute - minute; return Number.isFinite(minute) && elapsed >= 0 && elapsed < 8; });
+  const cityNowMinute = cityHour * 60 + cityMinute;
+  // Modular elapsed time also handles prayers shortly after midnight.
+  const justReached = [
+    { nameFa: 'نماز صبح', time: times.fajr },
+    { nameFa: 'نماز ظهر', time: times.dhuhr },
+    { nameFa: 'نماز عصر', time: times.asr },
+    { nameFa: 'نماز مغرب', time: times.maghrib },
+    { nameFa: 'نماز عشاء', time: times.isha },
+  ].find((prayer) => {
+    const minute = timeToMinutes(prayer.time);
+    if (!Number.isFinite(minute)) return false;
+    const elapsed = (cityNowMinute - minute + 1440) % 1440;
+    return elapsed < 8;
+  });
 
   return (
     <div className="relative px-4 pt-5 pb-28 animate-fade-in sm:px-5">
