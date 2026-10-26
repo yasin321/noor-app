@@ -7,7 +7,8 @@ import { CITIES, getCityById, getGuestCityId, setGuestCityId } from '@/lib/citie
 import { getTodayTotal, getTodayRounds, getSession, fetchTodayStats, startSession } from '@/lib/tasbihStorage';
 import { toJalaliShort, getJalaliWeekday } from '@/lib/jalali';
 import { dhikrLibrary } from '@/lib/dhikrLibrary';
-import { loadReminders, scheduleReminder, cancelReminder, checkPermission, requestPermission } from '@/lib/reminderService';
+import { loadReminders, scheduleReminder, cancelReminder, checkPermission, requestPermission, NoorAlarm } from '@/lib/reminderService';
+import { Capacitor } from '@capacitor/core';
 import { saveReminder, type LocalReminder } from '@/lib/reminderStorage';
 import { logEvent } from '@/lib/logger';
 import { QiblaCompassModal } from '@/components/QiblaCompassModal';
@@ -177,37 +178,48 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
     setTimeout(() => setStatusToast(null), 3200);
   };
 
-  const detectNearestCity = () => {
-    if (!('geolocation' in navigator)) {
-      showToast('موقعیت‌یاب در این دستگاه فعال نیست.');
-      return;
+  const detectNearestCity = async () => {
+    const applyCoords = (latitude: number, longitude: number) => {
+      let nearest = CITIES[0];
+      let minDist = Infinity;
+      for (const c of CITIES) {
+        const d = Math.hypot(c.lat - latitude, c.lng - longitude);
+        if (d < minDist) {
+          minDist = d;
+          nearest = c;
+        }
+      }
+      if (profile) {
+        void updateProfile({ city_id: nearest.id });
+      } else {
+        setGuestCityId(nearest.id);
+        setGuestCityIdState(nearest.id);
+      }
+      showToast(`📍 موقعیت شما تشخیص داده شد: «${nearest.nameFa}»`);
+    };
+
+    showToast("در حال درخواست مجوز و تشخیص موقعیت مکانی...");
+    if (Capacitor.getPlatform() === "android" && typeof NoorAlarm.requestAndGetLocation === "function") {
+      try {
+        const res = await NoorAlarm.requestAndGetLocation();
+        if (res.hasCoords && typeof res.lat === "number" && typeof res.lng === "number") {
+          applyCoords(res.lat, res.lng);
+          return;
+        }
+      } catch {
+        // در صورت نیاز ادامه به geolocation استاندارد پس از اخذ مجوز
+      }
     }
-    showToast('در حال تشخیص نزدیک‌ترین شهر...');
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const { latitude, longitude } = pos.coords;
-        let nearest = CITIES[0];
-        let minDist = Infinity;
-        for (const c of CITIES) {
-          const d = Math.hypot(c.lat - latitude, c.lng - longitude);
-          if (d < minDist) {
-            minDist = d;
-            nearest = c;
-          }
-        }
-        if (profile) {
-          void updateProfile({ city_id: nearest.id });
-        } else {
-          setGuestCityId(nearest.id);
-          setGuestCityIdState(nearest.id);
-        }
-        showToast(`📍 افق شهر شما روی «${nearest.nameFa}» تنظیم شد.`);
-      },
-      () => {
-        showToast('دسترسی به موقعیت مکانی داده نشد؛ از تنظیمات شهر را انتخاب کنید.');
-      },
-      { timeout: 7000 }
-    );
+
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => applyCoords(pos.coords.latitude, pos.coords.longitude),
+        () => showToast("لطفاً GPS گوشی را روشن کنید یا از تنظیمات شهر را انتخاب نمایید."),
+        { enableHighAccuracy: false, timeout: 10000, maximumAge: 600000 }
+      );
+    } else {
+      showToast("از بخش تنظیمات، شهر خود را از بین ۴۰ شهر انتخاب کنید.");
+    }
   };
 
   const togglePrayerAdhanAlarm = async (key: string, nameFa: string, timeStrVal: string) => {
@@ -324,15 +336,7 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
           <p className="text-muted text-xs mt-0.5">{getJalaliWeekday(now)}، {toJalaliShort(now)}</p>
         </div>
         <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => setShowTutorial(true)}
-            aria-label="راهنمای برنامه"
-            className="w-9 h-9 rounded-xl flex items-center justify-center border"
-            style={{ borderColor: theme.border, color: theme.textMuted }}
-          >
-            <HelpCircle size={16} />
-          </button>
+          
           <button
             type="button"
             onClick={() => setShowQibla(true)}

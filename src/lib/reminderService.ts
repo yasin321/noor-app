@@ -7,6 +7,7 @@ export interface NoorAlarmPlugin {
   scheduleNativeAlarm(opts: { id: number; triggerAtMillis: number; title: string; body: string; soundType?: string }): Promise<{ scheduled: boolean }>;
   cancelNativeAlarm(opts: { id: number }): Promise<void>;
   triggerTestAlarmNow(opts?: { title?: string; body?: string }): Promise<void>;
+  requestAndGetLocation?(): Promise<{ granted: boolean; hasCoords: boolean; lat?: number; lng?: number }>;
 }
 export const NoorAlarm: NoorAlarmPlugin = typeof CapCore.registerPlugin === 'function'
   ? CapCore.registerPlugin<NoorAlarmPlugin>('NoorAlarm')

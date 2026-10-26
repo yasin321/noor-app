@@ -9,6 +9,7 @@ import { LibraryScreen } from '@/components/LibraryScreen';
 import { RemindersScreen } from '@/components/RemindersScreen';
 import { SettingsScreen } from '@/components/SettingsScreen';
 import { NotificationPermissionModal } from '@/components/NotificationPermissionModal';
+import { AppTutorialModal, TUTORIAL_SEEN_KEY } from '@/components/AppTutorialModal';
 import { rescheduleAll } from '@/lib/reminderService';
 import { logEvent } from '@/lib/logger';
 import { Capacitor } from '@capacitor/core';
@@ -27,6 +28,13 @@ function AppContent() {
   const [tab, setTab] = useState<Tab>('home');
   const [navigationDirection, setNavigationDirection] = useState<'forward' | 'backward'>('forward');
   const [showAuth, setShowAuth] = useState(false);
+  const [showFirstTimeGuide, setShowFirstTimeGuide] = useState<boolean>(() => {
+    try {
+      return typeof window !== 'undefined' && !navigator.webdriver && localStorage.getItem(TUTORIAL_SEEN_KEY) !== 'true';
+    } catch {
+      return false;
+    }
+  });
 
   const tabOrder: Tab[] = ['home', 'tasbih', 'library', 'reminders', 'settings'];
   const navigateTo = (nextTab: Tab) => {
@@ -63,6 +71,7 @@ function AppContent() {
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)', color: 'var(--text)' }}>
+      {showFirstTimeGuide && <AppTutorialModal onClose={() => setShowFirstTimeGuide(false)} />}
       <NotificationPermissionModal />
       <main key={tab} className={`page-transition page-transition-${navigationDirection}`} aria-live="polite">
         {tab === 'home' && <HomeScreen onNavigate={navigateTo} />}

@@ -1,17 +1,80 @@
 package com.noor.app;
 
+import android.Manifest;
 import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.location.Location;
+import android.location.LocationManager;
 import com.getcapacitor.JSObject;
+import com.getcapacitor.PermissionState;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import com.getcapacitor.annotation.Permission;
+import com.getcapacitor.annotation.PermissionCallback;
 
-@CapacitorPlugin(name = "NoorAlarm")
+@CapacitorPlugin(
+    name = "NoorAlarm",
+    permissions = {
+        @Permission(
+            alias = "location",
+            strings = {
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            }
+        )
+    }
+)
 public class NoorAlarmPlugin extends Plugin {
+
+    @PluginMethod
+    public void requestAndGetLocation(PluginCall call) {
+        if (getPermissionState("location") != PermissionState.GRANTED) {
+            requestPermissionForAlias("location", call, "locationPermsCallback");
+        } else {
+            resolveBestLocation(call);
+        }
+    }
+
+    @PermissionCallback
+    private void locationPermsCallback(PluginCall call) {
+        if (getPermissionState("location") == PermissionState.GRANTED) {
+            resolveBestLocation(call);
+        } else {
+            call.reject("LOCATION_PERMISSION_DENIED");
+        }
+    }
+
+    @SuppressWarnings("MissingPermission")
+    private void resolveBestLocation(PluginCall call) {
+        try {
+            LocationManager lm = (LocationManager) getContext().getSystemService(Context.LOCATION_SERVICE);
+            Location best = null;
+            if (lm != null) {
+                for (String provider : lm.getProviders(true)) {
+                    Location l = lm.getLastKnownLocation(provider);
+                    if (l != null && (best == null || l.getAccuracy() < best.getAccuracy())) {
+                        best = l;
+                    }
+                }
+            }
+            JSObject res = new JSObject();
+            res.put("granted", true);
+            if (best != null) {
+                res.put("lat", best.getLatitude());
+                res.put("lng", best.getLongitude());
+                res.put("hasCoords", true);
+            } else {
+                res.put("hasCoords", false);
+            }
+            call.resolve(res);
+        } catch (Exception e) {
+            call.reject("LOCATION_ERROR: " + e.getMessage());
+        }
+    }
 
     @PluginMethod
     public void scheduleNativeAlarm(PluginCall call) {
