@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { useState, useMemo } from 'react';
 import { BookOpen, Clock, Sparkles, BellPlus, Check, ArrowRight, Quote, Plus, Search, X, ScrollText, Star, Compass, HeartHandshake } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
@@ -253,11 +254,12 @@ export function LibraryScreen({ onNavigate }: { onNavigate?: (t: Tab) => void })
 
   return (
     <div className="px-5 pt-6 pb-28 animate-fade-in" dir="rtl">
-      {/* مودال تمیز برای ثبت نکته سخنرانی یا ذکر شخصی */}
-      {showAddCustom && (
+      {/* مودال مرکزچین با Portal روی document.body */}
+      {showAddCustom && typeof document !== 'undefined' && createPortal(
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-5 animate-fade-in"
-          style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
+          className="fixed inset-0 z-[999] overflow-y-auto flex items-center justify-center p-4 animate-fade-in"
+          style={{ background: 'rgba(0,0,0,0.78)', backdropFilter: 'blur(6px)' }}
+          dir="rtl"
         >
           <div
             className="w-full max-w-md rounded-3xl p-5 border shadow-2xl space-y-3"
@@ -322,7 +324,8 @@ export function LibraryScreen({ onNavigate }: { onNavigate?: (t: Tab) => void })
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* هدر استاندارد */}

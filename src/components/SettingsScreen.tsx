@@ -42,6 +42,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   const { profile, signOut, updateProfile, user } = useAuth();
   const [section, setSection] = useState<'main' | 'theme' | 'adhan' | 'city' | 'method'>('main');
   const [guestCityId, setGuestCityIdState] = useState(getGuestCityId());
+  const [citySearch, setCitySearch] = useState("");
   const [guestNotif, setGuestNotif] = useState(getGuestNotifEnabled());
   const [guestAdhanId, setGuestAdhanId] = useState(getGuestAdhanId());
   const [notifSupported, setNotifSupported] = useState(true);
@@ -235,7 +236,8 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   }
 
   if (section === 'city') {
-    const grouped = CITIES.reduce<Record<string, City[]>>((acc, c) => {
+    const filteredCities = CITIES.filter((c) => !citySearch.trim() || c.nameFa.includes(citySearch.trim()) || c.name.toLowerCase().includes(citySearch.trim().toLowerCase()));
+    const grouped = filteredCities.reduce<Record<string, City[]>>((acc, c) => {
       (acc[c.countryFa] ??= []).push(c);
       return acc;
     }, {});
@@ -246,7 +248,15 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
           <button onClick={() => setSection('main')} className="text-muted text-sm">بازگشت</button>
           <h1 className="text-2xl font-bold text-app">انتخاب شهر</h1>
         </div>
-        <p className="text-muted text-xs mb-4">شهر خود را برای محاسبه اوقات شرعی انتخاب کنید</p>
+        <p className="text-muted text-xs mb-3">شهر خود را برای محاسبه اوقات شرعی جستجو یا انتخاب کنید</p>
+        <input
+          type="text"
+          value={citySearch}
+          onChange={(e) => setCitySearch(e.target.value)}
+          placeholder="🔍 جستجوی نام شهر (مثلاً: مشهد، تهران، قم، کربلا...)"
+          className="w-full px-4 py-3 rounded-2xl text-xs text-app border outline-none mb-4"
+          style={{ borderColor: theme.border, background: theme.surface }}
+        />
         {Object.entries(grouped).map(([country, cities]) => (
           <div key={country} className="mb-5">
             <p className="text-muted text-xs font-semibold mb-2">{country}</p>

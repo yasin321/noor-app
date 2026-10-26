@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { useState, useEffect } from 'react';
 import { Plus, Bell, Trash2, Calendar, Clock, Repeat, X, Check, AlertCircle, Pencil } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
@@ -275,14 +276,14 @@ function AddReminderModal({
     onCreated();
   };
 
-  return (
+  const modalNode = (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(4px)' }}
+      className="fixed inset-0 z-[999] overflow-y-auto flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.78)', backdropFilter: 'blur(6px)' }}
       dir="rtl"
     >
       <div
-        className="w-full max-w-md rounded-3xl p-5 max-h-[84vh] overflow-y-auto border shadow-2xl animate-fade-in"
+        className="w-full max-w-md rounded-3xl p-5 my-auto max-h-[88vh] overflow-y-auto border shadow-2xl animate-fade-in"
         style={{ background: theme.surface, borderColor: theme.border }}
       >
         <div
@@ -457,4 +458,5 @@ function AddReminderModal({
       </div>
     </div>
   );
+  return typeof document !== 'undefined' ? createPortal(modalNode, document.body) : modalNode;
 }

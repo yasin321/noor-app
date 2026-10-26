@@ -12,6 +12,8 @@ import { Capacitor } from '@capacitor/core';
 import { saveReminder, type LocalReminder } from '@/lib/reminderStorage';
 import { logEvent } from '@/lib/logger';
 import { QiblaCompassModal } from '@/components/QiblaCompassModal';
+import { CalendarModal } from '@/components/CalendarModal';
+import { Calendar } from 'lucide-react';
 import { AppTutorialModal } from '@/components/AppTutorialModal';
 import type { Tab } from '@/components/BottomNav';
 
@@ -77,6 +79,7 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
   const [enabledAlarms, setEnabledAlarms] = useState<Record<string, boolean>>({});
   const [statusToast, setStatusToast] = useState<string | null>(null);
   const [showQibla, setShowQibla] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const [guestCityId, setGuestCityIdState] = useState(getGuestCityId());
 
@@ -305,6 +308,15 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
 
   return (
     <div className="px-5 pt-6 pb-28 animate-fade-in">
+      {showCalendar && (
+        <CalendarModal
+          cityLat={city.lat}
+          cityLng={city.lng}
+          cityTimezone={city.timezone}
+          cityName={city.nameFa}
+          onClose={() => setShowCalendar(false)}
+        />
+      )}
       {showQibla && (
         <QiblaCompassModal
           cityName={city.nameFa}
@@ -333,7 +345,7 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
           <h1 className="text-2xl font-black text-app">
             {profile?.display_name ? profile.display_name : 'نور'}
           </h1>
-          <p className="text-muted text-xs mt-0.5">{getJalaliWeekday(now)}، {toJalaliShort(now)}</p>
+          <button type="button" onClick={() => setShowCalendar(true)} className="mt-1 flex items-center gap-1 text-xs font-bold" style={{ color: theme.primary }}><Calendar size={13} /><span>{getJalaliWeekday(now)}، {toJalaliShort(now)} (مشاهده تقویم)</span></button>
         </div>
         <div className="flex items-center gap-1.5">
           
