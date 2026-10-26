@@ -9,6 +9,9 @@ import { adhans } from '@/lib/adhans';
 import { CITIES, getCityById, getGuestCityId, setGuestCityId, type City } from '@/lib/cities';
 import { cancelAllScheduledNotifications, rescheduleAllReminders, checkPermission, requestPermission, NoorAlarm } from '@/lib/reminderService';
 import { getAvailableMethods } from '@/lib/prayerTimes';
+import { getSpiritualDashboardStats, type PeriodRange } from '@/lib/tasbihStorage';
+import { getDhikr } from '@/lib/dhikrLibrary';
+import { AppTutorialModal } from '@/components/AppTutorialModal';
 import { getDiagnosticLogs, clearDiagnosticLogs, type AppLogEntry } from '@/lib/logger';
 
 const GUEST_NOTIF_KEY = 'noor_guest_notif_enabled';
@@ -43,6 +46,13 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   const [guestAdhanId, setGuestAdhanId] = useState(getGuestAdhanId());
   const [notifSupported, setNotifSupported] = useState(true);
   const [notifMessage, setNotifMessage] = useState<string | null>(null);
+  const [period, setPeriod] = useState<PeriodRange>(30);
+  const [showGuide, setShowGuide] = useState(false);
+  const [largeFont, setLargeFont] = useState<boolean>(() => {
+    try { return localStorage.getItem('noor_large_font_enabled') === 'true'; } catch { return false; }
+  });
+  const dash = getSpiritualDashboardStats(period);
+  const topDhikrObj = getDhikr(dash.topDhikrId);
   const [showLogs, setShowLogs] = useState(false);
   const [logs, setLogs] = useState<AppLogEntry[]>([]);
 
@@ -349,7 +359,45 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
 
   return (
     <div className="px-5 pt-6 pb-28 animate-fade-in">
-      <h1 className="text-2xl font-bold text-app mb-6">تنظیمات</h1>
+      {showGuide && <AppTutorialModal onClose={() => setShowGuide(false)} />}
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold text-app">تنظیمات و کارنامه من</h1>
+        <button type="button" onClick={() => setShowGuide(true)} className="px-3 py-1.5 rounded-xl text-xs font-bold" style={{ background: `color-mix(in srgb, ${theme.primary} 15%, transparent)`, color: theme.primary }}>راهنمای تصویری</button>
+      </div>
+
+      {/* داشبورد کارنامه معنوی من (سبک Power BI & Strava) */}
+      <div className="card p-4 mb-4">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <p className="text-xs font-bold text-primary">{dash.levelTitle}</p>
+            <h2 className="text-sm font-bold text-app mt-0.5">داشبورد استمرار و کارنامه معنوی</h2>
+          </div>
+          <div className="flex gap-1">
+            {([7, 30, 90] as PeriodRange[]).map((d) => (
+              <button key={d} type="button" onClick={() => setPeriod(d)} className="px-2 py-1 rounded-lg text-[10px] font-bold" style={{ background: period === d ? theme.primary : `color-mix(in srgb, ${theme.primary} 10%, transparent)`, color: period === d ? theme.bg : theme.textMuted }}>
+                {d === 7 ? '۷ روز' : d === 30 ? '۱ ماه' : '۳ ماه (فصلی)'}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-2 text-center mb-3">
+          <div className="card-flat p-2.5">
+            <p className="text-lg font-black text-primary">{dash.totalCount.toLocaleString('fa-IR')}</p>
+            <p className="text-[10px] text-muted">کل اذکار</p>
+          </div>
+          <div className="card-flat p-2.5">
+            <p className="text-lg font-black text-accent">{dash.totalRounds.toLocaleString('fa-IR')}</p>
+            <p className="text-[10px] text-muted">دور تسبیح</p>
+          </div>
+          <div className="card-flat p-2.5">
+            <p className="text-lg font-black text-primary">{dash.streakDays.toLocaleString('fa-IR')} روز</p>
+            <p className="text-[10px] text-muted">زنجیره تداوم 🔥</p>
+          </div>
+        </div>
+        {topDhikrObj && (
+          <p className="text-[11px] text-muted text-center">محبوب‌ترین ذکر شما در این بازه: <strong className="text-app">{topDhikrObj.arabic}</strong></p>
+        )}
+      </div>
 
       <div className="card p-5 mb-4 flex items-center gap-4">
         <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: theme.primary }}>
@@ -362,6 +410,26 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
       </div>
 
       <div className="space-y-2">
+        <div className="card-flat p-4 flex items-center justify-between">
+          <div>
+            <p className="text-app font-medium text-sm">درشت‌نمایی نوشته‌ها (ویژه مطالعه راحت)</p>
+            <p className="text-muted text-[11px] mt-0.5">بزرگ‌تر شدن متون عربی و فارسی در کل برنامه</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              const next = !largeFont;
+              setLargeFont(next);
+              document.documentElement.style.fontSize = next ? '18.5px' : '16px';
+              try { localStorage.setItem('noor_large_font_enabled', next ? 'true' : 'false'); } catch {}
+            }}
+            className="w-11 h-6 rounded-full transition-all relative"
+            style={{ background: largeFont ? theme.primary : `color-mix(in srgb, ${theme.textMuted} 25%, transparent)` }}
+          >
+            <div className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all" style={{ right: largeFont ? '2px' : '22px' }} />
+          </button>
+        </div>
+
         <button onClick={() => setSection('theme')} className="w-full card-flat p-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Palette size={20} color={theme.primary} />

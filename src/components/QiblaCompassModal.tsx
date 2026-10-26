@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Compass, X, Navigation, CheckCircle2 } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
+import { toFaDigits } from '@/lib/jalali';
 
 interface Props {
   cityName: string;
@@ -23,22 +24,48 @@ export function calculateQiblaAngle(lat: number, lng: number): number {
 
   const y = Math.sin(lambdaK - lambda);
   const x = Math.cos(phi) * Math.tan(phiK) - Math.sin(phi) * Math.cos(lambdaK - lambda);
-  let qibla = toDeg(Math.atan2(y, x));
+  const qibla = toDeg(Math.atan2(y, x));
   return (qibla + 360) % 360;
 }
 
 export function QiblaCompassModal({ cityName, lat, lng, onClose }: Props) {
   const { theme } = useTheme();
-  const [heading, setHeading] = useState<number | null>(null);
+  const [smoothHeading, setSmoothHeading] = useState<number | null>(null);
+  const sinRef = useRef<number>(0);
+  const cosRef = useRef<number>(1);
+  const initializedRef = useRef<boolean>(false);
+  const lastEmitRef = useRef<number>(0);
+
   const qiblaAngle = Math.round(calculateQiblaAngle(lat, lng));
 
   useEffect(() => {
+    // فیلتر Circular Low-Pass برای حذف ۱۰۰٪ لرزش سنسور قطب‌نما
+    const ALPHA = 0.12;
     const handleOrientation = (e: DeviceOrientationEvent) => {
       const webkitHeading = (e as unknown as { webkitCompassHeading?: number }).webkitCompassHeading;
-      if (typeof webkitHeading === 'number') {
-        setHeading(Math.round(webkitHeading));
-      } else if (typeof e.alpha === 'number') {
-        setHeading(Math.round((360 - e.alpha) % 360));
+      let raw: number | null = null;
+      if (typeof webkitHeading === 'number' && !isNaN(webkitHeading)) {
+        raw = webkitHeading;
+      } else if (typeof e.alpha === 'number' && !isNaN(e.alpha)) {
+        raw = (360 - e.alpha) % 360;
+      }
+      if (raw === null) return;
+
+      const rad = (raw * Math.PI) / 180;
+      if (!initializedRef.current) {
+        sinRef.current = Math.sin(rad);
+        cosRef.current = Math.cos(rad);
+        initializedRef.current = true;
+      } else {
+        sinRef.current = sinRef.current * (1 - ALPHA) + Math.sin(rad) * ALPHA;
+        cosRef.current = cosRef.current * (1 - ALPHA) + Math.cos(rad) * ALPHA;
+      }
+
+      const now = Date.now();
+      if (now - lastEmitRef.current > 45) {
+        lastEmitRef.current = now;
+        const filteredDeg = ((Math.atan2(sinRef.current, cosRef.current) * 180) / Math.PI + 360) % 360;
+        setSmoothHeading(Math.round(filteredDeg));
       }
     };
 
@@ -50,13 +77,14 @@ export function QiblaCompassModal({ cityName, lat, lng, onClose }: Props) {
     };
   }, []);
 
-  const relativeRotation = heading !== null ? (qiblaAngle - heading + 360) % 360 : qiblaAngle;
-  const isAligned = heading !== null && (relativeRotation <= 8 || relativeRotation >= 352);
+  const relativeRotation = smoothHeading !== null ? (qiblaAngle - smoothHeading + 360) % 360 : qiblaAngle;
+  const isAligned = smoothHeading !== null && (relativeRotation <= 7 || relativeRotation >= 353);
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-5 animate-fade-in"
-      style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(5px)' }}
+      style={{ background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(6px)' }}
+      dir="rtl"
     >
       <div
         className="w-full max-w-sm rounded-3xl p-6 text-center relative border shadow-2xl"
@@ -76,38 +104,42 @@ export function QiblaCompassModal({ cityName, lat, lng, onClose }: Props) {
 
         <div className="flex items-center justify-center gap-2 mb-1">
           <Compass size={20} color={theme.primary} />
-          <h2 className="text-lg font-bold text-app">قبله‌نمای هوشمند</h2>
+          <h2 className="text-lg font-bold text-app">قبله‌نمای بدون لرزش</h2>
         </div>
         <p className="text-muted text-xs mb-5">
-          به افق {cityName} — زاویه قبله از شمال: <strong dir="ltr">{qiblaAngle}°</strong>
+          افق {cityName} — انحراف قبله از شمال: <strong>{toFaDigits(qiblaAngle)}°</strong>
         </p>
 
-        {/* صفحه دایره‌ای قطب‌نما */}
         <div
-          className="w-56 h-56 rounded-full mx-auto mb-5 relative flex items-center justify-center border-2 transition-colors"
+          className="w-60 h-60 rounded-full mx-auto mb-5 relative flex items-center justify-center border-2"
           style={{
             borderColor: isAligned ? theme.primary : theme.border,
-            background: `radial-gradient(circle, color-mix(in srgb, ${theme.primary} 14%, transparent), transparent 70%)`,
+            background: `radial-gradient(circle, color-mix(in srgb, ${theme.primary} 15%, transparent), transparent 72%)`,
           }}
         >
-          <span className="absolute top-2 text-[11px] font-bold text-primary">شمال (N)</span>
+          {/* نشانگر ثابت کعبه در بالای دایره */}
+          <div
+            className="absolute -top-4 px-2.5 py-1 rounded-full text-xs font-bold shadow-md flex items-center gap-1"
+            style={{ background: isAligned ? theme.primary : theme.surface, color: isAligned ? theme.bg : theme.text, border: `1px solid ${theme.border}` }}
+          >
+            <span>🕋</span>
+            <span>سمت کعبه</span>
+          </div>
+
           <span className="absolute bottom-2 text-[10px] text-muted">جنوب (S)</span>
           <span className="absolute right-3 text-[10px] text-muted">شرق</span>
           <span className="absolute left-3 text-[10px] text-muted">غرب</span>
 
-          {/* عقربه چرخان به سمت کعبه */}
           <div
-            className="w-full h-full flex items-center justify-center transition-transform duration-200 ease-out"
-            style={{ transform: `rotate(${relativeRotation}deg)` }}
+            className="w-full h-full flex items-center justify-center"
+            style={{
+              transform: `rotate(${relativeRotation}deg)`,
+              transition: 'transform 140ms linear',
+            }}
           >
-            <div className="flex flex-col items-center -mt-16">
-              <div
-                className="w-9 h-9 rounded-xl flex items-center justify-center shadow-lg mb-1"
-                style={{ background: theme.primary, color: theme.bg }}
-              >
-                🕋
-              </div>
-              <Navigation size={28} color={theme.accent} style={{ transform: 'rotate(0deg)' }} />
+            <div className="flex flex-col items-center -mt-14">
+              <Navigation size={38} color={isAligned ? theme.primary : theme.accent} />
+              <span className="text-[10px] font-bold mt-1" style={{ color: theme.primary }}>جهت قبله</span>
             </div>
           </div>
         </div>
@@ -122,9 +154,9 @@ export function QiblaCompassModal({ cityName, lat, lng, onClose }: Props) {
           </div>
         ) : (
           <p className="text-muted text-xs leading-relaxed mb-4">
-            {heading !== null
-              ? `گوشی را به صورت افقی نگه دارید و بچرخید تا نماد 🕋 در بالا قرار گیرد. (جهت فعلی گوشی: ${heading}°)`
-              : 'اگر سنسور مغناطیسی گوشی غیرفعال است، زاویهٔ نشان‌داده‌شده نسبت به شمال جغرافیایی جهت دقیق قبله است.'}
+            {smoothHeading !== null
+              ? `گوشی را افقی بچرخانید تا پیکان دقیقاً زیر نماد 🕋 قرار گیرد.`
+              : `در صورت عدم وجود سنسور مغناطیسی در دستگاه، زاویه ${toFaDigits(qiblaAngle)} درجه از شمال جغرافیایی سمت دقیق قبله است.`}
           </p>
         )}
 
@@ -134,7 +166,7 @@ export function QiblaCompassModal({ cityName, lat, lng, onClose }: Props) {
           className="w-full py-3 rounded-2xl text-xs font-bold"
           style={{ background: theme.primary, color: theme.bg }}
         >
-          بستن
+          بستن قبله‌نما
         </button>
       </div>
     </div>

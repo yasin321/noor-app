@@ -1,16 +1,17 @@
 import { useState, useEffect, useMemo } from 'react';
-import { MapPin, Clock, Sunrise, Sunset, Moon, Sun, CloudSun, ArrowLeft, Hand, Bell, BellOff, Type, Compass } from 'lucide-react';
+import { MapPin, Clock, Sunrise, Sunset, Moon, Sun, CloudSun, ArrowLeft, Hand, Bell, BellOff, Compass, HelpCircle, Sparkles, LocateFixed } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
 import { calculatePrayerTimes, getNextPrayer, getLocalDateString, timeToMinutes, PrayerTimes } from '@/lib/prayerTimes';
-import { getCityById, getGuestCityId } from '@/lib/cities';
-import { getTodayTotal, getTodayRounds, getSession, fetchTodayStats } from '@/lib/tasbihStorage';
+import { CITIES, getCityById, getGuestCityId, setGuestCityId } from '@/lib/cities';
+import { getTodayTotal, getTodayRounds, getSession, fetchTodayStats, startSession } from '@/lib/tasbihStorage';
 import { toJalaliShort, getJalaliWeekday } from '@/lib/jalali';
 import { dhikrLibrary } from '@/lib/dhikrLibrary';
 import { loadReminders, scheduleReminder, cancelReminder, checkPermission, requestPermission } from '@/lib/reminderService';
 import { saveReminder, type LocalReminder } from '@/lib/reminderStorage';
 import { logEvent } from '@/lib/logger';
 import { QiblaCompassModal } from '@/components/QiblaCompassModal';
+import { AppTutorialModal } from '@/components/AppTutorialModal';
 import type { Tab } from '@/components/BottomNav';
 
 const prayerIcons: Record<string, typeof Sun> = {
@@ -23,47 +24,65 @@ const prayerIcons: Record<string, typeof Sun> = {
   midnight: Moon,
 };
 
-const LARGE_FONT_KEY = 'noor_large_font_enabled';
+function getContextualSpiritualTip(now: Date, nextKey?: string): {
+  badge: string;
+  title: string;
+  subtitle: string;
+  dhikrId: string;
+} {
+  const day = now.getDay(); // 4 = Thursday, 5 = Friday
+  const hour = now.getHours();
 
-function getGreeting(hour: number): string {
-  if (hour >= 5 && hour < 12) return 'صبح بخیر';
-  if (hour >= 12 && hour < 17) return 'ظهر بخیر';
-  if (hour >= 17 && hour < 20) return 'عصر بخیر';
-  return 'شب بخیر';
+  if (day === 4 && hour >= 16) {
+    return {
+      badge: 'ویژه شب جمعه',
+      title: 'سلام به سیدالشهدا (ع) زیر آسمان و سوره واقعه',
+      subtitle: 'صَلَّى اللَّهُ عَلَيْكَ يَا أَبَا عَبْدِ اللَّهِ — ۳ مرتبه با توجه قلبی',
+      dhikrId: 'friday_night_husayn',
+    };
+  }
+  if (nextKey === 'maghrib' || nextKey === 'isha' || hour >= 19) {
+    return {
+      badge: 'برنامه شبانه مجرب',
+      title: 'تلاوت سوره واقعه و ذکر اللَّهُمَّ عَافِنَا وَاعْفُ عَنَّا',
+      subtitle: 'توصیه امام صادق (ع) برای برکت رزق و توصیه آیت‌الله فاطمی‌نیا',
+      dhikrId: 'fateminia_afina',
+    };
+  }
+  if (hour >= 4 && hour < 11) {
+    return {
+      badge: 'برنامه آغاز روز',
+      title: 'تلاوت سوره ذاریات و دعای اللَّهُمَّ سَلِّمْ وَ تَمِّمْ',
+      subtitle: 'برای اصلاح معاش روزانه، حفظ ایمان و عاقبت‌به‌خیری',
+      dhikrId: 'fateminia_sallim',
+    };
+  }
+  return {
+    badge: 'ذکر گره‌گشای روز',
+    title: 'توسل به امام رئوف (ع) و تسبیحات حضرت زهرا (س)',
+    subtitle: 'يَا رَءُوفُ يَا رَحِيمُ — کلید آرامش دل و گشایش کارها',
+    dhikrId: 'imam_reza_hajat',
+  };
 }
 
 export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
   const { theme } = useTheme();
-  const { profile, user } = useAuth();
+  const { profile, user, updateProfile } = useAuth();
   const [times, setTimes] = useState<PrayerTimes | null>(null);
-  const [next, setNext] = useState<{ nameFa: string; time: string; remaining: string; progress: number } | null>(null);
+  const [next, setNext] = useState<{ key: string; nameFa: string; time: string; remaining: string; progress: number } | null>(null);
   const [now, setNow] = useState(new Date());
   const [stats, setStats] = useState({ total: 0, rounds: 0 });
   const [hasActiveSession, setHasActiveSession] = useState(false);
   const [enabledAlarms, setEnabledAlarms] = useState<Record<string, boolean>>({});
   const [statusToast, setStatusToast] = useState<string | null>(null);
   const [showQibla, setShowQibla] = useState(false);
-  const [largeFont, setLargeFont] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem(LARGE_FONT_KEY) === 'true';
-    } catch {
-      return false;
-    }
-  });
+  const [showTutorial, setShowTutorial] = useState(false);
+  const [guestCityId, setGuestCityIdState] = useState(getGuestCityId());
 
-  const cityId = profile?.city_id ?? getGuestCityId();
+  const cityId = profile?.city_id ?? guestCityId;
   const city = useMemo(() => getCityById(cityId), [cityId]);
   const method = profile?.calculation_method ?? 'jafari';
   const todayDate = getLocalDateString(now, city.timezone);
-
-  useEffect(() => {
-    document.documentElement.style.fontSize = largeFont ? '18.5px' : '16px';
-    try {
-      localStorage.setItem(LARGE_FONT_KEY, largeFont ? 'true' : 'false');
-    } catch {
-      // ignore
-    }
-  }, [largeFont]);
 
   useEffect(() => {
     const refreshNow = () => setNow(new Date());
@@ -148,7 +167,7 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
         const progress = Number.isFinite(interval) && interval > 0
           ? Math.max(0, Math.min(100, ((interval - remaining) / interval) * 100))
           : 0;
-        setNext({ nameFa: n.nameFa, time: n.time, remaining: n.remaining, progress });
+        setNext({ key: n.key, nameFa: n.nameFa, time: n.time, remaining: n.remaining, progress });
       }
     }
   }, [times, now, city.timezone]);
@@ -156,6 +175,39 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
   const showToast = (msg: string) => {
     setStatusToast(msg);
     setTimeout(() => setStatusToast(null), 3200);
+  };
+
+  const detectNearestCity = () => {
+    if (!('geolocation' in navigator)) {
+      showToast('موقعیت‌یاب در این دستگاه فعال نیست.');
+      return;
+    }
+    showToast('در حال تشخیص نزدیک‌ترین شهر...');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        let nearest = CITIES[0];
+        let minDist = Infinity;
+        for (const c of CITIES) {
+          const d = Math.hypot(c.lat - latitude, c.lng - longitude);
+          if (d < minDist) {
+            minDist = d;
+            nearest = c;
+          }
+        }
+        if (profile) {
+          void updateProfile({ city_id: nearest.id });
+        } else {
+          setGuestCityId(nearest.id);
+          setGuestCityIdState(nearest.id);
+        }
+        showToast(`📍 افق شهر شما روی «${nearest.nameFa}» تنظیم شد.`);
+      },
+      () => {
+        showToast('دسترسی به موقعیت مکانی داده نشد؛ از تنظیمات شهر را انتخاب کنید.');
+      },
+      { timeout: 7000 }
+    );
   };
 
   const togglePrayerAdhanAlarm = async (key: string, nameFa: string, timeStrVal: string) => {
@@ -234,9 +286,10 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
   ];
 
   const timeStr = now.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
-  const greeting = getGreeting(now.getHours());
   const session = getSession();
   const activeDhikr = dhikrLibrary.find((d) => d.id === session.dhikrId);
+  const HeroIcon = prayerIcons[next?.key ?? 'isha'] ?? Moon;
+  const spiritualTip = getContextualSpiritualTip(now, next?.key);
 
   return (
     <div className="px-5 pt-6 pb-28 animate-fade-in">
@@ -249,6 +302,10 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
         />
       )}
 
+      {showTutorial && (
+        <AppTutorialModal onClose={() => setShowTutorial(false)} />
+      )}
+
       {statusToast && (
         <div
           className="fixed top-4 inset-x-5 z-50 rounded-2xl px-4 py-3 text-xs font-bold text-center shadow-xl animate-fade-in"
@@ -258,20 +315,29 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
         </div>
       )}
 
-      <div className="flex items-start justify-between mb-5">
+      {/* هدر استاندارد، خلوت و متمرکز */}
+      <div className="flex items-center justify-between mb-5">
         <div>
-          <p className="text-muted text-sm">{greeting}</p>
-          <h1 className="text-2xl font-bold text-app mt-0.5">
+          <h1 className="text-2xl font-black text-app">
             {profile?.display_name ? profile.display_name : 'نور'}
           </h1>
-          <p className="text-muted text-xs mt-1">{getJalaliWeekday(now)}</p>
+          <p className="text-muted text-xs mt-0.5">{getJalaliWeekday(now)}، {toJalaliShort(now)}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setShowTutorial(true)}
+            aria-label="راهنمای برنامه"
+            className="w-9 h-9 rounded-xl flex items-center justify-center border"
+            style={{ borderColor: theme.border, color: theme.textMuted }}
+          >
+            <HelpCircle size={16} />
+          </button>
           <button
             type="button"
             onClick={() => setShowQibla(true)}
             aria-label="قبله‌نما"
-            className="px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 border"
+            className="px-2.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1 border"
             style={{ borderColor: theme.border, color: theme.primary, background: `color-mix(in srgb, ${theme.primary} 12%, transparent)` }}
           >
             <Compass size={14} />
@@ -279,72 +345,46 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
           </button>
           <button
             type="button"
-            onClick={() => setLargeFont((v) => !v)}
-            aria-label="درشت‌نمایی متن"
-            title="تغییر اندازه نوشته برای مطالعه راحت‌تر"
-            className="px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 border"
-            style={{
-              borderColor: largeFont ? theme.primary : theme.border,
-              background: largeFont ? `color-mix(in srgb, ${theme.primary} 18%, transparent)` : 'transparent',
-              color: largeFont ? theme.primary : theme.textMuted,
-            }}
+            onClick={detectNearestCity}
+            aria-label="موقعیت"
+            title="تشخیص خودکار شهر"
+            className="px-2.5 py-2 rounded-xl flex items-center gap-1 text-xs font-medium border"
+            style={{ borderColor: theme.border, color: theme.text }}
           >
-            <Type size={14} />
-            <span>{largeFont ? 'متن درشت' : 'A+'}</span>
-          </button>
-          <div className="flex items-center gap-1.5 text-muted text-sm" aria-label="موقعیت">
-            <MapPin size={15} />
+            <MapPin size={14} color={theme.primary} />
             <span>{times.location}</span>
-          </div>
+            <LocateFixed size={11} className="opacity-60" />
+          </button>
         </div>
       </div>
 
-      {hasActiveSession && onNavigate && activeDhikr && (
-        <button
-          onClick={() => onNavigate('tasbih')}
-          className="w-full card-flat p-4 mb-4 flex items-center justify-between animate-slide-up"
-          aria-label="ادامه شمارش"
-        >
-          <div className="flex items-center gap-3">
-            <div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
-              style={{ background: `color-mix(in srgb, ${theme.primary} 15%, transparent)` }}
-            >
-              <Hand size={22} color={theme.primary} />
-            </div>
-            <div className="text-right">
-              <p className="text-app font-bold text-sm">ادامه شمارش</p>
-              <p className="text-muted text-xs mt-0.5">
-                {activeDhikr.translit} — {session.count}/{session.target}
-              </p>
-            </div>
-          </div>
-          <ArrowLeft size={20} color={theme.primary} />
-        </button>
-      )}
-
+      {/* کارت آسمان پویا بر اساس هر نماز (خورشید در روز، طلوع در فجر، غروب در مغرب و ماه در شب) */}
       <section
         className="relative overflow-hidden rounded-[1.7rem] p-5 mb-4 animate-slide-up"
         aria-label="نماز بعدی"
         style={{
-          background: `radial-gradient(circle at 90% 8%, color-mix(in srgb, ${theme.accent} 20%, transparent), transparent 38%), linear-gradient(145deg, ${theme.surfaceAlt ?? theme.surface}, ${theme.surface} 68%, ${theme.bg})`,
+          background: `radial-gradient(circle at 90% 8%, color-mix(in srgb, ${theme.accent} 22%, transparent), transparent 42%), linear-gradient(145deg, ${theme.surfaceAlt ?? theme.surface}, ${theme.surface} 68%, ${theme.bg})`,
           border: `1px solid color-mix(in srgb, ${theme.primary} 28%, ${theme.border})`,
           boxShadow: `0 14px 34px color-mix(in srgb, ${theme.primary} 10%, transparent)`,
         }}
       >
-        <div className="absolute -left-5 -top-7 w-28 h-28 rounded-full pointer-events-none" style={{ border: `1px solid color-mix(in srgb, ${theme.accent} 14%, transparent)` }} />
-        <div className="absolute -left-1 top-2 w-20 h-20 rounded-full pointer-events-none" style={{ border: `1px solid color-mix(in srgb, ${theme.accent} 10%, transparent)` }} />
         <div className="relative flex items-center justify-between gap-3 mb-5">
           <div className="min-w-0">
             <div className="flex items-center gap-2 mb-2">
               <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: theme.accent }} />
-              <p className="text-muted text-xs font-medium">قرار بعدی با آرامش</p>
+              <p className="text-muted text-xs font-medium">{times.hijriDate} · ساعت {timeStr}</p>
             </div>
             <h2 className="text-3xl font-extrabold tracking-tight text-primary">{next?.nameFa ?? '—'}</h2>
-            <p className="text-muted text-xs mt-1">تا وقت نماز بعدی</p>
+            <p className="text-muted text-xs mt-1">وقت شرعی بعدی به افق {times.location}</p>
           </div>
-          <div className="w-[76px] h-[76px] rounded-[1.5rem] flex items-center justify-center flex-shrink-0" style={{ background: `color-mix(in srgb, ${theme.primary} 12%, transparent)`, border: `1px solid color-mix(in srgb, ${theme.primary} 20%, transparent)` }}>
-            <Moon size={34} strokeWidth={1.4} color={theme.accent} />
+          <div
+            className="w-[74px] h-[74px] rounded-[1.5rem] flex items-center justify-center flex-shrink-0"
+            style={{
+              background: `color-mix(in srgb, ${theme.primary} 14%, transparent)`,
+              border: `1px solid color-mix(in srgb, ${theme.primary} 24%, transparent)`,
+            }}
+          >
+            <HeroIcon size={36} strokeWidth={1.6} color={theme.accent} />
           </div>
         </div>
         <div className="relative flex items-center justify-between gap-3 rounded-2xl px-4 py-3" style={{ background: 'color-mix(in srgb, black 12%, transparent)', border: `1px solid color-mix(in srgb, ${theme.border} 75%, transparent)` }}>
@@ -364,24 +404,59 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
               style={{ width: `${next?.progress ?? 0}%`, background: `linear-gradient(90deg, ${theme.primary}, ${theme.accent})` }}
             />
           </div>
-          <div className="flex justify-between mt-1.5 text-[10px] text-muted">
-            <span>آرام‌آرام نزدیک می‌شیم ✨</span>
-            <span>{Math.round(next?.progress ?? 0).toLocaleString('fa-IR')}٪</span>
-          </div>
         </div>
       </section>
 
-      <div className="card-flat p-4 mb-4 flex min-w-0 items-center justify-between gap-3">
+      {/* میان‌بر هوشمند پیشنهاد معنوی روز و ایام خاص */}
+      <div
+        className="card-flat p-4 mb-4 flex items-center justify-between gap-3 cursor-pointer"
+        style={{ borderColor: `color-mix(in srgb, ${theme.primary} 30%, ${theme.border})` }}
+        onClick={() => {
+          const targetDhikr = dhikrLibrary.find((d) => d.id === spiritualTip.dhikrId);
+          if (targetDhikr && onNavigate) {
+            startSession(targetDhikr.id, targetDhikr.count);
+            onNavigate('tasbih');
+          }
+        }}
+      >
         <div className="min-w-0 flex-1">
-          <p className="text-app font-semibold text-sm truncate">{getJalaliWeekday(now)}، {toJalaliShort(now)}</p>
-          <p className="text-muted text-xs mt-0.5 truncate">{times.hijriDate}</p>
+          <div className="flex items-center gap-1.5 mb-1">
+            <Sparkles size={13} color={theme.accent} />
+            <span className="text-[11px] font-bold" style={{ color: theme.accent }}>{spiritualTip.badge}</span>
+          </div>
+          <p className="text-app font-bold text-xs truncate">{spiritualTip.title}</p>
+          <p className="text-muted text-[11px] mt-0.5 truncate">{spiritualTip.subtitle}</p>
         </div>
-        <p className="text-xl font-bold text-primary flex-shrink-0" dir="ltr">{timeStr}</p>
+        <ArrowLeft size={18} color={theme.primary} className="shrink-0" />
       </div>
 
+      {hasActiveSession && onNavigate && activeDhikr && (
+        <button
+          onClick={() => onNavigate('tasbih')}
+          className="w-full card-flat p-4 mb-4 flex items-center justify-between animate-slide-up"
+          aria-label="ادامه شمارش"
+        >
+          <div className="flex items-center gap-3">
+            <div
+              className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
+              style={{ background: `color-mix(in srgb, ${theme.primary} 15%, transparent)` }}
+            >
+              <Hand size={20} color={theme.primary} />
+            </div>
+            <div className="text-right">
+              <p className="text-app font-bold text-sm">ادامه شمارش تسبیح</p>
+              <p className="text-muted text-xs mt-0.5">
+                {activeDhikr.arabic} — {session.count}/{session.target}
+              </p>
+            </div>
+          </div>
+          <ArrowLeft size={18} color={theme.primary} />
+        </button>
+      )}
+
       <div className="flex items-center justify-between mb-2 px-1">
-        <span className="text-muted text-[11px]">اوقات شرعی به افق {times.location}</span>
-        <span className="text-muted text-[11px]">با لمس 🔔 آلارم اذان فعال می‌شود</span>
+        <span className="text-muted text-[11px]">اوقات شرعی امروز</span>
+        <span className="text-muted text-[11px]">لمس 🔔 = پخش خودکار اذان</span>
       </div>
 
       <div className="grid grid-cols-2 gap-2.5 mb-4">
@@ -395,9 +470,7 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
             <div
               key={p.key}
               className="card-flat min-w-0 p-2.5 flex items-center justify-between gap-1.5"
-              style={{
-                borderColor: isAlarmOn ? theme.primary : undefined,
-              }}
+              style={{ borderColor: isAlarmOn ? theme.primary : undefined }}
             >
               <div className="flex min-w-0 items-center gap-2">
                 <div
@@ -432,23 +505,29 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
         })}
       </div>
 
-      <div className="card p-5">
-        <h3 className="text-app font-bold text-sm mb-3">امروز</h3>
+      <div className="card p-4">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-app font-bold text-xs">خلاصه فعالیت امروز</h3>
+          {onNavigate && (
+            <button
+              type="button"
+              onClick={() => onNavigate('settings')}
+              className="text-[11px] font-bold text-primary"
+            >
+              مشاهده کارنامه کامل ←
+            </button>
+          )}
+        </div>
         <div className="grid grid-cols-2 gap-3 text-center">
           <div>
             <p className="text-2xl font-bold text-primary">{stats.total.toLocaleString('fa-IR')}</p>
-            <p className="text-muted text-xs mt-1">ذکر امروز</p>
+            <p className="text-muted text-xs mt-0.5">ذکر امروز</p>
           </div>
           <div>
             <p className="text-2xl font-bold text-accent">{stats.rounds.toLocaleString('fa-IR')}</p>
-            <p className="text-muted text-xs mt-1">دور کامل</p>
+            <p className="text-muted text-xs mt-0.5">دور کامل</p>
           </div>
         </div>
-        {stats.total === 0 && (
-          <p className="text-muted text-xs text-center mt-3 opacity-60">
-            هنوز ذکری ثبت نشده — شروع کن
-          </p>
-        )}
       </div>
     </div>
   );

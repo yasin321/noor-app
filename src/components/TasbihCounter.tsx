@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { RotateCcw, Check, Sparkles, Heart, ListRestart } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { RotateCcw, Check, Sparkles, Heart, ListRestart, Award } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
 import { useTasbih } from '@/hooks/useTasbih';
@@ -9,31 +9,53 @@ import { toFaDigits } from '@/lib/jalali';
 export function TasbihCounter() {
   const { theme } = useTheme();
   const { user } = useAuth();
-  const { session, start, increment, reset, clear } = useTasbih(user?.id ?? null);
+  const { session, start, increment, reset } = useTasbih(user?.id ?? null);
   const dhikrItems = useMemo(() => getAllDhikr(), []);
   const initialDhikr = dhikrItems.find((d) => d.id === session.dhikrId) ?? dhikrItems[0];
   const [showPicker, setShowPicker] = useState(!session.dhikrId);
   const [selectedDhikr, setSelectedDhikr] = useState(initialDhikr);
   const [tapPulse, setTapPulse] = useState(false);
+  const [celebrateModal, setCelebrateModal] = useState(false);
   const [showAddDhikr, setShowAddDhikr] = useState(false);
   const [customArabic, setCustomArabic] = useState('');
   const [customTranslation, setCustomTranslation] = useState('');
   const [customCount, setCustomCount] = useState('33');
   const [customError, setCustomError] = useState<string | null>(null);
+  const lastPointerTapRef = useRef<number>(0);
+
   useEffect(() => {
     const current = dhikrItems.find((d) => d.id === session.dhikrId);
     if (current) setSelectedDhikr(current);
   }, [session.dhikrId, dhikrItems]);
 
-  const handleTap = () => {
+  const executeTap = () => {
     if (!session.dhikrId) {
       start(selectedDhikr.id, selectedDhikr.count);
       setShowPicker(false);
     }
+    const willCompleteRound = session.count + 1 >= session.target;
     increment();
     setTapPulse(true);
-    window.setTimeout(() => setTapPulse(false), 130);
-    if ('vibrate' in navigator) navigator.vibrate?.(12);
+    window.setTimeout(() => setTapPulse(false), 90);
+
+    if ('vibrate' in navigator) {
+      navigator.vibrate?.(willCompleteRound ? [40, 60, 90] : 10);
+    }
+
+    if (willCompleteRound) {
+      setCelebrateModal(true);
+    }
+  };
+
+  const handlePointerDown = () => {
+    lastPointerTapRef.current = Date.now();
+    executeTap();
+  };
+
+  const handleFallbackClick = () => {
+    // جلوگیری از دوبار شمردن اگر رویداد PointerDown قبلا اجرا شده باشد (و حفظ سازگاری با تست‌ها و کیبورد)
+    if (Date.now() - lastPointerTapRef.current < 350) return;
+    executeTap();
   };
 
   const handleSelectDhikr = (dhikrId: string) => {
@@ -50,10 +72,44 @@ export function TasbihCounter() {
 
   return (
     <div className="px-5 pt-5 pb-32 animate-fade-in min-h-screen" dir="rtl">
+      {celebrateModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-5 animate-fade-in"
+          style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)' }}
+        >
+          <div
+            className="w-full max-w-sm rounded-3xl p-6 text-center border shadow-2xl"
+            style={{ background: theme.surface, borderColor: theme.primary }}
+          >
+            <div
+              className="w-16 h-16 rounded-full mx-auto mb-3 flex items-center justify-center"
+              style={{ background: `color-mix(in srgb, ${theme.primary} 18%, transparent)` }}
+            >
+              <Award size={34} color={theme.primary} />
+            </div>
+            <h3 className="text-xl font-black text-primary mb-1">تَقَبَّلَ اللَّهُ ✨</h3>
+            <p className="text-app font-bold text-sm mb-2">
+              دور {toFaDigits(session.completed)} از ذکر «{selectedDhikr.arabic}» کامل شد!
+            </p>
+            <p className="text-muted text-xs leading-relaxed mb-5">
+              خداوند این ذکر و یاد نورانی را ذخیرهٔ آرامش دل و عاقبت‌به‌خیری شما و عزیزانتان قرار دهد.
+            </p>
+            <button
+              type="button"
+              onClick={() => setCelebrateModal(false)}
+              className="w-full py-3.5 rounded-2xl text-sm font-bold"
+              style={{ background: theme.primary, color: theme.bg }}
+            >
+              الهی آمین — ادامه ذکر
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-md mx-auto">
         <header className="flex items-center justify-between mb-5">
           <div>
-            <p className="text-xs font-medium mb-1" style={{ color: theme.accent }}>لحظه‌ای برای آرامش تو</p>
+            <p className="text-xs font-medium mb-1" style={{ color: theme.accent }}>بدون تاخیر و با آرامش قلب</p>
             <h1 className="text-2xl font-black text-app">ذکرشمار <span aria-hidden="true">♡</span></h1>
           </div>
           <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: `color-mix(in srgb, ${theme.primary} 14%, transparent)`, border: `1px solid ${theme.border}` }}>
@@ -80,7 +136,7 @@ export function TasbihCounter() {
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
                       <p className="text-app font-bold text-lg leading-relaxed">{d.arabic}</p>
-                      <p className="text-muted text-xs mt-1">{d.translit} · {d.translation}</p>
+                      <p className="text-muted text-xs mt-1">{d.translation}</p>
                     </div>
                     <div className="shrink-0 rounded-2xl px-3 py-2 text-xs font-bold" style={{ background: `color-mix(in srgb, ${theme.primary} 12%, transparent)`, color: theme.primary }}>
                       {toFaDigits(d.count)} بار
@@ -137,31 +193,32 @@ export function TasbihCounter() {
             <section className="card p-5 text-center overflow-hidden relative" style={{ boxShadow: `0 10px 34px color-mix(in srgb, ${theme.primary} 12%, transparent)` }}>
               <div className="absolute top-3 left-4 opacity-40" aria-hidden="true"><Heart size={17} color={theme.primary} /></div>
               <p className="text-app text-xl font-bold leading-relaxed mt-2">{selectedDhikr.arabic}</p>
-              <p className="text-muted text-sm mt-2">{selectedDhikr.translit}</p>
-              <p className="text-muted text-xs mt-1">{selectedDhikr.translation}</p>
+              <p className="text-muted text-xs mt-1.5">{selectedDhikr.translation}</p>
 
               <div className="flex justify-center my-6">
                 <div className="relative flex items-center justify-center" style={{ width: 'min(76vw, 292px)', height: 'min(76vw, 292px)' }}>
                   <svg className="absolute inset-0 -rotate-90" width="100%" height="100%" viewBox="0 0 280 280" aria-hidden="true">
                     <circle cx="140" cy="140" r="118" fill="none" stroke={theme.border} strokeWidth="9" />
-                    <circle cx="140" cy="140" r="118" fill="none" stroke={theme.primary} strokeWidth="9" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={dashOffset} style={{ transition: 'stroke-dashoffset 180ms ease' }} />
+                    <circle cx="140" cy="140" r="118" fill="none" stroke={theme.primary} strokeWidth="9" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={dashOffset} style={{ transition: 'stroke-dashoffset 80ms linear' }} />
                   </svg>
                   <button
                     type="button"
-                    onClick={handleTap}
+                    onPointerDown={handlePointerDown}
+                    onClick={handleFallbackClick}
                     aria-label="افزودن یک شمارش ذکر"
-                    className={`relative rounded-full flex flex-col items-center justify-center select-none active:scale-[0.97] transition-transform ${tapPulse ? 'scale-[0.97]' : ''}`}
+                    className={`relative rounded-full flex flex-col items-center justify-center select-none transition-transform duration-75 ${tapPulse ? 'scale-[0.95]' : ''}`}
                     style={{
                       width: 'min(63vw, 238px)', height: 'min(63vw, 238px)',
                       background: `radial-gradient(circle at 30% 20%, color-mix(in srgb, ${theme.primary} 22%, ${theme.surface}), ${theme.surface})`,
-                      border: `1px solid color-mix(in srgb, ${theme.primary} 48%, transparent)`,
+                      border: `2px solid color-mix(in srgb, ${theme.primary} 55%, transparent)`,
                       boxShadow: `inset 0 2px 18px color-mix(in srgb, ${theme.primary} 9%, transparent), 0 8px 24px color-mix(in srgb, ${theme.primary} 12%, transparent)`,
                       touchAction: 'manipulation',
+                      WebkitTapHighlightColor: 'transparent',
                     }}
                   >
                     <span className="text-6xl font-black tracking-tight text-primary tabular-nums">{toFaDigits(session.count)}</span>
                     <span className="text-muted text-sm mt-2">از {toFaDigits(session.target)}</span>
-                    <span className="text-xs font-bold mt-3" style={{ color: theme.primary }}>لمس کن ♡</span>
+                    <span className="text-xs font-bold mt-3" style={{ color: theme.primary }}>لمس فوری ♡</span>
                   </button>
                 </div>
               </div>
@@ -198,7 +255,6 @@ export function TasbihCounter() {
                 <ListRestart size={17} /> انتخاب ذکر
               </button>
             </div>
-            <p className="text-muted text-center text-xs mt-4">شمارش به‌صورت خودکار روی همین گوشی ذخیره می‌شود.</p>
           </>
         )}
       </div>

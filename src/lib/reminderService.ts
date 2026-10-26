@@ -252,7 +252,7 @@ export async function scheduleReminder(reminder: LocalReminder, notifEnabled: bo
         }],
       });
       if (Capacitor.getPlatform() === 'android') {
-        try { await NoorAlarm.scheduleNativeAlarm({ id: notifId, triggerAtMillis: at.getTime(), title: reminder.title, body, soundType: 'adhan' }); } catch {}
+        try { await NoorAlarm.scheduleNativeAlarm({ id: notifId, triggerAtMillis: at.getTime(), title: reminder.title, body, soundType: reminder.id.startsWith('prayer_auto_') ? 'adhan' : 'alarm' }); } catch {}
       }
       return { success: true, scheduledIds: [notifId] };
     } catch (err) {
@@ -282,7 +282,7 @@ export async function scheduleReminder(reminder: LocalReminder, notifEnabled: bo
         }],
       });
       if (Capacitor.getPlatform() === 'android' && i < 3) {
-        try { await NoorAlarm.scheduleNativeAlarm({ id: notifId, triggerAtMillis: occurrences[i].getTime(), title: reminder.title, body, soundType: 'adhan' }); } catch {}
+        try { await NoorAlarm.scheduleNativeAlarm({ id: notifId, triggerAtMillis: occurrences[i].getTime(), title: reminder.title, body, soundType: reminder.id.startsWith('prayer_auto_') ? 'adhan' : 'alarm' }); } catch {}
       }
       scheduledIds.push(notifId);
     } catch (err) {
