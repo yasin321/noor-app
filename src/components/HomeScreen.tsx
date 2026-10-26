@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
 import { MapPin, Clock, Sunrise, Sunset, Moon, Sun, CloudSun, ArrowLeft, Hand, Bell, BellOff, Type, Compass } from 'lucide-react';
-import { QiblaCompassModal } from '@/components/QiblaCompassModal';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
 import { calculatePrayerTimes, getNextPrayer, getLocalDateString, timeToMinutes, PrayerTimes } from '@/lib/prayerTimes';
@@ -11,6 +10,7 @@ import { dhikrLibrary } from '@/lib/dhikrLibrary';
 import { loadReminders, scheduleReminder, cancelReminder, checkPermission, requestPermission } from '@/lib/reminderService';
 import { saveReminder, type LocalReminder } from '@/lib/reminderStorage';
 import { logEvent } from '@/lib/logger';
+import { QiblaCompassModal } from '@/components/QiblaCompassModal';
 import type { Tab } from '@/components/BottomNav';
 
 const prayerIcons: Record<string, typeof Sun> = {
@@ -248,6 +248,7 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
           onClose={() => setShowQibla(false)}
         />
       )}
+
       {statusToast && (
         <div
           className="fixed top-4 inset-x-5 z-50 rounded-2xl px-4 py-3 text-xs font-bold text-center shadow-xl animate-fade-in"

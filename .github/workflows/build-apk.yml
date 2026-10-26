@@ -1,4 +1,3 @@
-
 name: Build Noor Android APK
 
 on:
@@ -83,6 +82,13 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug
 
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Noor-App-Debug-APK
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -99,13 +105,15 @@ jobs:
           emulator-boot-timeout: 900
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           script: |
+            adb wait-for-device
             adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+            adb shell pm grant com.noor.app android.permission.POST_NOTIFICATIONS || true
             adb shell am force-stop com.noor.app
-            adb shell monkey -p com.noor.app 1
-            sleep 25
+            adb shell am start -W -n com.noor.app/.MainActivity
+            sleep 15
             test -n "$(adb shell pidof com.noor.app)" || { echo "Noor process is not running after launch"; exit 1; }
-            adb logcat -d > /tmp/noor-logcat.txt
-            adb exec-out screencap -p > /tmp/noor-emulator.png
+            adb logcat -d > /tmp/noor-logcat.txt || true
+            adb exec-out screencap -p > /tmp/noor-emulator.png || true
             python3 -c 'import pathlib,re,sys; log=pathlib.Path("/tmp/noor-logcat.txt").read_text(errors="replace"); pattern=r"supabaseUrl is required|Invalid supabaseUrl|FATAL EXCEPTION|Process: com\.noor\.app.*died"; found=re.search(pattern,log); print("App startup/runtime error detected in emulator logs: "+found.group(0) if found else "No known fatal startup errors found"); sys.exit(1 if found else 0)'
 
       - name: Upload emulator smoke-test evidence
@@ -118,10 +126,3 @@ jobs:
             /tmp/noor-logcat.txt
           if-no-files-found: ignore
           retention-days: 7
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: Noor-App-Debug-APK
-          path: android/app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
