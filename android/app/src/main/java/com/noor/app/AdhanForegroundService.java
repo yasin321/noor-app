@@ -19,6 +19,7 @@ import androidx.core.app.NotificationCompat;
 import java.io.File;
 
 public class AdhanForegroundService extends Service {
+    public static final String ACTION_STOP = "com.noor.app.STOP_ADHAN";
     public static final String CHANNEL_ID = "noor_adhan_fullscreen_channel_v3";
     private MediaPlayer mediaPlayer;
     private PowerManager.WakeLock wakeLock;
