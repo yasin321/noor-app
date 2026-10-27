@@ -1,3 +1,4 @@
+export const TUTORIAL_SEEN_KEY = "noor_app_tutorial_seen_v1";
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
@@ -149,6 +150,10 @@ const GUIDE_SECTIONS: GuideSection[] = [
 ];
 
 export function AppTutorialModal({ onClose }: Props) {
+  const handleClose = () => {
+    try { localStorage.setItem(TUTORIAL_SEEN_KEY, "1"); } catch {}
+    onClose();
+  };
   const { theme } = useTheme();
   const [step, setStep] = useState(0);
   const [viewAll, setViewAll] = useState(false);
@@ -187,7 +192,7 @@ export function AppTutorialModal({ onClose }: Props) {
             >
               {viewAll ? 'نمای مرحله‌ای' : 'فهرست یکجا'}
             </button>
-            <button type="button" onClick={onClose} className="text-muted p-1" aria-label="بستن">
+            <button type="button" onClick={handleClose} className="text-muted p-1" aria-label="بستن">
               <X size={20} />
             </button>
           </div>
@@ -316,7 +321,7 @@ export function AppTutorialModal({ onClose }: Props) {
               ) : (
                 <button
                   type="button"
-                  onClick={onClose}
+                  onClick={handleClose}
                   className="px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1"
                   style={{ background: theme.primary, color: theme.bg }}
                 >
