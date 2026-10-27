@@ -26,6 +26,8 @@ import {
 } from '@/lib/reminderStorage';
 import { getAllDhikr } from '@/lib/dhikrLibrary';
 import { toFaDigits } from '@/lib/jalali';
+import { QuranAndMuhasabaModal } from '@/components/QuranAndMuhasabaModal';
+import { getRoutineBudgetMinutes, setRoutineBudgetMinutes, type RoutineBudgetMinutes } from '@/lib/deenIntelligenceStore';
 
 const ALL_DAYS = [0, 1, 2, 3, 4, 5, 6];
 const GUEST_NOTIF_KEY = 'noor_guest_notif_enabled';
@@ -79,6 +81,26 @@ const SMART_PRESETS: Array<{
     durationDays: 90,
   },
   {
+    id: 'preset_cheque',
+    badge: '💵 یادآور چک صیادی و قسط',
+    title: 'سررسید پاس کردن چک / پرداخت قسط ماهانه',
+    body: 'بررسی موجودی حساب و ثبت/تایید چک در سامانه صیاد قبل از ساعت اداری',
+    time: '09:00',
+    days: [0],
+    dhikrId: null,
+    durationDays: null,
+  },
+  {
+    id: 'preset_birthday',
+    badge: '🎂 یادآور تولد و سالگرد عزیزان',
+    title: 'تبریک تولد / سالگرد ازدواج و هدیه به خانواده',
+    body: 'تماس، تبریک و دعای عاقبت‌به‌خیری برای اعضای خانواده',
+    time: '10:00',
+    days: [6],
+    dhikrId: null,
+    durationDays: null,
+  },
+  {
     id: 'preset_chilla_40',
     badge: '✨ چله ۴۰ روزه معنوی',
     title: 'چله ۴۰ روزه دعای فرج و عاقبت‌به‌خیری',
@@ -99,6 +121,10 @@ export function RemindersScreen() {
   const [notifSupported, setNotifSupported] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
+  const [showMuhasaba, setShowMuhasaba] = useState(false);
+  const [routineMin, setRoutineMin] = useState<RoutineBudgetMinutes>(() => getRoutineBudgetMinutes());
+  const [viewFilter, setViewFilter] = useState<"all" | "today">("all");
+  const [showTodayPopup, setShowTodayPopup] = useState(false);
 
   const notifEnabled = profile?.notif_enabled ?? getGuestNotifEnabled();
 
@@ -162,9 +188,15 @@ export function RemindersScreen() {
   };
 
   const pva = getPlannedVsActualStats(30);
+  const todayJsDay = new Date().getDay();
+  const todayOurDay = (todayJsDay + 1) % 7;
+  const todayDateStr = new Date().toISOString().slice(0, 10);
+  const todayList = reminders.filter((r) => r.enabled && (r.type === "once" ? r.date === todayDateStr : r.days.length === 0 || r.days.includes(todayOurDay)));
+  const visibleReminders = viewFilter === "today" ? todayList : reminders;
 
   return (
     <div className="px-5 pt-6 pb-28 animate-fade-in" dir="rtl">
+      {showMuhasaba && <QuranAndMuhasabaModal initialMode="muhasaba" onClose={() => setShowMuhasaba(false)} />}
       {toast && (
         <div
           className="fixed top-4 inset-x-5 z-50 rounded-2xl px-4 py-3 text-xs font-bold text-center shadow-xl animate-fade-in"
@@ -187,6 +219,39 @@ export function RemindersScreen() {
         >
           <Plus size={18} color={theme.bg} />
           <span>برنامه جدید</span>
+        </button>
+      </div>
+
+      {/* انتخابگر روتین ۲، ۵ یا ۱۵ دقیقه‌ای بدون سرزنش + دکمه محاسبه نفس */}
+      <div className="card-flat p-3.5 mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs font-bold text-app">ظرفیت روتین امروز:</span>
+          {([2, 5, 15] as RoutineBudgetMinutes[]).map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => {
+                setRoutineMin(m);
+                setRoutineBudgetMinutes(m);
+                showToast(`🌿 برنامه روزانه روی ${toFaDigits(m)} دقیقه تنظیم شد. هر قدم کوچک ارزشمند است!`);
+              }}
+              className="px-2.5 py-1 rounded-xl text-[11px] font-bold"
+              style={{
+                background: routineMin === m ? theme.primary : `color-mix(in srgb, ${theme.primary} 10%, transparent)`,
+                color: routineMin === m ? theme.bg : theme.textMuted,
+              }}
+            >
+              {toFaDigits(m)} دقیقه
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowMuhasaba(true)}
+          className="px-3 py-1.5 rounded-xl text-[11px] font-bold"
+          style={{ background: `color-mix(in srgb, ${theme.accent} 16%, transparent)`, color: theme.accent }}
+        >
+          🌙 محاسبه نفس شبانه
         </button>
       </div>
 
@@ -216,10 +281,99 @@ export function RemindersScreen() {
             }}
           />
         </div>
-        <p className="text-[11px] text-muted">
-          با زدن دایرهٔ تیک کنار هر برنامه، انجام شدن آن را در کارنامهٔ امروزت ثبت کن. (مجموع ۳۰ روز اخیر: {toFaDigits(pva.periodCompletedTotal)} عمل انجام‌شده)
-        </p>
+        <div className="flex items-center justify-between gap-2 mt-3 pt-2.5 border-t" style={{ borderColor: theme.border }}>
+          <div className="flex gap-1.5">
+            <button
+              type="button"
+              onClick={() => setViewFilter("all")}
+              className="px-2.5 py-1.5 rounded-xl text-[11px] font-bold"
+              style={{
+                background: viewFilter === "all" ? theme.primary : "transparent",
+                color: viewFilter === "all" ? theme.bg : theme.textMuted,
+              }}
+            >
+              همه برنامه‌ها ({toFaDigits(reminders.length)})
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewFilter("today")}
+              className="px-2.5 py-1.5 rounded-xl text-[11px] font-bold"
+              style={{
+                background: viewFilter === "today" ? theme.primary : "transparent",
+                color: viewFilter === "today" ? theme.bg : theme.textMuted,
+              }}
+            >
+              فقط برنامه امروز ({toFaDigits(todayList.length)})
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowTodayPopup(true)}
+            className="px-3 py-1.5 rounded-xl text-[11px] font-bold border"
+            style={{ borderColor: theme.primary, color: theme.primary }}
+          >
+            📋 پاپ‌آپ خلاصه امروز
+          </button>
+        </div>
       </div>
+
+      {showTodayPopup && typeof document !== "undefined" && createPortal(
+        <div
+          className="fixed inset-0 z-[999] flex items-center justify-center p-4 animate-fade-in"
+          style={{ background: "rgba(0,0,0,0.76)", backdropFilter: "blur(5px)" }}
+          dir="rtl"
+        >
+          <div
+            className="w-full max-w-sm rounded-3xl p-5 border shadow-2xl max-h-[82vh] overflow-y-auto"
+            style={{ background: theme.surface, borderColor: theme.border }}
+          >
+            <div className="flex items-center justify-between pb-3 mb-3 border-b" style={{ borderColor: theme.border }}>
+              <h3 className="text-base font-black text-app">برنامه کاری و معنوی امروز من</h3>
+              <button type="button" onClick={() => setShowTodayPopup(false)} className="text-muted">
+                <X size={20} />
+              </button>
+            </div>
+            {todayList.length === 0 ? (
+              <p className="text-muted text-xs py-6 text-center">برای امروز هنوز برنامه‌ای ثبت نشده است.</p>
+            ) : (
+              <div className="space-y-2 mb-4">
+                {todayList.map((item) => {
+                  const done = isReminderCompletedOnDate(item.id);
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => handleCheckCompletedToday(item)}
+                      className="w-full card-flat p-3 flex items-center justify-between gap-2 text-right"
+                      style={{ borderColor: done ? theme.primary : theme.border }}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        {done ? <CheckCircle2 size={18} color={theme.primary} /> : <Circle size={18} color={theme.textMuted} />}
+                        <div className="min-w-0">
+                          <p className={`text-xs font-bold truncate ${done ? "line-through text-primary" : "text-app"}`}>{item.title}</p>
+                          <span className="text-[10px] text-muted" dir="ltr">⏰ {item.time}</span>
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-bold shrink-0" style={{ color: done ? theme.primary : theme.textMuted }}>
+                        {done ? "انجام شد ✓" : "ثبت انجام"}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => setShowTodayPopup(false)}
+              className="w-full py-3 rounded-2xl text-xs font-bold"
+              style={{ background: theme.primary, color: theme.bg }}
+            >
+              بستن خلاصه امروز
+            </button>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* قالب‌های آماده ۱ کلیکی برای نذر، چله، سوره واقعه و مزار والدین */}
       <div className="mb-5">
@@ -260,7 +414,7 @@ export function RemindersScreen() {
         </div>
       ) : (
         <div className="space-y-2.5">
-          {reminders.map((r) => {
+          {visibleReminders.map((r) => {
             const doneToday = isReminderCompletedOnDate(r.id);
             const totalDoneDays = getReminderTotalCompletedDays(r.id);
             const duration = r.durationDays ?? null;

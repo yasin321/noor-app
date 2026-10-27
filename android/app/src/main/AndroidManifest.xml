@@ -50,6 +50,18 @@
             </intent-filter>
         </receiver>
 
+        <receiver
+            android:name=".NoorPrayerWidgetProvider"
+            android:exported="true"
+            android:label="ویجت اوقات شرعی نور">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/noor_prayer_widget_info" />
+        </receiver>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

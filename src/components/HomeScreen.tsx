@@ -9,7 +9,12 @@ import { toJalaliShort, getJalaliWeekday } from '@/lib/jalali';
 import { dhikrLibrary } from '@/lib/dhikrLibrary';
 import { loadReminders, scheduleReminder, cancelReminder, checkPermission, requestPermission, NoorAlarm } from '@/lib/reminderService';
 import { Capacitor } from '@capacitor/core';
-import { saveReminder, type LocalReminder } from '@/lib/reminderStorage';
+import { saveReminder, isReminderCompletedOnDate, toggleReminderCompletionOnDate, getPlannedVsActualStats, type LocalReminder } from '@/lib/reminderStorage';
+import { VipAndAnalyticsModal } from '@/components/VipAndAnalyticsModal';
+import { AdhanStudioAndTravelModal } from '@/components/AdhanStudioAndTravelModal';
+import { QuranAndMuhasabaModal } from '@/components/QuranAndMuhasabaModal';
+import { loadAdhanStudio, loadQuranContinuity, loadMosqueAndTravel, addMinutesToTimeStr } from '@/lib/deenIntelligenceStore';
+import { CheckCircle2, Circle, BarChart3, BookOpen, Sliders } from 'lucide-react';
 import { logEvent } from '@/lib/logger';
 import { QiblaCompassModal } from '@/components/QiblaCompassModal';
 import { CalendarModal } from '@/components/CalendarModal';
@@ -80,6 +85,10 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
   const [statusToast, setStatusToast] = useState<string | null>(null);
   const [showQibla, setShowQibla] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
+  const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
+  const [showStudioModal, setShowStudioModal] = useState(false);
+  const [showQuranModal, setShowQuranModal] = useState(false);
+  const [intelTick, setIntelTick] = useState(0);
   const [showTutorial, setShowTutorial] = useState(false);
   const [guestCityId, setGuestCityIdState] = useState(getGuestCityId());
 
@@ -308,6 +317,22 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
 
   return (
     <div className="px-5 pt-6 pb-28 animate-fade-in">
+      {showStudioModal && (
+        <AdhanStudioAndTravelModal
+          onClose={() => setShowStudioModal(false)}
+          onChanged={() => setIntelTick((t) => t + 1)}
+        />
+      )}
+      {showQuranModal && (
+        <QuranAndMuhasabaModal
+          initialMode="quran"
+          onClose={() => setShowQuranModal(false)}
+          onUpdated={() => setIntelTick((t) => t + 1)}
+        />
+      )}
+      {showAnalyticsModal && (
+        <VipAndAnalyticsModal onClose={() => setShowAnalyticsModal(false)} />
+      )}
       {showCalendar && (
         <CalendarModal
           cityLat={city.lat}
@@ -422,6 +447,55 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
           </div>
         </div>
       </section>
+
+      {/* دستیار هوشمند نماز (Prayer Intelligence: پروفایل صدا، مسجد و ادامه قرآن) */}
+      {(() => {
+        void intelTick;
+        const studio = loadAdhanStudio();
+        const quran = loadQuranContinuity();
+        const mt = loadMosqueAndTravel();
+        const activeProf = studio.profiles[studio.activeProfile];
+        const nextJamaat =
+          next?.key === 'fajr' || next?.key === 'dhuhr' || next?.key === 'maghrib'
+            ? addMinutesToTimeStr(next.time, mt.jamaatOffsetsMinutes[next.key])
+            : null;
+
+        return (
+          <div className="grid grid-cols-2 gap-2.5 mb-4">
+            <button
+              type="button"
+              onClick={() => setShowStudioModal(true)}
+              className="card-flat p-3 text-right flex flex-col justify-between"
+            >
+              <div className="flex items-center justify-between w-full mb-1">
+                <span className="text-[11px] font-bold text-primary">{activeProf.badge}</span>
+                <Sliders size={13} color={theme.primary} />
+              </div>
+              <p className="text-xs font-bold text-app truncate">
+                {mt.travelModeEnabled ? '✈️ حالت سفر (نماز شکسته)' : mt.selectedMosqueName}
+              </p>
+              <p className="text-[10px] text-muted mt-0.5 truncate">
+                {nextJamaat ? `جماعت ${next?.nameFa}: ${nextJamaat}` : 'تنظیم استودیو اذان و مسجد'}
+              </p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowQuranModal(true)}
+              className="card-flat p-3 text-right flex flex-col justify-between"
+            >
+              <div className="flex items-center justify-between w-full mb-1">
+                <span className="text-[11px] font-bold text-accent">📖 ادامه قرآن</span>
+                <BookOpen size={13} color={theme.accent} />
+              </div>
+              <p className="text-xs font-bold text-app truncate">{quran.surahNameFa}</p>
+              <p className="text-[10px] text-muted mt-0.5 truncate">
+                ادامه از بخش {quran.ayahNumber.toLocaleString('fa-IR')} (هدف {quran.dailyTargetMinutes.toLocaleString('fa-IR')}د)
+              </p>
+            </button>
+          </div>
+        );
+      })()}
 
       {/* میان‌بر هوشمند پیشنهاد معنوی روز و ایام خاص */}
       <div

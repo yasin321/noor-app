@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Bell, Sparkles, Compass, BookOpen, Check, ArrowLeft, X } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Bell, Sparkles, Calendar, BookOpen, Check, ArrowLeft, X, Volume2 } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 
 export const TUTORIAL_SEEN_KEY = 'noor_tutorial_seen_v1';
@@ -11,23 +12,28 @@ interface Props {
 const SLIDES = [
   {
     icon: Bell,
-    title: '۱. فعال‌سازی خودکار اذان با یک لمس',
-    desc: 'در صفحهٔ اول، کنار ساعت هر نماز یک آیکون زنگوله (🔔) قرار دارد. با لمس آن، حتی وقتی صفحهٔ گوشی قفل است، سر وقت اذان صفحه روشن شده و اذان پخش می‌شود.',
+    title: '۱. اذان خودکار و روشن شدن صفحه قفل',
+    desc: 'در صفحهٔ اول، کنار ساعت هر نماز روی آیکون زنگوله (🔔) بزنید تا حتی وقتی گوشی قفل است، صفحه روشن شده و اذان پخش شود.',
+  },
+  {
+    icon: Calendar,
+    title: '۲. تقویم سه‌گانه و تبدیل تاریخ',
+    desc: 'در بالای صفحهٔ اول روی تاریخ امروز بزنید تا تقویم شمسی، قمری و میلادی، اعمال مخصوص هر روز هفته و «مبدل تاریخ» برایتان باز شود.',
   },
   {
     icon: Sparkles,
-    title: '۲. ذکرشمار فوری و بدون تاخیر',
-    desc: 'در بخش تسبیح، به محض لمس دایرهٔ وسط، شمارش انجام می‌شود و پس از پایان هر دور، پیام تبریک و دعای خیر نمایش داده می‌شود.',
+    title: '۳. مدیریت برنامه امروز، چله، چک و تولد',
+    desc: 'در بخش یادآوری‌ها می‌توانید چلهٔ ۴۰ روزه، فاتحهٔ والدین، سررسید چک/قسط و تولد عزیزان را ثبت کنید و هر روز با زدن تیک (✓) کارنامهٔ خود را کامل کنید.',
+  },
+  {
+    icon: Volume2,
+    title: '۴. دانلود اذان‌های ایرانی و انتخاب فونت',
+    desc: 'در بخش تنظیمات می‌توانید اذان مؤذن‌زاده اردبیلی، آقاتی، صبحدل و ماهور را دانلود و انتخاب کنید و فونت دلخواه خود را تنظیم نمایید.',
   },
   {
     icon: BookOpen,
-    title: '۳. گنجینهٔ علما و برنامهٔ شخصی',
-    desc: 'در کتابخانهٔ اذکار، توصیه‌های آیت‌الله فاطمی‌نیا، آیت‌الله بهجت، سورهٔ واقعه و زیارات را همراه با سند ببینید و با یک دکمه به برنامهٔ یادآوری خود اضافه کنید.',
-  },
-  {
-    icon: Compass,
-    title: '۴. درشت‌نمایی نوشته و قبله‌نما',
-    desc: 'در بخش تنظیمات می‌توانید اندازهٔ نوشته‌های برنامه را برای مطالعهٔ راحت‌تر درشت کنید و کارنامهٔ ذکرهای خود را ببینید.',
+    title: '۵. ذکرشمار فوری متصل به گنجینه اذکار',
+    desc: 'در بخش ذکرها، توصیهٔ علما و سوره‌ها را همراه با سند ببینید و مستقیم وارد حلقهٔ ذکرشمار بدون تاخیر شوید.',
   },
 ];
 
@@ -46,10 +52,10 @@ export function AppTutorialModal({ onClose }: Props) {
     onClose();
   };
 
-  return (
+  const node = (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-5 animate-fade-in"
-      style={{ background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(5px)' }}
+      className="fixed inset-0 z-[999] flex items-center justify-center p-5 animate-fade-in"
+      style={{ background: 'rgba(0,0,0,0.76)', backdropFilter: 'blur(5px)' }}
       dir="rtl"
     >
       <div
@@ -123,4 +129,6 @@ export function AppTutorialModal({ onClose }: Props) {
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(node, document.body) : node;
 }
