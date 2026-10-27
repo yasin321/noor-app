@@ -5,6 +5,7 @@ import * as CapCore from '@capacitor/core';
 const { Capacitor } = CapCore;
 
 export interface NoorAlarmPlugin {
+  updateWidget?(options: { title: string; nextPrayer: string; subtitle: string }): Promise<{ updated: boolean }>;
   scheduleNativeAlarm(opts: { id: number; triggerAtMillis: number; title: string; body: string; soundType?: string; adhanId?: string; durationSeconds?: number; volumePercent?: number }): Promise<{ scheduled: boolean }>;
   cancelNativeAlarm(opts: { id: number }): Promise<void>;
   triggerTestAlarmNow(opts?: { title?: string; body?: string; soundType?: string; adhanId?: string; durationSeconds?: number; volumePercent?: number }): Promise<void>;

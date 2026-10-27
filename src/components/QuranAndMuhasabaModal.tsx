@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { BookOpen, Heart, Bookmark, ChevronRight, ChevronLeft, Check, X, Sparkles, Lock } from 'lucide-react';
+import { BookOpen, Heart, Bookmark, ChevronRight, ChevronLeft, Check, X, Sparkles, Lock, Share2 } from 'lucide-react';
+import { generateAndShareSpiritualCard } from '@/lib/viralCardGenerator';
 import { useTheme } from '@/hooks/useTheme';
 import {
   SELECTED_QURAN_PASSAGES,
@@ -56,6 +57,26 @@ export function QuranAndMuhasabaModal({ initialMode = 'quran', onClose, onUpdate
     setQState(next);
     saveQuranContinuity(next);
     onUpdated?.();
+  };
+
+
+  const handleShareStory = async () => {
+    try {
+      showToast('🎨 در حال طراحی کارت استوری نورانی...');
+      const res = await generateAndShareSpiritualCard({
+        badgeText: 'آیه نورانی روز',
+        arabicText: currentAyah.arabic,
+        translationFa: currentAyah.translationFa,
+        referenceText: `${currentSurah.surahNameFa} - آیه ${currentAyah.number}`,
+        primaryColor: theme.primary,
+        accentColor: theme.accent,
+      });
+      if (res.method === 'download') {
+        showToast('📸 تصویر استوری با کیفیت بالا ذخیره شد!');
+      }
+    } catch {
+      showToast('خطا در ساخت تصویر استوری.');
+    }
   };
 
   const handleBookmark = () => {
@@ -235,10 +256,19 @@ export function QuranAndMuhasabaModal({ initialMode = 'quran', onClose, onUpdate
                 <button
                   type="button"
                   onClick={handleBookmark}
-                  className="px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1"
+                  className="px-2.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1"
                   style={{ background: `color-mix(in srgb, ${theme.accent} 16%, transparent)`, color: theme.accent }}
                 >
-                  <Bookmark size={14} /> نشانک‌گذاری
+                  <Bookmark size={14} /> نشانک
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleShareStory}
+                  className="px-2.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1"
+                  style={{ background: `color-mix(in srgb, ${theme.primary} 16%, transparent)`, color: theme.primary }}
+                >
+                  <Share2 size={14} /> استوری
                 </button>
 
                 <button

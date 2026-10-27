@@ -356,4 +356,16 @@ public class NoorAlarmPlugin extends Plugin {
         context.sendBroadcast(intent);
         call.resolve();
     }
+
+    @PluginMethod
+    public void updateWidget(PluginCall call) {
+        String title = call.getString("title", "🌿 دستیار معنوی نور");
+        String nextPrayer = call.getString("nextPrayer", "اوقات شرعی و یادآور اذان");
+        String subtitle = call.getString("subtitle", "برای مشاهده اوقات شرعی لمس کنید");
+        NoorPrayerWidgetProvider.pushWidgetUpdate(getContext(), title, nextPrayer, subtitle);
+        JSObject ret = new JSObject();
+        ret.put("updated", true);
+        call.resolve(ret);
+    }
+
 }

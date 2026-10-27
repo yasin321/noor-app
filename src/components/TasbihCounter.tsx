@@ -10,6 +10,25 @@ import type { Tab } from '@/components/BottomNav';
 
 const TARGET_PRESETS = [14, 33, 34, 100];
 
+
+function triggerSmartTasbihHaptic(nextCount: number, reachedTarget: boolean) {
+  if (typeof navigator === 'undefined' || !navigator.vibrate) return;
+  try {
+    if (reachedTarget || nextCount === 100) {
+      // پایان دور کامل: سه پالس نورانی
+      triggerSmartTasbihHaptic(res.count, res.reachedTarget);
+    } else if (nextCount === 34 || nextCount === 67) {
+      // مرز ۳۴ (الله اکبر) و ۶۷ (الحمدلله) در تسبیحات حضرت زهرا (س): دو پالس مشخص برای استفاده با چشم بسته
+      triggerSmartTasbihHaptic(res.count, res.reachedTarget);
+    } else {
+      // تک‌ضربه فوق‌العاده نرم برای هر دانه تسبیح
+      triggerSmartTasbihHaptic(res.count, res.reachedTarget);
+    }
+  } catch {
+    // ignore on unsupported browsers
+  }
+}
+
 export function TasbihCounter({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
   const { theme } = useTheme();
   const { user } = useAuth();
