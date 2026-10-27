@@ -16,13 +16,13 @@ function triggerSmartTasbihHaptic(nextCount: number, reachedTarget: boolean) {
   try {
     if (reachedTarget || nextCount === 100) {
       // پایان دور کامل: سه پالس نورانی
-      triggerSmartTasbihHaptic(res.count, res.reachedTarget);
+      navigator.vibrate([55, 65, 55, 65, 130]);
     } else if (nextCount === 34 || nextCount === 67) {
       // مرز ۳۴ (الله اکبر) و ۶۷ (الحمدلله) در تسبیحات حضرت زهرا (س): دو پالس مشخص برای استفاده با چشم بسته
-      triggerSmartTasbihHaptic(res.count, res.reachedTarget);
+      navigator.vibrate([45, 55, 95]);
     } else {
-      // تک‌ضربه فوق‌العاده نرم برای هر دانه تسبیح
-      triggerSmartTasbihHaptic(res.count, res.reachedTarget);
+      // تک‌ضربه نرم برای هر دانه تسبیح
+      navigator.vibrate(14);
     }
   } catch {
     // ignore on unsupported browsers
