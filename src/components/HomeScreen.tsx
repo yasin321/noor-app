@@ -181,6 +181,12 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
           ? Math.max(0, Math.min(100, ((interval - remaining) / interval) * 100))
           : 0;
         setNext({ key: n.key, nameFa: n.nameFa, time: n.time, remaining: n.remaining, progress });
+        if (Capacitor.getPlatform() === 'android' && typeof NoorAlarm.updatePrayerWidget === 'function') {
+          void NoorAlarm.updatePrayerWidget({
+            nextPrayerText: `اذان ${n.nameFa}: ساعت ${n.time}`,
+            subtitleText: `به افق ${city.nameFa} (${n.remaining} مانده)`,
+          });
+        }
       }
     }
   }, [times, now, city.timezone]);

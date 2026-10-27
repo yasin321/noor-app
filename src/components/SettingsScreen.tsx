@@ -5,7 +5,7 @@ import { LocalNotifications } from '@capacitor/local-notifications';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
 import { themes } from '@/lib/themes';
-import { adhans, getDownloadedAdhanIds, downloadAndCacheAdhan, type Adhan } from '@/lib/adhans';
+import { adhans, getDownloadedAdhanIds, syncNativeDownloadedAdhans, downloadAndCacheAdhan, playAdhanPreview, stopAdhanPreview, type Adhan } from '@/lib/adhans';
 import { CITIES, getCityById, getGuestCityId, setGuestCityId, type City } from '@/lib/cities';
 import { cancelAllScheduledNotifications, rescheduleAllReminders, checkPermission, requestPermission, NoorAlarm } from '@/lib/reminderService';
 import { getAvailableMethods } from '@/lib/prayerTimes';
@@ -48,6 +48,8 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   const [guestAdhanId, setGuestAdhanId] = useState(getGuestAdhanId());
   const [downloadedAdhans, setDownloadedAdhans] = useState<string[]>(() => getDownloadedAdhanIds());
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [previewingId, setPreviewingId] = useState<string | null>(null);
+  const [adhanNotice, setAdhanNotice] = useState<string | null>(null);
   const [showVipModal, setShowVipModal] = useState(false);
   const [fontFamily, setFontFamily] = useState<string>(() => {
     try { return localStorage.getItem('noor_font_family') || 'Vazirmatn'; } catch { return 'Vazirmatn'; }
@@ -336,38 +338,104 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
 
   if (section === 'adhan') {
     const selectedId = profile?.adhan_id ?? guestAdhanId;
+
     const handleDownloadAdhan = async (a: Adhan) => {
       setDownloadingId(a.id);
-      await downloadAndCacheAdhan(a);
-      setDownloadedAdhans(getDownloadedAdhanIds());
+      setAdhanNotice(`در حال دانلود صدای ${a.reciter}...`);
+      const res = await downloadAndCacheAdhan(a);
+      const synced = await syncNativeDownloadedAdhans();
+      setDownloadedAdhans(synced);
       setDownloadingId(null);
-      await applyAdhan(a.id);
+      if (res.ok) {
+        await applyAdhan(a.id);
+        setAdhanNotice(`✅ صدای «${a.reciter}» در حافظه گوشی ذخیره و فعال شد!`);
+      } else {
+        setAdhanNotice(`⚠️ ${res.error ?? 'خطا در دانلود'}`);
+      }
+    };
+
+    const handlePreview = async (a: Adhan) => {
+      if (previewingId === a.id) {
+        stopAdhanPreview();
+        setPreviewingId(null);
+        return;
+      }
+      setPreviewingId(a.id);
+      try {
+        await playAdhanPreview(a, 20, 95);
+      } catch {
+        setAdhanNotice('برای پخش آفلاین، ابتدا دکمه دانلود این مؤذن را بزنید.');
+      }
     };
 
     return (
       <div className="px-5 pt-6 pb-28 animate-fade-in" dir="rtl">
         <div className="flex items-center gap-3 mb-4">
-          <button type="button" onClick={() => setSection('main')} className="text-muted text-sm font-bold">← بازگشت</button>
-          <h1 className="text-2xl font-black text-app">کلکسیون اذان‌های ایرانی و اسلامی</h1>
+          <button
+            type="button"
+            onClick={() => {
+              stopAdhanPreview();
+              setSection('main');
+            }}
+            className="text-muted text-sm font-bold"
+          >
+            ← بازگشت
+          </button>
+          <h1 className="text-2xl font-black text-app">کلکسیون مؤذنان ایرانی و اسلامی</h1>
         </div>
+
+        {adhanNotice && (
+          <div
+            className="mb-3 rounded-2xl px-4 py-2.5 text-xs font-bold text-center"
+            style={{ background: theme.primary, color: theme.bg }}
+          >
+            {adhanNotice}
+          </div>
+        )}
+
         <div
-          className="mb-4 p-4 rounded-2xl border space-y-2"
+          className="mb-4 p-4 rounded-2xl border space-y-2.5"
           style={{ borderColor: theme.border, background: `color-mix(in srgb, ${theme.primary} 10%, transparent)` }}
         >
           <p className="text-xs text-app leading-relaxed">
-            ✨ هر مؤذن دلخواه را می‌توانید <strong>دانلود و در حافظهٔ گوشی ذخیره کنید</strong> تا در وقت نماز بدون نیاز به اینترنت پخش شود.
+            ✨ روی <strong>«📥 دانلود در گوشی»</strong> بزنید تا فایل صوتی اختصاصی آن مؤذن در حافظهٔ گوشی ذخیره شود و در وقت اذان دقیقاً با صدای همان مؤذن پخش گردد.
           </p>
-          <button
-            type="button"
-            onClick={() => void NoorAlarm.triggerTestAlarmNow({
-              title: `پخش آزمایشی: ${adhans.find((x) => x.id === selectedId)?.nameFa ?? 'اذان'}`,
-              body: `با نوای ${adhans.find((x) => x.id === selectedId)?.reciter ?? 'مؤذن انتخابی'}`,
-            })}
-            className="w-full py-2.5 rounded-xl text-xs font-bold shadow-sm"
-            style={{ background: theme.primary, color: theme.bg }}
-          >
-            🔊 تست فوری صفحه تمام‌صفحه و صدای اذان انتخابی
-          </button>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() =>
+                void NoorAlarm.triggerTestAlarmNow({
+                  title: `اذان کامل: ${adhans.find((x) => x.id === selectedId)?.reciter ?? 'مؤذن'}`,
+                  body: 'پخش کامل اذان با صدای مؤذن انتخابی شما',
+                  soundType: 'adhan',
+                  adhanId: selectedId,
+                  durationSeconds: 0,
+                  volumePercent: 95,
+                })
+              }
+              className="py-2.5 px-2 rounded-xl text-xs font-bold shadow-sm"
+              style={{ background: theme.primary, color: theme.bg }}
+            >
+              🔊 تست اذان کامل
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                void NoorAlarm.triggerTestAlarmNow({
+                  title: `اذان ۱۰ ثانیه‌ای: ${adhans.find((x) => x.id === selectedId)?.reciter ?? 'مؤذن'}`,
+                  body: 'تست حالت پخش ۱۰ ثانیه اول اذان و توقف خودکار',
+                  soundType: 'short_10s',
+                  adhanId: selectedId,
+                  durationSeconds: 10,
+                  volumePercent: 90,
+                })
+              }
+              className="py-2.5 px-2 rounded-xl text-xs font-bold border"
+              style={{ borderColor: theme.primary, color: theme.primary }}
+            >
+              ⏱️ تست ۱۰ ثانیه‌ای
+            </button>
+          </div>
         </div>
 
         <div className="space-y-3">
@@ -375,6 +443,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
             const isSelected = selectedId === a.id;
             const isDownloaded = downloadedAdhans.includes(a.id) || Boolean(a.bundledOffline);
             const isDownloading = downloadingId === a.id;
+            const isPreviewing = previewingId === a.id;
 
             return (
               <div
@@ -398,18 +467,25 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
                   )}
                 </div>
 
-                <audio controls preload="none" src={a.audioUrl} className="w-full my-2 h-9" />
+                <div className="flex items-center gap-2 mt-3 pt-2.5 border-t" style={{ borderColor: theme.border }}>
+                  <button
+                    type="button"
+                    onClick={() => void handlePreview(a)}
+                    className="px-3 py-2 rounded-xl text-xs font-bold border"
+                    style={{ borderColor: theme.accent, color: theme.accent }}
+                  >
+                    {isPreviewing ? '⏹️ توقف صدا' : '▶️ شنیدن صدا'}
+                  </button>
 
-                <div className="flex items-center gap-2 mt-2 pt-2 border-t" style={{ borderColor: theme.border }}>
                   {!isDownloaded ? (
                     <button
                       type="button"
                       disabled={isDownloading}
                       onClick={() => void handleDownloadAdhan(a)}
-                      className="flex-1 py-2 rounded-xl text-xs font-bold border"
-                      style={{ borderColor: theme.primary, color: theme.primary }}
+                      className="flex-1 py-2 rounded-xl text-xs font-bold"
+                      style={{ background: theme.primary, color: theme.bg }}
                     >
-                      {isDownloading ? 'در حال دریافت و ذخیره آفلاین...' : '📥 دانلود و ذخیره در گوشی'}
+                      {isDownloading ? 'در حال دانلود...' : '📥 دانلود در گوشی و انتخاب'}
                     </button>
                   ) : (
                     <button
@@ -421,7 +497,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
                         color: isSelected ? theme.primary : theme.bg,
                       }}
                     >
-                      {isSelected ? '✓ مؤذن پیش‌فرض شما (آفلاین)' : 'انتخاب به عنوان صدای اذان'}
+                      {isSelected ? '✓ مؤذن فعال (ذخیره‌شده در گوشی)' : 'انتخاب این مؤذن'}
                     </button>
                   )}
                 </div>

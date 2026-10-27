@@ -1,10 +1,11 @@
 export type SoundProfileId = 'home' | 'work' | 'travel';
-export type PrayerAlarmMode = 'full_adhan' | 'short_beep' | 'silent';
+export type PrayerAlarmMode = 'full_adhan' | 'short_10s' | 'short_beep' | 'silent';
 
 export interface PrayerStudioConfig {
   mode: PrayerAlarmMode;
-  volumePercent: number;
-  preReminderMinutes: number;
+  volumePercent: number; // 10 to 100
+  preReminderMinutes: number; // 0, 10, 15, 30
+  preDuaText: string;
   adhanId: string;
 }
 
@@ -55,11 +56,19 @@ export interface MuhasabaEntry {
 
 export type RoutineBudgetMinutes = 2 | 5 | 15;
 
-const STUDIO_KEY = 'noor_adhan_studio_v1';
+const STUDIO_KEY = 'noor_adhan_studio_v2';
 const QURAN_KEY = 'noor_quran_continuity_v1';
 const MOSQUE_TRAVEL_KEY = 'noor_mosque_travel_v1';
 const MUHASABA_KEY = 'noor_muhasaba_journal_v1';
 const ROUTINE_BUDGET_KEY = 'noor_routine_budget_min_v1';
+
+export const PRE_ADHAN_DUAS: Record<'fajr' | 'dhuhr' | 'asr' | 'maghrib' | 'isha', string> = {
+  fajr: 'اللَّهُمَّ لَا تُؤْمِنِّي مَكْرَكَ وَلَا تُنْسِنِي ذِكْرَكَ — آماده شدن برای نماز صبح',
+  dhuhr: 'اللَّهُمَّ اجْعَلْ قَلْبِي بَارًّا وَعَيْشِي قَارًّا — دعای پیش از اذان ظهر و استجابت دعا',
+  asr: 'أَسْتَغْفِرُ اللَّهَ الَّذِي لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ — استغفار پیش از وقت عصر',
+  maghrib: 'اللَّهُمَّ إِنِّي أَسْأَلُكَ بِإِقْبَالِ لَيْلِكَ وَإِدْبَارِ نَهَارِكَ — دعای غروب و پیش از اذان مغرب',
+  isha: 'اللَّهُمَّ عَافِنَا وَاعْفُ عَنَّا وَتَقَبَّلْ مِنَّا — آمادگی برای نماز عشاء و آرامش شب',
+};
 
 const DEFAULT_STUDIO: AdhanStudioState = {
   activeProfile: 'home',
@@ -67,37 +76,37 @@ const DEFAULT_STUDIO: AdhanStudioState = {
     home: {
       nameFa: 'پروفایل خانه',
       badge: '🏠 خانه',
-      descriptionFa: 'پخش کامل اذان برای نماز صبح، ظهر و مغرب با صدای واضح',
+      descriptionFa: 'پخش کامل اذان برای نماز صبح، ظهر و مغرب + یادآوری دعای کوتاه ۱۰ دقیقه قبل',
       prayers: {
-        fajr: { mode: 'full_adhan', volumePercent: 85, preReminderMinutes: 10, adhanId: 'moazenzadeh_ardabili' },
-        dhuhr: { mode: 'full_adhan', volumePercent: 90, preReminderMinutes: 5, adhanId: 'mahur_saeed' },
-        asr: { mode: 'short_beep', volumePercent: 60, preReminderMinutes: 0, adhanId: 'mahur_saeed' },
-        maghrib: { mode: 'full_adhan', volumePercent: 95, preReminderMinutes: 10, adhanId: 'aghati_mashhad' },
-        isha: { mode: 'short_beep', volumePercent: 60, preReminderMinutes: 0, adhanId: 'mahur_saeed' },
+        fajr: { mode: 'full_adhan', volumePercent: 85, preReminderMinutes: 10, preDuaText: PRE_ADHAN_DUAS.fajr, adhanId: 'moazenzadeh_ardabili' },
+        dhuhr: { mode: 'full_adhan', volumePercent: 90, preReminderMinutes: 10, preDuaText: PRE_ADHAN_DUAS.dhuhr, adhanId: 'mahur_saeed' },
+        asr: { mode: 'short_10s', volumePercent: 65, preReminderMinutes: 0, preDuaText: PRE_ADHAN_DUAS.asr, adhanId: 'mahur_saeed' },
+        maghrib: { mode: 'full_adhan', volumePercent: 95, preReminderMinutes: 15, preDuaText: PRE_ADHAN_DUAS.maghrib, adhanId: 'aghati_mashhad' },
+        isha: { mode: 'short_10s', volumePercent: 60, preReminderMinutes: 0, preDuaText: PRE_ADHAN_DUAS.isha, adhanId: 'mahur_saeed' },
       },
     },
     work: {
       nameFa: 'پروفایل محل کار / جلسه',
       badge: '💼 محل کار',
-      descriptionFa: 'بدون پخش صدای بلند اذان در جلسات؛ فقط اعلان کوتاه و محترمانه ۱۰ دقیقه قبل',
+      descriptionFa: 'پخش ۱۰ ثانیه اول اذان یا اعلان کوتاه با دعای آمادگی ۱۰ یا ۳۰ دقیقه قبل از اذان',
       prayers: {
-        fajr: { mode: 'full_adhan', volumePercent: 80, preReminderMinutes: 10, adhanId: 'mahur_saeed' },
-        dhuhr: { mode: 'short_beep', volumePercent: 35, preReminderMinutes: 10, adhanId: 'mahur_saeed' },
-        asr: { mode: 'silent', volumePercent: 0, preReminderMinutes: 5, adhanId: 'mahur_saeed' },
-        maghrib: { mode: 'short_beep', volumePercent: 45, preReminderMinutes: 10, adhanId: 'mahur_saeed' },
-        isha: { mode: 'silent', volumePercent: 0, preReminderMinutes: 0, adhanId: 'mahur_saeed' },
+        fajr: { mode: 'full_adhan', volumePercent: 80, preReminderMinutes: 10, preDuaText: PRE_ADHAN_DUAS.fajr, adhanId: 'mahur_saeed' },
+        dhuhr: { mode: 'short_10s', volumePercent: 40, preReminderMinutes: 10, preDuaText: PRE_ADHAN_DUAS.dhuhr, adhanId: 'mahur_saeed' },
+        asr: { mode: 'silent', volumePercent: 20, preReminderMinutes: 10, preDuaText: PRE_ADHAN_DUAS.asr, adhanId: 'mahur_saeed' },
+        maghrib: { mode: 'short_10s', volumePercent: 50, preReminderMinutes: 15, preDuaText: PRE_ADHAN_DUAS.maghrib, adhanId: 'mahur_saeed' },
+        isha: { mode: 'silent', volumePercent: 0, preReminderMinutes: 0, preDuaText: PRE_ADHAN_DUAS.isha, adhanId: 'mahur_saeed' },
       },
     },
     travel: {
       nameFa: 'پروفایل مسافرت',
       badge: '✈️ مسافرت',
-      descriptionFa: 'هماهنگ با افق مقصد، یادآوری نماز شکسته (قصر) و هشدار ملایم',
+      descriptionFa: 'هماهنگ با افق شهر مقصد، یادآوری نماز شکسته (قصر) و هشدار ۳۰ دقیقه قبل از وقت',
       prayers: {
-        fajr: { mode: 'full_adhan', volumePercent: 90, preReminderMinutes: 15, adhanId: 'mahur_saeed' },
-        dhuhr: { mode: 'short_beep', volumePercent: 75, preReminderMinutes: 10, adhanId: 'mahur_saeed' },
-        asr: { mode: 'silent', volumePercent: 0, preReminderMinutes: 0, adhanId: 'mahur_saeed' },
-        maghrib: { mode: 'full_adhan', volumePercent: 85, preReminderMinutes: 10, adhanId: 'mahur_saeed' },
-        isha: { mode: 'silent', volumePercent: 0, preReminderMinutes: 0, adhanId: 'mahur_saeed' },
+        fajr: { mode: 'full_adhan', volumePercent: 90, preReminderMinutes: 30, preDuaText: PRE_ADHAN_DUAS.fajr, adhanId: 'mahur_saeed' },
+        dhuhr: { mode: 'short_10s', volumePercent: 75, preReminderMinutes: 15, preDuaText: PRE_ADHAN_DUAS.dhuhr, adhanId: 'mahur_saeed' },
+        asr: { mode: 'silent', volumePercent: 0, preReminderMinutes: 0, preDuaText: PRE_ADHAN_DUAS.asr, adhanId: 'mahur_saeed' },
+        maghrib: { mode: 'full_adhan', volumePercent: 85, preReminderMinutes: 15, preDuaText: PRE_ADHAN_DUAS.maghrib, adhanId: 'mahur_saeed' },
+        isha: { mode: 'silent', volumePercent: 0, preReminderMinutes: 0, preDuaText: PRE_ADHAN_DUAS.isha, adhanId: 'mahur_saeed' },
       },
     },
   },
@@ -107,7 +116,8 @@ export function loadAdhanStudio(): AdhanStudioState {
   try {
     const raw = localStorage.getItem(STUDIO_KEY);
     if (!raw) return DEFAULT_STUDIO;
-    return { ...DEFAULT_STUDIO, ...JSON.parse(raw) };
+    const parsed = JSON.parse(raw);
+    return { ...DEFAULT_STUDIO, ...parsed };
   } catch {
     return DEFAULT_STUDIO;
   }

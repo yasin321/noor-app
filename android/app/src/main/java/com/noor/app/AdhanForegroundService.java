@@ -5,101 +5,104 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
-import android.content.Context;
 import android.content.Intent;
-import android.content.res.AssetFileDescriptor;
 import android.media.AudioAttributes;
 import android.media.MediaPlayer;
 import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 import android.os.PowerManager;
-import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
+import java.io.File;
 
 public class AdhanForegroundService extends Service {
-    public static final String CHANNEL_ID = "NOOR_ALARM_FULLSCREEN_CHANNEL_V2";
-    public static final int NOTIFICATION_ID = 7701;
-    public static final String ACTION_STOP = "com.noor.app.ACTION_STOP_ADHAN_ALARM";
-
+    public static final String CHANNEL_ID = "noor_adhan_fullscreen_channel_v3";
     private MediaPlayer mediaPlayer;
     private PowerManager.WakeLock wakeLock;
-    public static volatile boolean isPlaying = false;
+    private final Handler stopHandler = new Handler(Looper.getMainLooper());
+    private final Runnable stopRunnable = this::stopSelf;
 
     @Override
     public void onCreate() {
         super.onCreate();
-        ensureChannel();
-        PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+        createHighPriorityChannel();
+        PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
         if (pm != null) {
             wakeLock = pm.newWakeLock(
                     PowerManager.PARTIAL_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP,
                     "NoorApp::AdhanWakeLock"
             );
-            wakeLock.acquire(8 * 60 * 1000L);
+            wakeLock.acquire(4 * 60 * 1000L);
         }
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        if (intent != null && ACTION_STOP.equals(intent.getAction())) {
-            stopAlarmAndCleanup();
+        if (intent != null && AdhanAlarmReceiver.ACTION_STOP.equals(intent.getAction())) {
+            stopSelf();
             return START_NOT_STICKY;
         }
 
         String title = intent != null && intent.getStringExtra("title") != null
-                ? intent.getStringExtra("title")
-                : "یادآوری و اذان نور";
+                ? intent.getStringExtra("title") : "وقت اذان و نیایش";
         String body = intent != null && intent.getStringExtra("body") != null
-                ? intent.getStringExtra("body")
-                : "وقت ذکر و نماز فرا رسیده است";
+                ? intent.getStringExtra("body") : "حَیَّ عَلَی الصَّلَاة — وقت نماز فرا رسیده است";
         String soundType = intent != null && intent.getStringExtra("soundType") != null
-                ? intent.getStringExtra("soundType")
-                : "adhan";
+                ? intent.getStringExtra("soundType") : "adhan";
+        String adhanId = intent != null && intent.getStringExtra("adhanId") != null
+                ? intent.getStringExtra("adhanId") : "mahur_saeed";
+        int durationSeconds = intent != null ? intent.getIntExtra("durationSeconds", 0) : 0;
+        int volumePercent = intent != null ? intent.getIntExtra("volumePercent", 90) : 90;
 
         Intent fullScreenIntent = new Intent(this, AdhanAlarmActivity.class);
+        fullScreenIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         fullScreenIntent.putExtra("title", title);
         fullScreenIntent.putExtra("body", body);
-        fullScreenIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
 
-        PendingIntent fullScreenPending = PendingIntent.getActivity(
-                this, 201, fullScreenIntent,
+        PendingIntent fullScreenPendingIntent = PendingIntent.getActivity(
+                this, 2001, fullScreenIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
 
-        Intent stopIntent = new Intent(this, AdhanForegroundService.class);
-        stopIntent.setAction(ACTION_STOP);
-        PendingIntent stopPending = PendingIntent.getService(
-                this, 202, stopIntent,
+        Intent stopIntent = new Intent(this, AdhanAlarmReceiver.class);
+        stopIntent.setAction(AdhanAlarmReceiver.ACTION_STOP);
+        PendingIntent stopPendingIntent = PendingIntent.getBroadcast(
+                this, 2002, stopIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
 
         Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setSmallIcon(R.drawable.ic_stat_icon)
+                .setSmallIcon(R.drawable.noor_launcher)
                 .setContentTitle(title)
                 .setContentText(body)
+                .setStyle(new NotificationCompat.BigTextStyle().bigText(body))
                 .setPriority(NotificationCompat.PRIORITY_MAX)
                 .setCategory(NotificationCompat.CATEGORY_ALARM)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .setOngoing(true)
                 .setAutoCancel(false)
-                .setFullScreenIntent(fullScreenPending, true)
-                .addAction(android.R.drawable.ic_media_pause, "توقف صدا", stopPending)
+                .setFullScreenIntent(fullScreenPendingIntent, true)
+                .addAction(android.R.drawable.ic_media_pause, "توقف صدا", stopPendingIntent)
                 .build();
 
-        startForeground(NOTIFICATION_ID, notification);
+        startForeground(3001, notification);
+
+        if (!"silent".equals(soundType)) {
+            startAudioPlayback(soundType, adhanId, volumePercent, durationSeconds);
+        }
 
         try {
             startActivity(fullScreenIntent);
         } catch (Exception ignored) {}
 
-        startAudio(soundType);
-        return START_REDELIVER_INTENT;
+        return START_NOT_STICKY;
     }
 
-    private void startAudio(String soundType) {
-        stopPlayer();
+    private void startAudioPlayback(String soundType, String adhanId, int volumePercent, int durationSeconds) {
+        stopAudioPlayback();
         try {
             mediaPlayer = new MediaPlayer();
             AudioAttributes attrs = new AudioAttributes.Builder()
@@ -108,41 +111,43 @@ public class AdhanForegroundService extends Service {
                     .build();
             mediaPlayer.setAudioAttributes(attrs);
 
-            boolean loaded = false;
-            if ("adhan".equalsIgnoreCase(soundType)) {
-                int rawId = getResources().getIdentifier("adhan_mahur", "raw", getPackageName());
-                if (rawId != 0) {
-                    AssetFileDescriptor afd = getResources().openRawResourceFd(rawId);
-                    if (afd != null) {
-                        mediaPlayer.setDataSource(afd.getFileDescriptor(), afd.getStartOffset(), afd.getLength());
-                        afd.close();
-                        mediaPlayer.setLooping(false);
-                        loaded = true;
-                    }
-                }
-            }
+            float vol = Math.max(0.05f, Math.min(1.0f, volumePercent / 100.0f));
 
-            if (!loaded) {
+            if ("adhan".equals(soundType) || "short_10s".equals(soundType)) {
+                File downloadedFile = new File(new File(getFilesDir(), "adhans"), adhanId + ".mp3");
+                if (downloadedFile.exists() && downloadedFile.length() > 4096) {
+                    mediaPlayer.setDataSource(downloadedFile.getAbsolutePath());
+                } else {
+                    Uri rawUri = Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.adhan_mahur);
+                    mediaPlayer.setDataSource(this, rawUri);
+                }
+                mediaPlayer.setLooping(false);
+                mediaPlayer.setOnCompletionListener(mp -> stopSelf());
+            } else {
                 Uri alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
                 if (alarmUri == null) {
                     alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
                 }
                 mediaPlayer.setDataSource(this, alarmUri);
-                mediaPlayer.setLooping(true);
+                mediaPlayer.setLooping(durationSeconds <= 0);
             }
 
-            mediaPlayer.setOnCompletionListener(mp -> stopAlarmAndCleanup());
             mediaPlayer.prepare();
+            mediaPlayer.setVolume(vol, vol);
             mediaPlayer.start();
-            isPlaying = true;
+
+            int limitSec = "short_10s".equals(soundType) ? 10 : durationSeconds;
+            if (limitSec > 0) {
+                stopHandler.removeCallbacks(stopRunnable);
+                stopHandler.postDelayed(stopRunnable, limitSec * 1000L);
+            }
         } catch (Exception e) {
             e.printStackTrace();
-            isPlaying = false;
         }
     }
 
-    private void stopPlayer() {
-        isPlaying = false;
+    private void stopAudioPlayback() {
+        stopHandler.removeCallbacks(stopRunnable);
         if (mediaPlayer != null) {
             try {
                 if (mediaPlayer.isPlaying()) mediaPlayer.stop();
@@ -154,26 +159,14 @@ public class AdhanForegroundService extends Service {
         }
     }
 
-    public void stopAlarmAndCleanup() {
-        stopPlayer();
-        Intent closeIntent = new Intent(AdhanAlarmActivity.ACTION_CLOSE_UI);
-        closeIntent.setPackage(getPackageName());
-        sendBroadcast(closeIntent);
-        if (wakeLock != null && wakeLock.isHeld()) {
-            wakeLock.release();
-        }
-        stopForeground(true);
-        stopSelf();
-    }
-
-    private void ensureChannel() {
+    private void createHighPriorityChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(
                     CHANNEL_ID,
                     "آلارم تمام‌صفحه و اذان نور",
                     NotificationManager.IMPORTANCE_HIGH
             );
-            channel.setDescription("روشن کردن صفحه قفل و پخش صدای اذان و یادآوری");
+            channel.setDescription("پخش اذان با صدای مؤذن انتخابی و بیدار کردن صفحه قفل");
             channel.setSound(null, null);
             channel.enableVibration(true);
             channel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
@@ -184,12 +177,13 @@ public class AdhanForegroundService extends Service {
 
     @Override
     public void onDestroy() {
-        stopPlayer();
-        if (wakeLock != null && wakeLock.isHeld()) wakeLock.release();
+        stopAudioPlayback();
+        if (wakeLock != null && wakeLock.isHeld()) {
+            wakeLock.release();
+        }
         super.onDestroy();
     }
 
-    @Nullable
     @Override
     public IBinder onBind(Intent intent) {
         return null;
