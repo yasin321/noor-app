@@ -124,16 +124,11 @@ export function saveRecord(dhikrId: string, count: number, completed: number, us
   const date = getLocalDateString();
   const now = new Date().toISOString();
 
+  // Always save locally first (Offline-First) so BI Dashboard & Streaks work seamlessly
+  saveGuestRecord(dhikrId, count, completed, date, now);
   if (userId) {
-    supabase.from('tasbih_counts')
-      .insert({ dhikr_id: dhikrId, count, completed, date, user_id: userId })
-      .then(({ error }) => {
-        if (error) {
-          saveGuestRecord(dhikrId, count, completed, date, now);
-        }
-      });
-  } else {
-    saveGuestRecord(dhikrId, count, completed, date, now);
+    void supabase.from('tasbih_counts')
+      .insert({ dhikr_id: dhikrId, count, completed, date, user_id: userId });
   }
 }
 

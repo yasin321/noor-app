@@ -17,7 +17,7 @@ public class AdhanAlarmReceiver extends BroadcastReceiver {
             Intent stopService = new Intent(context, AdhanForegroundService.class);
             stopService.setAction(ACTION_STOP);
             context.stopService(stopService);
-            context.sendBroadcast(new Intent("com.noor.app.CLOSE_ALARM_UI"));
+            context.sendBroadcast(new Intent("com.noor.app.ACTION_CLOSE_ALARM_UI"));
             return;
         }
 

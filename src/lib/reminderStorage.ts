@@ -225,3 +225,13 @@ export function getPlannedVsActualStats(days: number = 30): {
 }
 
 export { STORAGE_KEY, SCHEMA_VERSION };
+
+export function getDayCompletionPercent(date: Date): number {
+  const all = loadReminders().filter((r) => r.enabled);
+  const ourDay = (date.getDay() + 1) % 7;
+  const dateKey = getLocalDateKey(date);
+  const planned = all.filter((r) => r.type === "once" ? r.date === dateKey : (r.days.length === 0 || r.days.includes(ourDay)));
+  if (planned.length === 0) return 0;
+  const done = planned.filter((r) => isReminderCompletedOnDate(r.id, date)).length;
+  return Math.round((done / planned.length) * 100);
+}

@@ -216,13 +216,18 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
     }
   };
 
+  const [guestMethod, setGuestMethod] = useState(() => {
+    try { return localStorage.getItem('noor_guest_calc_method') || 'jafari'; } catch { return 'jafari'; }
+  });
   const applyMethod = async (id: string) => {
+    try { localStorage.setItem('noor_guest_calc_method', id); } catch {}
+    setGuestMethod(id);
     if (profile) {
       await updateProfile({ calculation_method: id });
     }
   };
 
-  const currentMethod = profile?.calculation_method ?? 'jafari';
+  const currentMethod = profile?.calculation_method ?? guestMethod;
   const methods = getAvailableMethods();
 
   if (section === 'theme') {

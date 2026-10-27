@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Award, BarChart3, Crown, Check, X, Flame, Sparkles, ShieldCheck } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { getSpiritualDashboardStats } from '@/lib/tasbihStorage';
-import { getPlannedVsActualStats, loadReminders } from '@/lib/reminderStorage';
+import { getPlannedVsActualStats, loadReminders, getDayCompletionPercent } from '@/lib/reminderStorage';
 import { toFaDigits, getJalaliWeekday } from '@/lib/jalali';
 
 const VIP_STORAGE_KEY = 'noor_vip_active_v1';
@@ -44,7 +44,7 @@ export function VipAndAnalyticsModal({ initialTab = 'analytics', onClose }: Prop
     const d = new Date();
     d.setDate(d.getDate() - (6 - i));
     const label = getJalaliWeekday(d).slice(0, 3);
-    const weight = i === 6 ? Math.max(25, pva.todayPercent) : Math.min(100, ((d.getDate() * 17) % 65) + 25);
+    const weight = getDayCompletionPercent(d);
     return { label, percent: weight, isToday: i === 6 };
   });
 

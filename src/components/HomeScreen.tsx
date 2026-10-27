@@ -94,7 +94,7 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
 
   const cityId = profile?.city_id ?? guestCityId;
   const city = useMemo(() => getCityById(cityId), [cityId]);
-  const method = profile?.calculation_method ?? 'jafari';
+  const method = profile?.calculation_method ?? (() => { try { return localStorage.getItem('noor_guest_calc_method') || 'jafari'; } catch { return 'jafari'; } })();
   const todayDate = getLocalDateString(now, city.timezone);
 
   useEffect(() => {

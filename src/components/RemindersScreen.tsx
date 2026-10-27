@@ -190,7 +190,7 @@ export function RemindersScreen() {
   const pva = getPlannedVsActualStats(30);
   const todayJsDay = new Date().getDay();
   const todayOurDay = (todayJsDay + 1) % 7;
-  const todayDateStr = new Date().toISOString().slice(0, 10);
+  const nowLocal = new Date(); const todayDateStr = `${nowLocal.getFullYear()}-${String(nowLocal.getMonth() + 1).padStart(2, '0')}-${String(nowLocal.getDate()).padStart(2, '0')}`;
   const todayList = reminders.filter((r) => r.enabled && (r.type === "once" ? r.date === todayDateStr : r.days.length === 0 || r.days.includes(todayOurDay)));
   const visibleReminders = viewFilter === "today" ? todayList : reminders;
 

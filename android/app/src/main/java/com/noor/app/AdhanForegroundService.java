@@ -42,7 +42,8 @@ public class AdhanForegroundService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        if (intent != null && AdhanAlarmReceiver.ACTION_STOP.equals(intent.getAction())) {
+        if (intent != null && (AdhanAlarmReceiver.ACTION_STOP.equals(intent.getAction()) || ACTION_STOP.equals(intent.getAction()))) {
+            sendBroadcast(new Intent(AdhanAlarmActivity.ACTION_CLOSE_UI));
             stopSelf();
             return START_NOT_STICKY;
         }

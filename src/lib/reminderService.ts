@@ -1,10 +1,11 @@
+import { loadAdhanStudio } from "@/lib/deenIntelligenceStore";
 import { logEvent } from "@/lib/logger";
 
 import * as CapCore from '@capacitor/core';
 const { Capacitor } = CapCore;
 
 export interface NoorAlarmPlugin {
-  scheduleNativeAlarm(opts: { id: number; triggerAtMillis: number; title: string; body: string; soundType?: string }): Promise<{ scheduled: boolean }>;
+  scheduleNativeAlarm(opts: { id: number; triggerAtMillis: number; title: string; body: string; soundType?: string; adhanId?: string; durationSeconds?: number; volumePercent?: number }): Promise<{ scheduled: boolean }>;
   cancelNativeAlarm(opts: { id: number }): Promise<void>;
   triggerTestAlarmNow(opts?: { title?: string; body?: string; soundType?: string; adhanId?: string; durationSeconds?: number; volumePercent?: number }): Promise<void>;
   updatePrayerWidget?(opts: { nextPrayerText: string; subtitleText: string }): Promise<void>;
@@ -178,6 +179,32 @@ async function ensureChannel(): Promise<void> {
   }
 }
 
+
+function resolvePrayerAlarmParams(reminderId: string): { soundType: string; adhanId: string; durationSeconds: number; volumePercent: number } {
+  const defaultAdhan = (() => {
+    try { return localStorage.getItem("noor_guest_adhan_id") || "mahur_saeed"; } catch { return "mahur_saeed"; }
+  })();
+  if (!reminderId.startsWith("prayer_auto_")) {
+    return { soundType: "alarm", adhanId: defaultAdhan, durationSeconds: 0, volumePercent: 90 };
+  }
+  const key = reminderId.replace("prayer_auto_", "") as "fajr" | "dhuhr" | "asr" | "maghrib" | "isha";
+  try {
+    const studio = loadAdhanStudio();
+    const prof = studio.profiles[studio.activeProfile];
+    const cfg = prof?.prayers?.[key];
+    if (cfg) {
+      const soundType = cfg.mode === "full_adhan" ? "adhan" : cfg.mode === "short_10s" ? "short_10s" : cfg.mode === "silent" ? "silent" : "alarm";
+      return {
+        soundType,
+        adhanId: cfg.adhanId || defaultAdhan,
+        durationSeconds: cfg.mode === "short_10s" ? 10 : 0,
+        volumePercent: cfg.volumePercent ?? 90,
+      };
+    }
+  } catch {}
+  return { soundType: "adhan", adhanId: defaultAdhan, durationSeconds: 0, volumePercent: 90 };
+}
+
 export async function cancelReminder(reminderId: string): Promise<ScheduleResult> {
   const ids = getReminderNotificationIds(reminderId);
   try {
@@ -254,7 +281,7 @@ export async function scheduleReminder(reminder: LocalReminder, notifEnabled: bo
         }],
       });
       if (Capacitor.getPlatform() === 'android') {
-        try { await NoorAlarm.scheduleNativeAlarm({ id: notifId, triggerAtMillis: at.getTime(), title: reminder.title, body, soundType: reminder.id.startsWith('prayer_auto_') ? 'adhan' : 'alarm' }); } catch {}
+        try { const p = resolvePrayerAlarmParams(reminder.id); if (p.soundType !== 'silent') await NoorAlarm.scheduleNativeAlarm({ id: notifId, triggerAtMillis: at.getTime(), title: reminder.title, body, ...p }); } catch {}
       }
       return { success: true, scheduledIds: [notifId] };
     } catch (err) {
@@ -283,8 +310,8 @@ export async function scheduleReminder(reminder: LocalReminder, notifEnabled: bo
           smallIcon: 'ic_stat_icon',
         }],
       });
-      if (Capacitor.getPlatform() === 'android' && i < 3) {
-        try { await NoorAlarm.scheduleNativeAlarm({ id: notifId, triggerAtMillis: occurrences[i].getTime(), title: reminder.title, body, soundType: reminder.id.startsWith('prayer_auto_') ? 'adhan' : 'alarm' }); } catch {}
+      if (Capacitor.getPlatform() === 'android' && i < 7) {
+        try { const p = resolvePrayerAlarmParams(reminder.id); if (p.soundType !== 'silent') await NoorAlarm.scheduleNativeAlarm({ id: notifId, triggerAtMillis: occurrences[i].getTime(), title: reminder.title, body, ...p }); } catch {}
       }
       scheduledIds.push(notifId);
     } catch (err) {
