@@ -1,14 +1,33 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#064e3b"/>
-      <stop offset="50%" stop-color="#0f172a"/>
-      <stop offset="100%" stop-color="#022c22"/>
+    <linearGradient id="sky" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#030B1A"/>
+      <stop offset="45%" stop-color="#072A36"/>
+      <stop offset="80%" stop-color="#06372A"/>
+      <stop offset="100%" stop-color="#021510"/>
     </linearGradient>
+    <linearGradient id="gold" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FEF08A"/>
+      <stop offset="50%" stop-color="#F59E0B"/>
+      <stop offset="100%" stop-color="#B45309"/>
+    </linearGradient>
+    <radialGradient id="nebula" cx="50%" cy="42%" r="48%">
+      <stop offset="0%" stop-color="#34D399" stop-opacity="0.32"/>
+      <stop offset="55%" stop-color="#FBBF24" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#030B1A" stop-opacity="0"/>
+    </radialGradient>
   </defs>
-  <rect width="108" height="108" rx="24" fill="url(#bg)"/>
-  <circle cx="54" cy="54" r="34" fill="#fbbf24" fill-opacity="0.12"/>
-  <path fill="#fbbf24" d="M54,20 C39,32 32,44 32,60 L32,80 C32,82.2 33.8,84 36,84 L72,84 C74.2,84 76,82.2 76,80 L76,60 C76,44 69,32 54,20 Z M54,26 C65,36 70,46 70,60 L70,78 L38,78 L38,60 C38,46 43,36 54,26 Z"/>
-  <path fill="#fde68a" d="M58,44 A12,12 0 1,0 58,68 A9.5,9.5 0 1,1 58,44 Z"/>
-  <polygon fill="#34d399" points="62,51 63.5,54.5 67,56 63.5,57.5 62,61 60.5,57.5 57,56 60.5,54.5"/>
+  <rect width="512" height="512" rx="115" fill="url(#sky)"/>
+  <circle cx="256" cy="230" r="220" fill="url(#nebula)"/>
+  <path d="M256 68 C158 130 114 202 114 294 L114 420 C114 432 124 442 136 442 L376 442 C388 442 398 432 398 420 L398 294 C398 202 354 130 256 68 Z" fill="url(#gold)"/>
+  <path d="M256 96 C176 150 138 210 138 294 L138 416 L374 416 L374 294 C374 210 336 150 256 96 Z" fill="url(#sky)"/>
+  <path d="M256 116 C188 164 156 218 156 294 L156 400 L356 400 L356 294 C356 218 324 164 256 116 Z" fill="none" stroke="#FDE68A" stroke-opacity="0.4" stroke-width="4"/>
+  <line x1="256" y1="96" x2="256" y2="152" stroke="#FDE68A" stroke-width="4"/>
+  <polygon points="242,152 270,152 278,170 256,196 234,170" fill="#FBBF24"/>
+  <path d="M280 212 A64 64 0 1 0 280 340 A51 51 0 1 1 280 212 Z" fill="#FDE68A"/>
+  <polygon points="295,244 303,264 323,272 303,280 295,300 287,280 267,272 287,264" fill="#34D399"/>
+  <circle cx="190" cy="210" r="5" fill="#FEF08A"/>
+  <circle cx="322" cy="195" r="4" fill="#A7F3D0"/>
+  <circle cx="182" cy="305" r="4" fill="#6EE7B7"/>
+  <circle cx="318" cy="340" r="5" fill="#FDE68A"/>
 </svg>

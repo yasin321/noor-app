@@ -10,9 +10,9 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(NoorAlarmPlugin.class);
         super.onCreate(savedInstanceState);
         try {
-            getWindow().getDecorView().setBackgroundColor(Color.parseColor("#062E22"));
+            getWindow().getDecorView().setBackgroundColor(Color.parseColor("#04151F"));
             if (getBridge() != null && getBridge().getWebView() != null) {
-                getBridge().getWebView().setBackgroundColor(Color.parseColor("#062E22"));
+                getBridge().getWebView().setBackgroundColor(Color.parseColor("#04151F"));
             }
         } catch (Exception ignored) {}
     }
