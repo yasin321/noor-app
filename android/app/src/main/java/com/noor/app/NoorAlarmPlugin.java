@@ -104,8 +104,14 @@ public class NoorAlarmPlugin extends Plugin {
             if (!dir.exists()) dir.mkdirs();
             File targetFile = new File(dir, adhanId + ".mp3");
 
+            // اگر قبلاً فایل ناقص یا کپی اشتباه با حجم دقیق فایل ماهور (2289817 بایت) ذخیره شده بود، پاکش کن تا صدای واقعی دانلود شود
+            if (targetFile.exists() && targetFile.length() == 2289817L && !"mahur_saeed".equals(adhanId)) {
+                targetFile.delete();
+            }
+
             String[] urlsToTry = new String[] { audioUrl, fallbackUrl };
             boolean success = false;
+            String lastErr = "";
 
             for (String u : urlsToTry) {
                 if (u == null || u.isEmpty()) continue;
@@ -114,15 +120,30 @@ public class NoorAlarmPlugin extends Plugin {
                     URL url = new URL(u);
                     conn = (HttpURLConnection) url.openConnection();
                     conn.setInstanceFollowRedirects(true);
-                    conn.setConnectTimeout(7000);
-                    conn.setReadTimeout(12000);
-                    conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14; NoorApp)");
+                    conn.setConnectTimeout(12000);
+                    conn.setReadTimeout(25000);
+                    conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14; NoorApp/3.0)");
                     conn.connect();
 
                     int code = conn.getResponseCode();
+                    if (code >= 300 && code < 400) {
+                        String loc = conn.getHeaderField("Location");
+                        if (loc != null) {
+                            conn.disconnect();
+                            conn = (HttpURLConnection) new URL(loc).openConnection();
+                            conn.setInstanceFollowRedirects(true);
+                            conn.setConnectTimeout(12000);
+                            conn.setReadTimeout(25000);
+                            conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14; NoorApp/3.0)");
+                            conn.connect();
+                            code = conn.getResponseCode();
+                        }
+                    }
+
                     if (code >= 200 && code < 300) {
+                        File tempFile = new File(dir, adhanId + ".tmp");
                         try (InputStream in = conn.getInputStream();
-                             FileOutputStream out = new FileOutputStream(targetFile)) {
+                             FileOutputStream out = new FileOutputStream(tempFile)) {
                             byte[] buf = new byte[8192];
                             int len;
                             long total = 0;
@@ -131,34 +152,32 @@ public class NoorAlarmPlugin extends Plugin {
                                 total += len;
                             }
                             out.flush();
-                            if (total > 4096) {
+                            if (total > 15000) {
+                                if (targetFile.exists()) targetFile.delete();
+                                tempFile.renameTo(targetFile);
                                 success = true;
                                 break;
+                            } else {
+                                tempFile.delete();
                             }
                         }
+                    } else {
+                        lastErr = "HTTP " + code;
                     }
-                } catch (Exception ignored) {
+                } catch (Exception e) {
+                    lastErr = e.getMessage();
                 } finally {
                     if (conn != null) conn.disconnect();
                 }
             }
 
-            // اگر اینترنت ایران به سرور خارجی وصل نشد، از فایل صوتی آفلاین داخلی کپی می‌کنیم تا هرگز خطا ندهد
             if (!success) {
-                try (InputStream rawIn = getContext().getResources().openRawResource(R.raw.adhan_mahur);
-                     FileOutputStream out = new FileOutputStream(targetFile)) {
-                    byte[] buf = new byte[8192];
-                    int len;
-                    while ((len = rawIn.read(buf)) != -1) {
-                        out.write(buf, 0, len);
-                    }
-                    out.flush();
-                    success = true;
-                } catch (Exception ignored) {}
+                call.reject("خطا در دریافت فایل صوتی این مؤذن (" + lastErr + ")؛ لطفاً اتصال اینترنت را بررسی کنید.");
+                return;
             }
 
             JSObject res = new JSObject();
-            res.put("downloaded", success);
+            res.put("downloaded", true);
             res.put("adhanId", adhanId);
             res.put("path", targetFile.getAbsolutePath());
             call.resolve(res);
@@ -174,8 +193,14 @@ public class NoorAlarmPlugin extends Plugin {
             File[] files = dir.listFiles();
             if (files != null) {
                 for (File f : files) {
-                    if (f.isFile() && f.length() > 4096 && f.getName().endsWith(".mp3")) {
-                        arr.put(f.getName().replace(".mp3", ""));
+                    if (f.isFile() && f.length() > 15000 && f.getName().endsWith(".mp3")) {
+                        String id = f.getName().replace(".mp3", "");
+                        // حذف فایل‌های کپی‌شدهٔ اشتباهی قبلی که دقیقاً هم‌حجم فایل ماهور بودند
+                        if (f.length() == 2289817L && !"mahur_saeed".equals(id)) {
+                            f.delete();
+                            continue;
+                        }
+                        arr.put(id);
                     }
                 }
             }
@@ -188,6 +213,7 @@ public class NoorAlarmPlugin extends Plugin {
     @PluginMethod
     public void previewAdhanAudio(PluginCall call) {
         String adhanId = call.getString("adhanId", "mahur_saeed");
+        String audioUrl = call.getString("audioUrl", "");
         int durationSeconds = call.getInt("durationSeconds", 0);
         int volumePercent = call.getInt("volumePercent", 95);
 
@@ -201,11 +227,20 @@ public class NoorAlarmPlugin extends Plugin {
             previewPlayer.setAudioAttributes(attrs);
 
             File localFile = new File(new File(getContext().getFilesDir(), "adhans"), adhanId + ".mp3");
-            if (localFile.exists() && localFile.length() > 4096) {
-                previewPlayer.setDataSource(localFile.getAbsolutePath());
-            } else {
+            if (localFile.exists() && localFile.length() == 2289817L && !"mahur_saeed".equals(adhanId)) {
+                localFile.delete();
+            }
+
+            if ("mahur_saeed".equals(adhanId)) {
                 Uri rawUri = Uri.parse("android.resource://" + getContext().getPackageName() + "/" + R.raw.adhan_mahur);
                 previewPlayer.setDataSource(getContext(), rawUri);
+            } else if (localFile.exists() && localFile.length() > 15000) {
+                previewPlayer.setDataSource(localFile.getAbsolutePath());
+            } else if (audioUrl != null && !audioUrl.isEmpty()) {
+                previewPlayer.setDataSource(audioUrl);
+            } else {
+                call.reject("ابتدا دکمه دریافت این مؤذن را بزنید.");
+                return;
             }
 
             float vol = Math.max(0.05f, Math.min(1.0f, volumePercent / 100.0f));
@@ -223,7 +258,7 @@ public class NoorAlarmPlugin extends Plugin {
             }
             call.resolve();
         } catch (Exception e) {
-            call.resolve();
+            call.reject("خطا در پخش پیش‌نمایش: " + e.getMessage());
         }
     }
 

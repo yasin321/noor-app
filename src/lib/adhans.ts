@@ -30,7 +30,6 @@ export function getAdhanDurationMode(): AdhanPlaybackDurationMode {
 export function setAdhanDurationMode(mode: AdhanPlaybackDurationMode): void {
   try {
     localStorage.setItem(ADHAN_DURATION_MODE_KEY, mode);
-    // هماهنگ‌سازی خودکار با استودیوی اذان برای تمام نمازها
     const studio = loadAdhanStudio();
     const prof = studio.profiles[studio.activeProfile];
     if (prof) {
@@ -50,7 +49,7 @@ export function setAdhanDurationMode(mode: AdhanPlaybackDurationMode): void {
 export function getAdhanDurationSeconds(mode: AdhanPlaybackDurationMode = getAdhanDurationMode()): number {
   if (mode === '10s') return 10;
   if (mode === '30s') return 30;
-  return 0; // 0 یعنی پخش کامل تا انتها
+  return 0;
 }
 
 interface NativeAdhanBridge {
@@ -62,7 +61,7 @@ interface NativeAdhanBridge {
 
 const NativeAdhan = registerPlugin<NativeAdhanBridge>('NoorAlarm');
 
-// آدرس‌های صوتی از سرورهای باز در ایران (تبیان، آپارات، آرشیو و ویکی‌مدیا)
+// هر مؤذن دارای فایل صوتی ۱۰۰٪ مجزا و اختصاصی (پشتیبانی از مسیر محلی، CDN jsDelivr باز در ایران و ویکی‌مدیا)
 export const adhans: Adhan[] = [
   {
     id: 'mahur_saeed',
@@ -70,7 +69,10 @@ export const adhans: Adhan[] = [
     nameFa: 'اذان ایرانی در دستگاه ماهور (بسته‌بندی آفلاین در اپ)',
     reciter: 'استاد سعید حاتم‌زاده ورمزیار',
     originFa: 'ایران — دستگاه ماهور (آماده و بدون نیاز به اینترنت)',
-    audioUrl: 'https://upload.wikimedia.org/wikipedia/commons/a/ae/AzaanMaahur.ogg',
+    audioUrl: '/adhans/mahur_saeed.ogg',
+    fallbackUrls: [
+      'https://upload.wikimedia.org/wikipedia/commons/a/ae/AzaanMaahur.ogg',
+    ],
     bundledOffline: true,
     license: 'CC BY-SA 4.0',
   },
@@ -79,10 +81,11 @@ export const adhans: Adhan[] = [
     name: 'Rahim Moazenzadeh Ardabili',
     nameFa: 'اذان جاودانه بیات ترک (ثبت ملی ایران)',
     reciter: 'مرحوم استاد رحیم مؤذن‌زاده اردبیلی',
-    originFa: 'اردبیل — میراث معنوی ملی ایران',
-    audioUrl: 'https://sound.tebyan.net/newindex/2013/07/20130710142758908.mp3',
+    originFa: 'اردبیل — میراث معنوی ملی ایران (بیات ترک)',
+    audioUrl: 'https://cdn.jsdelivr.net/gh/yasin321/noor-app@review/fix-notification-and-startup/public/adhans/moazenzadeh_ardabili.mp3',
     fallbackUrls: [
-      'https://upload.wikimedia.org/wikipedia/commons/a/ae/AzaanMaahur.ogg',
+      'https://raw.githubusercontent.com/yasin321/noor-app/review/fix-notification-and-startup/public/adhans/moazenzadeh_ardabili.mp3',
+      'https://upload.wikimedia.org/wikipedia/commons/transcoded/9/9e/Azan_by_Rahim_Moazenzadeh_Ardabili.ogg/Azan_by_Rahim_Moazenzadeh_Ardabili.ogg.mp3',
     ],
     license: 'میراث ملی ایران',
   },
@@ -92,9 +95,9 @@ export const adhans: Adhan[] = [
     nameFa: 'اذان ملکوتی گلدسته‌های حرم امام رضا (ع)',
     reciter: 'مرحوم استاد محمد آقاتی',
     originFa: 'مشهد مقدس — آستان قدس رضوی',
-    audioUrl: 'https://sound.tebyan.net/newindex/2013/07/20130710142848299.mp3',
+    audioUrl: 'https://cdn.jsdelivr.net/gh/yasin321/noor-app@review/fix-notification-and-startup/public/adhans/aghati_mashhad.mp3',
     fallbackUrls: [
-      'https://upload.wikimedia.org/wikipedia/commons/a/ae/AzaanMaahur.ogg',
+      'https://raw.githubusercontent.com/yasin321/noor-app/review/fix-notification-and-startup/public/adhans/aghati_mashhad.mp3',
     ],
     license: 'یادگار صوتی خراسان',
   },
@@ -104,9 +107,9 @@ export const adhans: Adhan[] = [
     nameFa: 'اذان عرفانی رادیو ایران (بیات ترک)',
     reciter: 'مرحوم استاد حسین صبحدل',
     originFa: 'تهران — رادیو سراسری ایران',
-    audioUrl: 'https://sound.tebyan.net/newindex/2013/07/20130710142925564.mp3',
+    audioUrl: 'https://cdn.jsdelivr.net/gh/yasin321/noor-app@review/fix-notification-and-startup/public/adhans/sobhdel_tehran.mp3',
     fallbackUrls: [
-      'https://upload.wikimedia.org/wikipedia/commons/a/ae/AzaanMaahur.ogg',
+      'https://raw.githubusercontent.com/yasin321/noor-app/review/fix-notification-and-startup/public/adhans/sobhdel_tehran.mp3',
     ],
     license: 'میراث صوتی ایران',
   },
@@ -116,23 +119,11 @@ export const adhans: Adhan[] = [
     nameFa: 'اذان محبوب صداوسیمای ایران',
     reciter: 'استاد راغب مصطفی غلوش',
     originFa: 'محبوب‌ترین اذان پخش‌شده در ایران',
-    audioUrl: 'https://sound.tebyan.net/newindex/2013/07/20130710143011783.mp3',
+    audioUrl: 'https://cdn.jsdelivr.net/gh/yasin321/noor-app@review/fix-notification-and-startup/public/adhans/ghaloush_iran_fav.mp3',
     fallbackUrls: [
-      'https://upload.wikimedia.org/wikipedia/commons/a/ae/AzaanMaahur.ogg',
+      'https://raw.githubusercontent.com/yasin321/noor-app/review/fix-notification-and-startup/public/adhans/ghaloush_iran_fav.mp3',
     ],
     license: 'کلاسیک اسلامی',
-  },
-  {
-    id: 'kazemzadeh_iran',
-    name: 'Gholamreza Kazemzadeh',
-    nameFa: 'اذان سنتی ایرانی (آواز روح‌بخش)',
-    reciter: 'استاد غلامرضا کاظم‌زاده',
-    originFa: 'ایران — سبک سنتی',
-    audioUrl: 'https://sound.tebyan.net/newindex/2013/07/20130710143102408.mp3',
-    fallbackUrls: [
-      'https://upload.wikimedia.org/wikipedia/commons/a/ae/AzaanMaahur.ogg',
-    ],
-    license: 'سنتی ایرانی',
   },
   {
     id: 'abdulbasit',
@@ -140,9 +131,9 @@ export const adhans: Adhan[] = [
     nameFa: 'اذان ملکوتی استاد عبدالباسط',
     reciter: 'استاد عبدالباسط محمد عبدالصمد',
     originFa: 'سبک مصری — قاری ممتاز',
-    audioUrl: 'https://sound.tebyan.net/newindex/2013/07/20130710143215814.mp3',
+    audioUrl: 'https://cdn.jsdelivr.net/gh/yasin321/noor-app@review/fix-notification-and-startup/public/adhans/abdulbasit.mp3',
     fallbackUrls: [
-      'https://upload.wikimedia.org/wikipedia/commons/a/ae/AzaanMaahur.ogg',
+      'https://raw.githubusercontent.com/yasin321/noor-app/review/fix-notification-and-startup/public/adhans/abdulbasit.mp3',
     ],
     license: 'کلاسیک اسلامی',
   },
@@ -150,17 +141,29 @@ export const adhans: Adhan[] = [
     id: 'makkah',
     name: 'Makkah Haram Adhan',
     nameFa: 'اذان مسجدالحرام (مکه مکرمه)',
-    reciter: 'شیخ علی احمد ملا',
-    originFa: 'مکه مکرمه',
-    audioUrl: 'https://upload.wikimedia.org/wikipedia/commons/e/e2/Adhan_by_Ali_Ahmed_Mulla.ogg',
+    reciter: 'شیخ علی احمد ملا (مؤذن حرم مکه)',
+    originFa: 'مکه مکرمه — مسجدالحرام',
+    audioUrl: 'https://cdn.jsdelivr.net/gh/yasin321/noor-app@review/fix-notification-and-startup/public/adhans/makkah.mp3',
     fallbackUrls: [
-      'https://upload.wikimedia.org/wikipedia/commons/a/ae/AzaanMaahur.ogg',
+      'https://upload.wikimedia.org/wikipedia/commons/e/e2/Adhan_by_Ali_Ahmed_Mulla.ogg',
     ],
     license: 'CC BY-SA 3.0',
   },
+  {
+    id: 'madinah',
+    name: 'Madinah Nabawi Adhan',
+    nameFa: 'اذان سحرگاهی مسجدالنبی (مدینه منوره)',
+    reciter: 'مؤذن حرم نبوی شریف',
+    originFa: 'مدینه منوره — مسجدالنبی',
+    audioUrl: 'https://cdn.jsdelivr.net/gh/yasin321/noor-app@review/fix-notification-and-startup/public/adhans/madinah.mp3',
+    fallbackUrls: [
+      'https://raw.githubusercontent.com/yasin321/noor-app/review/fix-notification-and-startup/public/adhans/madinah.mp3',
+    ],
+    license: 'Public Domain',
+  },
 ];
 
-const DOWNLOADED_ADHANS_KEY = 'noor_downloaded_adhans_v2';
+const DOWNLOADED_ADHANS_KEY = 'noor_downloaded_adhans_v3';
 
 export function getDownloadedAdhanIds(): string[] {
   try {
@@ -177,7 +180,7 @@ export async function syncNativeDownloadedAdhans(): Promise<string[]> {
     try {
       const res = await NativeAdhan.listDownloadedAdhans();
       if (Array.isArray(res.ids)) {
-        const merged = Array.from(new Set(['mahur_saeed', ...getDownloadedAdhanIds(), ...res.ids]));
+        const merged = Array.from(new Set(['mahur_saeed', ...res.ids]));
         localStorage.setItem(DOWNLOADED_ADHANS_KEY, JSON.stringify(merged));
         return merged;
       }
@@ -201,15 +204,16 @@ export async function downloadAndCacheAdhan(adhan: Adhan): Promise<{ ok: boolean
         localStorage.setItem(DOWNLOADED_ADHANS_KEY, JSON.stringify(updated));
         return { ok: true };
       }
+      return { ok: false, error: 'دانلود فایل صوتی کامل نشد.' };
     }
     const updated = Array.from(new Set([...getDownloadedAdhanIds(), adhan.id]));
     localStorage.setItem(DOWNLOADED_ADHANS_KEY, JSON.stringify(updated));
     return { ok: true };
-  } catch {
-    // حتی اگر سرور خارجی کند بود، فایل آفلاین جایگزین در اندروید فعال می‌شود تا کاربر خطا نبیند
-    const updated = Array.from(new Set([...getDownloadedAdhanIds(), adhan.id]));
-    try { localStorage.setItem(DOWNLOADED_ADHANS_KEY, JSON.stringify(updated)); } catch {}
-    return { ok: true };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : 'خطا در دانلود فایل صوتی؛ اینترنت خود را بررسی کنید.',
+    };
   }
 }
 

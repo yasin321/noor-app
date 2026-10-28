@@ -496,7 +496,7 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
               </div>
               <p className="text-xs font-bold text-app truncate">{quran.surahNameFa}</p>
               <p className="text-[10px] text-muted mt-0.5 truncate">
-                ادامه از بخش {quran.ayahNumber.toLocaleString('fa-IR')} (هدف {quran.dailyTargetMinutes.toLocaleString('fa-IR')}د)
+                آیه ${quran.ayahNumber.toLocaleString('fa-IR')} · ۱۱۴ سوره + کوک بعد از اذان
               </p>
             </button>
           </div>

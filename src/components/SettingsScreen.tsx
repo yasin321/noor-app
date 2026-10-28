@@ -1,3 +1,4 @@
+import { getQuranDisplayMode, setQuranDisplayMode, type QuranDisplayMode } from '@/lib/quranCatalog';
 import { useState, useEffect } from 'react';
 import { Palette, Volume2, Bell, LogOut, User, Check, LogIn, MapPin, AlertCircle } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
@@ -50,6 +51,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [previewingId, setPreviewingId] = useState<string | null>(null);
   const [adhanNotice, setAdhanNotice] = useState<string | null>(null);
+  const [quranViewMode, setQuranViewModeState] = useState<QuranDisplayMode>(() => getQuranDisplayMode());
   const [durationMode, setDurationModeState] = useState<AdhanPlaybackDurationMode>(() => getAdhanDurationMode());
   const [fontScale, setFontScale] = useState<string>(() => { try { return localStorage.getItem("noor_font_scale") || "normal"; } catch { return "normal"; } });
   const [showVipModal, setShowVipModal] = useState(false);
@@ -182,9 +184,11 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   useEffect(() => {
     const mapFont: Record<string, string> = {
       Vazirmatn: "'Vazirmatn', system-ui, sans-serif",
+      Estedad: "'Estedad', 'Vazirmatn', sans-serif",
+      Parastoo: "'Parastoo', 'Vazirmatn', serif",
       Shabnam: "'Shabnam', 'Vazirmatn', sans-serif",
-      Sahel: "'Sahel', 'Vazirmatn', sans-serif",
       Samim: "'Samim', 'Vazirmatn', sans-serif",
+      AmiriQuran: "'Amiri', 'Parastoo', 'Vazirmatn', serif",
     };
     const chosen = mapFont[fontFamily] ?? mapFont.Vazirmatn;
     document.documentElement.style.setProperty('--app-font', chosen);
@@ -650,10 +654,12 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
           </div>
           <div className="grid grid-cols-2 gap-2">
             {[
-              { id: 'Vazirmatn', label: 'وزیرمتن (مدرن و رسمی)', sample: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ' },
-              { id: 'Shabnam', label: 'شبنم (درشت و بسیار خوانا)', sample: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ' },
-              { id: 'Sahel', label: 'ساحل (نرم و چشم‌نواز)', sample: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ' },
-              { id: 'Samim', label: 'صمیم (ویژه مطالعه و سالمندان)', sample: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ' },
+              { id: 'Vazirmatn', label: 'وزیرمتن (استاندارد مدرن)', sample: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ' },
+              { id: 'Estedad', label: 'استعداد (محبوب‌ترین فونت اپ‌های ایرانی)', sample: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ' },
+              { id: 'Parastoo', label: 'پرستو (اصیل، کتابی و بسیار چشم‌نواز)', sample: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ' },
+              { id: 'Shabnam', label: 'شبنم (درشت و خوانا برای همه سنین)', sample: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ' },
+              { id: 'Samim', label: 'صمیم (ویژه مطالعه راحت و سالمندان)', sample: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ' },
+              { id: 'AmiriQuran', label: 'امیری و نسخ قرآنی (ویژه ادعیه و آیات)', sample: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ' },
             ].map((f) => {
               const active = fontFamily === f.id;
               return (
@@ -697,6 +703,40 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
                 </button>
               ))}
             </div>
+          </div>
+        </div>
+
+        
+        <div className="card-flat p-4 space-y-2.5">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-app font-bold text-sm block">حالت نمایش آیات قرآن کریم (۱۱۴ سوره)</span>
+              <span className="text-muted text-[11px]">انتخاب کنید سوره‌ها صفحه‌ای (مصحف کامل) باز شوند یا چند آیه با هم</span>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-1.5">
+            {[
+              { id: 'page' as QuranDisplayMode, label: '📄 صفحه‌ای (مصحف)' },
+              { id: 'chunk5' as QuranDisplayMode, label: '📑 ۵ آیه با هم' },
+              { id: 'single' as QuranDisplayMode, label: '🔍 تک‌آیه درشت' },
+            ].map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => {
+                  setQuranViewModeState(m.id);
+                  setQuranDisplayMode(m.id);
+                }}
+                className="py-2 px-2 rounded-xl text-xs font-bold border transition-all"
+                style={{
+                  borderColor: quranViewMode === m.id ? theme.primary : theme.border,
+                  background: quranViewMode === m.id ? theme.primary : 'transparent',
+                  color: quranViewMode === m.id ? theme.bg : theme.textMuted,
+                }}
+              >
+                {m.label}
+              </button>
+            ))}
           </div>
         </div>
 
