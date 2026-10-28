@@ -23,6 +23,7 @@ export function NotificationPermissionModal({ onGranted }: Props) {
 
     const checkInitialPrompt = async () => {
       const isNative = Capacitor.isNativePlatform();
+      if (!isNative) return;
       const alreadyPrompted = localStorage.getItem(ONBOARDING_PROMPT_KEY) === 'true';
       const perm = await checkPermission();
 

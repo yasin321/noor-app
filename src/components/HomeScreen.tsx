@@ -176,7 +176,7 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
       const seen = localStorage.getItem(TUTORIAL_SEEN_KEY);
       if (!seen) {
         localStorage.setItem(TUTORIAL_SEEN_KEY, 'true');
-        setShowTutorial(true);
+//        setShowTutorial(true);
       }
     } catch {}
   }, []);
