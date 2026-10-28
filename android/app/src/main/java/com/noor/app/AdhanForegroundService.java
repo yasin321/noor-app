@@ -19,6 +19,7 @@ import android.os.Looper;
 import android.os.PowerManager;
 import androidx.core.app.NotificationCompat;
 import java.io.File;
+import android.content.res.AssetFileDescriptor;
 
 public class AdhanForegroundService extends Service {
     public static final String ACTION_STOP = "com.noor.app.STOP_ADHAN";
@@ -166,9 +167,20 @@ public class AdhanForegroundService extends Service {
 
             if (isAdhanVoice) {
                 File downloadedFile = new File(new File(getFilesDir(), "adhans"), adhanId + ".mp3");
-                if (downloadedFile.exists() && downloadedFile.length() > 4096) {
+                boolean sourceSet = false;
+                if (downloadedFile.exists() && downloadedFile.length() > 15000 && downloadedFile.length() != 2289817L) {
                     mediaPlayer.setDataSource(downloadedFile.getAbsolutePath());
-                } else {
+                    sourceSet = true;
+                }
+                if (!sourceSet && !"mahur_saeed".equals(adhanId)) {
+                    try {
+                        AssetFileDescriptor afd = getAssets().openFd("public/adhans/" + adhanId + ".mp3");
+                        mediaPlayer.setDataSource(afd.getFileDescriptor(), afd.getStartOffset(), afd.getLength());
+                        afd.close();
+                        sourceSet = true;
+                    } catch (Exception ignored) {}
+                }
+                if (!sourceSet) {
                     Uri rawUri = Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.adhan_mahur);
                     mediaPlayer.setDataSource(this, rawUri);
                 }

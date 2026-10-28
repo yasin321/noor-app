@@ -222,99 +222,20 @@ export function RemindersScreen() {
         </button>
       </div>
 
-      {/* انتخابگر روتین ۲، ۵ یا ۱۵ دقیقه‌ای بدون سرزنش + دکمه محاسبه نفس */}
-      <div className="card-flat p-3.5 mb-3 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs font-bold text-app">ظرفیت روتین امروز:</span>
-          {([2, 5, 15] as RoutineBudgetMinutes[]).map((m) => (
-            <button
-              key={m}
-              type="button"
-              onClick={() => {
-                setRoutineMin(m);
-                setRoutineBudgetMinutes(m);
-                showToast(`🌿 برنامه روزانه روی ${toFaDigits(m)} دقیقه تنظیم شد. هر قدم کوچک ارزشمند است!`);
-              }}
-              className="px-2.5 py-1 rounded-xl text-[11px] font-bold"
-              style={{
-                background: routineMin === m ? theme.primary : `color-mix(in srgb, ${theme.primary} 10%, transparent)`,
-                color: routineMin === m ? theme.bg : theme.textMuted,
-              }}
-            >
-              {toFaDigits(m)} دقیقه
-            </button>
-          ))}
+      {/* میان‌بر تمیز دفترچه خلوت و محاسبه نفس شبانه */}
+      <div className="card-flat p-3.5 mb-3 flex items-center justify-between gap-2">
+        <div>
+          <span className="text-xs font-bold text-app block">🌙 خلوت شبانه و محاسبه نفس</span>
+          <span className="text-[11px] text-muted">ثبت شکرگزاری روزانه و نیت فردا (۱۰۰٪ خصوصی در گوشی)</span>
         </div>
         <button
           type="button"
           onClick={() => setShowMuhasaba(true)}
-          className="px-3 py-1.5 rounded-xl text-[11px] font-bold"
-          style={{ background: `color-mix(in srgb, ${theme.accent} 16%, transparent)`, color: theme.accent }}
+          className="px-3.5 py-2 rounded-xl text-xs font-bold shrink-0"
+          style={{ background: `color-mix(in srgb, ${theme.accent} 18%, transparent)`, color: theme.accent }}
         >
-          🌙 محاسبه نفس شبانه
+          ورود به دفترچه ←
         </button>
-      </div>
-
-      {/* کارت مدیریتی Planned vs. Actual امروز (شبیه داشبورد مدیریتی) */}
-      <div
-        className="rounded-3xl p-4 mb-4 border"
-        style={{
-          background: `radial-gradient(circle at top left, color-mix(in srgb, ${theme.primary} 16%, transparent), ${theme.surface})`,
-          borderColor: `color-mix(in srgb, ${theme.primary} 30%, ${theme.border})`,
-        }}
-      >
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-1.5">
-            <Flame size={16} color={theme.accent} />
-            <span className="text-xs font-bold text-app">تحقق برنامه عبادی امروز (Planned vs. Actual)</span>
-          </div>
-          <span className="text-xs font-black text-primary">
-            {toFaDigits(pva.todayCompleted)} از {toFaDigits(pva.todayPlanned)} ({toFaDigits(pva.todayPercent)}٪)
-          </span>
-        </div>
-        <div className="h-2.5 rounded-full overflow-hidden mb-2" style={{ background: `color-mix(in srgb, ${theme.primary} 12%, transparent)` }}>
-          <div
-            className="h-full rounded-full transition-all duration-500"
-            style={{
-              width: `${pva.todayPercent}%`,
-              background: `linear-gradient(90deg, ${theme.primary}, ${theme.accent})`,
-            }}
-          />
-        </div>
-        <div className="flex items-center justify-between gap-2 mt-3 pt-2.5 border-t" style={{ borderColor: theme.border }}>
-          <div className="flex gap-1.5">
-            <button
-              type="button"
-              onClick={() => setViewFilter("all")}
-              className="px-2.5 py-1.5 rounded-xl text-[11px] font-bold"
-              style={{
-                background: viewFilter === "all" ? theme.primary : "transparent",
-                color: viewFilter === "all" ? theme.bg : theme.textMuted,
-              }}
-            >
-              همه برنامه‌ها ({toFaDigits(reminders.length)})
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewFilter("today")}
-              className="px-2.5 py-1.5 rounded-xl text-[11px] font-bold"
-              style={{
-                background: viewFilter === "today" ? theme.primary : "transparent",
-                color: viewFilter === "today" ? theme.bg : theme.textMuted,
-              }}
-            >
-              فقط برنامه امروز ({toFaDigits(todayList.length)})
-            </button>
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowTodayPopup(true)}
-            className="px-3 py-1.5 rounded-xl text-[11px] font-bold border"
-            style={{ borderColor: theme.primary, color: theme.primary }}
-          >
-            📋 پاپ‌آپ خلاصه امروز
-          </button>
-        </div>
       </div>
 
       {showTodayPopup && typeof document !== "undefined" && createPortal(

@@ -3,11 +3,11 @@ try {
   const savedFont = localStorage.getItem('noor_font_family') || 'Vazirmatn';
   const mapFont: Record<string, string> = {
     Vazirmatn: "'Vazirmatn', system-ui, sans-serif",
-    Estedad: "'Estedad', 'Vazirmatn', sans-serif",
+    BNazanin: "'BNazaninWeb', 'Parastoo', 'Vazirmatn', serif",
+    Nastaliq: "'Gulzar', 'Mirza', 'Parastoo', serif",
     Parastoo: "'Parastoo', 'Vazirmatn', serif",
-    Shabnam: "'Shabnam', 'Vazirmatn', sans-serif",
     Samim: "'Samim', 'Vazirmatn', sans-serif",
-    AmiriQuran: "'Amiri', 'Parastoo', 'Vazirmatn', serif",
+    AmiriQuran: "'Amiri', 'Amiri Quran', 'Parastoo', serif",
   };
   document.documentElement.style.setProperty('--app-font', mapFont[savedFont] || mapFont.Vazirmatn);
   const savedScale = localStorage.getItem('noor_font_scale') || 'normal';

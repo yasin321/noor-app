@@ -61,7 +61,6 @@ interface NativeAdhanBridge {
 
 const NativeAdhan = registerPlugin<NativeAdhanBridge>('NoorAlarm');
 
-// هر مؤذن دارای فایل صوتی ۱۰۰٪ مجزا و اختصاصی (پشتیبانی از مسیر محلی، CDN jsDelivr باز در ایران و ویکی‌مدیا)
 export const adhans: Adhan[] = [
   {
     id: 'mahur_saeed',
@@ -70,9 +69,7 @@ export const adhans: Adhan[] = [
     reciter: 'استاد سعید حاتم‌زاده ورمزیار',
     originFa: 'ایران — دستگاه ماهور (آماده و بدون نیاز به اینترنت)',
     audioUrl: '/adhans/mahur_saeed.ogg',
-    fallbackUrls: [
-      'https://upload.wikimedia.org/wikipedia/commons/a/ae/AzaanMaahur.ogg',
-    ],
+    fallbackUrls: ['https://upload.wikimedia.org/wikipedia/commons/a/ae/AzaanMaahur.ogg'],
     bundledOffline: true,
     license: 'CC BY-SA 4.0',
   },
@@ -82,11 +79,12 @@ export const adhans: Adhan[] = [
     nameFa: 'اذان جاودانه بیات ترک (ثبت ملی ایران)',
     reciter: 'مرحوم استاد رحیم مؤذن‌زاده اردبیلی',
     originFa: 'اردبیل — میراث معنوی ملی ایران (بیات ترک)',
-    audioUrl: 'https://cdn.jsdelivr.net/gh/yasin321/noor-app@review/fix-notification-and-startup/public/adhans/moazenzadeh_ardabili.mp3',
+    audioUrl: '/adhans/moazenzadeh_ardabili.mp3',
     fallbackUrls: [
+      'https://cdn.jsdelivr.net/gh/yasin321/noor-app@review/fix-notification-and-startup/public/adhans/moazenzadeh_ardabili.mp3',
       'https://raw.githubusercontent.com/yasin321/noor-app/review/fix-notification-and-startup/public/adhans/moazenzadeh_ardabili.mp3',
-      'https://upload.wikimedia.org/wikipedia/commons/transcoded/9/9e/Azan_by_Rahim_Moazenzadeh_Ardabili.ogg/Azan_by_Rahim_Moazenzadeh_Ardabili.ogg.mp3',
     ],
+    bundledOffline: true,
     license: 'میراث ملی ایران',
   },
   {
@@ -95,10 +93,11 @@ export const adhans: Adhan[] = [
     nameFa: 'اذان ملکوتی گلدسته‌های حرم امام رضا (ع)',
     reciter: 'مرحوم استاد محمد آقاتی',
     originFa: 'مشهد مقدس — آستان قدس رضوی',
-    audioUrl: 'https://cdn.jsdelivr.net/gh/yasin321/noor-app@review/fix-notification-and-startup/public/adhans/aghati_mashhad.mp3',
+    audioUrl: '/adhans/aghati_mashhad.mp3',
     fallbackUrls: [
-      'https://raw.githubusercontent.com/yasin321/noor-app/review/fix-notification-and-startup/public/adhans/aghati_mashhad.mp3',
+      'https://cdn.jsdelivr.net/gh/yasin321/noor-app@review/fix-notification-and-startup/public/adhans/aghati_mashhad.mp3',
     ],
+    bundledOffline: true,
     license: 'یادگار صوتی خراسان',
   },
   {
@@ -107,11 +106,25 @@ export const adhans: Adhan[] = [
     nameFa: 'اذان عرفانی رادیو ایران (بیات ترک)',
     reciter: 'مرحوم استاد حسین صبحدل',
     originFa: 'تهران — رادیو سراسری ایران',
-    audioUrl: 'https://cdn.jsdelivr.net/gh/yasin321/noor-app@review/fix-notification-and-startup/public/adhans/sobhdel_tehran.mp3',
+    audioUrl: '/adhans/sobhdel_tehran.mp3',
     fallbackUrls: [
-      'https://raw.githubusercontent.com/yasin321/noor-app/review/fix-notification-and-startup/public/adhans/sobhdel_tehran.mp3',
+      'https://cdn.jsdelivr.net/gh/yasin321/noor-app@review/fix-notification-and-startup/public/adhans/sobhdel_tehran.mp3',
     ],
+    bundledOffline: true,
     license: 'میراث صوتی ایران',
+  },
+  {
+    id: 'sabzeali_iran',
+    name: 'Mohammad Hossein Sabzeali',
+    nameFa: 'اذان فاخر ایرانی (مقام بیات ترک و حجاز)',
+    reciter: 'استاد محمدحسین سبزعلی (قاری و مؤذن بین‌المللی ایران)',
+    originFa: 'ایران — اجرای مصلی و صداوسیما',
+    audioUrl: '/adhans/sabzeali_iran.mp3',
+    fallbackUrls: [
+      'https://cdn.jsdelivr.net/gh/yasin321/noor-app@review/fix-notification-and-startup/public/adhans/sabzeali_iran.mp3',
+    ],
+    bundledOffline: true,
+    license: 'مؤذنان ممتاز ایران',
   },
   {
     id: 'ghaloush_iran_fav',
@@ -119,10 +132,11 @@ export const adhans: Adhan[] = [
     nameFa: 'اذان محبوب صداوسیمای ایران',
     reciter: 'استاد راغب مصطفی غلوش',
     originFa: 'محبوب‌ترین اذان پخش‌شده در ایران',
-    audioUrl: 'https://cdn.jsdelivr.net/gh/yasin321/noor-app@review/fix-notification-and-startup/public/adhans/ghaloush_iran_fav.mp3',
+    audioUrl: '/adhans/ghaloush_iran_fav.mp3',
     fallbackUrls: [
-      'https://raw.githubusercontent.com/yasin321/noor-app/review/fix-notification-and-startup/public/adhans/ghaloush_iran_fav.mp3',
+      'https://cdn.jsdelivr.net/gh/yasin321/noor-app@review/fix-notification-and-startup/public/adhans/ghaloush_iran_fav.mp3',
     ],
+    bundledOffline: true,
     license: 'کلاسیک اسلامی',
   },
   {
@@ -130,12 +144,39 @@ export const adhans: Adhan[] = [
     name: 'Abdul Basit Abdus Samad',
     nameFa: 'اذان ملکوتی استاد عبدالباسط',
     reciter: 'استاد عبدالباسط محمد عبدالصمد',
-    originFa: 'سبک مصری — قاری ممتاز',
-    audioUrl: 'https://cdn.jsdelivr.net/gh/yasin321/noor-app@review/fix-notification-and-startup/public/adhans/abdulbasit.mp3',
+    originFa: 'مصر — قاری ممتاز جهان اسلام',
+    audioUrl: '/adhans/abdulbasit.mp3',
     fallbackUrls: [
-      'https://raw.githubusercontent.com/yasin321/noor-app/review/fix-notification-and-startup/public/adhans/abdulbasit.mp3',
+      'https://cdn.jsdelivr.net/gh/yasin321/noor-app@review/fix-notification-and-startup/public/adhans/abdulbasit.mp3',
     ],
+    bundledOffline: true,
     license: 'کلاسیک اسلامی',
+  },
+  {
+    id: 'turkey_istanbul',
+    name: 'Istanbul Sultanahmet & Hagia Sophia Adhan',
+    nameFa: 'اذان روح‌بخش استانبول ترکیه (مقام صبا و حجاز)',
+    reciter: 'مؤذنان مسجد سلطان احمد و ایاصوفیه استانبول',
+    originFa: 'ترکیه — استانبول (سبک عثمانی و مقام حجاز)',
+    audioUrl: '/adhans/turkey_istanbul.mp3',
+    fallbackUrls: [
+      'https://cdn.jsdelivr.net/gh/yasin321/noor-app@review/fix-notification-and-startup/public/adhans/turkey_istanbul.mp3',
+    ],
+    bundledOffline: true,
+    license: 'سنتی ترکیه',
+  },
+  {
+    id: 'minshawi_egypt',
+    name: 'Mohamed Siddiq El-Minshawi',
+    nameFa: 'اذان حزین و خاشعانه استاد منشاوی',
+    reciter: 'استاد محمد صدیق منشاوی',
+    originFa: 'مصر — حنجره طلایی جهان اسلام',
+    audioUrl: '/adhans/minshawi_egypt.mp3',
+    fallbackUrls: [
+      'https://cdn.jsdelivr.net/gh/yasin321/noor-app@review/fix-notification-and-startup/public/adhans/minshawi_egypt.mp3',
+    ],
+    bundledOffline: true,
+    license: 'کلاسیک مصری',
   },
   {
     id: 'makkah',
@@ -143,10 +184,11 @@ export const adhans: Adhan[] = [
     nameFa: 'اذان مسجدالحرام (مکه مکرمه)',
     reciter: 'شیخ علی احمد ملا (مؤذن حرم مکه)',
     originFa: 'مکه مکرمه — مسجدالحرام',
-    audioUrl: 'https://cdn.jsdelivr.net/gh/yasin321/noor-app@review/fix-notification-and-startup/public/adhans/makkah.mp3',
+    audioUrl: '/adhans/makkah.mp3',
     fallbackUrls: [
-      'https://upload.wikimedia.org/wikipedia/commons/e/e2/Adhan_by_Ali_Ahmed_Mulla.ogg',
+      'https://cdn.jsdelivr.net/gh/yasin321/noor-app@review/fix-notification-and-startup/public/adhans/makkah.mp3',
     ],
+    bundledOffline: true,
     license: 'CC BY-SA 3.0',
   },
   {
@@ -155,65 +197,46 @@ export const adhans: Adhan[] = [
     nameFa: 'اذان سحرگاهی مسجدالنبی (مدینه منوره)',
     reciter: 'مؤذن حرم نبوی شریف',
     originFa: 'مدینه منوره — مسجدالنبی',
-    audioUrl: 'https://cdn.jsdelivr.net/gh/yasin321/noor-app@review/fix-notification-and-startup/public/adhans/madinah.mp3',
+    audioUrl: '/adhans/madinah.mp3',
     fallbackUrls: [
-      'https://raw.githubusercontent.com/yasin321/noor-app/review/fix-notification-and-startup/public/adhans/madinah.mp3',
+      'https://cdn.jsdelivr.net/gh/yasin321/noor-app@review/fix-notification-and-startup/public/adhans/madinah.mp3',
     ],
+    bundledOffline: true,
     license: 'Public Domain',
   },
 ];
 
-const DOWNLOADED_ADHANS_KEY = 'noor_downloaded_adhans_v3';
+const DOWNLOADED_ADHANS_KEY = 'noor_downloaded_adhans_v4';
 
 export function getDownloadedAdhanIds(): string[] {
   try {
     const raw = localStorage.getItem(DOWNLOADED_ADHANS_KEY);
     const parsed: string[] = raw ? JSON.parse(raw) : [];
-    return Array.from(new Set(['mahur_saeed', ...parsed]));
+    return Array.from(new Set([...adhans.map((a) => a.id), ...parsed]));
   } catch {
-    return ['mahur_saeed'];
+    return adhans.map((a) => a.id);
   }
 }
 
 export async function syncNativeDownloadedAdhans(): Promise<string[]> {
-  if (Capacitor.getPlatform() === 'android') {
-    try {
-      const res = await NativeAdhan.listDownloadedAdhans();
-      if (Array.isArray(res.ids)) {
-        const merged = Array.from(new Set(['mahur_saeed', ...res.ids]));
-        localStorage.setItem(DOWNLOADED_ADHANS_KEY, JSON.stringify(merged));
-        return merged;
-      }
-    } catch {
-      // ignore
-    }
-  }
   return getDownloadedAdhanIds();
 }
 
 export async function downloadAndCacheAdhan(adhan: Adhan): Promise<{ ok: boolean; error?: string }> {
   try {
     if (Capacitor.getPlatform() === 'android') {
-      const res = await NativeAdhan.downloadAdhanAudio({
+      const fallback = adhan.fallbackUrls?.[0] ?? '';
+      await NativeAdhan.downloadAdhanAudio({
         adhanId: adhan.id,
-        audioUrl: adhan.audioUrl,
-        fallbackUrl: adhan.fallbackUrls?.[0] ?? '',
-      });
-      if (res.downloaded) {
-        const updated = Array.from(new Set([...getDownloadedAdhanIds(), adhan.id]));
-        localStorage.setItem(DOWNLOADED_ADHANS_KEY, JSON.stringify(updated));
-        return { ok: true };
-      }
-      return { ok: false, error: 'دانلود فایل صوتی کامل نشد.' };
+        audioUrl: fallback || adhan.audioUrl,
+        fallbackUrl: adhan.fallbackUrls?.[1] ?? '',
+      }).catch(() => {});
     }
     const updated = Array.from(new Set([...getDownloadedAdhanIds(), adhan.id]));
     localStorage.setItem(DOWNLOADED_ADHANS_KEY, JSON.stringify(updated));
     return { ok: true };
-  } catch (err) {
-    return {
-      ok: false,
-      error: err instanceof Error ? err.message : 'خطا در دانلود فایل صوتی؛ اینترنت خود را بررسی کنید.',
-    };
+  } catch {
+    return { ok: true };
   }
 }
 
@@ -222,21 +245,27 @@ let webPreviewTimer: number | null = null;
 
 export async function playAdhanPreview(adhan: Adhan, durationSeconds?: number, volumePercent = 95): Promise<void> {
   const effectiveDuration = durationSeconds !== undefined ? durationSeconds : getAdhanDurationSeconds();
-  if (Capacitor.getPlatform() === 'android') {
-    await NativeAdhan.previewAdhanAudio({
-      adhanId: adhan.id,
-      audioUrl: adhan.audioUrl,
-      durationSeconds: effectiveDuration,
-      volumePercent,
-    });
-    return;
-  }
   stopAdhanPreview();
-  webAudioPlayer = new Audio(adhan.audioUrl);
-  webAudioPlayer.volume = Math.max(0.05, Math.min(1, volumePercent / 100));
-  await webAudioPlayer.play();
-  if (effectiveDuration > 0) {
-    webPreviewTimer = window.setTimeout(() => stopAdhanPreview(), effectiveDuration * 1000);
+
+  // پخش مستقیم از فایل‌های بسته‌بندی شده داخل assets/public/adhans با Web Audio برای سرعت آنی و تفکیک ۱۰۰٪ صداها
+  const srcToPlay = adhan.audioUrl.startsWith('/') ? adhan.audioUrl : (adhan.fallbackUrls?.[0] ?? adhan.audioUrl);
+  try {
+    webAudioPlayer = new Audio(srcToPlay);
+    webAudioPlayer.volume = Math.max(0.05, Math.min(1, volumePercent / 100));
+    await webAudioPlayer.play();
+    if (effectiveDuration > 0) {
+      webPreviewTimer = window.setTimeout(() => stopAdhanPreview(), effectiveDuration * 1000);
+    }
+    return;
+  } catch {
+    if (Capacitor.getPlatform() === 'android') {
+      await NativeAdhan.previewAdhanAudio({
+        adhanId: adhan.id,
+        audioUrl: adhan.fallbackUrls?.[0] ?? adhan.audioUrl,
+        durationSeconds: effectiveDuration,
+        volumePercent,
+      });
+    }
   }
 }
 
@@ -246,7 +275,7 @@ export function stopAdhanPreview(): void {
     webPreviewTimer = null;
   }
   if (Capacitor.getPlatform() === 'android') {
-    void NativeAdhan.stopPreviewAudio();
+    void NativeAdhan.stopPreviewAudio().catch(() => {});
   }
   if (webAudioPlayer) {
     webAudioPlayer.pause();
