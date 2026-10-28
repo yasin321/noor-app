@@ -1,3 +1,4 @@
+import { getAdhanDurationMode, getAdhanDurationSeconds } from "@/lib/adhans";
 import { loadAdhanStudio } from "@/lib/deenIntelligenceStore";
 import { logEvent } from "@/lib/logger";
 
@@ -185,6 +186,9 @@ function resolvePrayerAlarmParams(reminderId: string): { soundType: string; adha
   const defaultAdhan = (() => {
     try { return localStorage.getItem("noor_guest_adhan_id") || "mahur_saeed"; } catch { return "mahur_saeed"; }
   })();
+  const globalMode = getAdhanDurationMode();
+  const globalDurSec = getAdhanDurationSeconds(globalMode);
+
   if (!reminderId.startsWith("prayer_auto_")) {
     return { soundType: "alarm", adhanId: defaultAdhan, durationSeconds: 0, volumePercent: 90 };
   }
@@ -194,16 +198,25 @@ function resolvePrayerAlarmParams(reminderId: string): { soundType: string; adha
     const prof = studio.profiles[studio.activeProfile];
     const cfg = prof?.prayers?.[key];
     if (cfg) {
-      const soundType = cfg.mode === "full_adhan" ? "adhan" : cfg.mode === "short_10s" ? "short_10s" : cfg.mode === "silent" ? "silent" : "alarm";
+      if (cfg.mode === "silent") {
+        return { soundType: "silent", adhanId: cfg.adhanId || defaultAdhan, durationSeconds: 0, volumePercent: 0 };
+      }
+      const isShort10 = globalMode === "10s" || cfg.mode === "short_10s";
+      const dur = isShort10 ? 10 : globalDurSec;
       return {
-        soundType,
+        soundType: isShort10 ? "short_10s" : "adhan",
         adhanId: cfg.adhanId || defaultAdhan,
-        durationSeconds: cfg.mode === "short_10s" ? 10 : 0,
-        volumePercent: cfg.volumePercent ?? 90,
+        durationSeconds: dur,
+        volumePercent: cfg.volumePercent ?? 95,
       };
     }
   } catch {}
-  return { soundType: "adhan", adhanId: defaultAdhan, durationSeconds: 0, volumePercent: 90 };
+  return {
+    soundType: globalMode === "10s" ? "short_10s" : "adhan",
+    adhanId: defaultAdhan,
+    durationSeconds: globalDurSec,
+    volumePercent: 95,
+  };
 }
 
 export async function cancelReminder(reminderId: string): Promise<ScheduleResult> {

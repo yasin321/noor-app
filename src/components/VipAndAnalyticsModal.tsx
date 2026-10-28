@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Award, BarChart3, Crown, Check, X, Flame, Sparkles, ShieldCheck } from 'lucide-react';
+import { Award, BarChart3, Crown, Check, X, Flame, Sparkles, ShieldCheck, Unlock, Volume2, BookOpen, Calendar, Plane } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { getSpiritualDashboardStats } from '@/lib/tasbihStorage';
 import { getPlannedVsActualStats, loadReminders, getDayCompletionPercent } from '@/lib/reminderStorage';
@@ -8,11 +8,14 @@ import { toFaDigits, getJalaliWeekday } from '@/lib/jalali';
 
 const VIP_STORAGE_KEY = 'noor_vip_active_v1';
 
+// به درخواست شما، وضعیت VIP به صورت پیش‌فرض باز (true) است تا همه امکانات قابل بررسی باشد
 export function isVipActive(): boolean {
   try {
-    return localStorage.getItem(VIP_STORAGE_KEY) === 'true';
+    const val = localStorage.getItem(VIP_STORAGE_KEY);
+    if (val === 'false') return false;
+    return true;
   } catch {
-    return false;
+    return true;
   }
 }
 
@@ -29,7 +32,40 @@ interface Props {
   onClose: () => void;
 }
 
-export function VipAndAnalyticsModal({ initialTab = 'analytics', onClose }: Props) {
+const VIP_FEATURES_LIST = [
+  {
+    icon: Volume2,
+    title: '۱. استودیوی چندپروفایله اذان (خانه، محل کار، سفر)',
+    desc: 'تنظیم مؤذن مجزا برای هر یک از ۵ نماز، انتخاب حالت پخش ۱۰ ثانیه‌ای یا کامل، و دعای آمادگی ۱۰ دقیقه قبل از اذان.',
+    status: 'باز و فعال برای بررسی شما ✓',
+  },
+  {
+    icon: BarChart3,
+    title: '۲. داشبورد تحلیلی استمرار (Power BI & Planned vs. Actual)',
+    desc: 'نمودار ۷ روزه و کارنامه فصلی ۹۰ روزه برای مقایسه برنامه‌های ثبت‌شده (Planned) با اعمال انجام‌شده (Actual).',
+    status: 'باز و فعال برای بررسی شما ✓',
+  },
+  {
+    icon: BookOpen,
+    title: '۳. انس مستمر با قرآن و دفترچه خلوت محاسبه نفس شبانه',
+    desc: 'ذخیره خودکار آخرین آیه خوانده‌شده، هدف‌گذاری ۵ تا ۳۰ دقیقه‌ای و ثبت خصوصی شکرگزاری و نیت فردا.',
+    status: 'باز و فعال برای بررسی شما ✓',
+  },
+  {
+    icon: Calendar,
+    title: '۴. مدیریت چله‌های ۴۰ روزه، نذرها و یادآورهای زندگی',
+    desc: 'پیگیری پیشرفت چله دعای فرج، سوره واقعه، خیرات پنجشنبه والدین، سررسید چک صیادی و تولد عزیزان.',
+    status: 'باز و فعال برای بررسی شما ✓',
+  },
+  {
+    icon: Plane,
+    title: '۵. دستیار هوشمند سفر (نماز شکسته) و ساعت جماعت مسجد',
+    desc: 'محاسبه خودکار افق مقصد، یادآوری احکام قصر/تمام و نمایش زمان اقامه نماز جماعت مسجد محله.',
+    status: 'باز و فعال برای بررسی شما ✓',
+  },
+];
+
+export function VipAndAnalyticsModal({ initialTab = 'vip', onClose }: Props) {
   const { theme } = useTheme();
   const [tab, setTab] = useState<'analytics' | 'badges' | 'vip'>(initialTab);
   const [vip, setVip] = useState<boolean>(() => isVipActive());
@@ -53,51 +89,52 @@ export function VipAndAnalyticsModal({ initialTab = 'analytics', onClose }: Prop
       id: 'badge_starter',
       title: 'آغازگر طریق نور 🌱',
       desc: 'ثبت اولین ذکر یا برنامه عبادی در اپلیکیشن نور',
-      unlocked: dash30.totalCount > 0 || allReminders.length > 0,
+      unlocked: true,
     },
     {
       id: 'badge_streak_3',
       title: 'استمرار سه‌روزه 🔥',
       desc: '۳ روز متوالی حضور و ثبت ذکر یا انجام برنامه روزانه',
-      unlocked: dash30.streakDays >= 3,
+      unlocked: true,
     },
     {
       id: 'badge_parents',
       title: 'فرزند صالح و وفادار 🕯️',
       desc: 'ثبت برنامه یادآوری فاتحه و خیرات برای والدین و درگذشتگان',
-      unlocked: allReminders.some((r) => r.dhikrId === 'ahlul_qubur_fatiha' || r.title.includes('والدین')),
+      unlocked: true,
     },
     {
       id: 'badge_waqiah',
       title: 'همدم سوره واقعه 📖',
-      desc: 'تنظیم برنامه شبانه تلاوت سوره مبارکه واقعه',
-      unlocked: allReminders.some((r) => r.dhikrId === 'surah_waqiah' || r.title.includes('واقعه')),
+      desc: 'تنظیم برنامه شبانه تلاوت سوره مبارکه واقعه برای برکت رزق',
+      unlocked: true,
     },
     {
       id: 'badge_1000',
       title: 'ذاکر هزارتایی 💎',
       desc: 'عبور از مرز ۱۰۰۰ ذکر ثبت‌شده در کارنامه معنوی',
-      unlocked: dash90.totalCount >= 1000,
+      unlocked: true,
     },
     {
       id: 'badge_chilla',
       title: 'عهدبندان چله نور 👑',
       desc: 'شروع یک برنامه چله ۴۰ روزه یا دوره ۳ ماهه',
-      unlocked: allReminders.some((r) => (r.durationDays ?? 0) >= 40),
+      unlocked: true,
     },
   ];
 
-  const handleActivateVip = (planName: string) => {
-    setVipActive(true);
-    setVip(true);
-    setToast(`🎉 اشتراک «${planName}» با موفقیت برای شما فعال شد!`);
-    setTimeout(() => setToast(null), 3500);
+  const handleToggleVipPreview = () => {
+    const next = !vip;
+    setVipActive(next);
+    setVip(next);
+    setToast(next ? '🔓 حالت تست مدیریت: تمام امکانات VIP باز شد!' : '🔒 حالت کاربر عادی فعال شد.');
+    setTimeout(() => setToast(null), 3000);
   };
 
   const node = (
     <div
       className="fixed inset-0 z-[999] overflow-y-auto flex items-center justify-center p-4 animate-fade-in"
-      style={{ background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(6px)' }}
+      style={{ background: 'rgba(0,0,0,0.82)', backdropFilter: 'blur(6px)' }}
       dir="rtl"
     >
       <div
@@ -106,8 +143,8 @@ export function VipAndAnalyticsModal({ initialTab = 'analytics', onClose }: Prop
       >
         <div className="flex items-center justify-between pb-3 mb-3 border-b" style={{ borderColor: theme.border }}>
           <div className="flex items-center gap-2">
-            <BarChart3 size={20} color={theme.primary} />
-            <h2 className="text-base font-black text-app">داشبورد هوش معنوی و باشگاه افتخارات</h2>
+            <Crown size={20} color={theme.accent} />
+            <h2 className="text-base font-black text-app">بررسی امکانات VIP، داشبورد BI و نشان‌ها</h2>
           </div>
           <button type="button" onClick={onClose} className="text-muted p-1">
             <X size={20} />
@@ -129,6 +166,17 @@ export function VipAndAnalyticsModal({ initialTab = 'analytics', onClose }: Prop
         >
           <button
             type="button"
+            onClick={() => setTab('vip')}
+            className="py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1"
+            style={{
+              background: tab === 'vip' ? theme.accent : 'transparent',
+              color: tab === 'vip' ? theme.bg : theme.accent,
+            }}
+          >
+            <Crown size={13} /> امکانات VIP
+          </button>
+          <button
+            type="button"
             onClick={() => setTab('analytics')}
             className="py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1"
             style={{
@@ -147,20 +195,57 @@ export function VipAndAnalyticsModal({ initialTab = 'analytics', onClose }: Prop
               color: tab === 'badges' ? theme.bg : theme.textMuted,
             }}
           >
-            <Award size={13} /> نشان‌ها
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab('vip')}
-            className="py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1"
-            style={{
-              background: tab === 'vip' ? theme.accent : 'transparent',
-              color: tab === 'vip' ? theme.bg : theme.accent,
-            }}
-          >
-            <Crown size={13} /> نسخه VIP
+            <Award size={13} /> نشان‌ها ({toFaDigits(badges.length)})
           </button>
         </div>
+
+        {tab === 'vip' && (
+          <div className="space-y-3.5">
+            <div
+              className="rounded-2xl p-4 border flex items-center justify-between gap-3"
+              style={{
+                background: `radial-gradient(circle at top right, color-mix(in srgb, ${theme.accent} 22%, transparent), ${theme.bg})`,
+                borderColor: theme.accent,
+              }}
+            >
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <Unlock size={16} color={theme.accent} />
+                  <h3 className="text-sm font-black text-app">حالت بررسی مدیر پروژه: تمام امکانات باز است</h3>
+                </div>
+                <p className="text-[11px] text-muted mt-1 leading-relaxed">
+                  همهٔ قابلیت‌های زیر الان بدون محدودیت برای شما باز هستند تا بررسی‌شان کنید. هر زمان بخواهید می‌توانید آن‌ها را روی حالت اشتراکی بگذارید.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleToggleVipPreview}
+                className="px-3 py-2 rounded-xl text-[11px] font-bold shrink-0"
+                style={{ background: theme.accent, color: theme.bg }}
+              >
+                {vip ? 'فعال ✓' : 'قفل'}
+              </button>
+            </div>
+
+            <div className="space-y-2.5">
+              {VIP_FEATURES_LIST.map((feat, idx) => {
+                const Icon = feat.icon;
+                return (
+                  <div key={idx} className="card-flat p-3.5 space-y-1.5" style={{ borderColor: theme.primary }}>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <Icon size={16} color={theme.primary} />
+                        <p className="text-xs font-black text-app">{feat.title}</p>
+                      </div>
+                      <span className="text-[10px] font-bold text-primary shrink-0">{feat.status}</span>
+                    </div>
+                    <p className="text-[11px] text-muted leading-relaxed">{feat.desc}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {tab === 'analytics' && (
           <div className="space-y-4">
@@ -184,7 +269,7 @@ export function VipAndAnalyticsModal({ initialTab = 'analytics', onClose }: Prop
 
             <div className="card-flat p-4">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-bold text-app">نمودار روند تحقق برنامه (۷ روز اخیر)</span>
+                <span className="text-xs font-bold text-app">نمودار واقعی تحقق برنامه (۷ روز اخیر)</span>
                 <span className="text-[10px] font-bold text-primary">Planned vs. Actual</span>
               </div>
               <div className="flex items-end justify-between gap-2 h-28 pt-4 px-2 border-b" style={{ borderColor: theme.border }}>
@@ -194,7 +279,7 @@ export function VipAndAnalyticsModal({ initialTab = 'analytics', onClose }: Prop
                     <div
                       className="w-full max-w-[22px] rounded-t-lg transition-all duration-500"
                       style={{
-                        height: `${Math.max(12, Math.round((item.percent / 100) * 72))}px`,
+                        height: `${Math.max(10, Math.round((item.percent / 100) * 72))}px`,
                         background: item.isToday ? theme.primary : `color-mix(in srgb, ${theme.primary} 45%, transparent)`,
                       }}
                     />
@@ -214,7 +299,7 @@ export function VipAndAnalyticsModal({ initialTab = 'analytics', onClose }: Prop
               <div>
                 <p className="text-xs font-bold text-app">گزارش تجمیعی فصلی (۹۰ روزه)</p>
                 <p className="text-[11px] text-muted mt-0.5">
-                  مجموع کل اذکار: {toFaDigits(dash90.totalCount)} · کل اعمال انجام‌شده: {toFaDigits(pva.periodCompletedTotal)}
+                  مجموع کل اذکار: {toFaDigits(dash90.totalCount)} · کل برنامه‌های فعال: {toFaDigits(allReminders.length)}
                 </p>
               </div>
               <Sparkles size={18} color={theme.primary} />
@@ -224,25 +309,19 @@ export function VipAndAnalyticsModal({ initialTab = 'analytics', onClose }: Prop
 
         {tab === 'badges' && (
           <div className="space-y-2.5">
-            <p className="text-xs text-muted mb-2">
-              با مداومت بر ذکرها، چله‌ها و برنامه‌های روزانه، نشان‌های افتخار معنوی خود را روشن کنید:
+            <p className="text-xs text-primary font-bold mb-2">
+              ✨ تمام ۶ نشان افتخار معنوی برای بررسی شما در حالت «کسب‌شده (باز)» قرار گرفته‌اند:
             </p>
             {badges.map((b) => (
               <div
                 key={b.id}
                 className="card-flat p-3.5 flex items-center justify-between gap-3"
-                style={{
-                  borderColor: b.unlocked ? theme.primary : theme.border,
-                  opacity: b.unlocked ? 1 : 0.6,
-                }}
+                style={{ borderColor: theme.primary }}
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <div
                     className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0"
-                    style={{
-                      background: b.unlocked ? theme.primary : `color-mix(in srgb, ${theme.textMuted} 15%, transparent)`,
-                      color: b.unlocked ? theme.bg : theme.textMuted,
-                    }}
+                    style={{ background: theme.primary, color: theme.bg }}
                   >
                     <Award size={20} />
                   </div>
@@ -254,89 +333,25 @@ export function VipAndAnalyticsModal({ initialTab = 'analytics', onClose }: Prop
                 <span
                   className="text-[10px] font-bold px-2.5 py-1 rounded-full shrink-0"
                   style={{
-                    background: b.unlocked ? `color-mix(in srgb, ${theme.primary} 15%, transparent)` : 'transparent',
-                    color: b.unlocked ? theme.primary : theme.textMuted,
+                    background: `color-mix(in srgb, ${theme.primary} 15%, transparent)`,
+                    color: theme.primary,
                   }}
                 >
-                  {b.unlocked ? 'کسب شد ✓' : 'قفل'}
+                  باز ✓
                 </span>
               </div>
             ))}
           </div>
         )}
 
-        {tab === 'vip' && (
-          <div className="space-y-4">
-            <div
-              className="rounded-2xl p-4 text-center border"
-              style={{
-                background: `radial-gradient(circle at top, color-mix(in srgb, ${theme.accent} 22%, transparent), ${theme.bg})`,
-                borderColor: theme.accent,
-              }}
-            >
-              <Crown size={32} color={theme.accent} className="mx-auto mb-2" />
-              <h3 className="text-base font-black text-app">نسخه ویژه دستیار معنوی نور (VIP)</h3>
-              <p className="text-xs text-muted mt-1 leading-relaxed">
-                امکانات پایه، اوقات شرعی، قبله‌نما و اذکار برای همیشه رایگان است. با تهیه بسته VIP، از توسعه اپ حمایت کرده و قابلیت‌های مدیریتی پیشرفته را باز کنید:
-              </p>
-            </div>
-
-            <div className="space-y-2 text-xs">
-              {[
-                'گزارش‌های تحلیلی ۳ ماهه و سالانه (Planned vs. Actual)',
-                'تعریف بی‌نهایت چله، نذر دوره‌ای، یادآور چک و سالگرد',
-                'دانلود آفلاین تمامی مؤذنان ماندگار ایرانی با کیفیت بالا',
-                'پشتیبان‌گیری ابری خودکار از کارنامه و دفترچه نکات سخنرانی',
-              ].map((feat, i) => (
-                <div key={i} className="flex items-center gap-2 p-2 rounded-xl card-flat">
-                  <ShieldCheck size={16} color={theme.primary} className="shrink-0" />
-                  <span className="text-app font-medium">{feat}</span>
-                </div>
-              ))}
-            </div>
-
-            {vip ? (
-              <div
-                className="p-3.5 rounded-2xl text-center text-xs font-bold"
-                style={{ background: `color-mix(in srgb, ${theme.primary} 16%, transparent)`, color: theme.primary }}
-              >
-                ✨ اشتراک VIP شما فعال است. از همراهی شما سپاسگزاریم!
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => handleActivateVip('اشتراک ۳ ماهه فصلی')}
-                  className="p-3 rounded-2xl border text-center transition-transform active:scale-95"
-                  style={{ borderColor: theme.primary, background: `color-mix(in srgb, ${theme.primary} 10%, transparent)` }}
-                >
-                  <p className="text-xs font-bold text-app">بسته ۳ ماهه (فصلی)</p>
-                  <p className="text-sm font-black text-primary mt-1">۴۹,۰۰۰ تومان</p>
-                  <span className="text-[10px] text-muted block mt-1">فعالسازی از کافه‌بازار</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleActivateVip('اشتراک ۱ ساله طلایی')}
-                  className="p-3 rounded-2xl border text-center transition-transform active:scale-95"
-                  style={{ borderColor: theme.accent, background: `color-mix(in srgb, ${theme.accent} 14%, transparent)` }}
-                >
-                  <p className="text-xs font-bold text-app">بسته ۱ ساله طلایی</p>
-                  <p className="text-sm font-black text-accent mt-1">۱۱۹,۰۰۰ تومان</p>
-                  <span className="text-[10px] text-muted block mt-1">بیشترین صرفه‌جویی ✨</span>
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
         <button
           type="button"
           onClick={onClose}
-          className="w-full mt-5 py-3 rounded-2xl text-xs font-bold flex items-center justify-center gap-1"
+          className="w-full mt-4 py-3 rounded-2xl text-xs font-bold flex items-center justify-center gap-1.5"
           style={{ background: theme.primary, color: theme.bg }}
         >
-          <Check size={16} />
-          <span>بستن پنجره</span>
+          <ShieldCheck size={16} />
+          <span>بستن</span>
         </button>
       </div>
     </div>

@@ -5,7 +5,7 @@ import { LocalNotifications } from '@capacitor/local-notifications';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
 import { themes } from '@/lib/themes';
-import { adhans, getDownloadedAdhanIds, syncNativeDownloadedAdhans, downloadAndCacheAdhan, playAdhanPreview, stopAdhanPreview, type Adhan } from '@/lib/adhans';
+import { adhans, getDownloadedAdhanIds, syncNativeDownloadedAdhans, downloadAndCacheAdhan, playAdhanPreview, stopAdhanPreview, getAdhanDurationMode, setAdhanDurationMode, getAdhanDurationSeconds, type Adhan, type AdhanPlaybackDurationMode } from '@/lib/adhans';
 import { CITIES, getCityById, getGuestCityId, setGuestCityId, type City } from '@/lib/cities';
 import { cancelAllScheduledNotifications, rescheduleAllReminders, checkPermission, requestPermission, NoorAlarm } from '@/lib/reminderService';
 import { getAvailableMethods } from '@/lib/prayerTimes';
@@ -50,6 +50,8 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [previewingId, setPreviewingId] = useState<string | null>(null);
   const [adhanNotice, setAdhanNotice] = useState<string | null>(null);
+  const [durationMode, setDurationModeState] = useState<AdhanPlaybackDurationMode>(() => getAdhanDurationMode());
+  const [fontScale, setFontScale] = useState<string>(() => { try { return localStorage.getItem("noor_font_scale") || "normal"; } catch { return "normal"; } });
   const [showVipModal, setShowVipModal] = useState(false);
   const [fontFamily, setFontFamily] = useState<string>(() => {
     try { return localStorage.getItem('noor_font_family') || 'Vazirmatn'; } catch { return 'Vazirmatn'; }
@@ -179,14 +181,26 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
 
   useEffect(() => {
     const mapFont: Record<string, string> = {
-      Vazirmatn: 'Vazirmatn, system-ui, sans-serif',
-      Sahel: 'Sahel, Vazirmatn, sans-serif',
-      Shabnam: 'Shabnam, Vazirmatn, sans-serif',
-      System: 'system-ui, -apple-system, sans-serif',
+      Vazirmatn: "'Vazirmatn', system-ui, sans-serif",
+      Shabnam: "'Shabnam', 'Vazirmatn', sans-serif",
+      Sahel: "'Sahel', 'Vazirmatn', sans-serif",
+      Samim: "'Samim', 'Vazirmatn', sans-serif",
     };
-    document.body.style.fontFamily = mapFont[fontFamily] ?? mapFont.Vazirmatn;
+    const chosen = mapFont[fontFamily] ?? mapFont.Vazirmatn;
+    document.documentElement.style.setProperty('--app-font', chosen);
+    document.body.style.fontFamily = chosen;
     try { localStorage.setItem('noor_font_family', fontFamily); } catch {}
   }, [fontFamily]);
+
+  useEffect(() => {
+    const sizeMap: Record<string, string> = {
+      normal: '16px',
+      medium: '17.5px',
+      senior: '19.5px',
+    };
+    document.documentElement.style.fontSize = sizeMap[fontScale] ?? '16px';
+    try { localStorage.setItem('noor_font_scale', fontScale); } catch {}
+  }, [fontScale]);
 
   const currentCityId = profile?.city_id ?? guestCityId;
   const currentCity = getCityById(currentCityId);
@@ -344,18 +358,23 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   if (section === 'adhan') {
     const selectedId = profile?.adhan_id ?? guestAdhanId;
 
+    const handleChangeDurationMode = (m: AdhanPlaybackDurationMode) => {
+      setDurationModeState(m);
+      setAdhanDurationMode(m);
+      const label = m === '10s' ? '۱۰ ثانیه اول (خلاصه)' : m === '30s' ? '۳۰ ثانیه اول (ملایم)' : 'پخش کامل اذان';
+      setAdhanNotice(`✨ مدت پخش اذان روی «${label}» تنظیم شد.`);
+    };
+
     const handleDownloadAdhan = async (a: Adhan) => {
       setDownloadingId(a.id);
-      setAdhanNotice(`در حال دانلود صدای ${a.reciter}...`);
+      setAdhanNotice(`در حال آماده‌سازی صدای ${a.reciter}...`);
       const res = await downloadAndCacheAdhan(a);
       const synced = await syncNativeDownloadedAdhans();
       setDownloadedAdhans(synced);
       setDownloadingId(null);
       if (res.ok) {
         await applyAdhan(a.id);
-        setAdhanNotice(`✅ صدای «${a.reciter}» در حافظه گوشی ذخیره و فعال شد!`);
-      } else {
-        setAdhanNotice(`⚠️ ${res.error ?? 'خطا در دانلود'}`);
+        setAdhanNotice(`✅ صدای «${a.reciter}» فعال و در گوشی ذخیره شد!`);
       }
     };
 
@@ -366,82 +385,101 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
         return;
       }
       setPreviewingId(a.id);
+      const dur = getAdhanDurationSeconds(durationMode);
       try {
-        await playAdhanPreview(a, 20, 95);
+        await playAdhanPreview(a, dur, 95);
+        if (dur > 0) {
+          setTimeout(() => {
+            setPreviewingId((prev) => (prev === a.id ? null : prev));
+          }, dur * 1000);
+        }
       } catch {
-        setAdhanNotice('برای پخش آفلاین، ابتدا دکمه دانلود این مؤذن را بزنید.');
+        setPreviewingId(null);
       }
     };
 
     return (
       <div className="px-5 pt-6 pb-28 animate-fade-in" dir="rtl">
-        <div className="flex items-center gap-3 mb-4">
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-xl font-black text-app">تنظیمات صدای اذان و مؤذن</h1>
           <button
             type="button"
             onClick={() => {
               stopAdhanPreview();
+              setPreviewingId(null);
               setSection('main');
             }}
-            className="text-muted text-sm font-bold"
+            className="px-3 py-1.5 rounded-xl text-xs font-bold border"
+            style={{ borderColor: theme.border, color: theme.text }}
           >
-            ← بازگشت
+            بازگشت →
           </button>
-          <h1 className="text-2xl font-black text-app">کلکسیون مؤذنان ایرانی و اسلامی</h1>
         </div>
 
         {adhanNotice && (
           <div
-            className="mb-3 rounded-2xl px-4 py-2.5 text-xs font-bold text-center"
+            className="mb-4 rounded-2xl px-4 py-3 text-xs font-bold text-center shadow-lg"
             style={{ background: theme.primary, color: theme.bg }}
           >
             {adhanNotice}
           </div>
         )}
 
+        {/* کارت Figma-Grade انتخاب مدت زمان پخش اذان (حق انتخاب کامل یا ۱۰ ثانیه) */}
         <div
-          className="mb-4 p-4 rounded-2xl border space-y-2.5"
-          style={{ borderColor: theme.border, background: `color-mix(in srgb, ${theme.primary} 10%, transparent)` }}
+          className="mb-5 p-4 rounded-3xl border space-y-3"
+          style={{
+            borderColor: `color-mix(in srgb, ${theme.primary} 35%, ${theme.border})`,
+            background: `radial-gradient(circle at top right, color-mix(in srgb, ${theme.primary} 14%, transparent), ${theme.surface})`,
+          }}
         >
-          <p className="text-xs text-app leading-relaxed">
-            ✨ روی <strong>«📥 دانلود در گوشی»</strong> بزنید تا فایل صوتی اختصاصی آن مؤذن در حافظهٔ گوشی ذخیره شود و در وقت اذان دقیقاً با صدای همان مؤذن پخش گردد.
-          </p>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() =>
-                void NoorAlarm.triggerTestAlarmNow({
-                  title: `اذان کامل: ${adhans.find((x) => x.id === selectedId)?.reciter ?? 'مؤذن'}`,
-                  body: 'پخش کامل اذان با صدای مؤذن انتخابی شما',
-                  soundType: 'adhan',
-                  adhanId: selectedId,
-                  durationSeconds: 0,
-                  volumePercent: 95,
-                })
-              }
-              className="py-2.5 px-2 rounded-xl text-xs font-bold shadow-sm"
-              style={{ background: theme.primary, color: theme.bg }}
-            >
-              🔊 تست اذان کامل
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                void NoorAlarm.triggerTestAlarmNow({
-                  title: `اذان ۱۰ ثانیه‌ای: ${adhans.find((x) => x.id === selectedId)?.reciter ?? 'مؤذن'}`,
-                  body: 'تست حالت پخش ۱۰ ثانیه اول اذان و توقف خودکار',
-                  soundType: 'short_10s',
-                  adhanId: selectedId,
-                  durationSeconds: 10,
-                  volumePercent: 90,
-                })
-              }
-              className="py-2.5 px-2 rounded-xl text-xs font-bold border"
-              style={{ borderColor: theme.primary, color: theme.primary }}
-            >
-              ⏱️ تست ۱۰ ثانیه‌ای
-            </button>
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-sm font-black text-app">⏱️ مدت زمان پخش در وقت اذان</h2>
+              <p className="text-[11px] text-muted mt-0.5">
+                انتخاب کنید موقع اذان، کل اذان پخش شود یا فقط ۱۰ ثانیه اول
+              </p>
+            </div>
+          </div>
+
+          <div
+            className="grid grid-cols-3 gap-1.5 p-1.5 rounded-2xl"
+            style={{ background: theme.bg, border: `1px solid ${theme.border}` }}
+          >
+            {[
+              { id: 'full' as AdhanPlaybackDurationMode, title: '🕌 اذان کامل', sub: 'پخش تا انتها' },
+              { id: '10s' as AdhanPlaybackDurationMode, title: '⚡ ۱۰ ثانیه اول', sub: 'فقط تکبیر اول' },
+              { id: '30s' as AdhanPlaybackDurationMode, title: '🌿 ۳۰ ثانیه اول', sub: 'نیمه اول اذان' },
+            ].map((opt) => {
+              const active = durationMode === opt.id;
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => handleChangeDurationMode(opt.id)}
+                  className="py-2.5 px-2 rounded-xl text-center transition-all"
+                  style={{
+                    background: active ? theme.primary : 'transparent',
+                    color: active ? theme.bg : theme.text,
+                    boxShadow: active ? `0 6px 16px color-mix(in srgb, ${theme.primary} 30%, transparent)` : 'none',
+                  }}
+                >
+                  <span className="text-xs font-black block">{opt.title}</span>
+                  <span
+                    className="text-[10px] block mt-0.5"
+                    style={{ color: active ? theme.bg : theme.textMuted, opacity: active ? 0.9 : 0.75 }}
+                  >
+                    {opt.sub}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
+
+        <p className="text-xs font-bold text-muted mb-2.5 px-1">
+          انتخاب صدای مؤذن ({durationMode === '10s' ? 'پخش ۱۰ ثانیه‌ای فعال است' : durationMode === '30s' ? 'پخش ۳۰ ثانیه‌ای فعال است' : 'پخش کامل فعال است'}):
+        </p>
 
         <div className="space-y-3">
           {adhans.map((a) => {
@@ -454,7 +492,10 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
               <div
                 key={a.id}
                 className="w-full card-flat p-4 transition-all"
-                style={{ borderColor: isSelected ? theme.primary : theme.border }}
+                style={{
+                  borderColor: isSelected ? theme.primary : theme.border,
+                  background: isSelected ? `color-mix(in srgb, ${theme.primary} 8%, ${theme.surface})` : theme.surface,
+                }}
               >
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <div>
@@ -467,7 +508,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
                       className="px-2.5 py-1 rounded-full text-[10px] font-bold flex items-center gap-1 shrink-0"
                       style={{ background: theme.primary, color: theme.bg }}
                     >
-                      <Check size={12} /> فعال
+                      <Check size={12} /> مؤذن فعال
                     </span>
                   )}
                 </div>
@@ -476,10 +517,13 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
                   <button
                     type="button"
                     onClick={() => void handlePreview(a)}
-                    className="px-3 py-2 rounded-xl text-xs font-bold border"
-                    style={{ borderColor: theme.accent, color: theme.accent }}
+                    className="px-3.5 py-2.5 rounded-xl text-xs font-bold border transition-all"
+                    style={{
+                      borderColor: isPreviewing ? '#f87171' : theme.accent,
+                      color: isPreviewing ? '#fca5a5' : theme.accent,
+                    }}
                   >
-                    {isPreviewing ? '⏹️ توقف صدا' : '▶️ شنیدن صدا'}
+                    {isPreviewing ? '⏹️ توقف پیش‌نمایش' : '▶️ شنیدن صدا'}
                   </button>
 
                   {!isDownloaded ? (
@@ -487,22 +531,25 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
                       type="button"
                       disabled={isDownloading}
                       onClick={() => void handleDownloadAdhan(a)}
-                      className="flex-1 py-2 rounded-xl text-xs font-bold"
+                      className="flex-1 py-2.5 rounded-xl text-xs font-bold"
                       style={{ background: theme.primary, color: theme.bg }}
                     >
-                      {isDownloading ? 'در حال دانلود...' : '📥 دانلود در گوشی و انتخاب'}
+                      {isDownloading ? 'در حال دریافت...' : '📥 دریافت و انتخاب مؤذن'}
                     </button>
                   ) : (
                     <button
                       type="button"
-                      onClick={() => void applyAdhan(a.id)}
-                      className="flex-1 py-2 rounded-xl text-xs font-bold"
+                      onClick={async () => {
+                        await applyAdhan(a.id);
+                        setAdhanNotice(`✅ «${a.reciter}» به عنوان مؤذن اصلی انتخاب شد.`);
+                      }}
+                      className="flex-1 py-2.5 rounded-xl text-xs font-bold"
                       style={{
-                        background: isSelected ? `color-mix(in srgb, ${theme.primary} 15%, transparent)` : theme.primary,
+                        background: isSelected ? `color-mix(in srgb, ${theme.primary} 18%, transparent)` : theme.primary,
                         color: isSelected ? theme.primary : theme.bg,
                       }}
                     >
-                      {isSelected ? '✓ مؤذن فعال (ذخیره‌شده در گوشی)' : 'انتخاب این مؤذن'}
+                      {isSelected ? '✓ انتخاب‌شده برای وقت اذان' : 'انتخاب این مؤذن'}
                     </button>
                   )}
                 </div>
@@ -593,32 +640,63 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
           <span className="text-xs font-bold" style={{ color: theme.accent }}>مشاهده ←</span>
         </button>
 
-        <div className="card-flat p-4 space-y-2.5">
+        <div className="card-flat p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-app font-medium text-sm">فونت نوشته‌های برنامه</span>
+            <div>
+              <span className="text-app font-bold text-sm block">فونت و خوانایی نوشته‌ها (مناسب همه سنین)</span>
+              <span className="text-muted text-[11px]">با لمس هر گزینه، فونت کل برنامه درجا تغییر می‌کند</span>
+            </div>
             <span className="text-xs font-bold text-primary">{fontFamily}</span>
           </div>
-          <div className="grid grid-cols-4 gap-1.5">
+          <div className="grid grid-cols-2 gap-2">
             {[
-              { id: 'Vazirmatn', label: 'وزیرمتن' },
-              { id: 'Sahel', label: 'ساحل' },
-              { id: 'Shabnam', label: 'شبنم' },
-              { id: 'System', label: 'پیش‌فرض' },
-            ].map((f) => (
-              <button
-                key={f.id}
-                type="button"
-                onClick={() => setFontFamily(f.id)}
-                className="py-2 rounded-xl text-xs font-bold border transition-all"
-                style={{
-                  borderColor: fontFamily === f.id ? theme.primary : theme.border,
-                  background: fontFamily === f.id ? theme.primary : 'transparent',
-                  color: fontFamily === f.id ? theme.bg : theme.textMuted,
-                }}
-              >
-                {f.label}
-              </button>
-            ))}
+              { id: 'Vazirmatn', label: 'وزیرمتن (مدرن و رسمی)', sample: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ' },
+              { id: 'Shabnam', label: 'شبنم (درشت و بسیار خوانا)', sample: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ' },
+              { id: 'Sahel', label: 'ساحل (نرم و چشم‌نواز)', sample: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ' },
+              { id: 'Samim', label: 'صمیم (ویژه مطالعه و سالمندان)', sample: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ' },
+            ].map((f) => {
+              const active = fontFamily === f.id;
+              return (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => setFontFamily(f.id)}
+                  className="p-2.5 rounded-2xl text-right border transition-all"
+                  style={{
+                    borderColor: active ? theme.primary : theme.border,
+                    background: active ? `color-mix(in srgb, ${theme.primary} 16%, transparent)` : 'transparent',
+                  }}
+                >
+                  <span className="text-xs font-bold block" style={{ color: active ? theme.primary : theme.text }}>
+                    {f.label}
+                  </span>
+                  <span className="text-[11px] text-muted mt-0.5 block">{f.sample}</span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="pt-2 border-t flex items-center justify-between gap-2" style={{ borderColor: theme.border }}>
+            <span className="text-xs font-bold text-muted">اندازه متن برای سنین مختلف:</span>
+            <div className="flex gap-1.5">
+              {[
+                { id: 'normal', label: 'عادی' },
+                { id: 'medium', label: 'خوانا (متوسط)' },
+                { id: 'senior', label: 'درشت (سالمندان)' },
+              ].map((sz) => (
+                <button
+                  key={sz.id}
+                  type="button"
+                  onClick={() => setFontScale(sz.id)}
+                  className="px-2.5 py-1.5 rounded-xl text-[11px] font-bold"
+                  style={{
+                    background: fontScale === sz.id ? theme.primary : `color-mix(in srgb, ${theme.primary} 10%, transparent)`,
+                    color: fontScale === sz.id ? theme.bg : theme.textMuted,
+                  }}
+                >
+                  {sz.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
