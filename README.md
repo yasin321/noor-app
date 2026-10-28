@@ -1,15 +1,11 @@
-# Noor App - Containerized React/TypeScript Application
+# 🌿 نور (Noor) — دستیار جامع معنوی، اوقات شرعی، مصحف قرآن و مسجدیاب هوشمند
 
-A modern web/mobile application built with **React**, **TypeScript**, **Vite**, and **Supabase**, fully containerized for production deployment.
+اپلیکیشن چندسکویی (Android APK & PWA) ساخته شده با **React 18, TypeScript, Vite, Tailwind CSS, Capacitor 8, Android Native (Java)** و **Supabase**.
 
-## DevOps & Infrastructure Highlights
-- **Multi-Stage Docker Build:** Uses `node:20-alpine` for building static assets and lightweight `nginx:alpine` for serving production traffic.
-- **CI/CD Ready:** Integrated with automated workflows (`.github/workflows`) for cloud build and deployment.
-
-## Quick Start with Docker
-```bash
-# Build the Docker image
-docker build -t noor-app:latest .
-
-# Run the container on port 8080
-docker run -d -p 8080:80 --name noor-web noor-app:latest
+## ✨ امکانات کلیدی معماری نسخه جدید
+- **🕌 مسجدیاب و مسیریاب هوشمند (متصل به وب‌سرویس نقشه نشان):** یافتن نزدیک‌ترین مساجد اطراف با GPS و محاسبه زمان رسیدن پیاده، با خودرو و اتوبوس.
+- **📖 مصحف کامل ۱۱۴ سوره قرآن کریم:** دارای ۳ حالت نمایش (صفحه‌ای/مصحف، ۵ آیه با هم، و تک‌آیه درشت) + کوک یادآور روزانه سوره بر اساس فاصله از اذان (مثلاً نیم ساعت بعد از اذان مغرب).
+- **🔊 کلکسیون مؤذنان ایران، ترکیه، مصر و حرمین:** شامل اذان مرحوم مؤذن‌زاده اردبیلی، استاد آقاتی، صبحدل، سبزعلی، غلوش، عبدالباسط، منشاوی و اذان استانبول ترکیه با قابلیت انتخاب مدت پخش (کامل / ۱۰ ثانیه اول / ۳۰ ثانیه اول).
+- **🔔 سیستم آلارم تمام‌صفحه نیتیو اندروید (`AlarmManager` + `ForegroundService`):** روشن کردن قفل صفحه و پخش اذان حتی در حالت بسته بودن برنامه و حفظ آلارم‌ها پس از ریستارت گوشی (`BOOT_COMPLETED`).
+- **🎨 تایپوگرافی اصیل ایرانی و شخصی‌سازی پویا:** مجهز به فونت‌های وزیرمتن، نازنین، نستعلیق، پرستو، صمیم و نسخ قرآنی به همراه تنظیم سایز ویژه سالمندان.
+- **📊 داشبورد تحلیلی استمرار (Planned vs. Actual):** مدیریت چله‌های ۴۰ روزه، خیرات والدین، دفترچه خصوصی محاسبه نفس شبانه و نمودار واقعی تحقق برنامه.

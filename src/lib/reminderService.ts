@@ -1,3 +1,25 @@
+import { getAdhanDurationMode, getAdhanDurationSeconds } from "@/lib/adhans";
+import { loadAdhanStudio } from "@/lib/deenIntelligenceStore";
+import { logEvent } from "@/lib/logger";
+
+import * as CapCore from '@capacitor/core';
+const { Capacitor } = CapCore;
+
+export interface NoorAlarmPlugin {
+  updateWidget?(options: { title: string; nextPrayer: string; subtitle: string }): Promise<{ updated: boolean }>;
+  scheduleNativeAlarm(opts: { id: number; triggerAtMillis: number; title: string; body: string; soundType?: string; adhanId?: string; durationSeconds?: number; volumePercent?: number }): Promise<{ scheduled: boolean }>;
+  cancelNativeAlarm(opts: { id: number }): Promise<void>;
+  triggerTestAlarmNow(opts?: { title?: string; body?: string; soundType?: string; adhanId?: string; durationSeconds?: number; volumePercent?: number }): Promise<void>;
+  updatePrayerWidget?(opts: { nextPrayerText: string; subtitleText: string }): Promise<void>;
+  requestAndGetLocation?(): Promise<{ granted: boolean; hasCoords: boolean; lat?: number; lng?: number }>;
+}
+export const NoorAlarm: NoorAlarmPlugin = typeof CapCore.registerPlugin === 'function'
+  ? CapCore.registerPlugin<NoorAlarmPlugin>('NoorAlarm')
+  : {
+      scheduleNativeAlarm: async () => ({ scheduled: true }),
+      cancelNativeAlarm: async () => {},
+      triggerTestAlarmNow: async () => {},
+    };
 import { LocalNotifications } from '@capacitor/local-notifications';
 import {
   LocalReminder,
@@ -113,6 +135,10 @@ export function getReminderNotificationIds(reminderId: string, count: number = R
 }
 
 export async function checkPermission(): Promise<PermissionState> {
+  if (!Capacitor.isNativePlatform() && typeof window !== "undefined" && "Notification" in window) {
+    const webPerm = Notification.permission === "default" ? "prompt" : (Notification.permission as PermissionState);
+    return webPerm;
+  }
   try {
     const { display } = await LocalNotifications.checkPermissions();
     if (display === 'granted') return 'granted';
@@ -125,6 +151,11 @@ export async function checkPermission(): Promise<PermissionState> {
 }
 
 export async function requestPermission(): Promise<PermissionState> {
+  logEvent("info", "ReminderService", "فراخوانی requestPermission");
+  if (!Capacitor.isNativePlatform() && typeof window !== "undefined" && "Notification" in window) {
+    const res = await Notification.requestPermission();
+    return res === "default" ? "prompt" : (res as PermissionState);
+  }
   try {
     const { display } = await LocalNotifications.requestPermissions();
     if (display === 'granted') return 'granted';
@@ -150,10 +181,51 @@ async function ensureChannel(): Promise<void> {
   }
 }
 
+
+function resolvePrayerAlarmParams(reminderId: string): { soundType: string; adhanId: string; durationSeconds: number; volumePercent: number } {
+  const defaultAdhan = (() => {
+    try { return localStorage.getItem("noor_guest_adhan_id") || "mahur_saeed"; } catch { return "mahur_saeed"; }
+  })();
+  const globalMode = getAdhanDurationMode();
+  const globalDurSec = getAdhanDurationSeconds(globalMode);
+
+  if (!reminderId.startsWith("prayer_auto_")) {
+    return { soundType: "alarm", adhanId: defaultAdhan, durationSeconds: 0, volumePercent: 90 };
+  }
+  const key = reminderId.replace("prayer_auto_", "") as "fajr" | "dhuhr" | "asr" | "maghrib" | "isha";
+  try {
+    const studio = loadAdhanStudio();
+    const prof = studio.profiles[studio.activeProfile];
+    const cfg = prof?.prayers?.[key];
+    if (cfg) {
+      if (cfg.mode === "silent") {
+        return { soundType: "silent", adhanId: cfg.adhanId || defaultAdhan, durationSeconds: 0, volumePercent: 0 };
+      }
+      const isShort10 = globalMode === "10s" || cfg.mode === "short_10s";
+      const dur = isShort10 ? 10 : globalDurSec;
+      return {
+        soundType: isShort10 ? "short_10s" : "adhan",
+        adhanId: cfg.adhanId || defaultAdhan,
+        durationSeconds: dur,
+        volumePercent: cfg.volumePercent ?? 95,
+      };
+    }
+  } catch {}
+  return {
+    soundType: globalMode === "10s" ? "short_10s" : "adhan",
+    adhanId: defaultAdhan,
+    durationSeconds: globalDurSec,
+    volumePercent: 95,
+  };
+}
+
 export async function cancelReminder(reminderId: string): Promise<ScheduleResult> {
   const ids = getReminderNotificationIds(reminderId);
   try {
     await LocalNotifications.cancel({ notifications: ids.map((id) => ({ id })) });
+    if (Capacitor.getPlatform() === 'android') {
+      for (const id of ids) { try { await NoorAlarm.cancelNativeAlarm({ id }); } catch {} }
+    }
     return { success: true, scheduledIds: ids };
   } catch (err) {
     return { success: false, error: `خطا در لغو: ${err}` };
@@ -162,7 +234,6 @@ export async function cancelReminder(reminderId: string): Promise<ScheduleResult
 
 export async function scheduleReminder(reminder: LocalReminder, notifEnabled: boolean = true): Promise<ScheduleResult> {
   if (!reminder.enabled) {
-    // Clear any previously scheduled occurrences when a reminder is disabled.
     await cancelReminder(reminder.id);
     return { success: true, scheduledIds: [] };
   }
@@ -175,6 +246,25 @@ export async function scheduleReminder(reminder: LocalReminder, notifEnabled: bo
   const perm = await checkPermission();
   if (perm !== 'granted') {
     return { success: false, error: 'اجازه اعلان داده نشده است' };
+  }
+
+  // Exact-alarm access is an Android-only setting. Calling this API on web/iOS
+  // can fail even though those platforms do not require Android's exact-alarm grant.
+  if (Capacitor.getPlatform() === 'android') {
+    try {
+      const { exact_alarm } = await LocalNotifications.checkExactNotificationSetting();
+      if (exact_alarm !== 'granted') {
+        return {
+          success: false,
+          error: 'اجازه آلارم‌ها و یادآوری‌ها داده نشده است؛ دسترسی آلارم دقیق اندروید را بررسی کن.',
+        };
+      }
+    } catch {
+      return {
+        success: false,
+        error: 'وضعیت اجازه آلارم دقیق قابل بررسی نیست؛ تنظیمات اعلان اندروید را بررسی کن.',
+      };
+    }
   }
 
   await ensureChannel();
@@ -204,6 +294,9 @@ export async function scheduleReminder(reminder: LocalReminder, notifEnabled: bo
           smallIcon: 'ic_stat_icon',
         }],
       });
+      if (Capacitor.getPlatform() === 'android') {
+        try { const p = resolvePrayerAlarmParams(reminder.id); if (p.soundType !== 'silent') await NoorAlarm.scheduleNativeAlarm({ id: notifId, triggerAtMillis: at.getTime(), title: reminder.title, body, ...p }); } catch {}
+      }
       return { success: true, scheduledIds: [notifId] };
     } catch (err) {
       return { success: false, error: `خطا در زمان‌بندی: ${err}` };
@@ -217,6 +310,7 @@ export async function scheduleReminder(reminder: LocalReminder, notifEnabled: bo
 
   const scheduledIds: number[] = [];
   const failed: string[] = [];
+
   for (let i = 0; i < occurrences.length; i++) {
     const notifId = reminderOccurrenceId(reminder.id, i);
     try {
@@ -230,6 +324,9 @@ export async function scheduleReminder(reminder: LocalReminder, notifEnabled: bo
           smallIcon: 'ic_stat_icon',
         }],
       });
+      if (Capacitor.getPlatform() === 'android' && i < 7) {
+        try { const p = resolvePrayerAlarmParams(reminder.id); if (p.soundType !== 'silent') await NoorAlarm.scheduleNativeAlarm({ id: notifId, triggerAtMillis: occurrences[i].getTime(), title: reminder.title, body, ...p }); } catch {}
+      }
       scheduledIds.push(notifId);
     } catch (err) {
       failed.push(`${occurrences[i].toISOString()}: ${err}`);
@@ -355,7 +452,7 @@ export async function rescheduleAll(notifEnabled: boolean = true): Promise<{ tot
     else failed++;
   }
 
-  return { total: all.length, succeeded, failed };
+  return { total: all.filter((reminder) => reminder.enabled).length, succeeded, failed };
 }
 
 export async function getPendingNotifications(): Promise<number[]> {
@@ -373,7 +470,6 @@ export async function cancelAllScheduledNotifications(): Promise<void> {
     await cancelReminder(r.id);
   }
 }
-
 
 export async function rescheduleAllReminders(
   notifEnabled: boolean = true
