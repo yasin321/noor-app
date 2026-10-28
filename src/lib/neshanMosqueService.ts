@@ -12,7 +12,7 @@ export interface NearbyMosque {
 }
 
 const NESHAN_API_KEY_STORAGE = 'noor_neshan_api_key_v1';
-const DEFAULT_NESHAN_KEY = import.meta.env.VITE_NESHAN_API_KEY || '';
+const DEFAULT_NESHAN_KEY = import.meta.env.VITE_NESHAN_API_KEY || "service.c2ba51761f214fe3a707e823b50b00c5";
 
 export function getNeshanApiKey(): string {
   try {
