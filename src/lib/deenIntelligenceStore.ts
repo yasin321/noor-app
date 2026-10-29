@@ -1,7 +1,60 @@
 export type SoundProfileId = 'home' | 'work' | 'travel';
 export type PrayerAlarmMode = 'full_adhan' | 'short_10s' | 'short_beep' | 'silent';
 
+
+export type PreAdhanChantId = 'tawashih_salawat' | 'quran_ayah' | 'dua_faraj' | 'istighfar_tasbih';
+
+export interface PreAdhanChantOption {
+  id: PreAdhanChantId;
+  titleFa: string;
+  categoryFa: string;
+  arabicText: string;
+  translationFa: string;
+  audioAdhanId: string;
+  durationSec: number;
+}
+
+export const PRE_ADHAN_CHANT_OPTIONS: PreAdhanChantOption[] = [
+  {
+    id: 'tawashih_salawat',
+    titleFa: 'تواشیح کوتاه و صلوات ملکوتی',
+    categoryFa: 'تواشیح و هم‌خوانی',
+    arabicText: 'إِنَّ اللَّهَ وَمَلَائِكَتَهُ يُصَلُّونَ عَلَى النَّبِيِّ ۚ اللَّهُمَّ صَلِّ عَلَى مُحَمَّدٍ وَآلِ مُحَمَّدٍ',
+    translationFa: 'آهنگ روح‌بخش تواشیح و صلوات برای آمادگی قلب و وضو پیش از وقت نماز',
+    audioAdhanId: 'abdulbasit',
+    durationSec: 12,
+  },
+  {
+    id: 'quran_ayah',
+    titleFa: 'آیه قرآنی کوتاه (اقامه نماز و آرامش دل)',
+    categoryFa: 'ذکر قرآنی',
+    arabicText: 'أَقِمِ الصَّلَاةَ لِدُلُوكِ الشَّمْسِ إِلَىٰ غَسَقِ اللَّيْلِ ۚ أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ',
+    translationFa: 'نماز را به پا دار؛ آگاه باش که با یاد خدا دل‌ها آرام می‌گیرد',
+    audioAdhanId: 'minshawi_egypt',
+    durationSec: 10,
+  },
+  {
+    id: 'dua_faraj',
+    titleFa: 'دعای کوتاه فرج و عاقبت‌به‌خیری',
+    categoryFa: 'دعای پیش از اذان',
+    arabicText: 'اللَّهُمَّ كُنْ لِوَلِيِّكَ الْحُجَّةِ بْنِ الْحَسَنِ ❀ اللَّهُمَّ عَافِنَا وَاعْفُ عَنَّا وَتَقَبَّلْ مِنَّا',
+    translationFa: 'دعای سلامتی حضرت ولی‌عصر (عج) و طلب عافیت پیش از حلول وقت اذان',
+    audioAdhanId: 'aghati_mashhad',
+    durationSec: 12,
+  },
+  {
+    id: 'istighfar_tasbih',
+    titleFa: 'استغفار و ذکر آماده شدن برای نماز',
+    categoryFa: 'ذکر کوتاه',
+    arabicText: 'أَسْتَغْفِرُ اللَّهَ رَبِّي وَأَتُوبُ إِلَيْهِ ❀ سُبْحَانَ اللَّهِ وَالْحَمْدُ لِلَّهِ وَلَا إِلَٰهَ إِلَّا اللَّهُ',
+    translationFa: 'پاک شدن دل با استغفار و تسبیح پیش از ایستادن در محضر پروردگار',
+    audioAdhanId: 'mahur_saeed',
+    durationSec: 10,
+  },
+];
+
 export interface PrayerStudioConfig {
+  preChantId?: PreAdhanChantId;
   mode: PrayerAlarmMode;
   volumePercent: number; // 10 to 100
   preReminderMinutes: number; // 0, 10, 15, 30

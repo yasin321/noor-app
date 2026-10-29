@@ -3,7 +3,7 @@ import { MapPin, Clock, Sunrise, Sunset, Moon, Sun, CloudSun, ArrowLeft, Hand, B
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
 import { calculatePrayerTimes, getNextPrayer, getLocalDateString, timeToMinutes, PrayerTimes } from '@/lib/prayerTimes';
-import { CITIES, getCityById, getGuestCityId, setGuestCityId } from '@/lib/cities';
+import { CITIES, getCityById, getGuestCityId, setGuestCityId, getCustomGpsCoords, saveCustomGpsCoords } from '@/lib/cities';
 import { getTodayTotal, getTodayRounds, getSession, fetchTodayStats, startSession } from '@/lib/tasbihStorage';
 import { toJalaliShort, getJalaliWeekday, toFaDigits } from '@/lib/jalali';
 import { dhikrLibrary } from '@/lib/dhikrLibrary';
@@ -196,7 +196,7 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
 
   useEffect(() => {
     const refreshNow = () => setNow(new Date());
-    const interval = setInterval(refreshNow, 1000);
+    const interval = setInterval(refreshNow, 15000);
     document.addEventListener('visibilitychange', refreshNow);
     window.addEventListener('focus', refreshNow);
     return () => {
@@ -224,7 +224,10 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
   }, [todayDate, user?.id]);
 
   useEffect(() => {
-    const t = calculatePrayerTimes(now, city.lat, city.lng, city.timezone, method);
+    const exactGps = getCustomGpsCoords();
+    const calcLat = exactGps ? exactGps.lat : city.lat;
+    const calcLng = exactGps ? exactGps.lng : city.lng;
+    const t = calculatePrayerTimes(now, calcLat, calcLng, city.timezone, method);
     t.location = city.nameFa;
     setTimes(t);
 
@@ -306,6 +309,7 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
 
   const detectNearestCity = async () => {
     const applyCoords = (latitude: number, longitude: number) => {
+      saveCustomGpsCoords(latitude, longitude);
       let nearest = CITIES[0];
       let minDist = Infinity;
       for (const c of CITIES) {

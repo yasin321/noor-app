@@ -116,7 +116,39 @@ export async function searchNearbyMosques(lat: number, lng: number): Promise<{
     }
   }
 
-  // ب) استعلام زنده از بانک اطلاعات جغرافیایی مساجد ایران (بدون نیاز به کلید)
+  // ب) جستجوی دقیق مساجد واقعی محله در شعاع ۳.۵ کیلومتری مختصات کاربر (Nominatim + Overpass)
+  try {
+    const delta = 0.035;
+    const viewbox = `${lng - delta},${lat + delta},${lng + delta},${lat - delta}`;
+    const nomRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent('مسجد')}&bounded=1&viewbox=${viewbox}&limit=15&accept-language=fa`);
+    if (nomRes.ok) {
+      const nomArr = await nomRes.json();
+      if (Array.isArray(nomArr) && nomArr.length > 0) {
+        const list = nomArr.map((item) => {
+          const mLat = parseFloat(item.lat);
+          const mLng = parseFloat(item.lon);
+          const dist = haversineMeters(lat, lng, mLat, mLng);
+          const est = computeTravelEstimates(dist);
+          const parts = (item.display_name || '').split('،').map((s) => s.trim());
+          const rawName = item.name || parts[0] || 'مسجد محله';
+          const name = rawName.includes('مسجد') || rawName.includes('حسینیه') || rawName.includes('حرم') ? rawName : `مسجد ${rawName}`;
+          return {
+            id: `nom_${item.place_id}`,
+            name,
+            address: parts.slice(1, 4).join('، ') || userAddress,
+            lat: mLat,
+            lng: mLng,
+            distanceMeters: dist,
+            ...est,
+            category: name.includes('جامع') ? 'مسجد جامع' : name.includes('حرم') ? 'حرم و زیارتگاه' : 'مسجد محله',
+          };
+        }).sort((a, b) => a.distanceMeters - b.distanceMeters);
+        if (list.length > 0) return { mosques: list, userAddress, source: 'osm_iran' };
+      }
+    }
+  } catch {}
+
+  // ج) استعلام زنده از بانک اطلاعات جغرافیایی مساجد ایران
   try {
     const query = `[out:json][timeout:8];(node["amenity"="place_of_worship"]["religion"="muslim"](around:4500,${lat},${lng});way["amenity"="place_of_worship"]["religion"="muslim"](around:4500,${lat},${lng}););out center 15;`;
     const osmRes = await fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`);

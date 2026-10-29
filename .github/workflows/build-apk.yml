@@ -8,7 +8,7 @@ on:
     branches: [main]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -126,3 +126,24 @@ jobs:
             /tmp/noor-logcat.txt
           if-no-files-found: ignore
           retention-days: 7
+
+      - name: Prepare Official APK File Name
+        if: success() && github.ref == 'refs/heads/main'
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk Noor-v2.0.0-Android.apk
+
+      - name: Publish Official GitHub Release & Tag (v2.0.0)
+        if: success() && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v2.0.0
+          name: "🌿 نسخه ۲.۰.۰ اپلیکیشن نور (Noor Official Release)"
+          body: |
+            ### ✨ ویژگی‌های نسخه ۲.۰.۰ اپلیکیشن نور
+            - **🕌 مسجدیاب و مسیریاب هوشمند نشان:** یافتن نزدیک‌ترین مساجد اطراف با GPS به همراه زمان پیاده، خودرو و اتوبوس.
+            - **📖 مصحف کامل ۱۱۴ سوره قرآن کریم:** نمایش صفحه‌ای (مصحف)، ۵ آیه‌ای و تک‌آیه + کوک یادآور سوره بعد از اذان.
+            - **🔊 کلکسیون مؤذنان ایران، ترکیه، مصر و حرمین:** امکان انتخاب پخش کامل یا ۱۰ ثانیه اول اذان + تواشیح پیش از اذان.
+            - **🎨 فونت‌های اصیل ایرانی:** وزیرمتن، نازنین، نستعلیق، پرستو، صمیم و نسخ قرآنی.
+          files: Noor-v2.0.0-Android.apk
+          overwrite_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

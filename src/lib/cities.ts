@@ -74,3 +74,27 @@ export function setGuestCityId(id: string): void {
     // ignore
   }
 }
+
+const CUSTOM_GPS_KEY = 'noor_exact_gps_coords_v1';
+
+export function saveCustomGpsCoords(lat: number, lng: number, labelFa?: string): void {
+  try {
+    localStorage.setItem(CUSTOM_GPS_KEY, JSON.stringify({ lat, lng, labelFa: labelFa || '' }));
+  } catch {}
+}
+
+export function getCustomGpsCoords(): { lat: number; lng: number; labelFa: string } | null {
+  try {
+    const raw = localStorage.getItem(CUSTOM_GPS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (typeof parsed?.lat === 'number' && typeof parsed?.lng === 'number') return parsed;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function clearCustomGpsCoords(): void {
+  try { localStorage.removeItem(CUSTOM_GPS_KEY); } catch {}
+}

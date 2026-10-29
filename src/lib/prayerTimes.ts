@@ -120,7 +120,7 @@ export function getLocalDateString(date: Date = new Date(), timezone?: string): 
 type MethodParams = { fajrAngle: number; ishaAngle: number; maghribAngle?: number; ishaMinutesAfterMaghrib?: number };
 
 const METHODS: Record<string, MethodParams> = {
-  jafari: { fajrAngle: 16, ishaAngle: 14, maghribAngle: 4 },
+  jafari: { fajrAngle: 17.7, ishaAngle: 14, maghribAngle: 4.5 },
   tehran: { fajrAngle: 17.7, ishaAngle: 14, maghribAngle: 4.5 },
   mwl: { fajrAngle: 18, ishaAngle: 17 },
   egyptian: { fajrAngle: 19.5, ishaAngle: 17.5 },
@@ -208,7 +208,7 @@ export function calculatePrayerTimes(
   const fajr = sunAngleTime(params.fajrAngle, true, noonMinutes);
   const sunrise = sunAngleTime(0.833, true, noonMinutes);
   const sunset = sunAngleTime(0.833, false, noonMinutes);
-  const dhuhr = minutesToTime(noonMinutes + 2);
+  const dhuhr = minutesToTime(Math.round(noonMinutes));
   const asr = asrTime(1, noonMinutes);
   const maghribAngle = params.maghribAngle ?? 0.833;
   const maghrib = sunAngleTime(maghribAngle, false, noonMinutes);

@@ -31,3 +31,5 @@ createRoot(document.getElementById('root')!).render(
     <App />
   </StrictMode>
 );
+
+try { document.getElementById('noor-celestial-splash')?.remove(); } catch {}

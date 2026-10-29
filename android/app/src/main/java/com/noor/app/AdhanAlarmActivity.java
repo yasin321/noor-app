@@ -34,59 +34,65 @@ public class AdhanAlarmActivity extends AppCompatActivity {
 
         String titleText = getIntent() != null && getIntent().getStringExtra("title") != null
                 ? getIntent().getStringExtra("title")
-                : "اذان و یادآوری نور";
+                : "وقت اذان و نیایش";
         String bodyText = getIntent() != null && getIntent().getStringExtra("body") != null
                 ? getIntent().getStringExtra("body")
-                : "حَیَّ عَلَی الصَّلَاة — وقت آرامش و نیایش";
+                : "حَیَّ عَلَی الصَّلَاة — وقت فضیلت نماز فرا رسیده است";
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setGravity(Gravity.CENTER);
-        root.setBackgroundColor(Color.parseColor("#062E22"));
+        root.setBackgroundColor(Color.parseColor("#04151F"));
         root.setPadding(72, 72, 72, 72);
 
         TextView badge = new TextView(this);
-        badge.setText("🌿 اپلیکیشن نور");
+        badge.setText("🕌 همراه معنوی نور");
         badge.setTextColor(Color.parseColor("#34D399"));
-        badge.setTextSize(18f);
+        badge.setTextSize(20f);
+        badge.setTypeface(Typeface.DEFAULT_BOLD);
         badge.setGravity(Gravity.CENTER);
 
         TextView title = new TextView(this);
         title.setText(titleText);
-        title.setTextColor(Color.parseColor("#FEF3C7"));
-        title.setTextSize(32f);
+        title.setTextColor(Color.parseColor("#FEF08A"));
+        title.setTextSize(30f);
         title.setTypeface(Typeface.DEFAULT_BOLD);
         title.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        titleParams.setMargins(0, 36, 0, 24);
+        titleParams.setMargins(0, 40, 0, 24);
         title.setLayoutParams(titleParams);
 
         TextView body = new TextView(this);
         body.setText(bodyText);
-        body.setTextColor(Color.parseColor("#D1FAE5"));
+        body.setTextColor(Color.parseColor("#E2E8F0"));
         body.setTextSize(18f);
         body.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams bodyParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        bodyParams.setMargins(0, 0, 0, 96);
+        bodyParams.setMargins(0, 0, 0, 84);
         body.setLayoutParams(bodyParams);
 
         Button stopBtn = new Button(this);
-        stopBtn.setText("توقف صدا و بستن صفحه");
-        stopBtn.setTextColor(Color.parseColor("#062E22"));
+        stopBtn.setText("⏹️ توقف اذان و بستن");
+        stopBtn.setTextColor(Color.parseColor("#04151F"));
         stopBtn.setTextSize(18f);
         stopBtn.setTypeface(Typeface.DEFAULT_BOLD);
-
-        GradientDrawable btnBg = new GradientDrawable();
-        btnBg.setColor(Color.parseColor("#FBBF24"));
-        btnBg.setCornerRadius(48f);
-        stopBtn.setBackground(btnBg);
+        GradientDrawable stopBg = new GradientDrawable();
+        stopBg.setColor(Color.parseColor("#FBBF24"));
+        stopBg.setCornerRadius(48f);
+        stopBtn.setBackground(stopBg);
         stopBtn.setPadding(64, 36, 64, 36);
+        LinearLayout.LayoutParams stopParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        stopParams.setMargins(0, 0, 0, 28);
+        stopBtn.setLayoutParams(stopParams);
 
         stopBtn.setOnClickListener(v -> {
             Intent stopIntent = new Intent(this, AdhanForegroundService.class);
@@ -95,10 +101,39 @@ public class AdhanAlarmActivity extends AppCompatActivity {
             finishAndRemoveTask();
         });
 
+        Button openAppBtn = new Button(this);
+        openAppBtn.setText("🌿 ورود به اپلیکیشن نور");
+        openAppBtn.setTextColor(Color.parseColor("#34D399"));
+        openAppBtn.setTextSize(16f);
+        openAppBtn.setTypeface(Typeface.DEFAULT_BOLD);
+        GradientDrawable openBg = new GradientDrawable();
+        openBg.setColor(Color.parseColor("#0F2922"));
+        openBg.setStroke(3, Color.parseColor("#10B981"));
+        openBg.setCornerRadius(48f);
+        openAppBtn.setBackground(openBg);
+        openAppBtn.setPadding(64, 32, 64, 32);
+        LinearLayout.LayoutParams openParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        openAppBtn.setLayoutParams(openParams);
+
+        openAppBtn.setOnClickListener(v -> {
+            Intent stopIntent = new Intent(this, AdhanForegroundService.class);
+            stopIntent.setAction(AdhanForegroundService.ACTION_STOP);
+            startService(stopIntent);
+
+            Intent mainIntent = new Intent(this, MainActivity.class);
+            mainIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            startActivity(mainIntent);
+            finish();
+        });
+
         root.addView(badge);
         root.addView(title);
         root.addView(body);
         root.addView(stopBtn);
+        root.addView(openAppBtn);
         setContentView(root);
 
         IntentFilter filter = new IntentFilter(ACTION_CLOSE_UI);
@@ -122,7 +157,8 @@ public class AdhanAlarmActivity extends AppCompatActivity {
                 WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED |
                 WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD |
                 WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON |
-                WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+                WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON |
+                WindowManager.LayoutParams.FLAG_FULLSCREEN
         );
     }
 
