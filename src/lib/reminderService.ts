@@ -34,6 +34,20 @@ export interface NoorAlarmPluginInterface {
 
 export const NoorAlarm = registerPlugin<NoorAlarmPluginInterface>('NoorAlarm');
 
+const DAY_LABELS_FA: Record<number, string> = {
+  6: 'شنبه',
+  0: 'یکشنبه',
+  1: 'دوشنبه',
+  2: 'سه‌شنبه',
+  3: 'چهارشنبه',
+  4: 'پنجشنبه',
+  5: 'جمعه',
+};
+
+export function getDayLabel(day: number): string {
+  return DAY_LABELS_FA[day] ?? '';
+}
+
 function resolvePrayerAlarmParams(reminderId: string): {
   soundType: string;
   adhanId: string;
@@ -142,9 +156,42 @@ export function buildNotificationBody(reminder: LocalReminder): string {
   if (reminder.body.trim()) return reminder.body.trim();
   if (reminder.dhikrId) {
     const d = dhikrLibrary.find((x) => x.id === reminder.dhikrId);
-    if (d) return `${d.arabic} — ${d.meaningFa} (${d.count} بار)`;
+    if (d) return `${d.arabic} — ${d.translationFa} (${d.count} بار)`;
   }
   return 'وقت یادآوری ذکر و نیایش است';
+}
+
+export function getUpcomingOccurrences(
+  timeStr: string,
+  days: number[],
+  fromDate: Date = new Date(),
+  horizonDays = 14
+): Date[] {
+  const parts = timeStr.split(':');
+  if (parts.length !== 2) return [];
+  const hour = Number(parts[0]);
+  const minute = Number(parts[1]);
+  if (isNaN(hour) || isNaN(minute) || hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+    return [];
+  }
+
+  const results: Date[] = [];
+  for (let offset = 0; offset <= horizonDays; offset++) {
+    const candidate = new Date(
+      fromDate.getFullYear(),
+      fromDate.getMonth(),
+      fromDate.getDate() + offset,
+      hour,
+      minute,
+      0,
+      0
+    );
+    if (candidate <= fromDate) continue;
+    if (days.length === 0 || days.includes(candidate.getDay())) {
+      results.push(candidate);
+    }
+  }
+  return results;
 }
 
 export function computeNextOccurrences(
@@ -152,30 +199,7 @@ export function computeNextOccurrences(
   days: number[],
   horizonDays = 14
 ): Date[] {
-  const [hour, minute] = timeStr.split(':').map(Number);
-  if (isNaN(hour) || isNaN(minute)) return [];
-
-  const now = new Date();
-  const results: Date[] = [];
-
-  for (let offset = 0; offset < horizonDays; offset++) {
-    const candidate = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate() + offset,
-      hour,
-      minute,
-      0,
-      0
-    );
-    if (candidate <= now) continue;
-
-    if (days.length === 0 || days.includes(candidate.getDay())) {
-      results.push(candidate);
-    }
-  }
-
-  return results;
+  return getUpcomingOccurrences(timeStr, days, new Date(), horizonDays);
 }
 
 export function computeSingleOccurrence(dateStr: string | null, timeStr: string): Date | null {
@@ -195,7 +219,7 @@ export async function cancelReminder(reminderId: string): Promise<void> {
   if (!Capacitor.isNativePlatform()) return;
 
   const existingIds = scheduledSlotMap.get(reminderId) ?? [];
-  const fallbackIds = Array.from({ length: 14 }, (_, i) => reminderIdToNotifId(reminderId, i));
+  const fallbackIds = Array.from({ length: 15 }, (_, i) => reminderIdToNotifId(reminderId, i));
   const allIds = Array.from(new Set([...existingIds, ...fallbackIds]));
 
   try {
@@ -203,7 +227,7 @@ export async function cancelReminder(reminderId: string): Promise<void> {
       notifications: allIds.map((id) => ({ id })),
     });
     if (Capacitor.getPlatform() === 'android') {
-      for (const id of allIds.slice(0, 14)) {
+      for (const id of allIds.slice(0, 15)) {
         try {
           await NoorAlarm.cancelNativeAlarm({ id });
         } catch {
@@ -220,15 +244,15 @@ export async function cancelReminder(reminderId: string): Promise<void> {
 export async function scheduleReminder(
   reminder: LocalReminder,
   globalNotifEnabled = true
-): Promise<{ success: boolean; scheduledCount: number; error?: string }> {
+): Promise<{ success: boolean; scheduledCount: number; scheduledIds: number[]; error?: string }> {
   await cancelReminder(reminder.id);
 
   if (!reminder.enabled || !globalNotifEnabled) {
-    return { success: true, scheduledCount: 0 };
+    return { success: true, scheduledCount: 0, scheduledIds: [] };
   }
 
   if (!Capacitor.isNativePlatform()) {
-    return { success: true, scheduledCount: 1 };
+    return { success: true, scheduledCount: 1, scheduledIds: [reminderIdToNotifId(reminder.id, 0)] };
   }
 
   const perm = await checkPermission();
@@ -238,6 +262,7 @@ export async function scheduleReminder(
       return {
         success: false,
         scheduledCount: 0,
+        scheduledIds: [],
         error: 'مجوز اعلان داده نشده است. لطفاً از تنظیمات گوشی، اعلان‌های برنامه نور را فعال کنید.',
       };
     }
@@ -252,9 +277,15 @@ export async function scheduleReminder(
         } catch {
           // ignore
         }
+        return {
+          success: false,
+          scheduledCount: 0,
+          scheduledIds: [],
+          error: 'برای پخش دقیق اذان و یادآوری در زمان قفل بودن صفحه، دسترسی «آلارم‌ها و یادآوری‌ها» را فعال کنید.',
+        };
       }
     } catch {
-      // ignore
+      // ignore if checkExactNotificationSetting is not supported
     }
   }
 
@@ -269,76 +300,32 @@ export async function scheduleReminder(
       return {
         success: false,
         scheduledCount: 0,
+        scheduledIds: [],
         error: 'تاریخ و ساعت انتخاب‌شده در گذشته است. لطفاً زمان آینده انتخاب کنید.',
       };
     }
 
     const notifId = reminderIdToNotifId(reminder.id, 0);
     try {
-      if (Capacitor.getPlatform() === 'android') {
-        const p = resolvePrayerAlarmParams(reminder.id);
-        await NoorAlarm.scheduleNativeAlarm({
-          id: notifId,
-          triggerAtMillis: target.getTime(),
-          title: reminder.title,
-          body,
-          ...p,
-        });
-      } else {
-        await LocalNotifications.schedule({
-          notifications: [
-            {
-              id: notifId,
-              title: reminder.title,
-              body,
-              channelId: targetChannelId,
-              sound: isPrayerAdhan ? 'adhan_mahur' : undefined,
-              schedule: { at: target, allowWhileIdle: true },
-              extra: { reminderId: reminder.id, dhikrId: reminder.dhikrId ?? '' },
-            },
-          ],
-        });
-      }
-      scheduledSlotMap.set(reminder.id, [notifId]);
-      logEvent('info', 'ReminderService', `آلارم یک‌باره زمان‌بندی شد: ${reminder.title}`, {
-        at: target.toISOString(),
+      await LocalNotifications.schedule({
+        notifications: [
+          {
+            id: notifId,
+            title: reminder.title,
+            body,
+            channelId: targetChannelId,
+            sound: isPrayerAdhan ? 'adhan_mahur' : undefined,
+            schedule: { at: target, allowWhileIdle: true },
+            extra: { reminderId: reminder.id, dhikrId: reminder.dhikrId ?? '' },
+          },
+        ],
       });
-      return { success: true, scheduledCount: 1 };
-    } catch (err) {
-      logEvent('error', 'ReminderService', 'خطا در زمان‌بندی آلارم یک‌باره', { error: String(err) });
-      return { success: false, scheduledCount: 0, error: 'خطا در ثبت اعلان در سیستم‌عامل.' };
-    }
-  }
-
-  const occurrences = computeNextOccurrences(reminder.time, reminder.days, 14);
-  if (occurrences.length === 0) {
-    return { success: true, scheduledCount: 0 };
-  }
-
-  const scheduledIds: number[] = [];
-  const notifications = occurrences.map((atDate, idx) => {
-    const notifId = reminderIdToNotifId(reminder.id, idx);
-    scheduledIds.push(notifId);
-    return {
-      id: notifId,
-      title: reminder.title,
-      body,
-      channelId: targetChannelId,
-      sound: isPrayerAdhan ? 'adhan_mahur' : undefined,
-      schedule: { at: atDate, allowWhileIdle: true },
-      extra: { reminderId: reminder.id, dhikrId: reminder.dhikrId ?? '' },
-    };
-  });
-
-  try {
-    if (Capacitor.getPlatform() === 'android') {
-      for (let i = 0; i < occurrences.length; i++) {
-        const notifId = reminderIdToNotifId(reminder.id, i);
+      if (Capacitor.getPlatform() === 'android') {
         try {
           const p = resolvePrayerAlarmParams(reminder.id);
           await NoorAlarm.scheduleNativeAlarm({
             id: notifId,
-            triggerAtMillis: occurrences[i].getTime(),
+            triggerAtMillis: target.getTime(),
             title: reminder.title,
             body,
             ...p,
@@ -347,32 +334,86 @@ export async function scheduleReminder(
           // ignore
         }
       }
-    } else {
-      await LocalNotifications.schedule({ notifications });
+      scheduledSlotMap.set(reminder.id, [notifId]);
+      logEvent('info', 'ReminderService', `آلارم یک‌باره زمان‌بندی شد: ${reminder.title}`, {
+        at: target.toISOString(),
+      });
+      return { success: true, scheduledCount: 1, scheduledIds: [notifId] };
+    } catch (err) {
+      logEvent('error', 'ReminderService', 'خطا در زمان‌بندی آلارم یک‌باره', { error: String(err) });
+      return { success: false, scheduledCount: 0, scheduledIds: [], error: 'خطا در ثبت اعلان در سیستم‌عامل.' };
+    }
+  }
+
+  const occurrences = getUpcomingOccurrences(reminder.time, reminder.days, new Date(), 14);
+  if (occurrences.length === 0) {
+    return { success: true, scheduledCount: 0, scheduledIds: [] };
+  }
+
+  const scheduledIds: number[] = [];
+  try {
+    for (let idx = 0; idx < occurrences.length; idx++) {
+      const atDate = occurrences[idx];
+      const notifId = reminderIdToNotifId(reminder.id, idx);
+      scheduledIds.push(notifId);
+      await LocalNotifications.schedule({
+        notifications: [
+          {
+            id: notifId,
+            title: reminder.title,
+            body,
+            channelId: targetChannelId,
+            sound: isPrayerAdhan ? 'adhan_mahur' : undefined,
+            schedule: { at: atDate, allowWhileIdle: true },
+            extra: { reminderId: reminder.id, dhikrId: reminder.dhikrId ?? '' },
+          },
+        ],
+      });
+      if (Capacitor.getPlatform() === 'android' && idx < 14) {
+        try {
+          const p = resolvePrayerAlarmParams(reminder.id);
+          await NoorAlarm.scheduleNativeAlarm({
+            id: notifId,
+            triggerAtMillis: atDate.getTime(),
+            title: reminder.title,
+            body,
+            ...p,
+          });
+        } catch {
+          // ignore
+        }
+      }
     }
     scheduledSlotMap.set(reminder.id, scheduledIds);
     logEvent('info', 'ReminderService', `یادآور تکرارشونده زمان‌بندی شد: ${reminder.title}`, {
-      count: notifications.length,
+      count: scheduledIds.length,
       time: reminder.time,
     });
-    return { success: true, scheduledCount: notifications.length };
+    return { success: true, scheduledCount: scheduledIds.length, scheduledIds };
   } catch (err) {
     logEvent('error', 'ReminderService', 'خطا در زمان‌بندی یادآور تکرارشونده', { error: String(err) });
-    return { success: false, scheduledCount: 0, error: 'خطا در زمان‌بندی اعلان.' };
+    return { success: false, scheduledCount: 0, scheduledIds: [], error: 'خطا در زمان‌بندی اعلان.' };
   }
 }
 
 export async function rescheduleAllReminders(
   globalNotifEnabled = true
-): Promise<{ total: number; succeeded: number }> {
+): Promise<{ total: number; succeeded: number; failed: string[] }> {
   const reminders = loadReminders();
   let succeeded = 0;
+  const failed: string[] = [];
   for (const r of reminders) {
     const res = await scheduleReminder(r, globalNotifEnabled);
-    if (res.success) succeeded++;
+    if (res.success) {
+      succeeded++;
+    } else if (res.error) {
+      failed.push(res.error);
+    }
   }
-  return { total: reminders.length, succeeded };
+  return { total: reminders.length, succeeded, failed };
 }
+
+export const rescheduleAll = rescheduleAllReminders;
 
 export async function cancelAllScheduledNotifications(): Promise<void> {
   if (!Capacitor.isNativePlatform()) return;
@@ -389,45 +430,54 @@ export async function cancelAllScheduledNotifications(): Promise<void> {
   }
 }
 
+export interface ReminderMutationResult {
+  reminder: LocalReminder;
+  schedule: { success: boolean; error?: string };
+  scheduleResult: { success: boolean; error?: string };
+}
+
 export async function createReminder(params: {
   title: string;
   body?: string;
   time: string;
   days: number[];
   dhikrId?: string | null;
-  type: 'once' | 'recurring';
+  type?: 'once' | 'recurring';
   date?: string | null;
   notifEnabled?: boolean;
-}): Promise<{ reminder: LocalReminder; scheduleResult: { success: boolean; error?: string } }> {
+}): Promise<ReminderMutationResult> {
   const now = new Date().toISOString();
+  const rType = params.type ?? 'recurring';
   const reminder: LocalReminder = {
     id: generateReminderId(),
     title: params.title.trim(),
     body: (params.body ?? '').trim(),
     time: params.time,
-    days: params.type === 'recurring' ? params.days : [],
+    days: rType === 'recurring' ? params.days : [],
     enabled: true,
     dhikrId: params.dhikrId ?? null,
-    type: params.type,
-    date: params.type === 'once' ? (params.date ?? null) : null,
+    type: rType,
+    date: rType === 'once' ? (params.date ?? null) : null,
     createdAt: now,
     updatedAt: now,
   };
 
   saveReminder(reminder);
   const res = await scheduleReminder(reminder, params.notifEnabled ?? true);
-  return { reminder, scheduleResult: { success: res.success, error: res.error } };
+  const statusObj = { success: res.success, error: res.error };
+  return { reminder, schedule: statusObj, scheduleResult: statusObj };
 }
 
 export async function updateReminder(
   id: string,
   patch: Partial<Omit<LocalReminder, 'id' | 'createdAt'>>,
   notifEnabled = true
-): Promise<{ reminder: LocalReminder | null; scheduleResult: { success: boolean; error?: string } }> {
+): Promise<{ reminder: LocalReminder | null; schedule: { success: boolean; error?: string }; scheduleResult: { success: boolean; error?: string } }> {
   const all = loadReminders();
   const existing = all.find((r) => r.id === id);
   if (!existing) {
-    return { reminder: null, scheduleResult: { success: false, error: 'یادآوری یافت نشد' } };
+    const errObj = { success: false, error: 'یادآوری یافت نشد' };
+    return { reminder: null, schedule: errObj, scheduleResult: errObj };
   }
 
   const updated: LocalReminder = {
@@ -438,7 +488,21 @@ export async function updateReminder(
 
   saveReminder(updated);
   const res = await scheduleReminder(updated, notifEnabled);
-  return { reminder: updated, scheduleResult: { success: res.success, error: res.error } };
+  const statusObj = { success: res.success, error: res.error };
+  return { reminder: updated, schedule: statusObj, scheduleResult: statusObj };
+}
+
+export async function toggleReminder(
+  id: string,
+  notifEnabled = true
+): Promise<{ reminder: LocalReminder | null; schedule: { success: boolean; error?: string }; scheduleResult: { success: boolean; error?: string } }> {
+  const all = loadReminders();
+  const existing = all.find((r) => r.id === id);
+  if (!existing) {
+    const errObj = { success: false, error: 'یادآوری یافت نشد' };
+    return { reminder: null, schedule: errObj, scheduleResult: errObj };
+  }
+  return updateReminder(id, { enabled: !existing.enabled }, notifEnabled);
 }
 
 export async function deleteReminder(id: string): Promise<void> {

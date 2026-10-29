@@ -235,3 +235,12 @@ export function getDayCompletionPercent(date: Date): number {
   const done = planned.filter((r) => isReminderCompletedOnDate(r.id, date)).length;
   return Math.round((done / planned.length) * 100);
 }
+
+export function reminderIdToNotifId(id: string, slotIndex = 0): number {
+  let hash = 0;
+  const key = `${id}#${slotIndex}`;
+  for (let i = 0; i < key.length; i++) {
+    hash = (hash * 31 + key.charCodeAt(i)) | 0;
+  }
+  return (Math.abs(hash) % 900000) + 100000;
+}

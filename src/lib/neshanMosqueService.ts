@@ -129,7 +129,7 @@ export async function searchNearbyMosques(lat: number, lng: number): Promise<{
           const mLng = parseFloat(item.lon);
           const dist = haversineMeters(lat, lng, mLat, mLng);
           const est = computeTravelEstimates(dist);
-          const parts = (item.display_name || '').split('،').map((s) => s.trim());
+          const parts = String(item.display_name || '').split('،').map((s: string) => s.trim());
           const rawName = item.name || parts[0] || 'مسجد محله';
           const name = rawName.includes('مسجد') || rawName.includes('حسینیه') || rawName.includes('حرم') ? rawName : `مسجد ${rawName}`;
           return {
@@ -140,7 +140,7 @@ export async function searchNearbyMosques(lat: number, lng: number): Promise<{
             lng: mLng,
             distanceMeters: dist,
             ...est,
-            category: name.includes('جامع') ? 'مسجد جامع' : name.includes('حرم') ? 'حرم و زیارتگاه' : 'مسجد محله',
+            category: (name.includes('جامع') ? 'مسجد جامع' : name.includes('حرم') ? 'حرم و زیارتگاه' : 'مسجد محله') as NearbyMosque['category'],
           };
         }).sort((a, b) => a.distanceMeters - b.distanceMeters);
         if (list.length > 0) return { mosques: list, userAddress, source: 'osm_iran' };
