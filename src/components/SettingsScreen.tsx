@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Palette, Volume2, Bell, LogOut, User, Check, LogIn, MapPin,
-  AlertCircle, Type, LayoutGrid, Crown, HelpCircle, ChevronLeft, Navigation, BookOpen, Shield
+  AlertCircle, Type, LayoutGrid, Crown, HelpCircle, ChevronLeft,
+  Navigation, BookOpen, Shield, Download, Upload, CloudUpload, Database
 } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
@@ -21,6 +22,7 @@ import { getDhikr } from '@/lib/dhikrLibrary';
 import { getQuranDisplayMode, setQuranDisplayMode, type QuranDisplayMode } from '@/lib/quranCatalog';
 import { getHomeModulesVisibility, setHomeModulesVisibility, type HomeModulesVisibility } from '@/components/HomeScreen';
 import { getNeshanApiKey, setNeshanApiKey } from '@/lib/neshanMosqueService';
+import { syncLocalStateToCloud } from '@/lib/cloudSyncService';
 import { AppTutorialModal } from '@/components/AppTutorialModal';
 import { VipAndAnalyticsModal } from '@/components/VipAndAnalyticsModal';
 import { getDiagnosticLogs, clearDiagnosticLogs, type AppLogEntry } from '@/lib/logger';
@@ -41,7 +43,7 @@ function setGuestNotifEnabled(enabled: boolean): void {
   try { localStorage.setItem(GUEST_NOTIF_KEY, enabled ? 'true' : 'false'); } catch {}
 }
 
-type SettingsSection = 'main' | 'typography' | 'adhan' | 'city' | 'method' | 'theme' | 'customize' | 'neshan' | 'logs';
+type SettingsSection = 'main' | 'typography' | 'adhan' | 'city' | 'method' | 'theme' | 'customize' | 'neshan' | 'backup' | 'logs';
 
 const FONT_OPTIONS = [
   { id: 'Vazirmatn', nameFa: 'فونت وزیرمتن (استاندارد مدرن)', desc: 'بهترین خوانایی در رابط کاربری مدرن', sample: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ — همراه معنوی نور' },
@@ -81,8 +83,10 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   const [showGuide, setShowGuide] = useState(false);
   const [notifSupported, setNotifSupported] = useState(true);
   const [notifMessage, setNotifMessage] = useState<string | null>(null);
+  const [backupNotice, setBackupNotice] = useState<string | null>(null);
   const [period, setPeriod] = useState<PeriodRange>(30);
   const [logs, setLogs] = useState<AppLogEntry[]>([]);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [guestMethod, setGuestMethod] = useState(() => {
     try { return localStorage.getItem('noor_guest_calc_method') || 'jafari'; } catch { return 'jafari'; }
@@ -92,8 +96,12 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   const topDhikrObj = getDhikr(dash.topDhikrId);
   const notifEnabled = profile?.notif_enabled ?? guestNotif;
 
+  // قطع خودکار صدای پیش‌نمایش اذان هنگام خروج از تب تنظیمات
   useEffect(() => {
     setNotifSupported(Capacitor.isNativePlatform());
+    return () => {
+      stopAdhanPreview();
+    };
   }, []);
 
   useEffect(() => {
@@ -157,6 +165,62 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
       await cancelAllScheduledNotifications();
       setNotifMessage('اعلان‌های یادآوری خاموش شدند.');
     }
+  };
+
+  const handleExportLocalBackup = () => {
+    try {
+      const backupData: Record<string, string | null> = {};
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith('noor_')) {
+          backupData[k] = localStorage.getItem(k);
+        }
+      }
+      const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `noor-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setBackupNotice('✅ فایل پشتیبان با موفقیت در گوشی شما دانلود شد.');
+    } catch {
+      setBackupNotice('⚠️ خطا در ساخت فایل پشتیبان.');
+    }
+  };
+
+  const handleImportLocalBackup = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      try {
+        const parsed = JSON.parse(String(ev.target?.result || '{}'));
+        if (!parsed || typeof parsed !== 'object') throw new Error('Invalid');
+        let restoredCount = 0;
+        for (const [k, v] of Object.entries(parsed)) {
+          if (k.startsWith('noor_') && typeof v === 'string') {
+            localStorage.setItem(k, v);
+            restoredCount++;
+          }
+        }
+        await rescheduleAllReminders(notifEnabled);
+        setBackupNotice(`✅ ${toFaDigits(restoredCount)} بخش از اطلاعات و چله‌های شما با موفقیت بازیابی شد!`);
+      } catch {
+        setBackupNotice('⚠️ فایل انتخابی معتبر نیست.');
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleCloudSyncNow = async () => {
+    if (!user?.id) {
+      setBackupNotice('برای پشتیبان‌گیری ابری، ابتدا وارد حساب کاربری شوید یا از دانلود فایل پشتیبان در گوشی استفاده کنید.');
+      return;
+    }
+    setBackupNotice('در حال همگام‌سازی با سرور ابری...');
+    const ok = await syncLocalStateToCloud(user.id);
+    setBackupNotice(ok ? '✅ تمام چله‌ها، موضع قرآن و تنظیمات در حساب ابری شما ذخیره شد.' : '⚠️ خطا در ارتباط با سرور ابری.');
   };
 
   const currentCityId = profile?.city_id ?? guestCityId;
@@ -368,7 +432,91 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
     );
   }
 
-  // ۳. زیرصفحه تنظیمات نقشه و مسجدیاب نشان
+  // ۳. زیرصفحه پشتیبان‌گیری و بازیابی اطلاعات (Backup & Restore)
+  if (section === 'backup') {
+    return (
+      <div className="px-5 pt-6 pb-28 animate-fade-in" dir="rtl">
+        <SubHeader title="پشتیبان‌گیری و حفظ اطلاعات" />
+
+        {backupNotice && (
+          <div
+            className="mb-4 rounded-2xl px-4 py-3 text-xs font-bold text-center shadow-lg"
+            style={{ background: theme.primary, color: theme.bg }}
+          >
+            {backupNotice}
+          </div>
+        )}
+
+        <div className="space-y-3.5">
+          <div className="card-flat p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <Download size={18} color={theme.primary} />
+              <p className="text-sm font-bold text-app">۱. دانلود فایل پشتیبان در حافظه گوشی</p>
+            </div>
+            <p className="text-xs text-muted leading-relaxed">
+              تمام چله‌های ۴۰ روزه، یادآوری‌ها، آخرین آیه قرآن، دفترچه محاسبه نفس و آمار تسبیح خود را در یک فایل ذخیره کنید تا حتی در صورت تعویض گوشی، هرگز پاک نشوند.
+            </p>
+            <button
+              type="button"
+              onClick={handleExportLocalBackup}
+              className="w-full py-3 rounded-2xl text-xs font-bold flex items-center justify-center gap-2"
+              style={{ background: theme.primary, color: theme.bg }}
+            >
+              <Download size={16} />
+              <span>دانلود فایل پشتیبان (JSON)</span>
+            </button>
+          </div>
+
+          <div className="card-flat p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <Upload size={18} color={theme.accent} />
+              <p className="text-sm font-bold text-app">۲. بازیابی اطلاعات از فایل پشتیبان</p>
+            </div>
+            <p className="text-xs text-muted leading-relaxed">
+              اگر قبلاً فایل پشتیبان نور را ذخیره کرده‌اید، آن را انتخاب کنید تا تمام برنامه‌ها و کارنامه شما فوراً بازگردد:
+            </p>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json,application/json"
+              onChange={handleImportLocalBackup}
+              className="hidden"
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full py-3 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 border"
+              style={{ borderColor: theme.accent, color: theme.accent }}
+            >
+              <Upload size={16} />
+              <span>انتخاب فایل پشتیبان و بازیابی</span>
+            </button>
+          </div>
+
+          <div className="card-flat p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <CloudUpload size={18} color={theme.primary} />
+              <p className="text-sm font-bold text-app">۳. همگام‌سازی ابری (حساب کاربری)</p>
+            </div>
+            <p className="text-xs text-muted leading-relaxed">
+              ذخیره مستقیم تنظیمات، موضع قرآن و چله‌ها در سرور ابری برای کاربران عضو:
+            </p>
+            <button
+              type="button"
+              onClick={() => void handleCloudSyncNow()}
+              className="w-full py-3 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 border"
+              style={{ borderColor: theme.primary, color: theme.primary }}
+            >
+              <CloudUpload size={16} />
+              <span>بروزرسانی پشتیبان ابری من</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ۴. زیرصفحه تنظیمات نقشه و مسجدیاب نشان
   if (section === 'neshan') {
     return (
       <div className="px-5 pt-6 pb-28 animate-fade-in" dir="rtl">
@@ -376,7 +524,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
         <div className="card-flat p-4 space-y-3">
           <p className="text-sm font-bold text-app">🔑 کلید وب‌سرویس نشان (Neshan API Key)</p>
           <p className="text-xs text-muted leading-relaxed">
-            اپلیکیشن نور به صورت پیش‌فرض دارای رادار مساجد ایران است. برای اتصال مستقیم به وب‌سرویس رسمی جستجو و مسیریابی ترافیکی «نشان»، کلید نوع <code>service.xxx</code> خود را از پنل <code>platform.neshan.org</code> وارد کنید:
+            اپلیکیشن نور به صورت پیش‌فرض به کلید رسمی سرویس «نشان» متصل است. در صورت تمایل به تغییر کلید، کد <code>service.xxx</code> خود را وارد کنید:
           </p>
           <input
             type="text"
@@ -403,7 +551,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
     );
   }
 
-  // ۴. زیرصفحه پوسته‌ها
+  // ۵. زیرصفحه پوسته‌ها
   if (section === 'theme') {
     return (
       <div className="px-5 pt-6 pb-28 animate-fade-in" dir="rtl">
@@ -434,7 +582,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
     );
   }
 
-  // ۵. زیرصفحه انتخاب شهر
+  // ۶. زیرصفحه انتخاب شهر
   if (section === 'city') {
     const filteredCities = CITIES.filter(
       (c) =>
@@ -483,7 +631,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
     );
   }
 
-  // ۶. زیرصفحه روش محاسبه
+  // ۷. زیرصفحه روش محاسبه
   if (section === 'method') {
     return (
       <div className="px-5 pt-6 pb-28 animate-fade-in" dir="rtl">
@@ -505,7 +653,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
     );
   }
 
-  // ۷. زیرصفحه کلکسیون مؤذنان (ایران، مصر، ترکیه، حرمین) + انتخاب مدت پخش
+  // ۸. زیرصفحه کلکسیون مؤذنان (ایران، مصر، ترکیه، حرمین) + انتخاب مدت پخش
   if (section === 'adhan') {
     const handleChangeDurationMode = (m: AdhanPlaybackDurationMode) => {
       setDurationModeState(m);
@@ -687,7 +835,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
     );
   }
 
-  // ۸. زیرصفحه لاگ‌های فنی
+  // ۹. زیرصفحه لاگ‌های فنی
   if (section === 'logs') {
     return (
       <div className="px-5 pt-6 pb-28 animate-fade-in" dir="rtl">
@@ -894,8 +1042,8 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
         />
       </div>
 
-      {/* دسته‌بندی ۳: داشبورد تحلیلی و اعلان‌ها */}
-      <p className="text-xs font-bold text-muted mb-2 px-1">امکانات پیشرفته و اعلان‌ها</p>
+      {/* دسته‌بندی ۳: داشبورد تحلیلی، پشتیبان‌گیری و اعلان‌ها */}
+      <p className="text-xs font-bold text-muted mb-2 px-1">پشتیبان‌گیری، داشبورد و اعلان‌ها</p>
       <div className="space-y-2 mb-5">
         <RowItem
           icon={Crown}
@@ -903,6 +1051,16 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
           value="مشاهده کامل (باز)"
           onClick={() => setShowVipModal(true)}
           accent
+        />
+
+        <RowItem
+          icon={Database}
+          title="پشتیبان‌گیری و بازیابی اطلاعات (Backup)"
+          value="ذخیره در گوشی / ابر"
+          onClick={() => {
+            setBackupNotice(null);
+            setSection('backup');
+          }}
         />
 
         <div className="card-flat px-4 py-3.5">
