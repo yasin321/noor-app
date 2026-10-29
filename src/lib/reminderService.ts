@@ -1,5 +1,4 @@
 import { getAdhanDurationMode, getAdhanDurationSeconds } from "@/lib/adhans";
-import { loadAdhanStudio } from "@/lib/deenIntelligenceStore";
 import { logEvent } from "@/lib/logger";
 
 import * as CapCore from '@capacitor/core';

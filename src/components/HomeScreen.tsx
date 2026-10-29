@@ -619,7 +619,7 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
           const studio = loadAdhanStudio();
           const quran = loadQuranContinuity();
           const mt = loadMosqueAndTravel();
-          const activeProf = studio.profiles[studio.activeProfile];
+          const activeProf = studio.profiles[studio.activeProfile]; void activeProf;
           const nextJamaat =
             next?.key === 'fajr' || next?.key === 'dhuhr' || next?.key === 'maghrib'
               ? addMinutesToTimeStr(next.time, mt.jamaatOffsetsMinutes[next.key])
