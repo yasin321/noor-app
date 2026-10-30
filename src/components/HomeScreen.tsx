@@ -459,7 +459,7 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
   const spiritualTip = getContextualSpiritualTip(now);
 
   return (
-    <div className="px-5 pt-6 pb-28 animate-fade-in">
+    <div className="w-full max-w-xl mx-auto px-3.5 pt-4 pb-28 animate-fade-in">
       {showMosqueFinder && (
         <MosqueFinderModal
           cityName={city.nameFa}

@@ -121,9 +121,9 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
 
   useEffect(() => {
     const sizeMap: Record<string, string> = {
-      normal: '16px',
-      medium: '17.5px',
-      senior: '19.5px',
+      normal: '16.8px',
+      medium: '18.2px',
+      senior: '20px',
     };
     document.documentElement.style.fontSize = sizeMap[fontScale] ?? '16px';
     try { localStorage.setItem('noor_font_scale', fontScale); } catch {}
@@ -282,7 +282,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   // ۱. زیرصفحه فونت، اندازه نوشته و حالت نمایش قرآن
   if (section === 'typography') {
     return (
-      <div className="px-5 pt-6 pb-28 animate-fade-in" dir="rtl">
+      <div className="w-full max-w-xl mx-auto px-3.5 pt-4 pb-28 animate-fade-in" dir="rtl">
         <SubHeader title="فونت، اندازه متن و نمایش قرآن" />
 
         <div className="space-y-5">
@@ -380,7 +380,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
     };
 
     return (
-      <div className="px-5 pt-6 pb-28 animate-fade-in" dir="rtl">
+      <div className="w-full max-w-xl mx-auto px-3.5 pt-4 pb-28 animate-fade-in" dir="rtl">
         <SubHeader title="شخصی‌سازی بخش‌های صفحه اول" />
         <p className="text-xs text-muted mb-4 leading-relaxed">
           اگر دوست دارید صفحهٔ اول برنامه خلوت‌تر باشد یا فقط اوقات شرعی را ببینید، می‌توانید هر یک از بخش‌های زیر را به دلخواه روشن یا خاموش کنید:
@@ -435,7 +435,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   // ۳. زیرصفحه پشتیبان‌گیری و بازیابی اطلاعات (Backup & Restore)
   if (section === 'backup') {
     return (
-      <div className="px-5 pt-6 pb-28 animate-fade-in" dir="rtl">
+      <div className="w-full max-w-xl mx-auto px-3.5 pt-4 pb-28 animate-fade-in" dir="rtl">
         <SubHeader title="پشتیبان‌گیری و حفظ اطلاعات" />
 
         {backupNotice && (
@@ -519,7 +519,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   // ۴. زیرصفحه تنظیمات نقشه و مسجدیاب نشان
   if (section === 'neshan') {
     return (
-      <div className="px-5 pt-6 pb-28 animate-fade-in" dir="rtl">
+      <div className="w-full max-w-xl mx-auto px-3.5 pt-4 pb-28 animate-fade-in" dir="rtl">
         <SubHeader title="تنظیمات مسجدیاب و نقشه نشان" />
         <div className="card-flat p-4 space-y-3">
           <p className="text-sm font-bold text-app">🔑 کلید وب‌سرویس نشان (Neshan API Key)</p>
@@ -554,7 +554,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   // ۵. زیرصفحه پوسته‌ها
   if (section === 'theme') {
     return (
-      <div className="px-5 pt-6 pb-28 animate-fade-in" dir="rtl">
+      <div className="w-full max-w-xl mx-auto px-3.5 pt-4 pb-28 animate-fade-in" dir="rtl">
         <SubHeader title="پوسته و رنگ‌بندی برنامه" />
         <div className="grid grid-cols-2 gap-3">
           {themes.map((t) => (
@@ -596,7 +596,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
     }, {});
 
     return (
-      <div className="px-5 pt-6 pb-28 animate-fade-in" dir="rtl">
+      <div className="w-full max-w-xl mx-auto px-3.5 pt-4 pb-28 animate-fade-in" dir="rtl">
         <SubHeader title="انتخاب شهر و افق شرعی" />
         <input
           type="text"
@@ -634,7 +634,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   // ۷. زیرصفحه روش محاسبه
   if (section === 'method') {
     return (
-      <div className="px-5 pt-6 pb-28 animate-fade-in" dir="rtl">
+      <div className="w-full max-w-xl mx-auto px-3.5 pt-4 pb-28 animate-fade-in" dir="rtl">
         <SubHeader title="روش محاسبه اوقات شرعی" />
         <div className="space-y-2">
           {methods.map((m) => (
@@ -695,7 +695,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
     };
 
     return (
-      <div className="px-5 pt-6 pb-28 animate-fade-in" dir="rtl">
+      <div className="w-full max-w-xl mx-auto px-3.5 pt-4 pb-28 animate-fade-in" dir="rtl">
         <SubHeader title="کلکسیون مؤذنان و مدت پخش اذان" />
 
         {adhanNotice && (
@@ -838,7 +838,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   // ۹. زیرصفحه لاگ‌های فنی
   if (section === 'logs') {
     return (
-      <div className="px-5 pt-6 pb-28 animate-fade-in" dir="rtl">
+      <div className="w-full max-w-xl mx-auto px-3.5 pt-4 pb-28 animate-fade-in" dir="rtl">
         <SubHeader title="گزارش فنی و وضعیت سیستم" />
         <div className="flex gap-2 mb-3">
           <button
@@ -922,7 +922,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   );
 
   return (
-    <div className="px-5 pt-6 pb-28 animate-fade-in" dir="rtl">
+    <div className="w-full max-w-xl mx-auto px-3.5 pt-4 pb-28 animate-fade-in" dir="rtl">
       {showGuide && <AppTutorialModal onClose={() => setShowGuide(false)} />}
       {showVipModal && <VipAndAnalyticsModal initialTab="vip" onClose={() => setShowVipModal(false)} />}
 

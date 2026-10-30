@@ -129,7 +129,7 @@ export function LibraryScreen({ onNavigate }: { onNavigate?: (t: Tab) => void })
 
   if (selected) {
     return (
-      <div className="px-5 pt-6 pb-28 animate-fade-in" dir="rtl">
+      <div className="w-full max-w-xl mx-auto px-3.5 pt-4 pb-28 animate-fade-in" dir="rtl">
         <button
           type="button"
           onClick={() => setSelected(null)}
@@ -253,7 +253,7 @@ export function LibraryScreen({ onNavigate }: { onNavigate?: (t: Tab) => void })
   }
 
   return (
-    <div className="px-5 pt-6 pb-28 animate-fade-in" dir="rtl">
+    <div className="w-full max-w-xl mx-auto px-3.5 pt-4 pb-28 animate-fade-in" dir="rtl">
       {/* مودال مرکزچین با Portal روی document.body */}
       {showAddCustom && typeof document !== 'undefined' && createPortal(
         <div

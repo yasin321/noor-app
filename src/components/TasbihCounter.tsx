@@ -124,7 +124,7 @@ export function TasbihCounter({ onNavigate }: { onNavigate?: (t: Tab) => void })
   ) : null;
 
   return (
-    <div className="px-5 pt-5 pb-32 animate-fade-in min-h-screen" dir="rtl">
+    <div className="w-full max-w-xl mx-auto px-3.5 pt-4 pb-32 animate-fade-in min-h-screen" dir="rtl">
       {celebrationOverlay && typeof document !== 'undefined'
         ? createPortal(celebrationOverlay, document.body)
         : celebrationOverlay}

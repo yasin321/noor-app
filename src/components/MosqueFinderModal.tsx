@@ -147,12 +147,12 @@ export function MosqueFinderModal({ cityName, defaultLat, defaultLng, onClose, o
 
   const node = (
     <div
-      className="fixed inset-0 z-[999] overflow-y-auto flex items-center justify-center p-3.5 animate-fade-in"
+      className="fixed inset-0 z-[999] overflow-y-auto flex items-stretch sm:items-center justify-center p-0 sm:p-4 animate-fade-in"
       style={{ background: 'rgba(0,0,0,0.84)', backdropFilter: 'blur(7px)' }}
       dir="rtl"
     >
       <div
-        className="w-full max-w-md rounded-3xl p-4 border shadow-2xl my-auto max-h-[92vh] overflow-y-auto"
+        className="w-full sm:max-w-lg min-h-[100dvh] sm:min-h-0 sm:rounded-3xl p-4 sm:p-5 border-0 sm:border shadow-2xl overflow-y-auto"
         style={{ background: theme.surface, borderColor: theme.border }}
       >
         <div className="flex items-center justify-between pb-3 mb-2.5 border-b" style={{ borderColor: theme.border }}>
