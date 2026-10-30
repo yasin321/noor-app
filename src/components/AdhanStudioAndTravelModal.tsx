@@ -41,9 +41,9 @@ export function AdhanStudioAndTravelModal({ initialSection = 'studio', onClose, 
   const [selectedPrayer, setSelectedPrayer] = useState<'fajr' | 'dhuhr' | 'asr' | 'maghrib' | 'isha'>('maghrib');
   const [preMinutes, setPreMinutes] = useState<number>(10);
   const [selectedChantId, setSelectedChantId] = useState<PreAdhanChantId>('moazenzadeh_tasbihat');
-  const [playingChantId, setPlayingChantId] = useState<PreAdhanChantId null |>(null);
+  const [playingChantId, setPlayingChantId] = useState<PreAdhanChantId | null>(null);
   const [savedNotice, setSavedNotice] = useState<string | null>(null);
-  const audioRef = useRef<HTMLAudioElement null |>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const stopChantAudio = () => {
     if (audioRef.current) {
@@ -196,7 +196,7 @@ export function AdhanStudioAndTravelModal({ initialSection = 'studio', onClose, 
       >
         <div className="flex items-center justify-between pb-3 mb-3 border-b" style={{ borderColor: theme.border }}>
           <div className="flex items-center gap-2">
-            <BellRing color="{theme.primary}" size="{19}"/>
+            <BellRing color={theme.primary} size={19}/>
             <h2 className="text-base font-black text-app">تواشیح قبل اذان، ساعت مسجد و سفر</h2>
           </div>
           <button
@@ -207,7 +207,7 @@ export function AdhanStudioAndTravelModal({ initialSection = 'studio', onClose, 
             }}
             className="text-muted p-1"
           >
-            <X size="{20}"/>
+            <X size={20}/>
           </button>
         </div>
 
@@ -233,7 +233,7 @@ export function AdhanStudioAndTravelModal({ initialSection = 'studio', onClose, 
               color: tab === 'pre_adhan' ? theme.bg : theme.textMuted,
             }}
           >
-            <BellRing size="{13}"/> تواشیح قبل اذان
+            <BellRing size={13}/> تواشیح قبل اذان
           </button>
           <button
             type="button"
@@ -244,7 +244,7 @@ export function AdhanStudioAndTravelModal({ initialSection = 'studio', onClose, 
               color: tab === 'mosque' ? theme.bg : theme.textMuted,
             }}
           >
-            <Building2 size="{13}"/> ساعت مسجد
+            <Building2 size={13}/> ساعت مسجد
           </button>
           <button
             type="button"
@@ -255,7 +255,7 @@ export function AdhanStudioAndTravelModal({ initialSection = 'studio', onClose, 
               color: tab === 'travel' ? theme.bg : theme.textMuted,
             }}
           >
-            <Plane size="{13}"/> حالت سفر
+            <Plane size={13}/> حالت سفر
           </button>
         </div>
 
@@ -331,7 +331,7 @@ export function AdhanStudioAndTravelModal({ initialSection = 'studio', onClose, 
                             color: isPlaying ? '#ffffff' : theme.bg,
                           }}
                         >
-                          {isPlaying ? <Square size="{10}"/> : <Play size="{10}"/>}
+                          {isPlaying ? <Square size={10}/> : <Play size={10}/>}
                           <span>{isPlaying ? 'ılılı توقف صوت' : '🎧 پخش صوت'}</span>
                         </button>
                       </div>
@@ -503,7 +503,7 @@ export function AdhanStudioAndTravelModal({ initialSection = 'studio', onClose, 
           className="w-full mt-4 py-2.5 rounded-2xl text-xs font-bold border"
           style={{ borderColor: theme.border, color: theme.text }}
         >
-          <Check className="inline ml-1" size="{14}"/> بستن
+          <Check className="inline ml-1" size={14}/> بستن
         </button>
       </div>
     </div>

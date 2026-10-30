@@ -1,6 +1,3 @@
-import { calculatePrayerTimes } from './prayerTimes';
-import { getCityById, getGuestCityId, getCustomGpsCoords } from './cities';
-import { addMinutesToTimeStr, PRE_ADHAN_CHANT_OPTIONS } from './deenIntelligenceStore';
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import {
@@ -14,6 +11,9 @@ import {
 import { dhikrLibrary } from './dhikrLibrary';
 import { logEvent } from './logger';
 import { getAdhanDurationMode, getAdhanDurationSeconds } from './adhans';
+import { calculatePrayerTimes } from './prayerTimes';
+import { getCityById, getGuestCityId, getCustomGpsCoords } from './cities';
+import { addMinutesToTimeStr, PRE_ADHAN_CHANT_OPTIONS } from './deenIntelligenceStore';
 
 export { loadReminders, type LocalReminder };
 
@@ -65,8 +65,11 @@ function resolvePrayerAlarmParams(reminderId: string, reminderTitle = ''): {
     }
   })();
 
-  // اگر یادآور از نوع «تواشیح و دعای قبل از اذان» است، صدای تواشیح/مناجات مربوطه پخش شود نه اذان کامل
-  if (reminderId.startsWith('pre_adhan_') || reminderTitle.includes('مانده تا اذان') || reminderTitle.includes('دقیقه تا اذان')) {
+  if (
+    reminderId.startsWith('pre_adhan_') ||
+    reminderTitle.includes('مانده تا اذان') ||
+    reminderTitle.includes('دقیقه تا اذان')
+  ) {
     const matchedChant = PRE_ADHAN_CHANT_OPTIONS.find((c) => reminderTitle.includes(c.titleFa));
     return {
       soundType: 'short_10s',
@@ -96,11 +99,13 @@ function resolvePrayerAlarmParams(reminderId: string, reminderTitle = ''): {
   };
 }
 
-// محاسبه داینامیک ساعت دقیق اذان یا یادآور قبل از اذان برای هر تاریخ مشخص در آینده
 function computeDynamicPrayerDate(reminder: LocalReminder, baseCandidate: Date): Date {
   try {
     const isAutoPrayer = reminder.id.startsWith('prayer_auto_');
-    const isPreAdhan = reminder.id.startsWith('pre_adhan_') || reminder.title.includes('دقیقه تا اذان') || reminder.title.includes('مانده تا اذان');
+    const isPreAdhan =
+      reminder.id.startsWith('pre_adhan_') ||
+      reminder.title.includes('دقیقه تا اذان') ||
+      reminder.title.includes('مانده تا اذان');
     if (!isAutoPrayer && !isPreAdhan) return baseCandidate;
 
     const city = getCityById(getGuestCityId());
@@ -121,7 +126,7 @@ function computeDynamicPrayerDate(reminder: LocalReminder, baseCandidate: Date):
 
     let targetHHMM = dayTimes[pKey];
     if (isPreAdhan) {
-      const mMatch = reminder.id.match(/pre_adhan_[a-z]+_(d+)/);
+      const mMatch = reminder.id.match(/pre_adhan_[a-z]+_(\d+)/);
       const offsetMin = mMatch ? Number(mMatch[1]) : 10;
       targetHHMM = addMinutesToTimeStr(targetHHMM, -offsetMin);
     }
@@ -132,34 +137,10 @@ function computeDynamicPrayerDate(reminder: LocalReminder, baseCandidate: Date):
       shifted.setHours(h, m, 0, 0);
       return shifted;
     }
-  } catch {}
-  return baseCandidate;
-} {
-  const selectedAdhan = (() => {
-    try {
-      return localStorage.getItem('noor_guest_adhan_id') || 'mahur_saeed';
-    } catch {
-      return 'mahur_saeed';
-    }
-  })();
-  const globalMode = getAdhanDurationMode();
-  const globalDurSec = getAdhanDurationSeconds(globalMode);
-
-  if (!reminderId.startsWith('prayer_auto_')) {
-    return {
-      soundType: 'alarm',
-      adhanId: selectedAdhan,
-      durationSeconds: 15,
-      volumePercent: 100,
-    };
+  } catch {
+    // ignore
   }
-
-  return {
-    soundType: globalMode === '10s' ? 'short_10s' : 'adhan',
-    adhanId: selectedAdhan,
-    durationSeconds: globalDurSec,
-    volumePercent: 100,
-  };
+  return baseCandidate;
 }
 
 let channelReady = false;

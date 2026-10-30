@@ -42,7 +42,7 @@ export function QuranAndMuhasabaModal({ initialMode = 'quran', onClose, onUpdate
   const [ayahs, setAyahs] = useState<QuranAyahItem[]>([]);
   const [loadingSurah, setLoadingSurah] = useState(false);
   const [surahAudioPlaying, setSurahAudioPlaying] = useState(false);
-  const [surahAudioEl, setSurahAudioEl] = useState<HTMLAudioElement null |>(null);
+  const [surahAudioEl, setSurahAudioEl] = useState<HTMLAudioElement | null>(null);
 
   // تنظیم یادآور هوشمند سوره بر اساس فاصله از اذان (مثلاً ۳۰ دقیقه بعد از اذان مغرب)
   const [selectedAnchor, setSelectedAnchor] = useState<'maghrib' | 'fajr' | 'dhuhr' | 'custom'>('maghrib');
@@ -386,7 +386,7 @@ export function QuranAndMuhasabaModal({ initialMode = 'quran', onClose, onUpdate
               }}
             >
               <div className="flex items-center gap-2 min-w-0">
-                <Volume2 className="shrink-0" color="{theme.primary}" size="{17}"/>
+                <Volume2 className="shrink-0" color={theme.primary} size={17}/>
                 <div className="min-w-0">
                   <p className="text-xs font-black text-app truncate">
                     🎧 ترتیل صوتی {currentSurahMeta.nameFa}
@@ -422,7 +422,7 @@ export function QuranAndMuhasabaModal({ initialMode = 'quran', onClose, onUpdate
                   color: surahAudioPlaying ? '#ffffff' : theme.bg,
                 }}
               >
-                {surahAudioPlaying ? <Square size="{12}"/> : <Play size="{12}"/>}
+                {surahAudioPlaying ? <Square size={12}/> : <Play size={12}/>}
                 <span>{surahAudioPlaying ? 'توقف صوت' : 'پخش صوت سوره'}</span>
               </button>
             </div>
