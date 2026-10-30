@@ -84,13 +84,21 @@ function getContextualSpiritualTip(now: Date): {
     };
   }
 
-  // ۲. روز جمعه (متعلق به حضرت ولی‌عصر عج)
-  if (day === 5 && hour < 18) {
+  // ۲. روز جمعه (صبح جمعه: سوره صافات | عصر جمعه: صلوات ضراب اصفهانی)
+  if (day === 5 && hour < 13) {
     return {
-      badge: `🌿 پیشنهاد ویژه روز ${dayNameFa}`,
-      title: 'صلوات خاصه و دعای سلامتی امام زمان (عج)',
-      subtitle: 'اللَّهُمَّ صَلِّ عَلَى مُحَمَّدٍ وَآلِ مُحَمَّدٍ وَعَجِّلْ فَرَجَهُمْ — ۱۰۰ مرتبه',
-      dhikrId: 'salawat',
+      badge: `🌿 عمل مجرب صبح ${dayNameFa}`,
+      title: 'تلاوت سوره مبارکه صافات (وسعت رزق و ایمنی از بلا)',
+      subtitle: 'وَالصَّافَّاتِ صَفًّا — همراه با پخش صوتی ترتیل و متن کامل',
+      dhikrId: 'surah_saffat_friday',
+    };
+  }
+  if (day === 5 && hour >= 13 && hour < 19) {
+    return {
+      badge: `✨ عمل مخصوص عصر ${dayNameFa}`,
+      title: 'صلوات ضراب اصفهانی و دعای سلامتی امام زمان (عج)',
+      subtitle: 'اللَّهُمَّ صَلِّ عَلَى مُحَمَّدٍ سَيِّدِ الْمُرْسَلِينَ — تعلیم حضرت ولی‌عصر (عج)',
+      dhikrId: 'salawat_zarrab_isfahani',
     };
   }
 
@@ -254,6 +262,25 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
         };
         saveReminder(updated);
         void scheduleReminder(updated, true);
+      }
+    }
+    // همگام‌سازی خودکار ساعت یادآورهای قبل از اذان با تغییر روزانه ساعت اذان
+    for (const r of all) {
+      if (r.id.startsWith('pre_adhan_') && r.enabled) {
+        const m = r.id.match(/^pre_adhan_([a-z]+)_(\d+)$/);
+        if (m) {
+          const pKey = m[1];
+          const preMin = Number(m[2]);
+          const basePrayer = prayerMap[pKey];
+          if (basePrayer) {
+            const expectedTime = addMinutesToTimeStr(basePrayer.time, -preMin);
+            if (r.time !== expectedTime) {
+              const updatedPre = { ...r, time: expectedTime, updatedAt: new Date().toISOString() };
+              saveReminder(updatedPre);
+              void scheduleReminder(updatedPre, true);
+            }
+          }
+        }
       }
     }
     setEnabledAlarms(map);

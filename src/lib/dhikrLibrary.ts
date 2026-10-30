@@ -21,9 +21,39 @@ export type Dhikr = {
   defaultReminderTime?: string;
   hadith?: string;
   scholarNote?: string;
+  audioUrl?: string;
 };
 
 export const dhikrLibrary: Dhikr[] = [
+  {
+    id: 'surah_saffat_friday',
+    arabic: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ ۝ وَالصَّافَّاتِ صَفًّا ۝ فَالزَّاجِرَاتِ زَجْرًا ۝ فَالتَّالِيَاتِ ذِكْرًا',
+    translit: 'Surah As-Saffat (Friday)',
+    translation: 'تلاوت سوره مبارکه صافات در روز جمعه برای وسعت روزی، دفع بلا و برکت زندگی',
+    virtue: 'ایمنی از آفات، گشایش روزی در دنیا و برآورده شدن حاجات در روز جمعه',
+    count: 1,
+    category: 'quran',
+    source: 'قرآن کریم (سوره ۳۷) — مفاتیح‌الجنان، اعمال روز جمعه',
+    recommendedTime: 'صبح و ظهر روز جمعه',
+    defaultReminderTime: '09:30',
+    audioUrl: 'https://server8.mp3quran.net/afs/037.mp3',
+    hadith: 'امام صادق (ع): هر کس در هر روز جمعه سوره صافات را بخواند، همواره در عافیت بوده و در دنیا به او روزی فراوان عطا می‌شود.',
+  },
+  {
+    id: 'salawat_zarrab_isfahani',
+    arabic: 'اللَّهُمَّ صَلِّ عَلَى مُحَمَّدٍ سَيِّدِ الْمُرْسَلِينَ وَخَاتَمِ النَّبِيِّينَ وَحُجَّةِ رَبِّ الْعَالَمِينَ',
+    translit: 'Salawat Zarrab Isfahani',
+    translation: 'صلوات ضراب اصفهانی؛ برترین عمل عصر جمعه مستقیماً از محضر حضرت ولی‌عصر (عج)',
+    virtue: 'تعقیب عصر جمعه، جلب عنایت ویژه امام زمان (عج) و آمرزش گناهان',
+    count: 1,
+    category: 'mafatih',
+    source: 'مفاتیح‌الجنان — اعمال عصر جمعه (تعلیم حضرت صاحب‌الزمان عج به ابوالحسن ضراب اصفهانی)',
+    recommendedTime: 'عصر روز جمعه پس از نماز عصر تا غروب آفتاب',
+    defaultReminderTime: '16:00',
+    audioUrl: 'https://cdn.islamic.network/quran/audio/128/ar.alafasy/3589.mp3',
+    hadith: 'شیخ طوسی در مصباح المتهجد روایت کرده که این صلوات از ناحیه مقدسه حضرت مهدی (عج) در مکه به ابوالحسن ضراب اصفهانی تعلیم داده شده است.',
+  },
+
   {
     id: 'subhanallah',
     arabic: 'سُبْحَانَ اللَّهِ',
@@ -179,6 +209,7 @@ export const dhikrLibrary: Dhikr[] = [
   },
   {
     id: 'surah_waqiah',
+    audioUrl: 'https://server8.mp3quran.net/afs/056.mp3',
     arabic: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ ۝ إِذَا وَقَعَتِ الْوَاقِعَةُ (تلاوت سوره واقعه)',
     translit: 'Surah Al-Waqiah',
     translation: 'تلاوت سوره مبارکه واقعه در هر شب برای بی‌نیازی و برکت روزی',
@@ -192,6 +223,7 @@ export const dhikrLibrary: Dhikr[] = [
   },
   {
     id: 'surah_dhariyat',
+    audioUrl: 'https://server8.mp3quran.net/afs/051.mp3',
     arabic: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ ۝ وَالذَّارِيَاتِ ذَرْوًا (تلاوت سوره ذاریات)',
     translit: 'Surah Adh-Dhariyat',
     translation: 'تلاوت روزانه سوره مبارکه ذاریات برای اصلاح معاش و روزی فراوان',

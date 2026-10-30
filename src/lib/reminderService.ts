@@ -1,3 +1,6 @@
+import { calculatePrayerTimes } from './prayerTimes';
+import { getCityById, getGuestCityId, getCustomGpsCoords } from './cities';
+import { addMinutesToTimeStr, PRE_ADHAN_CHANT_OPTIONS } from './deenIntelligenceStore';
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import {
@@ -48,11 +51,89 @@ export function getDayLabel(day: number): string {
   return DAY_LABELS_FA[day] ?? '';
 }
 
-function resolvePrayerAlarmParams(reminderId: string): {
+function resolvePrayerAlarmParams(reminderId: string, reminderTitle = ''): {
   soundType: string;
   adhanId: string;
   durationSeconds: number;
   volumePercent: number;
+} {
+  const selectedAdhan = (() => {
+    try {
+      return localStorage.getItem('noor_guest_adhan_id') || 'mahur_saeed';
+    } catch {
+      return 'mahur_saeed';
+    }
+  })();
+
+  // اگر یادآور از نوع «تواشیح و دعای قبل از اذان» است، صدای تواشیح/مناجات مربوطه پخش شود نه اذان کامل
+  if (reminderId.startsWith('pre_adhan_') || reminderTitle.includes('مانده تا اذان') || reminderTitle.includes('دقیقه تا اذان')) {
+    const matchedChant = PRE_ADHAN_CHANT_OPTIONS.find((c) => reminderTitle.includes(c.titleFa));
+    return {
+      soundType: 'short_10s',
+      adhanId: matchedChant ? matchedChant.audioAdhanId : 'moazenzadeh_ardabili',
+      durationSeconds: matchedChant ? matchedChant.durationSec : 16,
+      volumePercent: 100,
+    };
+  }
+
+  const globalMode = getAdhanDurationMode();
+  const globalDurSec = getAdhanDurationSeconds(globalMode);
+
+  if (!reminderId.startsWith('prayer_auto_')) {
+    return {
+      soundType: 'alarm',
+      adhanId: selectedAdhan,
+      durationSeconds: 15,
+      volumePercent: 100,
+    };
+  }
+
+  return {
+    soundType: globalMode === '10s' ? 'short_10s' : 'adhan',
+    adhanId: selectedAdhan,
+    durationSeconds: globalDurSec,
+    volumePercent: 100,
+  };
+}
+
+// محاسبه داینامیک ساعت دقیق اذان یا یادآور قبل از اذان برای هر تاریخ مشخص در آینده
+function computeDynamicPrayerDate(reminder: LocalReminder, baseCandidate: Date): Date {
+  try {
+    const isAutoPrayer = reminder.id.startsWith('prayer_auto_');
+    const isPreAdhan = reminder.id.startsWith('pre_adhan_') || reminder.title.includes('دقیقه تا اذان') || reminder.title.includes('مانده تا اذان');
+    if (!isAutoPrayer && !isPreAdhan) return baseCandidate;
+
+    const city = getCityById(getGuestCityId());
+    const exactGps = getCustomGpsCoords();
+    const lat = exactGps ? exactGps.lat : city.lat;
+    const lng = exactGps ? exactGps.lng : city.lng;
+    const method = localStorage.getItem('noor_guest_calc_method') || 'tehran';
+    const dayTimes = calculatePrayerTimes(baseCandidate, lat, lng, city.timezone, method);
+
+    let pKey: 'fajr' | 'dhuhr' | 'asr' | 'maghrib' | 'isha' | null = null;
+    if (reminder.id.includes('fajr') || reminder.title.includes('صبح')) pKey = 'fajr';
+    else if (reminder.id.includes('dhuhr') || reminder.title.includes('ظهر')) pKey = 'dhuhr';
+    else if (reminder.id.includes('asr') || reminder.title.includes('عصر')) pKey = 'asr';
+    else if (reminder.id.includes('maghrib') || reminder.title.includes('مغرب')) pKey = 'maghrib';
+    else if (reminder.id.includes('isha') || reminder.title.includes('عشاء')) pKey = 'isha';
+
+    if (!pKey) return baseCandidate;
+
+    let targetHHMM = dayTimes[pKey];
+    if (isPreAdhan) {
+      const mMatch = reminder.id.match(/pre_adhan_[a-z]+_(d+)/);
+      const offsetMin = mMatch ? Number(mMatch[1]) : 10;
+      targetHHMM = addMinutesToTimeStr(targetHHMM, -offsetMin);
+    }
+
+    const [h, m] = targetHHMM.split(':').map(Number);
+    if (!isNaN(h) && !isNaN(m)) {
+      const shifted = new Date(baseCandidate);
+      shifted.setHours(h, m, 0, 0);
+      return shifted;
+    }
+  } catch {}
+  return baseCandidate;
 } {
   const selectedAdhan = (() => {
     try {
@@ -307,7 +388,7 @@ export async function scheduleReminder(
       });
       if (Capacitor.getPlatform() === 'android') {
         try {
-          const p = resolvePrayerAlarmParams(reminder.id);
+          const p = resolvePrayerAlarmParams(reminder.id, reminder.title);
           await NoorAlarm.scheduleNativeAlarm({
             id: notifId,
             triggerAtMillis: target.getTime(),
@@ -338,7 +419,7 @@ export async function scheduleReminder(
   const scheduledIds: number[] = [];
   try {
     for (let idx = 0; idx < occurrences.length; idx++) {
-      const atDate = occurrences[idx];
+      const atDate = computeDynamicPrayerDate(reminder, occurrences[idx]);
       const notifId = reminderIdToNotifId(reminder.id, idx);
       scheduledIds.push(notifId);
       await LocalNotifications.schedule({
@@ -356,7 +437,7 @@ export async function scheduleReminder(
       });
       if (Capacitor.getPlatform() === 'android') {
         try {
-          const p = resolvePrayerAlarmParams(reminder.id);
+          const p = resolvePrayerAlarmParams(reminder.id, reminder.title);
           await NoorAlarm.scheduleNativeAlarm({
             id: notifId,
             triggerAtMillis: atDate.getTime(),

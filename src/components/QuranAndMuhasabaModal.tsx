@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { BookOpen, Heart, Bookmark, ChevronRight, ChevronLeft, Check, X, Sparkles, Lock, BellRing, Search, FileText, List, Eye } from 'lucide-react';
+import { BookOpen, Heart, Bookmark, ChevronRight, ChevronLeft, Check, X, Sparkles, Lock, BellRing, Search, FileText, List, Eye, Play, Square, Volume2 } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import {
   SELECTED_QURAN_PASSAGES,
@@ -41,6 +41,8 @@ export function QuranAndMuhasabaModal({ initialMode = 'quran', onClose, onUpdate
   const [showSurahPicker, setShowSurahPicker] = useState(false);
   const [ayahs, setAyahs] = useState<QuranAyahItem[]>([]);
   const [loadingSurah, setLoadingSurah] = useState(false);
+  const [surahAudioPlaying, setSurahAudioPlaying] = useState(false);
+  const [surahAudioEl, setSurahAudioEl] = useState<HTMLAudioElement null |>(null);
 
   // تنظیم یادآور هوشمند سوره بر اساس فاصله از اذان (مثلاً ۳۰ دقیقه بعد از اذان مغرب)
   const [selectedAnchor, setSelectedAnchor] = useState<'maghrib' | 'fajr' | 'dhuhr' | 'custom'>('maghrib');
@@ -277,6 +279,7 @@ export function QuranAndMuhasabaModal({ initialMode = 'quran', onClose, onUpdate
               <div className="flex flex-wrap gap-1.5 pt-1">
                 {[
                   { num: 56, label: 'واقعه (رزق شبانه)' },
+                  { num: 37, label: 'صافات (روز جمعه)' },
                   { num: 36, label: 'یس (قلب قرآن)' },
                   { num: 67, label: 'ملک (تبارک)' },
                   { num: 55, label: 'الرحمن' },
@@ -372,6 +375,56 @@ export function QuranAndMuhasabaModal({ initialMode = 'quran', onClose, onUpdate
                   );
                 })}
               </div>
+            </div>
+
+            {/* پلیر صوتی ترتیل کامل سوره (سوره واقعه، صافات، یس و کل ۱۱۴ سوره) */}
+            <div
+              className="p-3 rounded-2xl border flex items-center justify-between gap-2"
+              style={{
+                borderColor: surahAudioPlaying ? theme.accent : theme.primary,
+                background: `color-mix(in srgb, ${theme.primary} 12%, transparent)`,
+              }}
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <Volume2 className="shrink-0" color="{theme.primary}" size="{17}"/>
+                <div className="min-w-0">
+                  <p className="text-xs font-black text-app truncate">
+                    🎧 ترتیل صوتی {currentSurahMeta.nameFa}
+                  </p>
+                  <p className="text-[10px] text-muted truncate">
+                    {surahAudioPlaying ? 'ılılı در حال پخش صوت نورانی سوره...' : 'پخش صوتی همزمان با مشاهده متن آیات'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (surahAudioPlaying && surahAudioEl) {
+                    surahAudioEl.pause();
+                    setSurahAudioPlaying(false);
+                    return;
+                  }
+                  if (surahAudioEl) surahAudioEl.pause();
+                  const padNum = String(currentSurahMeta.number).padStart(3, '0');
+                  const audio = new Audio(`https://server8.mp3quran.net/afs/${padNum}.mp3`);
+                  audio.onended = () => setSurahAudioPlaying(false);
+                  audio.onerror = () => {
+                    setSurahAudioPlaying(false);
+                    showToast('برای پخش صوت کامل سوره، اتصال اینترنت را بررسی کنید.');
+                  };
+                  setSurahAudioEl(audio);
+                  setSurahAudioPlaying(true);
+                  void audio.play();
+                }}
+                className="px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shrink-0 shadow-md"
+                style={{
+                  background: surahAudioPlaying ? '#ef4444' : theme.primary,
+                  color: surahAudioPlaying ? '#ffffff' : theme.bg,
+                }}
+              >
+                {surahAudioPlaying ? <Square size="{12}"/> : <Play size="{12}"/>}
+                <span>{surahAudioPlaying ? 'توقف صوت' : 'پخش صوت سوره'}</span>
+              </button>
             </div>
 
             {/* صفحه مصحف نورانی قرآن */}

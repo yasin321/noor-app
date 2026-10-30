@@ -2,7 +2,7 @@ export type SoundProfileId = 'home' | 'work' | 'travel';
 export type PrayerAlarmMode = 'full_adhan' | 'short_10s' | 'short_beep' | 'silent';
 
 
-export type PreAdhanChantId = 'tawashih_salawat' | 'quran_ayah' | 'dua_faraj' | 'istighfar_tasbih';
+export type PreAdhanChantId = 'moazenzadeh_tasbihat' | 'tawashih_salawat' | 'quran_ayah' | 'dua_faraj' | 'istighfar_tasbih';
 
 export interface PreAdhanChantOption {
   id: PreAdhanChantId;
@@ -10,46 +10,67 @@ export interface PreAdhanChantOption {
   categoryFa: string;
   arabicText: string;
   translationFa: string;
+  audioUrl: string;
+  fallbackAudioUrl: string;
   audioAdhanId: string;
   durationSec: number;
 }
 
 export const PRE_ADHAN_CHANT_OPTIONS: PreAdhanChantOption[] = [
   {
+    id: 'moazenzadeh_tasbihat',
+    titleFa: 'تسبیحات اربعه و مناجات مرحوم مؤذن‌زاده اردبیلی',
+    categoryFa: 'تواشیح و تسبیحات آغازین',
+    arabicText: 'سُبْحَانَ اللَّهِ وَالْحَمْدُ لِلَّهِ وَلَا إِلَٰهَ إِلَّا اللَّهُ وَاللَّهُ أَكْبَرُ',
+    translationFa: 'مناجات و تسبیحات مشهور پیش از اذان در دستگاه بیات ترک با نوای مرحوم مؤذن‌زاده',
+    audioUrl: 'https://cdn.islamic.network/quran/audio/128/ar.abdulbasitmurattal/1.mp3',
+    fallbackAudioUrl: '/adhans/moazenzadeh_ardabili.mp3',
+    audioAdhanId: 'moazenzadeh_ardabili',
+    durationSec: 18,
+  },
+  {
     id: 'tawashih_salawat',
-    titleFa: 'تواشیح کوتاه و صلوات ملکوتی',
+    titleFa: 'تواشیح کوتاه و صلوات ملکوتی (انّ الله و ملائکته)',
     categoryFa: 'تواشیح و هم‌خوانی',
     arabicText: 'إِنَّ اللَّهَ وَمَلَائِكَتَهُ يُصَلُّونَ عَلَى النَّبِيِّ ۚ اللَّهُمَّ صَلِّ عَلَى مُحَمَّدٍ وَآلِ مُحَمَّدٍ',
-    translationFa: 'آهنگ روح‌بخش تواشیح و صلوات برای آمادگی قلب و وضو پیش از وقت نماز',
+    translationFa: 'آهنگ روح‌بخش تواشیح آیه صلوات برای آمادگی قلب و وضو پیش از وقت نماز',
+    audioUrl: 'https://cdn.islamic.network/quran/audio/128/ar.alafasy/3589.mp3',
+    fallbackAudioUrl: '/adhans/abdulbasit.mp3',
     audioAdhanId: 'abdulbasit',
-    durationSec: 12,
+    durationSec: 16,
   },
   {
     id: 'quran_ayah',
-    titleFa: 'آیه قرآنی کوتاه (اقامه نماز و آرامش دل)',
-    categoryFa: 'ذکر قرآنی',
+    titleFa: 'تلاوت آیه اقامه نماز و آرامش دل‌ها',
+    categoryFa: 'ذکر قرآنی با صوت ترتیل',
     arabicText: 'أَقِمِ الصَّلَاةَ لِدُلُوكِ الشَّمْسِ إِلَىٰ غَسَقِ اللَّيْلِ ۚ أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ',
-    translationFa: 'نماز را به پا دار؛ آگاه باش که با یاد خدا دل‌ها آرام می‌گیرد',
+    translationFa: 'نماز را از زوال خورشید تا تاریکی شب به پا دار؛ آگاه باش که با یاد خدا دل‌ها آرام می‌گیرد',
+    audioUrl: 'https://cdn.islamic.network/quran/audio/128/ar.alafasy/2107.mp3',
+    fallbackAudioUrl: '/adhans/minshawi_egypt.mp3',
     audioAdhanId: 'minshawi_egypt',
-    durationSec: 10,
+    durationSec: 15,
   },
   {
     id: 'dua_faraj',
-    titleFa: 'دعای کوتاه فرج و عاقبت‌به‌خیری',
+    titleFa: 'دعای کوتاه فرج و طلب عافیت پیش از اذان',
     categoryFa: 'دعای پیش از اذان',
     arabicText: 'اللَّهُمَّ كُنْ لِوَلِيِّكَ الْحُجَّةِ بْنِ الْحَسَنِ ❀ اللَّهُمَّ عَافِنَا وَاعْفُ عَنَّا وَتَقَبَّلْ مِنَّا',
     translationFa: 'دعای سلامتی حضرت ولی‌عصر (عج) و طلب عافیت پیش از حلول وقت اذان',
+    audioUrl: 'https://cdn.islamic.network/quran/audio/128/ar.alafasy/293.mp3',
+    fallbackAudioUrl: '/adhans/aghati_mashhad.mp3',
     audioAdhanId: 'aghati_mashhad',
-    durationSec: 12,
+    durationSec: 15,
   },
   {
     id: 'istighfar_tasbih',
-    titleFa: 'استغفار و ذکر آماده شدن برای نماز',
-    categoryFa: 'ذکر کوتاه',
+    titleFa: 'استغفار و تسبیحات آماده شدن برای نماز',
+    categoryFa: 'ذکر و مناجات کوتاه',
     arabicText: 'أَسْتَغْفِرُ اللَّهَ رَبِّي وَأَتُوبُ إِلَيْهِ ❀ سُبْحَانَ اللَّهِ وَالْحَمْدُ لِلَّهِ وَلَا إِلَٰهَ إِلَّا اللَّهُ',
     translationFa: 'پاک شدن دل با استغفار و تسبیح پیش از ایستادن در محضر پروردگار',
+    audioUrl: 'https://cdn.islamic.network/quran/audio/128/ar.alafasy/6226.mp3',
+    fallbackAudioUrl: '/adhans/mahur_saeed.ogg',
     audioAdhanId: 'mahur_saeed',
-    durationSec: 10,
+    durationSec: 14,
   },
 ];
 
