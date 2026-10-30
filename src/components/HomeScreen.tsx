@@ -14,7 +14,7 @@ import { VipAndAnalyticsModal } from '@/components/VipAndAnalyticsModal';
 import { AdhanStudioAndTravelModal } from '@/components/AdhanStudioAndTravelModal';
 import { QuranAndMuhasabaModal } from '@/components/QuranAndMuhasabaModal';
 import { MosqueFinderModal } from '@/components/MosqueFinderModal';
-import { loadAdhanStudio, loadQuranContinuity, loadMosqueAndTravel, addMinutesToTimeStr } from '@/lib/deenIntelligenceStore';
+import { loadQuranContinuity, loadMosqueAndTravel, addMinutesToTimeStr } from '@/lib/deenIntelligenceStore';
 import { logEvent } from '@/lib/logger';
 import { QiblaCompassModal } from '@/components/QiblaCompassModal';
 import { CalendarModal } from '@/components/CalendarModal';
@@ -55,21 +55,19 @@ const prayerIcons: Record<string, typeof Sun> = {
   midnight: Moon,
 };
 
-// موتور پیشنهاد هوشمند ساعتی و روزانه (متناسب با روز هفته و ساعت دقیق باز شدن اپ)
 function getContextualSpiritualTip(now: Date): {
   badge: string;
   title: string;
   subtitle: string;
   dhikrId: string;
 } {
-  const day = now.getDay(); // 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
+  const day = now.getDay();
   const hour = now.getHours();
   const dayNameFa = getJalaliWeekday(now);
 
-  // ۱. عصر و شب پنجشنبه (ویژه شب جمعه و والدین)
   if (day === 4 && hour >= 14 && hour < 19) {
     return {
-      badge: `✨ پیشنهاد عصر ${dayNameFa} (ویژه والدین)`,
+      badge: '✨ پیشنهاد عصر ' + dayNameFa + ' (ویژه والدین)',
       title: 'فاتحه و سوره قدر برای شادی روح پدر، مادر و درگذشتگان',
       subtitle: 'اللَّهُمَّ اغْفِرْ لِلْمُؤْمِنِينَ وَالْمُؤْمِنَاتِ — هدیه عصر پنجشنبه',
       dhikrId: 'ahlul_qubur_fatiha',
@@ -83,11 +81,9 @@ function getContextualSpiritualTip(now: Date): {
       dhikrId: 'friday_night_husayn',
     };
   }
-
-  // ۲. روز جمعه (صبح جمعه: سوره صافات | عصر جمعه: صلوات ضراب اصفهانی)
   if (day === 5 && hour < 13) {
     return {
-      badge: `🌿 عمل مجرب صبح ${dayNameFa}`,
+      badge: '🌿 عمل مجرب صبح ' + dayNameFa,
       title: 'تلاوت سوره مبارکه صافات (وسعت رزق و ایمنی از بلا)',
       subtitle: 'وَالصَّافَّاتِ صَفًّا — همراه با پخش صوتی ترتیل و متن کامل',
       dhikrId: 'surah_saffat_friday',
@@ -95,27 +91,23 @@ function getContextualSpiritualTip(now: Date): {
   }
   if (day === 5 && hour >= 13 && hour < 19) {
     return {
-      badge: `✨ عمل مخصوص عصر ${dayNameFa}`,
+      badge: '✨ عمل مخصوص عصر ' + dayNameFa,
       title: 'صلوات ضراب اصفهانی و دعای سلامتی امام زمان (عج)',
       subtitle: 'اللَّهُمَّ صَلِّ عَلَى مُحَمَّدٍ سَيِّدِ الْمُرْسَلِينَ — تعلیم حضرت ولی‌عصر (عج)',
       dhikrId: 'salawat_zarrab_isfahani',
     };
   }
-
-  // ۳. چهارشنبه‌ها (روز زیارتی مخصوص امام رضا ع)
   if (day === 3 && hour >= 11 && hour < 19) {
     return {
-      badge: `💚 پیشنهاد ویژه ${dayNameFa} (روز امام رضا ع)`,
+      badge: '💚 پیشنهاد ویژه ' + dayNameFa + ' (روز امام رضا ع)',
       title: 'توسل به امام رئوف حضرت علی بن موسی الرضا (ع)',
       subtitle: 'يَا رَءُوفُ يَا رَحِيمُ — کلید گشایش حاجات و آرامش دل در روز چهارشنبه',
       dhikrId: 'imam_reza_hajat',
     };
   }
-
-  // ۴. پیشنهاد بر اساس بازه ساعتی دقیق روز
   if (hour >= 4 && hour < 6) {
     return {
-      badge: `🌅 ذکر مجرب سجده نماز صبح ${dayNameFa}`,
+      badge: '🌅 ذکر مجرب سجده نماز صبح ' + dayNameFa,
       title: '۱۰۰ مرتبه «يَا مَوْلَاتِي يَا فَاطِمَةُ أَغِيثِينِي» در سجده نماز صبح',
       subtitle: 'توسل مجرب به حضرت زهرا (س) برای روا شدن حاجات مهم — برای شمارش لمس کنید',
       dhikrId: 'ya_fatima_100',
@@ -123,50 +115,41 @@ function getContextualSpiritualTip(now: Date): {
   }
   if (hour >= 6 && hour < 9) {
     return {
-      badge: `💼 دعای آغاز کار و خروج از منزل (${dayNameFa})`,
+      badge: '💼 دعای آغاز کار و خروج از منزل (' + dayNameFa + ')',
       title: 'ذکر توکل آیت‌الله مجتهدی + تسبیحات شروع کار (۳۳ سبحان‌الله، ۳۳ الحمدلله، ۳۴ الله‌اکبر)',
       subtitle: 'بِسْمِ اللَّهِ وَبِاللَّهِ تَوَكَّلْتُ عَلَى اللَّهِ + ۶ سوره توحید برای برکت رزق امروز',
       dhikrId: 'mojtahedi_work_exit_tawhid',
     };
-  }`,
-      title: 'تلاوت سوره ذاریات و دعای اللَّهُمَّ سَلِّمْ وَ تَمِّمْ',
-      subtitle: 'برای برکت روزی امروز، حفظ ایمان و عاقبت‌به‌خیری (توصیه آیت‌الله فاطمی‌نیا)',
-      dhikrId: 'fateminia_sallim',
-    };
   }
-
   if (hour >= 9 && hour < 14) {
     return {
-      badge: `☀️ پیشنهاد نیمروز ${dayNameFa}`,
-      title: 'تسبیحات حضرت زهرا (س) و ذکر الحمدلله',
-      subtitle: 'افزون‌کننده برکت کار و آرامش قلب در میانه روز',
-      dhikrId: 'alhamdulillah',
+      badge: '☀️ پیشنهاد نیمروز ' + dayNameFa,
+      title: 'ذکر مجرب آیت‌الله بهجت برای وسعت رزق (اللَّهُمَّ أَغْنِنِي بِحَلَالِكَ)',
+      subtitle: 'اللَّهُمَّ أَغْنِنِي بِحَلَالِكَ عَنْ حَرَامِكَ وَبِفَضْلِكَ عَمَّنْ سِوَاكَ — ۷۰ مرتبه',
+      dhikrId: 'bahjat_aghnini_halalika',
     };
   }
-
   if (hour >= 14 && hour < 18) {
     return {
-      badge: `🌤️ پیشنهاد وقت عصر ${dayNameFa}`,
-      title: 'استغفار عصرگاهی و دعای اللَّهُمَّ عَافِنَا وَاعْفُ عَنَّا',
-      subtitle: 'توصیه آیت‌الله بهجت و استاد فاطمی‌نیا برای گشایش گره‌های زندگی',
-      dhikrId: 'astaghfirullah',
+      badge: '🌤️ پیشنهاد وقت عصر ' + dayNameFa,
+      title: '۴۰ مرتبه «يَا قَاضِيَ الْحَاجَاتِ» و استغفار عصرگاهی',
+      subtitle: 'توصیه علما برای گشایش گره‌های زندگی و برآورده شدن حاجات',
+      dhikrId: 'ya_qadi_al_hajat_40',
     };
   }
-
   if (hour >= 18 && hour < 21) {
     return {
-      badge: `🌇 پیشنهاد اول شب ${dayNameFa}`,
+      badge: '🌇 پیشنهاد اول شب ' + dayNameFa,
       title: 'تلاوت سوره مبارکه واقعه و دعای عافیت',
       subtitle: 'توصیه امام صادق (ع) پس از نماز مغرب و عشاء برای بی‌نیازی و برکت رزق',
       dhikrId: 'surah_waqiah',
     };
   }
-
   return {
-    badge: `🌙 پیشنهاد آرامش شبانگاه ${dayNameFa}`,
-    title: 'آیت‌الکرسی شریف و ذکر یونسیه پیش از خواب',
-    subtitle: 'حصار امن الهی و آرامش جان و خانواده در شب',
-    dhikrId: 'ayat_al_kursi',
+    badge: '🌙 پیشنهاد آرامش شبانگاه ' + dayNameFa,
+    title: 'ذکر یونسیه و تسبیحات پیش از خواب',
+    subtitle: 'لَا إِلَٰهَ إِلَّا أَنْتَ سُبْحَانَكَ إِنِّي كُنْتُ مِنَ الظَّالِمِينَ — ۴۰ مرتبه',
+    dhikrId: 'bahjat_yunusiyyah',
   };
 }
 
@@ -191,13 +174,11 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
   const [guestCityId, setGuestCityIdState] = useState(getGuestCityId());
   const [modulesVis] = useState<HomeModulesVisibility>(() => getHomeModulesVisibility());
 
-  // اجرای راهنما فقط و فقط یک‌بار در اولین نصب برنامه (هرگز دوباره باز نمی‌شود مگر از تنظیمات)
   useEffect(() => {
     try {
       const seen = localStorage.getItem(TUTORIAL_SEEN_KEY);
       if (!seen) {
         localStorage.setItem(TUTORIAL_SEEN_KEY, 'true');
-//        setShowTutorial(true);
       }
     } catch {}
   }, []);
@@ -255,15 +236,15 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
     const all = loadReminders();
     const map: Record<string, boolean> = {};
     const prayerMap: Record<string, { title: string; time: string }> = {
-      fajr: { title: `اذان صبح (${city.nameFa})`, time: t.fajr },
-      dhuhr: { title: `اذان ظهر (${city.nameFa})`, time: t.dhuhr },
-      asr: { title: `وقت عصر (${city.nameFa})`, time: t.asr },
-      maghrib: { title: `اذان مغرب (${city.nameFa})`, time: t.maghrib },
-      isha: { title: `وقت عشاء (${city.nameFa})`, time: t.isha },
+      fajr: { title: 'اذان صبح (' + city.nameFa + ')', time: t.fajr },
+      dhuhr: { title: 'اذان ظهر (' + city.nameFa + ')', time: t.dhuhr },
+      asr: { title: 'وقت عصر (' + city.nameFa + ')', time: t.asr },
+      maghrib: { title: 'اذان مغرب (' + city.nameFa + ')', time: t.maghrib },
+      isha: { title: 'وقت عشاء (' + city.nameFa + ')', time: t.isha },
     };
 
     for (const [key, info] of Object.entries(prayerMap)) {
-      const remId = `prayer_auto_${key}`;
+      const remId = 'prayer_auto_' + key;
       const existing = all.find((r) => r.id === remId);
       map[key] = Boolean(existing?.enabled);
       if (existing && existing.enabled && existing.time !== info.time) {
@@ -277,7 +258,7 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
         void scheduleReminder(updated, true);
       }
     }
-    // همگام‌سازی خودکار ساعت یادآورهای قبل از اذان با تغییر روزانه ساعت اذان
+
     for (const r of all) {
       if (r.id.startsWith('pre_adhan_') && r.enabled) {
         const m = r.id.match(/^pre_adhan_([a-z]+)_(\d+)$/);
@@ -334,8 +315,8 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
         setNext({ key: n.key, nameFa: n.nameFa, time: n.time, remaining: n.remaining, progress });
         if (Capacitor.getPlatform() === 'android' && typeof NoorAlarm.updatePrayerWidget === 'function') {
           void NoorAlarm.updatePrayerWidget({
-            nextPrayerText: `اذان ${n.nameFa}: ساعت ${n.time}`,
-            subtitleText: `به افق ${city.nameFa} (${n.remaining} مانده)`,
+            nextPrayerText: 'اذان ' + n.nameFa + ': ساعت ' + n.time,
+            subtitleText: 'به افق ' + city.nameFa + ' (' + n.remaining + ' مانده)',
           });
         }
       }
@@ -365,7 +346,7 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
         setGuestCityId(nearest.id);
         setGuestCityIdState(nearest.id);
       }
-      showToast(`📍 موقعیت شما تشخیص داده شد: «${nearest.nameFa}»`);
+      showToast('📍 موقعیت دقیق شما تشخیص داده شد: «' + nearest.nameFa + '»');
     };
 
     showToast('در حال درخواست مجوز و تشخیص موقعیت مکانی...');
@@ -392,7 +373,7 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
 
   const togglePrayerAdhanAlarm = async (key: string, nameFa: string, timeStrVal: string) => {
     if (key === 'sunrise') return;
-    const remId = `prayer_auto_${key}`;
+    const remId = 'prayer_auto_' + key;
     const currentlyEnabled = Boolean(enabledAlarms[key]);
     const nextState = !currentlyEnabled;
 
@@ -410,8 +391,8 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
     const nowIso = new Date().toISOString();
     const reminder: LocalReminder = {
       id: remId,
-      title: `اذان ${nameFa} به افق ${city.nameFa}`,
-      body: `حَیَّ عَلَی الصَّلَاة — وقت فضیلت نماز ${nameFa} فرا رسیده است`,
+      title: 'اذان ' + nameFa + ' به افق ' + city.nameFa,
+      body: 'حَیَّ عَلَی الصَّلَاة — وقت فضیلت نماز ' + nameFa + ' فرا رسیده است',
       time: timeStrVal,
       days: [0, 1, 2, 3, 4, 5, 6],
       enabled: nextState,
@@ -426,7 +407,7 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
 
     if (nextState) {
       const res = await scheduleReminder(reminder, true);
-      logEvent(res.success ? 'info' : 'warn', 'HomeScreen', `تغییر وضعیت آلارم اذان ${nameFa}`, {
+      logEvent(res.success ? 'info' : 'warn', 'HomeScreen', 'تغییر وضعیت آلارم اذان ' + nameFa, {
         enabled: true,
         time: timeStrVal,
         success: res.success,
@@ -434,7 +415,7 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
       });
       if (res.success) {
         setEnabledAlarms((prev) => ({ ...prev, [key]: true }));
-        showToast(`🔔 آلارم اذان ${nameFa} (${timeStrVal}) فعال شد`);
+        showToast('🔔 آلارم اذان ' + nameFa + ' (' + timeStrVal + ') فعال شد');
       } else {
         reminder.enabled = false;
         saveReminder(reminder);
@@ -442,9 +423,9 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
       }
     } else {
       await cancelReminder(remId);
-      logEvent('info', 'HomeScreen', `آلارم اذان ${nameFa} غیرفعال شد`);
+      logEvent('info', 'HomeScreen', 'آلارم اذان ' + nameFa + ' غیرفعال شد');
       setEnabledAlarms((prev) => ({ ...prev, [key]: false }));
-      showToast(`آلارم اذان ${nameFa} خاموش شد`);
+      showToast('آلارم اذان ' + nameFa + ' خاموش شد');
     }
   };
 
@@ -524,7 +505,6 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
         </div>
       )}
 
-      {/* هدر استاندارد با دکمه‌های مسجدیاب نشان، قبله‌نما و موقعیت */}
       <div className="flex items-center justify-between gap-2 mb-5">
         <div className="min-w-0">
           <h1 className="text-2xl font-black text-app truncate">
@@ -550,7 +530,7 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
             style={{
               borderColor: theme.accent,
               color: theme.accent,
-              background: `color-mix(in srgb, ${theme.accent} 14%, transparent)`,
+              background: 'color-mix(in srgb, ' + theme.accent + ' 14%, transparent)',
             }}
           >
             <Navigation size={13} />
@@ -565,7 +545,7 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
             style={{
               borderColor: theme.border,
               color: theme.primary,
-              background: `color-mix(in srgb, ${theme.primary} 12%, transparent)`,
+              background: 'color-mix(in srgb, ' + theme.primary + ' 12%, transparent)',
             }}
           >
             <Compass size={14} />
@@ -587,14 +567,13 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
         </div>
       </div>
 
-      {/* کارت آسمان پویا بر اساس نماز بعدی */}
       <section
         className="relative overflow-hidden rounded-[1.7rem] p-5 mb-4 animate-slide-up"
         aria-label="نماز بعدی"
         style={{
-          background: `radial-gradient(circle at 90% 8%, color-mix(in srgb, ${theme.accent} 22%, transparent), transparent 42%), linear-gradient(145deg, ${theme.surfaceAlt ?? theme.surface}, ${theme.surface} 68%, ${theme.bg})`,
-          border: `1px solid color-mix(in srgb, ${theme.primary} 28%, ${theme.border})`,
-          boxShadow: `0 14px 34px color-mix(in srgb, ${theme.primary} 10%, transparent)`,
+          background: 'radial-gradient(circle at 90% 8%, color-mix(in srgb, ' + theme.accent + ' 22%, transparent), transparent 42%), linear-gradient(145deg, ' + (theme.surfaceAlt ?? theme.surface) + ', ' + theme.surface + ' 68%, ' + theme.bg + ')',
+          border: '1px solid color-mix(in srgb, ' + theme.primary + ' 28%, ' + theme.border + ')',
+          boxShadow: '0 14px 34px color-mix(in srgb, ' + theme.primary + ' 10%, transparent)',
         }}
       >
         <div className="relative flex items-center justify-between gap-3 mb-5">
@@ -609,8 +588,8 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
           <div
             className="w-[74px] h-[74px] rounded-[1.5rem] flex items-center justify-center flex-shrink-0"
             style={{
-              background: `color-mix(in srgb, ${theme.primary} 14%, transparent)`,
-              border: `1px solid color-mix(in srgb, ${theme.primary} 24%, transparent)`,
+              background: 'color-mix(in srgb, ' + theme.primary + ' 14%, transparent)',
+              border: '1px solid color-mix(in srgb, ' + theme.primary + ' 24%, transparent)',
             }}
           >
             <HeroIcon size={36} strokeWidth={1.6} color={theme.accent} />
@@ -620,13 +599,13 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
           className="relative flex items-center justify-between gap-3 rounded-2xl px-4 py-3"
           style={{
             background: 'color-mix(in srgb, black 12%, transparent)',
-            border: `1px solid color-mix(in srgb, ${theme.border} 75%, transparent)`,
+            border: '1px solid color-mix(in srgb, ' + theme.border + ' 75%, transparent)',
           }}
         >
           <div className="flex items-center gap-2 min-w-0">
             <Clock size={16} color={theme.accent} />
             <p className="text-accent text-sm font-semibold truncate">
-              {next?.remaining ? `تا اذان ${next.nameFa}: ${next.remaining}` : 'در حال محاسبه…'}
+              {next?.remaining ? 'تا اذان ' + next.nameFa + ': ' + next.remaining : 'در حال محاسبه…'}
             </p>
           </div>
           <div className="text-left flex-shrink-0">
@@ -639,27 +618,24 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
         <div className="relative mt-3" aria-label="میزان نزدیک شدن به نماز بعدی">
           <div
             className="h-2 rounded-full overflow-hidden"
-            style={{ background: `color-mix(in srgb, ${theme.primary} 12%, transparent)` }}
+            style={{ background: 'color-mix(in srgb, ' + theme.primary + ' 12%, transparent)' }}
           >
             <div
               className="h-full rounded-full transition-[width] duration-1000 ease-linear"
               style={{
-                width: `${next?.progress ?? 0}%`,
-                background: `linear-gradient(90deg, ${theme.primary}, ${theme.accent})`,
+                width: (next?.progress ?? 0) + '%',
+                background: 'linear-gradient(90deg, ' + theme.primary + ', ' + theme.accent + ')',
               }}
             />
           </div>
         </div>
       </section>
 
-      {/* دستیار هوشمند نماز و ادامه قرآن (قابل شخصی‌سازی از تنظیمات) */}
       {modulesVis.showDeenWidgets &&
         (() => {
           void intelTick;
-          const studio = loadAdhanStudio();
           const quran = loadQuranContinuity();
           const mt = loadMosqueAndTravel();
-          const activeProf = studio.profiles[studio.activeProfile]; void activeProf;
           const nextJamaat =
             next?.key === 'fajr' || next?.key === 'dhuhr' || next?.key === 'maghrib'
               ? addMinutesToTimeStr(next.time, mt.jamaatOffsetsMinutes[next.key])
@@ -673,14 +649,14 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
                 className="card-flat p-3 text-right flex flex-col justify-between"
               >
                 <div className="flex items-center justify-between w-full mb-1">
-                  <span className="text-[11px] font-bold text-primary">🕌 مسجد و قبل اذان</span>
+                  <span className="text-[11px] font-bold text-primary">🔔 تواشیح قبل اذان و مسجد</span>
                   <Sliders size={13} color={theme.primary} />
                 </div>
                 <p className="text-xs font-bold text-app truncate">
                   {mt.travelModeEnabled ? '✈️ حالت سفر (نماز شکسته)' : mt.selectedMosqueName}
                 </p>
                 <p className="text-[10px] text-muted mt-0.5 truncate">
-                  {nextJamaat ? `جماعت ${next?.nameFa}: ${nextJamaat}` : 'ساعت جماعت، دعای قبل اذان و سفر'}
+                  {nextJamaat ? 'جماعت ' + (next?.nameFa ?? '') + ': ' + nextJamaat : 'تواشیح قبل اذان، مسجد و سفر'}
                 </p>
               </button>
 
@@ -690,23 +666,22 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
                 className="card-flat p-3 text-right flex flex-col justify-between"
               >
                 <div className="flex items-center justify-between w-full mb-1">
-                  <span className="text-[11px] font-bold text-accent">📖 مصحف و ادامه قرآن</span>
+                  <span className="text-[11px] font-bold text-accent">📖 مصحف و صوت قرآن</span>
                   <BookOpen size={13} color={theme.accent} />
                 </div>
                 <p className="text-xs font-bold text-app truncate">{quran.surahNameFa}</p>
                 <p className="text-[10px] text-muted mt-0.5 truncate">
-                  آیه {toFaDigits(quran.ayahNumber)} · ۱۱۴ سوره + کوک بعد از اذان
+                  آیه {toFaDigits(quran.ayahNumber)} · ۱۱۴ سوره + ترتیل صوتی
                 </p>
               </button>
             </div>
           );
         })()}
 
-      {/* کارت پیشنهاد هوشمند ساعتی و روزانه (متناسب با ساعت و روز هفته) */}
       {modulesVis.showContextualTip && (
         <div
           className="card-flat p-4 mb-4 flex items-center justify-between gap-3 cursor-pointer"
-          style={{ borderColor: `color-mix(in srgb, ${theme.primary} 30%, ${theme.border})` }}
+          style={{ borderColor: 'color-mix(in srgb, ' + theme.primary + ' 30%, ' + theme.border + ')' }}
           onClick={() => {
             const targetDhikr = dhikrLibrary.find((d) => d.id === spiritualTip.dhikrId);
             if (targetDhikr && onNavigate) {
@@ -738,7 +713,7 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
           <div className="flex items-center gap-3">
             <div
               className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
-              style={{ background: `color-mix(in srgb, ${theme.primary} 15%, transparent)` }}
+              style={{ background: 'color-mix(in srgb, ' + theme.primary + ' 15%, transparent)' }}
             >
               <Hand size={20} color={theme.primary} />
             </div>
@@ -775,7 +750,7 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
                 <div
                   className="w-8 h-8 rounded-xl flex-shrink-0 flex items-center justify-center"
                   style={{
-                    background: isNext ? theme.primary : `color-mix(in srgb, ${theme.primary} 10%, transparent)`,
+                    background: isNext ? theme.primary : 'color-mix(in srgb, ' + theme.primary + ' 10%, transparent)',
                   }}
                 >
                   <Icon size={16} color={isNext ? theme.bg : theme.primary} />
@@ -789,13 +764,13 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
                 {canAlarm && (
                   <button
                     type="button"
-                    aria-label={isAlarmOn ? `خاموش کردن آلارم اذان ${p.nameFa}` : `فعال کردن آلارم اذان ${p.nameFa}`}
+                    aria-label={isAlarmOn ? 'خاموش کردن آلارم اذان ' + p.nameFa : 'فعال کردن آلارم اذان ' + p.nameFa}
                     onClick={() => void togglePrayerAdhanAlarm(p.key, p.nameFa, p.time)}
                     className="w-7 h-7 rounded-lg flex items-center justify-center transition-all"
                     style={{
                       background: isAlarmOn
                         ? theme.primary
-                        : `color-mix(in srgb, ${theme.textMuted} 15%, transparent)`,
+                        : 'color-mix(in srgb, ' + theme.textMuted + ' 15%, transparent)',
                       color: isAlarmOn ? theme.bg : theme.textMuted,
                     }}
                   >

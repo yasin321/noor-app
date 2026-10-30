@@ -51,7 +51,7 @@ export function TasbihCounter({ onNavigate }: { onNavigate?: (t: Tab) => void })
 
     if (willCompleteRound) {
       setCelebrateBanner(true);
-      window.setTimeout(() => setCelebrateBanner(false), 4000);
+      window.setTimeout(() => setCelebrateBanner(false), 3500);
     }
   };
 
@@ -64,12 +64,11 @@ export function TasbihCounter({ onNavigate }: { onNavigate?: (t: Tab) => void })
   const circumference = 2 * Math.PI * 116;
   const dashOffset = circumference - (progress / 100) * circumference;
 
-  // راهنمای هوشمند مرحله فعلی برای تسبیحات شروع کار (۳۳ سبحان‌الله، ۳۳ الحمدلله، ۳۴ الله‌اکبر)
   const getStepHint = () => {
     if (activeDhikr.id === 'farahzad_work_tasbih') {
-      if (session.count < 33) return `مرحله ۱: سُبْحَانَ اللَّهِ (${toFaDigits(session.count + 1)} از ۳۳)`;
-      if (session.count < 66) return `مرحله ۲: الْحَمْدُ لِلَّهِ (${toFaDigits(session.count - 33 + 1)} از ۳۳)`;
-      return `مرحله ۳: اللَّهُ أَكْبَرُ (${toFaDigits(session.count - 66 + 1)} از ۳۴)`;
+      if (session.count < 33) return 'مرحله ۱: سُبْحَانَ اللَّهِ (' + toFaDigits(session.count + 1) + ' از ۳۳)';
+      if (session.count < 66) return 'مرحله ۲: الْحَمْدُ لِلَّهِ (' + toFaDigits(session.count - 33 + 1) + ' از ۳۳)';
+      return 'مرحله ۳: اللَّهُ أَكْبَرُ (' + toFaDigits(session.count - 66 + 1) + ' از ۳۴)';
     }
     return null;
   };
@@ -89,8 +88,8 @@ export function TasbihCounter({ onNavigate }: { onNavigate?: (t: Tab) => void })
               onClick={() => onNavigate('library')}
               className="px-3.5 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-1.5 border shadow-sm"
               style={{
-                background: `color-mix(in srgb, ${theme.primary} 14%, transparent)`,
-                borderColor: `color-mix(in srgb, ${theme.primary} 35%, ${theme.border})`,
+                background: 'color-mix(in srgb, ' + theme.primary + ' 14%, transparent)',
+                borderColor: 'color-mix(in srgb, ' + theme.primary + ' 35%, ' + theme.border + ')',
                 color: theme.primary,
               }}
             >
@@ -104,7 +103,7 @@ export function TasbihCounter({ onNavigate }: { onNavigate?: (t: Tab) => void })
           <div
             className="mb-3 p-3.5 rounded-2xl border flex items-center justify-between gap-2 animate-fade-in shadow-lg"
             style={{
-              background: `color-mix(in srgb, ${theme.primary} 20%, ${theme.surface})`,
+              background: 'color-mix(in srgb, ' + theme.primary + ' 20%, ' + theme.surface + ')',
               borderColor: theme.primary,
             }}
           >
@@ -127,9 +126,9 @@ export function TasbihCounter({ onNavigate }: { onNavigate?: (t: Tab) => void })
         <section
           className="rounded-3xl p-5 text-center overflow-hidden relative border"
           style={{
-            background: `radial-gradient(circle at 50% 0%, color-mix(in srgb, ${theme.primary} 16%, transparent), ${theme.surface})`,
-            borderColor: `color-mix(in srgb, ${theme.primary} 28%, ${theme.border})`,
-            boxShadow: `0 14px 36px color-mix(in srgb, ${theme.primary} 12%, transparent)`,
+            background: 'radial-gradient(circle at 50% 0%, color-mix(in srgb, ' + theme.primary + ' 16%, transparent), ' + theme.surface + ')',
+            borderColor: 'color-mix(in srgb, ' + theme.primary + ' 28%, ' + theme.border + ')',
+            boxShadow: '0 14px 36px color-mix(in srgb, ' + theme.primary + ' 12%, transparent)',
           }}
         >
           <p className="text-app text-xl font-bold leading-relaxed mt-1">{activeDhikr.arabic}</p>
@@ -138,7 +137,7 @@ export function TasbihCounter({ onNavigate }: { onNavigate?: (t: Tab) => void })
           {stepHint && (
             <div
               className="mt-2.5 inline-block px-3.5 py-1 rounded-xl text-xs font-black"
-              style={{ background: `color-mix(in srgb, ${theme.accent} 20%, transparent)`, color: theme.accent }}
+              style={{ background: 'color-mix(in srgb, ' + theme.accent + ' 20%, transparent)', color: theme.accent }}
             >
               {stepHint}
             </div>
@@ -152,7 +151,7 @@ export function TasbihCounter({ onNavigate }: { onNavigate?: (t: Tab) => void })
                 onClick={() => handlePresetTarget(preset)}
                 className="px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all"
                 style={{
-                  background: targetVal === preset ? theme.primary : `color-mix(in srgb, ${theme.primary} 10%, transparent)`,
+                  background: targetVal === preset ? theme.primary : 'color-mix(in srgb, ' + theme.primary + ' 10%, transparent)',
                   color: targetVal === preset ? theme.bg : theme.textMuted,
                 }}
               >
@@ -182,13 +181,13 @@ export function TasbihCounter({ onNavigate }: { onNavigate?: (t: Tab) => void })
                 type="button"
                 onClick={executeTap}
                 aria-label="افزودن یک شمارش ذکر"
-                className={`relative rounded-full flex flex-col items-center justify-center select-none transition-transform duration-75 ${tapPulse ? 'scale-[0.94]' : ''}`}
+                className={'relative rounded-full flex flex-col items-center justify-center select-none transition-transform duration-75 ' + (tapPulse ? 'scale-[0.94]' : '')}
                 style={{
                   width: 'min(61vw, 232px)',
                   height: 'min(61vw, 232px)',
-                  background: `radial-gradient(circle at 35% 25%, color-mix(in srgb, ${theme.primary} 28%, ${theme.surface}), ${theme.bg})`,
-                  border: `2px solid color-mix(in srgb, ${theme.primary} 60%, transparent)`,
-                  boxShadow: `inset 0 4px 24px color-mix(in srgb, ${theme.primary} 18%, transparent), 0 10px 30px color-mix(in srgb, ${theme.primary} 16%, transparent)`,
+                  background: 'radial-gradient(circle at 35% 25%, color-mix(in srgb, ' + theme.primary + ' 28%, ' + theme.surface + '), ' + theme.bg + ')',
+                  border: '2px solid color-mix(in srgb, ' + theme.primary + ' 60%, transparent)',
+                  boxShadow: 'inset 0 4px 24px color-mix(in srgb, ' + theme.primary + ' 18%, transparent), 0 10px 30px color-mix(in srgb, ' + theme.primary + ' 16%, transparent)',
                   touchAction: 'manipulation',
                   WebkitTapHighlightColor: 'transparent',
                 }}
@@ -204,7 +203,7 @@ export function TasbihCounter({ onNavigate }: { onNavigate?: (t: Tab) => void })
                 </span>
                 <span
                   className="mt-3 px-3 py-1 rounded-full text-[11px] font-bold"
-                  style={{ background: `color-mix(in srgb, ${theme.primary} 16%, transparent)`, color: theme.primary }}
+                  style={{ background: 'color-mix(in srgb, ' + theme.primary + ' 16%, transparent)', color: theme.primary }}
                 >
                   برای شمارش لمس کن ✨
                 </span>
@@ -232,7 +231,7 @@ export function TasbihCounter({ onNavigate }: { onNavigate?: (t: Tab) => void })
         {session.completed > 0 && (
           <div
             className="mt-3 p-3 rounded-2xl flex items-center justify-center gap-2 animate-slide-up"
-            style={{ background: `color-mix(in srgb, ${theme.primary} 12%, transparent)` }}
+            style={{ background: 'color-mix(in srgb, ' + theme.primary + ' 12%, transparent)' }}
           >
             <Check size={17} color={theme.primary} />
             <p className="text-xs font-bold text-primary">
@@ -246,7 +245,7 @@ export function TasbihCounter({ onNavigate }: { onNavigate?: (t: Tab) => void })
             type="button"
             onClick={reset}
             className="flex-1 py-3.5 rounded-2xl text-xs font-bold flex items-center justify-center gap-2"
-            style={{ background: `color-mix(in srgb, ${theme.primary} 12%, transparent)`, color: theme.primary }}
+            style={{ background: 'color-mix(in srgb, ' + theme.primary + ' 12%, transparent)', color: theme.primary }}
           >
             <RotateCcw size={16} /> صفر کردن این دور
           </button>
