@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { useEffect, useMemo, useState } from 'react';
 import { RotateCcw, Check, Sparkles, BookOpen, Award } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
@@ -8,26 +7,7 @@ import { getAllDhikr } from '@/lib/dhikrLibrary';
 import { toFaDigits } from '@/lib/jalali';
 import type { Tab } from '@/components/BottomNav';
 
-const TARGET_PRESETS = [14, 33, 34, 100];
-
-
-function triggerSmartTasbihHaptic(nextCount: number, reachedTarget: boolean) {
-  if (typeof navigator === 'undefined' || !navigator.vibrate) return;
-  try {
-    if (reachedTarget || nextCount === 100) {
-      // پایان دور کامل: سه پالس نورانی
-      navigator.vibrate([55, 65, 55, 65, 130]);
-    } else if (nextCount === 34 || nextCount === 67) {
-      // مرز ۳۴ (الله اکبر) و ۶۷ (الحمدلله) در تسبیحات حضرت زهرا (س): دو پالس مشخص برای استفاده با چشم بسته
-      navigator.vibrate([45, 55, 95]);
-    } else {
-      // تک‌ضربه نرم برای هر دانه تسبیح
-      navigator.vibrate(14);
-    }
-  } catch {
-    // ignore on unsupported browsers
-  }
-}
+const TARGET_PRESETS = [14, 33, 34, 40, 70, 100];
 
 export function TasbihCounter({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
   const { theme } = useTheme();
@@ -40,10 +20,8 @@ export function TasbihCounter({ onNavigate }: { onNavigate?: (t: Tab) => void })
   );
 
   const [tapPulse, setTapPulse] = useState(false);
-  const [celebrateModal, setCelebrateModal] = useState(false);
-  const lastPointerTapRef = useRef<number>(0);
+  const [celebrateBanner, setCelebrateBanner] = useState(false);
 
-  // اطمینان از اینکه همیشه یک ذکر فعال روی حلقه وجود دارد (بدون نمایش صفحه انتخابگر)
   useEffect(() => {
     if (!session.dhikrId && activeDhikr) {
       start(activeDhikr.id, activeDhikr.count);
@@ -55,28 +33,26 @@ export function TasbihCounter({ onNavigate }: { onNavigate?: (t: Tab) => void })
       start(activeDhikr.id, activeDhikr.count);
     }
     const target = session.target > 0 ? session.target : activeDhikr.count;
-    const willCompleteRound = session.count + 1 >= target;
+    const nextCount = session.count + 1;
+    const willCompleteRound = nextCount >= target;
     increment();
     setTapPulse(true);
     window.setTimeout(() => setTapPulse(false), 75);
 
     if ('vibrate' in navigator) {
-      navigator.vibrate?.(willCompleteRound ? [40, 60, 90] : 8);
+      if (willCompleteRound) {
+        navigator.vibrate?.([45, 60, 110]);
+      } else if (nextCount === 33 || nextCount === 34 || nextCount === 66 || nextCount === 67) {
+        navigator.vibrate?.([35, 50, 80]);
+      } else {
+        navigator.vibrate?.(10);
+      }
     }
 
     if (willCompleteRound) {
-      setCelebrateModal(true);
+      setCelebrateBanner(true);
+      window.setTimeout(() => setCelebrateBanner(false), 4000);
     }
-  };
-
-  const handlePointerDown = () => {
-    lastPointerTapRef.current = Date.now();
-    executeTap();
-  };
-
-  const handleFallbackClick = () => {
-    if (Date.now() - lastPointerTapRef.current < 350) return;
-    executeTap();
   };
 
   const handlePresetTarget = (newTarget: number) => {
@@ -88,47 +64,19 @@ export function TasbihCounter({ onNavigate }: { onNavigate?: (t: Tab) => void })
   const circumference = 2 * Math.PI * 116;
   const dashOffset = circumference - (progress / 100) * circumference;
 
-  const celebrationOverlay = celebrateModal ? (
-    <div
-      className="fixed inset-0 z-[999] flex items-center justify-center p-5 animate-fade-in"
-      style={{ background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(5px)' }}
-      dir="rtl"
-    >
-      <div
-        className="w-full max-w-sm rounded-3xl p-6 text-center border shadow-2xl"
-        style={{ background: theme.surface, borderColor: theme.primary }}
-      >
-        <div
-          className="w-16 h-16 rounded-full mx-auto mb-3 flex items-center justify-center"
-          style={{ background: `color-mix(in srgb, ${theme.primary} 18%, transparent)` }}
-        >
-          <Award size={34} color={theme.primary} />
-        </div>
-        <h3 className="text-xl font-black text-primary mb-1">تَقَبَّلَ اللَّهُ ✨</h3>
-        <p className="text-app font-bold text-sm mb-2">
-          دور {toFaDigits(session.completed)} از ذکر «{activeDhikr.arabic}» کامل شد!
-        </p>
-        <p className="text-muted text-xs leading-relaxed mb-5">
-          خداوند این ذکر نورانی را ذخیرهٔ آرامش دل، برکت زندگی و عاقبت‌به‌خیری شما و عزیزانتان قرار دهد.
-        </p>
-        <button
-          type="button"
-          onClick={() => setCelebrateModal(false)}
-          className="w-full py-3.5 rounded-2xl text-sm font-bold"
-          style={{ background: theme.primary, color: theme.bg }}
-        >
-          الهی آمین — ادامه ذکر
-        </button>
-      </div>
-    </div>
-  ) : null;
+  // راهنمای هوشمند مرحله فعلی برای تسبیحات شروع کار (۳۳ سبحان‌الله، ۳۳ الحمدلله، ۳۴ الله‌اکبر)
+  const getStepHint = () => {
+    if (activeDhikr.id === 'farahzad_work_tasbih') {
+      if (session.count < 33) return `مرحله ۱: سُبْحَانَ اللَّهِ (${toFaDigits(session.count + 1)} از ۳۳)`;
+      if (session.count < 66) return `مرحله ۲: الْحَمْدُ لِلَّهِ (${toFaDigits(session.count - 33 + 1)} از ۳۳)`;
+      return `مرحله ۳: اللَّهُ أَكْبَرُ (${toFaDigits(session.count - 66 + 1)} از ۳۴)`;
+    }
+    return null;
+  };
+  const stepHint = getStepHint();
 
   return (
     <div className="w-full max-w-xl mx-auto px-3.5 pt-4 pb-32 animate-fade-in min-h-screen" dir="rtl">
-      {celebrationOverlay && typeof document !== 'undefined'
-        ? createPortal(celebrationOverlay, document.body)
-        : celebrationOverlay}
-
       <div className="max-w-md mx-auto">
         <header className="flex items-center justify-between mb-4">
           <div>
@@ -152,7 +100,30 @@ export function TasbihCounter({ onNavigate }: { onNavigate?: (t: Tab) => void })
           )}
         </header>
 
-        {/* کارت ذکر فعال بالای حلقه */}
+        {celebrateBanner && (
+          <div
+            className="mb-3 p-3.5 rounded-2xl border flex items-center justify-between gap-2 animate-fade-in shadow-lg"
+            style={{
+              background: `color-mix(in srgb, ${theme.primary} 20%, ${theme.surface})`,
+              borderColor: theme.primary,
+            }}
+          >
+            <div className="flex items-center gap-2">
+              <Award size={20} color={theme.primary} />
+              <span className="text-xs font-black text-app">
+                تَقَبَّلَ اللَّهُ ✨ دور {toFaDigits(session.completed)} کامل شد!
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setCelebrateBanner(false)}
+              className="text-[11px] font-bold text-primary"
+            >
+              الهی آمین
+            </button>
+          </div>
+        )}
+
         <section
           className="rounded-3xl p-5 text-center overflow-hidden relative border"
           style={{
@@ -161,11 +132,19 @@ export function TasbihCounter({ onNavigate }: { onNavigate?: (t: Tab) => void })
             boxShadow: `0 14px 36px color-mix(in srgb, ${theme.primary} 12%, transparent)`,
           }}
         >
-          <p className="text-app text-2xl font-bold leading-relaxed mt-1">{activeDhikr.arabic}</p>
+          <p className="text-app text-xl font-bold leading-relaxed mt-1">{activeDhikr.arabic}</p>
           <p className="text-muted text-xs mt-1.5 leading-relaxed">{activeDhikr.translation}</p>
 
-          {/* انتخاب سریع تعداد هدف دور */}
-          <div className="flex items-center justify-center gap-1.5 mt-3">
+          {stepHint && (
+            <div
+              className="mt-2.5 inline-block px-3.5 py-1 rounded-xl text-xs font-black"
+              style={{ background: `color-mix(in srgb, ${theme.accent} 20%, transparent)`, color: theme.accent }}
+            >
+              {stepHint}
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-center justify-center gap-1.5 mt-3">
             {TARGET_PRESETS.map((preset) => (
               <button
                 key={preset}
@@ -182,7 +161,6 @@ export function TasbihCounter({ onNavigate }: { onNavigate?: (t: Tab) => void })
             ))}
           </div>
 
-          {/* حلقه Figma-Grade تسبیح با افکت نوری و لمس آنی */}
           <div className="flex justify-center my-5">
             <div className="relative flex items-center justify-center" style={{ width: 'min(74vw, 284px)', height: 'min(74vw, 284px)' }}>
               <svg className="absolute inset-0 -rotate-90" width="100%" height="100%" viewBox="0 0 272 272" aria-hidden="true">
@@ -202,8 +180,7 @@ export function TasbihCounter({ onNavigate }: { onNavigate?: (t: Tab) => void })
               </svg>
               <button
                 type="button"
-                onPointerDown={handlePointerDown}
-                onClick={handleFallbackClick}
+                onClick={executeTap}
                 aria-label="افزودن یک شمارش ذکر"
                 className={`relative rounded-full flex flex-col items-center justify-center select-none transition-transform duration-75 ${tapPulse ? 'scale-[0.94]' : ''}`}
                 style={{
