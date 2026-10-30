@@ -28,13 +28,7 @@ function AppContent() {
   const [tab, setTab] = useState<Tab>('home');
   const [navigationDirection, setNavigationDirection] = useState<'forward' | 'backward'>('forward');
   const [showAuth, setShowAuth] = useState(false);
-  const [showFirstTimeGuide, setShowFirstTimeGuide] = useState<boolean>(() => {
-    try {
-      return typeof window !== 'undefined' && !navigator.webdriver && localStorage.getItem(TUTORIAL_SEEN_KEY) !== 'true';
-    } catch {
-      return false;
-    }
-  });
+  const [showFirstTimeGuide, setShowFirstTimeGuide] = useState<boolean>(false);
 
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const tabOrder: Tab[] = ['home', 'tasbih', 'library', 'reminders', 'settings'];

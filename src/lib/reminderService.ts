@@ -87,7 +87,7 @@ export const ADHAN_CHANNEL_ID = 'noor_adhan_channel_v4';
 export const REMINDER_CHANNEL_ID = 'noor_reminders_v4';
 
 export async function ensureChannel(): Promise<void> {
-  if (!Capacitor.isNativePlatform() || channelReady) return;
+  if (channelReady) return;
   try {
     await LocalNotifications.createChannel({
       id: REMINDER_CHANNEL_ID,
@@ -109,45 +109,40 @@ export async function ensureChannel(): Promise<void> {
       lights: true,
     });
     channelReady = true;
-  } catch (err) {
-    console.warn('[ReminderService] createChannel failed:', err);
+  } catch {
+    // ignore on web
   }
 }
 
 export type PermissionStatus = 'granted' | 'denied' | 'prompt';
 
 export async function checkPermission(): Promise<PermissionStatus> {
-  if (!Capacitor.isNativePlatform()) {
-    if (typeof Notification !== 'undefined') {
-      if (Notification.permission === 'granted') return 'granted';
-      if (Notification.permission === 'denied') return 'denied';
-    }
-    return 'prompt';
-  }
   try {
     const { display } = await LocalNotifications.checkPermissions();
     if (display === 'granted') return 'granted';
     if (display === 'denied') return 'denied';
     return 'prompt';
   } catch {
+    if (typeof Notification !== 'undefined') {
+      if (Notification.permission === 'granted') return 'granted';
+      if (Notification.permission === 'denied') return 'denied';
+      return 'prompt';
+    }
     return 'denied';
   }
 }
 
 export async function requestPermission(): Promise<PermissionStatus> {
-  if (!Capacitor.isNativePlatform()) {
-    if (typeof Notification !== 'undefined') {
-      const res = await Notification.requestPermission();
-      return res === 'granted' ? 'granted' : res === 'denied' ? 'denied' : 'prompt';
-    }
-    return 'denied';
-  }
   try {
     const { display } = await LocalNotifications.requestPermissions();
     if (display === 'granted') return 'granted';
     if (display === 'denied') return 'denied';
     return 'prompt';
   } catch {
+    if (typeof Notification !== 'undefined') {
+      const res = await Notification.requestPermission();
+      return res === 'granted' ? 'granted' : res === 'denied' ? 'denied' : 'prompt';
+    }
     return 'denied';
   }
 }
@@ -156,7 +151,7 @@ export function buildNotificationBody(reminder: LocalReminder): string {
   if (reminder.body.trim()) return reminder.body.trim();
   if (reminder.dhikrId) {
     const d = dhikrLibrary.find((x) => x.id === reminder.dhikrId);
-    if (d) return `${d.arabic} — ${d.translationFa} (${d.count} بار)`;
+    if (d) return `${d.arabic} — ${d.translation} (${d.count} بار)`;
   }
   return 'وقت یادآوری ذکر و نیایش است';
 }
@@ -216,8 +211,6 @@ export function computeSingleOccurrence(dateStr: string | null, timeStr: string)
 const scheduledSlotMap = new Map<string, number[]>();
 
 export async function cancelReminder(reminderId: string): Promise<void> {
-  if (!Capacitor.isNativePlatform()) return;
-
   const existingIds = scheduledSlotMap.get(reminderId) ?? [];
   const fallbackIds = Array.from({ length: 15 }, (_, i) => reminderIdToNotifId(reminderId, i));
   const allIds = Array.from(new Set([...existingIds, ...fallbackIds]));
@@ -226,19 +219,20 @@ export async function cancelReminder(reminderId: string): Promise<void> {
     await LocalNotifications.cancel({
       notifications: allIds.map((id) => ({ id })),
     });
-    if (Capacitor.getPlatform() === 'android') {
-      for (const id of allIds.slice(0, 15)) {
-        try {
-          await NoorAlarm.cancelNativeAlarm({ id });
-        } catch {
-          // ignore
-        }
+  } catch {
+    // ignore
+  }
+
+  if (Capacitor.getPlatform() === 'android') {
+    for (const id of allIds.slice(0, 15)) {
+      try {
+        await NoorAlarm.cancelNativeAlarm({ id });
+      } catch {
+        // ignore
       }
     }
-    scheduledSlotMap.delete(reminderId);
-  } catch (err) {
-    console.warn('[ReminderService] cancel failed:', err);
   }
+  scheduledSlotMap.delete(reminderId);
 }
 
 export async function scheduleReminder(
@@ -249,10 +243,6 @@ export async function scheduleReminder(
 
   if (!reminder.enabled || !globalNotifEnabled) {
     return { success: true, scheduledCount: 0, scheduledIds: [] };
-  }
-
-  if (!Capacitor.isNativePlatform()) {
-    return { success: true, scheduledCount: 1, scheduledIds: [reminderIdToNotifId(reminder.id, 0)] };
   }
 
   const perm = await checkPermission();
@@ -268,15 +258,10 @@ export async function scheduleReminder(
     }
   }
 
-  if (Capacitor.getPlatform() === 'android') {
+  if (typeof LocalNotifications.checkExactNotificationSetting === 'function') {
     try {
-      const { exact_alarm } = await LocalNotifications.checkExactNotificationSetting();
-      if (exact_alarm !== 'granted') {
-        try {
-          await LocalNotifications.changeExactNotificationSetting();
-        } catch {
-          // ignore
-        }
+      const exactRes = await LocalNotifications.checkExactNotificationSetting();
+      if (exactRes && exactRes.exact_alarm && exactRes.exact_alarm !== 'granted') {
         return {
           success: false,
           scheduledCount: 0,
@@ -285,7 +270,7 @@ export async function scheduleReminder(
         };
       }
     } catch {
-      // ignore if checkExactNotificationSetting is not supported
+      // ignore if unsupported on web
     }
   }
 
@@ -369,7 +354,7 @@ export async function scheduleReminder(
           },
         ],
       });
-      if (Capacitor.getPlatform() === 'android' && idx < 14) {
+      if (Capacitor.getPlatform() === 'android') {
         try {
           const p = resolvePrayerAlarmParams(reminder.id);
           await NoorAlarm.scheduleNativeAlarm({

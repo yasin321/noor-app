@@ -89,7 +89,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [guestMethod, setGuestMethod] = useState(() => {
-    try { return localStorage.getItem('noor_guest_calc_method') || 'jafari'; } catch { return 'jafari'; }
+    try { return localStorage.getItem('noor_guest_calc_method') || 'tehran'; } catch { return 'tehran'; }
   });
 
   const dash = getSpiritualDashboardStats(period);

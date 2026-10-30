@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { MapPin, Navigation, Footprints, Car, Bus, Compass, X, LocateFixed, Check, KeyRound, ExternalLink, Sparkles } from 'lucide-react';
+import { MapPin, Navigation, Footprints, Car, Bus, Compass, X, LocateFixed, Check, KeyRound, ExternalLink, Sparkles, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { useTheme } from '@/hooks/useTheme';
 import { NoorAlarm } from '@/lib/reminderService';
@@ -11,6 +11,7 @@ import {
   setNeshanApiKey,
   type NearbyMosque,
 } from '@/lib/neshanMosqueService';
+import { saveCustomGpsCoords } from '@/lib/cities';
 import { loadMosqueAndTravel, saveMosqueAndTravel } from '@/lib/deenIntelligenceStore';
 import { toFaDigits } from '@/lib/jalali';
 
@@ -25,6 +26,8 @@ interface Props {
 export function MosqueFinderModal({ cityName, defaultLat, defaultLng, onClose, onMosqueSelected }: Props) {
   const { theme } = useTheme();
   const [coords, setCoords] = useState<{ lat: number; lng: number }>({ lat: defaultLat, lng: defaultLng });
+  const [gpsStatus, setGpsStatus] = useState<'searching' | 'locked' | 'fallback'>('searching');
+  const [accuracyMeters, setAccuracyMeters] = useState<number | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [mosques, setMosques] = useState<NearbyMosque[]>([]);
   const [userAddress, setUserAddress] = useState<string>(`محدوده ${cityName}`);
@@ -40,12 +43,13 @@ export function MosqueFinderModal({ cityName, defaultLat, defaultLng, onClose, o
     setTimeout(() => setToast(null), 3200);
   };
 
-  const loadNearby = async (lat: number, lng: number) => {
+  const loadNearby = async (lat: number, lng: number, isExactGps: boolean) => {
     setLoading(true);
     const res = await searchNearbyMosques(lat, lng);
     setMosques(res.mosques);
     if (res.userAddress && res.userAddress !== 'موقعیت فعلی شما') {
       setUserAddress(res.userAddress);
+      if (isExactGps) setGpsStatus('locked');
     }
     if (res.mosques.length > 0) {
       setSelectedMosque(res.mosques[0]);
@@ -54,15 +58,20 @@ export function MosqueFinderModal({ cityName, defaultLat, defaultLng, onClose, o
   };
 
   const detectLiveGps = async () => {
+    setGpsStatus('searching');
     setLoading(true);
-    showNotice('📍 در حال دریافت موقعیت دقیق GPS شما...');
+    void loadNearby(coords.lat, coords.lng, false);
+
     if (Capacitor.getPlatform() === 'android' && typeof NoorAlarm.requestAndGetLocation === 'function') {
       try {
         const res = await NoorAlarm.requestAndGetLocation();
         if (res.hasCoords && typeof res.lat === 'number' && typeof res.lng === 'number') {
           setCoords({ lat: res.lat, lng: res.lng });
-          await loadNearby(res.lat, res.lng);
-          showNotice('✅ نزدیک‌ترین مساجد اطراف موقعیت دقیق شما پیدا شد.');
+          saveCustomGpsCoords(res.lat, res.lng);
+          setGpsStatus('locked');
+          setAccuracyMeters(15);
+          await loadNearby(res.lat, res.lng, true);
+          showNotice('🎯 موقعیت دقیق GPS شما قفل شد و مساجد اطراف بروزرسانی شدند!');
           return;
         }
       } catch {}
@@ -74,16 +83,20 @@ export function MosqueFinderModal({ cityName, defaultLat, defaultLng, onClose, o
           const lat = pos.coords.latitude;
           const lng = pos.coords.longitude;
           setCoords({ lat, lng });
-          void loadNearby(lat, lng);
-          showNotice('✅ موقعیت دقیق شما دریافت شد.');
+          saveCustomGpsCoords(lat, lng);
+          setAccuracyMeters(Math.round(pos.coords.accuracy || 20));
+          setGpsStatus('locked');
+          void loadNearby(lat, lng, true);
+          showNotice('🎯 موقعیت دقیق GPS شما دریافت شد!');
         },
         () => {
-          void loadNearby(defaultLat, defaultLng);
+          setGpsStatus('fallback');
+          showNotice('⚠️ GPS دقیق پاسخ نداد؛ برای دقت خیابان روی «مکان‌یابی مجدد» بزنید.');
         },
-        { enableHighAccuracy: true, timeout: 8000 }
+        { enableHighAccuracy: true, timeout: 6000, maximumAge: 0 }
       );
     } else {
-      await loadNearby(defaultLat, defaultLng);
+      setGpsStatus('fallback');
     }
   };
 
@@ -117,7 +130,6 @@ export function MosqueFinderModal({ cityName, defaultLat, defaultLng, onClose, o
   };
 
   const openInNeshanApp = (m: NearbyMosque) => {
-    // لینک استاندارد باز کردن مستقیم مسیریاب نشان، بلد یا گوگل‌مپ روی موبایل
     const neshanUrl = `https://nshn.ir/?lat=${m.lat}&lng=${m.lng}`;
     window.open(neshanUrl, '_blank', 'noopener,noreferrer');
   };
@@ -143,8 +155,7 @@ export function MosqueFinderModal({ cityName, defaultLat, defaultLng, onClose, o
         className="w-full max-w-md rounded-3xl p-4 border shadow-2xl my-auto max-h-[92vh] overflow-y-auto"
         style={{ background: theme.surface, borderColor: theme.border }}
       >
-        {/* هدر مسجدیاب نشان */}
-        <div className="flex items-center justify-between pb-3 mb-3 border-b" style={{ borderColor: theme.border }}>
+        <div className="flex items-center justify-between pb-3 mb-2.5 border-b" style={{ borderColor: theme.border }}>
           <div className="flex items-center gap-2">
             <div
               className="w-9 h-9 rounded-2xl flex items-center justify-center"
@@ -154,7 +165,7 @@ export function MosqueFinderModal({ cityName, defaultLat, defaultLng, onClose, o
             </div>
             <div>
               <h2 className="text-base font-black text-app">مسجدیاب و مسیریاب هوشمند نشان</h2>
-              <p className="text-[11px] text-muted truncate max-w-[210px]">{userAddress}</p>
+              <p className="text-[11px] text-primary font-bold truncate max-w-[220px]">{userAddress}</p>
             </div>
           </div>
           <div className="flex items-center gap-1">
@@ -173,22 +184,56 @@ export function MosqueFinderModal({ cityName, defaultLat, defaultLng, onClose, o
           </div>
         </div>
 
+        <div
+          className="mb-3 p-2.5 rounded-2xl border flex items-center justify-between gap-2"
+          style={{
+            borderColor: gpsStatus === 'locked' ? theme.primary : theme.accent,
+            background:
+              gpsStatus === 'locked'
+                ? `color-mix(in srgb, ${theme.primary} 12%, transparent)`
+                : `color-mix(in srgb, ${theme.accent} 12%, transparent)`,
+          }}
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            {gpsStatus === 'locked' ? (
+              <CheckCircle2 size={16} color={theme.primary} className="shrink-0" />
+            ) : (
+              <AlertTriangle size={16} color={theme.accent} className="shrink-0" />
+            )}
+            <div className="min-w-0">
+              <p className="text-[11px] font-black text-app truncate">
+                {gpsStatus === 'locked'
+                  ? `موقعیت دقیق شما پیدا شد ${accuracyMeters ? `(دقت ${toFaDigits(accuracyMeters)} متر)` : '✓'}`
+                  : gpsStatus === 'searching'
+                  ? 'در حال قفل کردن رادار دقیق GPS...'
+                  : 'موقعیت تقریبی است — برای دقت خیابان لمس کنید'}
+              </p>
+              <p className="text-[10px] text-muted truncate">{userAddress}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => void detectLiveGps()}
+            className="px-2.5 py-1.5 rounded-xl text-[10px] font-bold flex items-center gap-1 shrink-0"
+            style={{ background: theme.primary, color: theme.bg }}
+          >
+            <LocateFixed size={12} />
+            <span>مکان‌یابی مجدد</span>
+          </button>
+        </div>
+
         {toast && (
           <div
-            className="mb-3 rounded-2xl px-3 py-2.5 text-xs font-bold text-center shadow-lg"
+            className="mb-3 rounded-2xl px-3 py-2 text-xs font-bold text-center shadow-lg"
             style={{ background: theme.primary, color: theme.bg }}
           >
             {toast}
           </div>
         )}
 
-        {/* باکس اختیاری وارد کردن کلید API نشان (service.xxx) */}
         {showKeyInput && (
           <div className="card-flat p-3.5 mb-3 space-y-2 border" style={{ borderColor: theme.primary }}>
-            <p className="text-xs font-bold text-app">🔑 اتصال به کلید وب‌سرویس نقشه نشان (Neshan API):</p>
-            <p className="text-[11px] text-muted leading-relaxed">
-              در پنل نشان (platform.neshan.org) یک کلید از تب «سرویس‌ها» (با پیشوند <code>service.</code>) بسازید و اینجا وارد کنید:
-            </p>
+            <p className="text-xs font-bold text-app">🔑 کلید وب‌سرویس نقشه نشان (Neshan API):</p>
             <div className="flex gap-1.5">
               <input
                 type="text"
@@ -204,8 +249,8 @@ export function MosqueFinderModal({ cityName, defaultLat, defaultLng, onClose, o
                 onClick={() => {
                   setNeshanApiKey(apiKeyInput);
                   setShowKeyInput(false);
-                  void loadNearby(coords.lat, coords.lng);
-                  showNotice('✅ کلید وب‌سرویس نشان ذخیره و استعلام جدید انجام شد!');
+                  void loadNearby(coords.lat, coords.lng, gpsStatus === 'locked');
+                  showNotice('✅ کلید وب‌سرویس نشان ذخیره شد!');
                 }}
                 className="px-3.5 py-2 rounded-xl text-xs font-bold"
                 style={{ background: theme.primary, color: theme.bg }}
@@ -216,49 +261,33 @@ export function MosqueFinderModal({ cityName, defaultLat, defaultLng, onClose, o
           </div>
         )}
 
-        {/* انتخاب نوع وسیله نقلیه برای رسیدن به نماز اول وقت (پیاده / خودرو / اتوبوس و مترو) */}
-        <div className="mb-3.5">
-          <div className="flex items-center justify-between mb-1.5 px-1">
-            <span className="text-xs font-bold text-muted">نحوه حرکت شما به سمت مسجد:</span>
-            <button
-              type="button"
-              onClick={() => void detectLiveGps()}
-              className="text-[11px] font-bold flex items-center gap-1"
-              style={{ color: theme.primary }}
-            >
-              <LocateFixed size={12} /> بروزرسانی GPS
-            </button>
-          </div>
-
-          <div
-            className="grid grid-cols-3 gap-1.5 p-1.5 rounded-2xl"
-            style={{ background: theme.bg, border: `1px solid ${theme.border}` }}
-          >
-            {[
-              { id: 'walk' as const, label: '🚶 پیاده', icon: Footprints },
-              { id: 'car' as const, label: '🚗 با خودرو', icon: Car },
-              { id: 'transit' as const, label: '🚌 اتوبوس/مترو', icon: Bus },
-            ].map((m) => {
-              const active = travelMode === m.id;
-              return (
-                <button
-                  key={m.id}
-                  type="button"
-                  onClick={() => setTravelMode(m.id)}
-                  className="py-2 rounded-xl text-xs font-bold transition-all"
-                  style={{
-                    background: active ? theme.primary : 'transparent',
-                    color: active ? theme.bg : theme.textMuted,
-                  }}
-                >
-                  {m.label}
-                </button>
-              );
-            })}
-          </div>
+        <div
+          className="grid grid-cols-3 gap-1.5 p-1.5 rounded-2xl mb-3"
+          style={{ background: theme.bg, border: `1px solid ${theme.border}` }}
+        >
+          {[
+            { id: 'walk' as const, label: '🚶 پیاده', icon: Footprints },
+            { id: 'car' as const, label: '�� با خودرو', icon: Car },
+            { id: 'transit' as const, label: '🚌 اتوبوس/مترو', icon: Bus },
+          ].map((m) => {
+            const active = travelMode === m.id;
+            return (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => setTravelMode(m.id)}
+                className="py-2 rounded-xl text-xs font-bold transition-all"
+                style={{
+                  background: active ? theme.primary : 'transparent',
+                  color: active ? theme.bg : theme.textMuted,
+                }}
+              >
+                {m.label}
+              </button>
+            );
+          })}
         </div>
 
-        {/* کارت مسجد انتخاب‌شده + رادار فاصله و دکمه مسیریابی مستقیم */}
         {selectedMosque && (
           <div
             className="rounded-3xl p-4 mb-3.5 border space-y-3"
@@ -280,11 +309,10 @@ export function MosqueFinderModal({ cityName, defaultLat, defaultLng, onClose, o
               </div>
               <div className="text-left shrink-0">
                 <span className="text-sm font-black text-primary block">{formatDist(selectedMosque.distanceMeters)}</span>
-                <span className="text-[10px] text-muted">فاصله مستقیم</span>
+                <span className="text-[10px] text-muted">فاصله تا شما</span>
               </div>
             </div>
 
-            {/* زمان رسیدن به تفکیک پیاده / خودرو / اتوبوس */}
             <div className="grid grid-cols-3 gap-2 text-center">
               <div
                 className="p-2 rounded-2xl border"
@@ -360,10 +388,11 @@ export function MosqueFinderModal({ cityName, defaultLat, defaultLng, onClose, o
           </div>
         )}
 
-        {/* لیست سایر مساجد نزدیک */}
         <div>
           <p className="text-xs font-bold text-muted mb-2 px-1">
-            {loading ? 'در حال اسکن مساجد اطراف شما...' : `مساجد نزدیک به شما (${toFaDigits(mosques.length)} مسجد):`}
+            {loading && mosques.length === 0
+              ? 'در حال اسکن مساجد اطراف شما...'
+              : `مساجد نزدیک به شما (${toFaDigits(mosques.length)} مسجد):`}
           </p>
           <div className="space-y-2 max-h-56 overflow-y-auto pr-0.5">
             {mosques.map((m) => {

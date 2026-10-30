@@ -187,9 +187,9 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
     profile?.calculation_method ??
     (() => {
       try {
-        return localStorage.getItem('noor_guest_calc_method') || 'jafari';
+        return localStorage.getItem('noor_guest_calc_method') || 'tehran';
       } catch {
-        return 'jafari';
+        return 'tehran';
       }
     })();
   const todayDate = getLocalDateString(now, city.timezone);
@@ -633,14 +633,14 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
                 className="card-flat p-3 text-right flex flex-col justify-between"
               >
                 <div className="flex items-center justify-between w-full mb-1">
-                  <span className="text-[11px] font-bold text-primary">{activeProf.badge}</span>
+                  <span className="text-[11px] font-bold text-primary">🕌 مسجد و قبل اذان</span>
                   <Sliders size={13} color={theme.primary} />
                 </div>
                 <p className="text-xs font-bold text-app truncate">
                   {mt.travelModeEnabled ? '✈️ حالت سفر (نماز شکسته)' : mt.selectedMosqueName}
                 </p>
                 <p className="text-[10px] text-muted mt-0.5 truncate">
-                  {nextJamaat ? `جماعت ${next?.nameFa}: ${nextJamaat}` : 'استودیو اذان و برنامه مسجد'}
+                  {nextJamaat ? `جماعت ${next?.nameFa}: ${nextJamaat}` : 'ساعت جماعت، دعای قبل اذان و سفر'}
                 </p>
               </button>
 
