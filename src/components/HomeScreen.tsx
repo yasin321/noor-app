@@ -261,7 +261,7 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
 
     for (const r of all) {
       if (r.id.startsWith('pre_adhan_') && r.enabled) {
-        const m = r.id.match(/^pre_adhan_([a-z]+)_(\d+)$/);
+        const m = r.id.match(/^pre_adhan_([a-z]+)_(\d+)/);
         if (m) {
           const pKey = m[1];
           const preMin = Number(m[2]);
@@ -272,6 +272,21 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
               const updatedPre = { ...r, time: expectedTime, updatedAt: new Date().toISOString() };
               saveReminder(updatedPre);
               void scheduleReminder(updatedPre, true);
+            }
+          }
+        }
+      } else if (r.id.startsWith('post_adhan_') && r.enabled) {
+        const m = r.id.match(/^post_adhan_([a-z]+)_(\d+)/);
+        if (m) {
+          const pKey = m[1];
+          const postMin = Number(m[2]);
+          const basePrayer = prayerMap[pKey];
+          if (basePrayer) {
+            const expectedTime = addMinutesToTimeStr(basePrayer.time, postMin);
+            if (r.time !== expectedTime) {
+              const updatedPost = { ...r, time: expectedTime, updatedAt: new Date().toISOString() };
+              saveReminder(updatedPost);
+              void scheduleReminder(updatedPost, true);
             }
           }
         }

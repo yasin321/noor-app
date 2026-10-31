@@ -40,22 +40,23 @@ public class AdhanAlarmActivity extends AppCompatActivity {
                 : "حَیَّ عَلَی الصَّلَاة — وقت فضیلت نماز فرا رسیده است";
 
         boolean isPreAdhan = titleText.contains("مانده تا اذان") || titleText.contains("دقیقه تا اذان") || titleText.contains("پیش از اذان");
+        boolean isPostAdhan = titleText.contains("پس از اذان") || titleText.contains("بعد از اذان") || titleText.contains("تعقیبات");
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setGravity(Gravity.CENTER);
-        root.setBackgroundColor(Color.parseColor(isPreAdhan ? "#091E26" : "#04151F"));
-        root.setPadding(68, 68, 68, 68);
+        root.setBackgroundColor(Color.parseColor(isPreAdhan ? "#081C24" : isPostAdhan ? "#0F172A" : "#04151F"));
+        root.setPadding(64, 64, 64, 64);
 
         TextView badge = new TextView(this);
-        badge.setText(isPreAdhan ? "🔔 تواشیح و آمادگی پیش از اذان" : "🕌 همراه معنوی نور — وقت اذان");
-        badge.setTextColor(Color.parseColor(isPreAdhan ? "#38BDF8" : "#34D399"));
+        badge.setText(isPreAdhan ? "🔔 یادآور و ذکر پیش از اذان" : isPostAdhan ? "📿 تعقیبات و اعمال پس از نماز" : "🕌 همراه معنوی نور — وقت اذان");
+        badge.setTextColor(Color.parseColor(isPreAdhan ? "#38BDF8" : isPostAdhan ? "#A78BFA" : "#34D399"));
         badge.setTextSize(18f);
         badge.setTypeface(Typeface.DEFAULT_BOLD);
         badge.setGravity(Gravity.CENTER);
 
         TextView eqIndicator = new TextView(this);
-        eqIndicator.setText(isPreAdhan ? "ılılı در حال پخش تواشیح و ذکر پیش از اذان ılılı" : "ılılı در حال پخش صدای مؤذن ılılı");
+        eqIndicator.setText(isPreAdhan ? "ılılı در حال پخش تلاوت و ذکر پیش از اذان ılılı" : isPostAdhan ? "ılılı در حال پخش یادآور تعقیبات نماز ılılı" : "ılılı در حال پخش صدای مؤذن انتخابی شما ılılı");
         eqIndicator.setTextColor(Color.parseColor("#A7F3D0"));
         eqIndicator.setTextSize(13f);
         eqIndicator.setGravity(Gravity.CENTER);
@@ -63,44 +64,43 @@ public class AdhanAlarmActivity extends AppCompatActivity {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        eqParams.setMargins(0, 16, 0, 24);
+        eqParams.setMargins(0, 14, 0, 22);
         eqIndicator.setLayoutParams(eqParams);
 
         TextView title = new TextView(this);
         title.setText(titleText);
         title.setTextColor(Color.parseColor("#FEF08A"));
-        title.setTextSize(26f);
+        title.setTextSize(24f);
         title.setTypeface(Typeface.DEFAULT_BOLD);
         title.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        titleParams.setMargins(0, 12, 0, 28);
+        titleParams.setMargins(0, 10, 0, 26);
         title.setLayoutParams(titleParams);
 
-        // کادر ویژه نمایش متن عربی تواشیح یا دعای قبل از اذان
         TextView body = new TextView(this);
         body.setText(bodyText);
         body.setTextColor(Color.parseColor("#FFFFFF"));
-        body.setTextSize(19f);
+        body.setTextSize(18.5f);
         body.setTypeface(Typeface.DEFAULT_BOLD);
         body.setGravity(Gravity.CENTER);
         GradientDrawable cardBg = new GradientDrawable();
         cardBg.setColor(Color.parseColor("#112E38"));
-        cardBg.setStroke(2, Color.parseColor(isPreAdhan ? "#38BDF8" : "#10B981"));
+        cardBg.setStroke(3, Color.parseColor(isPreAdhan ? "#38BDF8" : isPostAdhan ? "#A78BFA" : "#10B981"));
         cardBg.setCornerRadius(36f);
         body.setBackground(cardBg);
-        body.setPadding(44, 44, 44, 44);
+        body.setPadding(42, 42, 42, 42);
         LinearLayout.LayoutParams bodyParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        bodyParams.setMargins(0, 0, 0, 64);
+        bodyParams.setMargins(0, 0, 0, 56);
         body.setLayoutParams(bodyParams);
 
         Button stopBtn = new Button(this);
-        stopBtn.setText(isPreAdhan ? "⏹️ توقف تواشیح و بستن" : "⏹️ توقف اذان و بستن");
+        stopBtn.setText("⏹️ توقف کامل صدا و بستن");
         stopBtn.setTextColor(Color.parseColor("#04151F"));
         stopBtn.setTextSize(17f);
         stopBtn.setTypeface(Typeface.DEFAULT_BOLD);
@@ -113,10 +113,11 @@ public class AdhanAlarmActivity extends AppCompatActivity {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        stopParams.setMargins(0, 0, 0, 24);
+        stopParams.setMargins(0, 0, 0, 22);
         stopBtn.setLayoutParams(stopParams);
 
         stopBtn.setOnClickListener(v -> {
+            AdhanForegroundService.killActivePlayer(this);
             Intent stopIntent = new Intent(this, AdhanForegroundService.class);
             stopIntent.setAction(AdhanForegroundService.ACTION_STOP);
             startService(stopIntent);
@@ -124,7 +125,7 @@ public class AdhanAlarmActivity extends AppCompatActivity {
         });
 
         Button openAppBtn = new Button(this);
-        openAppBtn.setText("�� باز کردن اپلیکیشن نور");
+        openAppBtn.setText("🌿 باز کردن اپلیکیشن نور");
         openAppBtn.setTextColor(Color.parseColor("#34D399"));
         openAppBtn.setTextSize(15f);
         openAppBtn.setTypeface(Typeface.DEFAULT_BOLD);
@@ -133,7 +134,7 @@ public class AdhanAlarmActivity extends AppCompatActivity {
         openBg.setStroke(3, Color.parseColor("#10B981"));
         openBg.setCornerRadius(48f);
         openAppBtn.setBackground(openBg);
-        openAppBtn.setPadding(60, 30, 60, 30);
+        openAppBtn.setPadding(60, 28, 60, 28);
         LinearLayout.LayoutParams openParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
@@ -141,6 +142,7 @@ public class AdhanAlarmActivity extends AppCompatActivity {
         openAppBtn.setLayoutParams(openParams);
 
         openAppBtn.setOnClickListener(v -> {
+            AdhanForegroundService.killActivePlayer(this);
             Intent stopIntent = new Intent(this, AdhanForegroundService.class);
             stopIntent.setAction(AdhanForegroundService.ACTION_STOP);
             startService(stopIntent);

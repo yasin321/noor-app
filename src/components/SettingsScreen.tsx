@@ -24,6 +24,7 @@ import { getHomeModulesVisibility, setHomeModulesVisibility, type HomeModulesVis
 import { getNeshanApiKey, setNeshanApiKey } from '@/lib/neshanMosqueService';
 import { syncLocalStateToCloud } from '@/lib/cloudSyncService';
 import { AppTutorialModal } from '@/components/AppTutorialModal';
+import { AdhanStudioAndTravelModal } from '@/components/AdhanStudioAndTravelModal';
 import { VipAndAnalyticsModal } from '@/components/VipAndAnalyticsModal';
 import { getDiagnosticLogs, clearDiagnosticLogs, type AppLogEntry } from '@/lib/logger';
 import { toFaDigits } from '@/lib/jalali';
@@ -80,6 +81,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   const [neshanKey, setNeshanKey] = useState<string>(() => getNeshanApiKey());
 
   const [showVipModal, setShowVipModal] = useState(false);
+  const [alarmModalSection, setAlarmModalSection] = useState<'studio' | 'post_adhan' | null>(null);
   const [showGuide, setShowGuide] = useState(false);
   const [notifSupported, setNotifSupported] = useState(true);
   const [notifMessage, setNotifMessage] = useState<string | null>(null);
@@ -246,11 +248,10 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   };
 
   const applyAdhan = async (id: string) => {
+    try { localStorage.setItem(GUEST_ADHAN_KEY, id); } catch {}
+    setGuestAdhanId(id);
     if (profile) await updateProfile({ adhan_id: id });
-    else {
-      try { localStorage.setItem(GUEST_ADHAN_KEY, id); } catch {}
-      setGuestAdhanId(id);
-    }
+    await rescheduleAllReminders(notifEnabled);
   };
 
   const applyMethod = async (id: string) => {
@@ -658,6 +659,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
     const handleChangeDurationMode = (m: AdhanPlaybackDurationMode) => {
       setDurationModeState(m);
       setAdhanDurationMode(m);
+      void rescheduleAllReminders(notifEnabled);
       const label = m === '10s' ? '۱۰ ثانیه اول (خلاصه)' : m === '30s' ? '۳۰ ثانیه اول (ملایم)' : 'پخش کامل اذان';
       setAdhanNotice(`✨ مدت پخش اذان روی «${label}» تنظیم شد.`);
     };
@@ -924,6 +926,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   return (
     <div className="w-full max-w-xl mx-auto px-3.5 pt-4 pb-28 animate-fade-in" dir="rtl">
       {showGuide && <AppTutorialModal onClose={() => setShowGuide(false)} />}
+      {alarmModalSection && <AdhanStudioAndTravelModal initialSection={alarmModalSection} onClose={() => setAlarmModalSection(null)} />}
       {showVipModal && <VipAndAnalyticsModal initialTab="vip" onClose={() => setShowVipModal(false)} />}
 
       <div className="flex items-center justify-between mb-4">

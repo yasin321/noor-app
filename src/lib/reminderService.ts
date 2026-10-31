@@ -13,7 +13,7 @@ import { logEvent } from './logger';
 import { getAdhanDurationMode, getAdhanDurationSeconds } from './adhans';
 import { calculatePrayerTimes } from './prayerTimes';
 import { getCityById, getGuestCityId, getCustomGpsCoords } from './cities';
-import { addMinutesToTimeStr, PRE_ADHAN_CHANT_OPTIONS } from './deenIntelligenceStore';
+import { addMinutesToTimeStr, PRE_ADHAN_CHANT_OPTIONS, POST_ADHAN_OPTIONS } from './deenIntelligenceStore';
 
 export { loadReminders, type LocalReminder };
 
@@ -70,11 +70,30 @@ function resolvePrayerAlarmParams(reminderId: string, reminderTitle = ''): {
     reminderTitle.includes('مانده تا اذان') ||
     reminderTitle.includes('دقیقه تا اذان')
   ) {
-    const matchedChant = PRE_ADHAN_CHANT_OPTIONS.find((c) => reminderTitle.includes(c.titleFa));
+    const matchedChant =
+      PRE_ADHAN_CHANT_OPTIONS.find((c) => reminderId.includes(c.id) || reminderTitle.includes(c.titleFa)) ??
+      PRE_ADHAN_CHANT_OPTIONS[0];
     return {
       soundType: 'short_10s',
-      adhanId: matchedChant ? matchedChant.audioAdhanId : 'moazenzadeh_ardabili',
-      durationSeconds: matchedChant ? matchedChant.durationSec : 16,
+      adhanId: matchedChant.audioAdhanId,
+      durationSeconds: matchedChant.durationSec,
+      volumePercent: 100,
+    };
+  }
+
+  if (
+    reminderId.startsWith('post_adhan_') ||
+    reminderTitle.includes('پس از اذان') ||
+    reminderTitle.includes('بعد از اذان') ||
+    reminderTitle.includes('تعقیبات')
+  ) {
+    const matchedPost =
+      POST_ADHAN_OPTIONS.find((p) => reminderId.includes(p.id) || reminderTitle.includes(p.titleFa)) ??
+      POST_ADHAN_OPTIONS[0];
+    return {
+      soundType: 'short_10s',
+      adhanId: matchedPost.audioAdhanId,
+      durationSeconds: matchedPost.durationSec,
       volumePercent: 100,
     };
   }
@@ -85,7 +104,7 @@ function resolvePrayerAlarmParams(reminderId: string, reminderTitle = ''): {
   if (!reminderId.startsWith('prayer_auto_')) {
     return {
       soundType: 'alarm',
-      adhanId: selectedAdhan,
+      adhanId: 'chant_salawat',
       durationSeconds: 15,
       volumePercent: 100,
     };
@@ -106,7 +125,11 @@ function computeDynamicPrayerDate(reminder: LocalReminder, baseCandidate: Date):
       reminder.id.startsWith('pre_adhan_') ||
       reminder.title.includes('دقیقه تا اذان') ||
       reminder.title.includes('مانده تا اذان');
-    if (!isAutoPrayer && !isPreAdhan) return baseCandidate;
+    const isPostAdhan =
+      reminder.id.startsWith('post_adhan_') ||
+      reminder.title.includes('پس از اذان') ||
+      reminder.title.includes('بعد از اذان');
+    if (!isAutoPrayer && !isPreAdhan && !isPostAdhan) return baseCandidate;
 
     const city = getCityById(getGuestCityId());
     const exactGps = getCustomGpsCoords();
@@ -129,6 +152,10 @@ function computeDynamicPrayerDate(reminder: LocalReminder, baseCandidate: Date):
       const mMatch = reminder.id.match(/pre_adhan_[a-z]+_(\d+)/);
       const offsetMin = mMatch ? Number(mMatch[1]) : 10;
       targetHHMM = addMinutesToTimeStr(targetHHMM, -offsetMin);
+    } else if (isPostAdhan) {
+      const mMatch = reminder.id.match(/post_adhan_[a-z]+_(\d+)/);
+      const offsetMin = mMatch ? Number(mMatch[1]) : 15;
+      targetHHMM = addMinutesToTimeStr(targetHHMM, offsetMin);
     }
 
     const [h, m] = targetHHMM.split(':').map(Number);
@@ -166,7 +193,7 @@ export async function ensureChannel(): Promise<void> {
       description: 'اعلان با اولویت بالا و پخش صدای اذان در اوقات شرعی',
       importance: 5,
       visibility: 1,
-      sound: 'adhan_mahur',
+      sound: undefined,
       vibration: true,
       lights: true,
     });
@@ -361,7 +388,7 @@ export async function scheduleReminder(
             title: reminder.title,
             body,
             channelId: targetChannelId,
-            sound: isPrayerAdhan ? 'adhan_mahur' : undefined,
+            sound: Capacitor.getPlatform() === 'android' ? undefined : (isPrayerAdhan ? 'adhan_mahur' : undefined),
             schedule: { at: target, allowWhileIdle: true },
             extra: { reminderId: reminder.id, dhikrId: reminder.dhikrId ?? '' },
           },
@@ -410,7 +437,7 @@ export async function scheduleReminder(
             title: reminder.title,
             body,
             channelId: targetChannelId,
-            sound: isPrayerAdhan ? 'adhan_mahur' : undefined,
+            sound: Capacitor.getPlatform() === 'android' ? undefined : (isPrayerAdhan ? 'adhan_mahur' : undefined),
             schedule: { at: atDate, allowWhileIdle: true },
             extra: { reminderId: reminder.id, dhikrId: reminder.dhikrId ?? '' },
           },
