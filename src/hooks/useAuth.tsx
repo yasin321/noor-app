@@ -18,7 +18,7 @@ const SUPABASE_CONFIG_ERROR = 'ورود و ثبت‌نام فعلاً تنظیم
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<{ id: string; email: string | null } | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   const fetchProfile = useCallback(async (uid: string) => {
     const { data, error } = await supabase

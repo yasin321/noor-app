@@ -1,15 +1,14 @@
-
 name: Android debug APK and emulator smoke test
 
 on:
   pull_request:
     branches: [main]
   push:
-    branches: [main, "fix/**"]
+    branches: [main, "fix/**", "review/**"]
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-apk:
@@ -29,6 +28,7 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
+          cache: gradle
 
       - name: Install dependencies
         run: npm ci
@@ -40,6 +40,10 @@ jobs:
         run: npm test
 
       - name: Build web assets
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_NESHAN_API_KEY: "service.c2ba51761f214fe3a707e823b50b00c5"
         run: npm run build
 
       - name: Sync Capacitor Android
@@ -47,7 +51,9 @@ jobs:
 
       - name: Build debug APK
         working-directory: android
-        run: bash ./gradlew assembleDebug --stacktrace
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --stacktrace
 
       - name: Enable KVM
         run: |
@@ -67,12 +73,12 @@ jobs:
           script: |
             adb install -r android/app/build/outputs/apk/debug/app-debug.apk
             adb shell am force-stop com.noor.app
-            adb shell monkey -p com.noor.app 1
+            adb shell am start -n com.noor.app/.MainActivity
             sleep 25
             test -n "$(adb shell pidof com.noor.app)" || { echo "Noor process is not running after launch"; exit 1; }
             adb logcat -d > /tmp/noor-logcat.txt
             adb exec-out screencap -p > /tmp/noor-emulator.png
-            grep -E 'supabaseUrl is required|FATAL EXCEPTION.*com\\.noor\\.app|Process: com\\.noor\\.app.*died' /tmp/noor-logcat.txt && { echo "App startup/runtime error detected in emulator logs"; exit 1; } || true
+            grep -E 'supabaseUrl is required|FATAL EXCEPTION.*com\.noor\.app|Process: com\.noor\.app.*died' /tmp/noor-logcat.txt && { echo "App startup/runtime error detected in emulator logs"; exit 1; } || true
 
       - name: Upload emulator smoke-test evidence
         if: always()
@@ -92,4 +98,25 @@ jobs:
           name: noor-android-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 30
+
+      - name: Prepare Official APK File Name
+        if: success() && github.ref == 'refs/heads/main'
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk Noor-v2.0.0-Android.apk
+
+      - name: Publish Official GitHub Release & Tag (v2.0.0)
+        if: success() && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v2.0.0
+          name: "🌿 نسخه ۲.۰.۰ اپلیکیشن نور (Noor Official Release)"
+          body: |
+            ### ✨ ویژگی‌های نسخه ۲.۰.۰ اپلیکیشن نور
+            - **🕌 مسجدیاب و مسیریاب هوشمند نشان:** یافتن نزدیک‌ترین مساجد اطراف با GPS به همراه زمان پیاده، خودرو و اتوبوس.
+            - **📖 مصحف کامل ۱۱۴ سوره قرآن کریم:** نمایش صفحه‌ای (مصحف)، ۵ آیه‌ای و تک‌آیه + کوک یادآور سوره بعد از اذان.
+            - **🔊 کلکسیون مؤذنان ایران، ترکیه، مصر و حرمین:** امکان انتخاب پخش کامل یا ۱۰ ثانیه اول اذان + دعای قبل اذان.
+            - **🎨 فونت‌های اصیل ایرانی:** وزیرمتن، نازنین، نستعلیق، پرستو، صمیم و نسخ قرآنی.
+          files: Noor-v2.0.0-Android.apk
+          overwrite_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

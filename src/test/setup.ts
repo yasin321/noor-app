@@ -17,6 +17,11 @@ Object.defineProperty(window, 'localStorage', {
 
 // Mock Capacitor
 vi.mock('@capacitor/core', () => ({
+  registerPlugin: () => ({
+    scheduleNativeAlarm: async () => ({ scheduled: true }),
+    cancelNativeAlarm: async () => {},
+    triggerTestAlarmNow: async () => {},
+  }),
   Capacitor: {
     isNativePlatform: () => false,
     getPlatform: () => 'web',
