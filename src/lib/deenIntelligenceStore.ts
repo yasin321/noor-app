@@ -381,3 +381,177 @@ export function setRoutineBudgetMinutes(min: RoutineBudgetMinutes): void {
     // ignore
   }
 }
+
+export type PrayerKey = 'fajr' | 'dhuhr' | 'asr' | 'maghrib' | 'isha';
+
+export interface PostAdhanItemOption {
+  id: string;
+  prayers: PrayerKey[];
+  badgeFa: string;
+  titleFa: string;
+  arabicText: string;
+  translationFa: string;
+  audioUrl: string;
+  fallbackAudioUrl: string;
+  audioAdhanId: string;
+  durationSec: number;
+  defaultOffsetMin: number;
+  dhikrLibraryId: string | null;
+}
+
+export const POST_ADHAN_OPTIONS: PostAdhanItemOption[] = [
+  {
+    id: 'post_surah_waqiah',
+    prayers: ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'],
+    badgeFa: '📖 سوره مجرب وسعت رزق و بی‌نیازی (پیشنهاد ویژه)',
+    titleFa: 'تلاوت سوره مبارکه واقعه (با صوت استاد پرهیزگار)',
+    arabicText: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ ۝ إِذَا وَقَعَتِ الْوَاقِعَةُ ۝ لَيْسَ لِوَقْعَتِهَا كَاذِبَةٌ',
+    translationFa: 'امام صادق (ع): هر کس سوره واقعه را بخواند، هرگز در دنیا تنگدست و محتاج نمی‌شود',
+    audioUrl: '/adhans/post_waqiah.mp3',
+    fallbackAudioUrl: 'https://everyayah.com/data/Parhizgar_48kbps/056001.mp3',
+    audioAdhanId: 'post_waqiah',
+    durationSec: 18,
+    defaultOffsetMin: 20,
+    dhikrLibraryId: 'surah_waqiah',
+  },
+  {
+    id: 'post_surah_yasin',
+    prayers: ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'],
+    badgeFa: '📖 قلب قرآن کریم (برکت و حفظ روزانه)',
+    titleFa: 'تلاوت سوره مبارکه یس (با صوت استاد پرهیزگار)',
+    arabicText: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ ۝ يس ۝ وَالْقُرْآنِ الْحَكِيمِ ۝ إِنَّكَ لَمِنَ الْمُرْسَلِينَ',
+    translationFa: 'پیامبر اکرم (ص): هر کس سوره یس را بخواند، خیر دنیا و آخرت به او عطا می‌گردد',
+    audioUrl: '/adhans/post_yasin.mp3',
+    fallbackAudioUrl: 'https://everyayah.com/data/Parhizgar_48kbps/036001.mp3',
+    audioAdhanId: 'post_yasin',
+    durationSec: 18,
+    defaultOffsetMin: 15,
+    dhikrLibraryId: null,
+  },
+  {
+    id: 'post_surah_mulk',
+    prayers: ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'],
+    badgeFa: '📖 سوره تبارک (پناه الهی و هدیه به والدین)',
+    titleFa: 'تلاوت سوره مبارکه ملک / تبارک (با صوت استاد پرهیزگار)',
+    arabicText: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ ۝ تَبَارَكَ الَّذِي بِيَدِهِ الْمُلْكُ وَهُوَ عَلَىٰ كُلِّ شَيْءٍ قَدِيرٌ',
+    translationFa: 'پربرکت است خدایی که فرمانروایی هستی به دست اوست و بر هر کاری تواناست',
+    audioUrl: '/adhans/post_mulk.mp3',
+    fallbackAudioUrl: 'https://everyayah.com/data/Parhizgar_48kbps/067001.mp3',
+    audioAdhanId: 'post_mulk',
+    durationSec: 18,
+    defaultOffsetMin: 20,
+    dhikrLibraryId: null,
+  },
+  {
+    id: 'post_surah_dhariyat',
+    prayers: ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'],
+    badgeFa: '📖 سوره مجرب اصلاح معاش و برکت کار',
+    titleFa: 'تلاوت سوره مبارکه ذاریات (با صوت استاد پرهیزگار)',
+    arabicText: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ ۝ وَالذَّارِيَاتِ ذَرْوًا ۝ فَالْحَامِلَاتِ وِقْرًا',
+    translationFa: 'امام صادق (ع): خواندن سوره ذاریات در روز یا شب، معیشت را اصلاح و روزی را فراوان می‌کند',
+    audioUrl: '/adhans/post_dhariyat.mp3',
+    fallbackAudioUrl: 'https://everyayah.com/data/Parhizgar_48kbps/051001.mp3',
+    audioAdhanId: 'post_dhariyat',
+    durationSec: 18,
+    defaultOffsetMin: 15,
+    dhikrLibraryId: 'surah_dhariyat',
+  },
+  {
+    id: 'post_surah_rahman',
+    prayers: ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'],
+    badgeFa: '📖 عروس قرآن (شکر نعمت و صفای دل)',
+    titleFa: 'تلاوت سوره مبارکه الرحمن (با صوت استاد پرهیزگار)',
+    arabicText: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ ۝ الرَّحْمَٰنُ ۝ عَلَّمَ الْقُرْآنَ ۝ خَلَقَ الْإِنْسَانَ',
+    translationFa: 'خدای رحمان؛ قرآن را تعلیم فرمود و انسان را آفرید',
+    audioUrl: '/adhans/post_rahman.mp3',
+    fallbackAudioUrl: 'https://everyayah.com/data/Parhizgar_48kbps/055001.mp3',
+    audioAdhanId: 'post_rahman',
+    durationSec: 18,
+    defaultOffsetMin: 15,
+    dhikrLibraryId: null,
+  },
+  {
+    id: 'post_surah_saffat',
+    prayers: ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'],
+    badgeFa: '📖 سوره ویژه روز جمعه و دفع بلا',
+    titleFa: 'تلاوت سوره مبارکه صافات (با صوت استاد پرهیزگار)',
+    arabicText: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ ۝ وَالصَّافَّاتِ صَفًّا ۝ فَالزَّاجِرَاتِ زَجْرًا',
+    translationFa: 'امام صادق (ع): قرائت سوره صافات موجب ایمنی از آفات و وسعت روزی در دنیاست',
+    audioUrl: '/adhans/post_saffat.mp3',
+    fallbackAudioUrl: 'https://everyayah.com/data/Parhizgar_48kbps/037001.mp3',
+    audioAdhanId: 'post_saffat',
+    durationSec: 18,
+    defaultOffsetMin: 20,
+    dhikrLibraryId: 'surah_saffat_friday',
+  },
+  {
+    id: 'post_ayat_kursi',
+    prayers: ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'],
+    badgeFa: '🛡️ حصار امن الهی بعد از هر نماز',
+    titleFa: 'تلاوت آیت‌الکرسی شریف (با صوت استاد پرهیزگار)',
+    arabicText: 'اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ ۚ لَا تَأْخُذُهُ سِنَةٌ وَلَا نَوْمٌ',
+    translationFa: 'پیامبر اکرم (ص): هیچ مانعی بین خواننده آیت‌الکرسی پس از هر نماز و بهشت نیست',
+    audioUrl: '/adhans/post_kursi.mp3',
+    fallbackAudioUrl: 'https://everyayah.com/data/Parhizgar_48kbps/002255.mp3',
+    audioAdhanId: 'post_kursi',
+    durationSec: 20,
+    defaultOffsetMin: 10,
+    dhikrLibraryId: 'ayat_al_kursi',
+  },
+  {
+    id: 'post_all_tasbihat_zahra',
+    prayers: ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'],
+    badgeFa: '📿 تعقیب مشترک تمام نمازهای یومیه',
+    titleFa: 'تسبیحات حضرت زهرا (س) + آیه آرامش دل‌ها',
+    arabicText: 'اللَّهُ أَكْبَرُ (۳۴) ❀ الْحَمْدُ لِلَّهِ (۳۳) ❀ سُبْحَانَ اللَّهِ (۳۳) ❀ أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ',
+    translationFa: 'برترین تعقیب بعد از هر نماز واجب برای آمرزش گناهان و آرامش قلب',
+    audioUrl: '/adhans/chant_tasbihat.mp3',
+    fallbackAudioUrl: 'https://cdn.islamic.network/quran/audio/128/ar.alafasy/1735.mp3',
+    audioAdhanId: 'chant_tasbihat',
+    durationSec: 15,
+    defaultOffsetMin: 10,
+    dhikrLibraryId: 'allahu_akbar',
+  },
+  {
+    id: 'post_fajr_ya_fatima',
+    prayers: ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'],
+    badgeFa: '🌅 استغاثه به حضرت زهرا (س) در سجده و صلوات',
+    titleFa: '۱۰۰ مرتبه «يَا مَوْلَاتِي يَا فَاطِمَةُ أَغِيثِينِي» در سجده',
+    arabicText: 'يَا مَوْلَاتِي يَا فَاطِمَةُ أَغِيثِينِي ❀ اللَّهُمَّ صَلِّ عَلَى مُحَمَّدٍ وَآلِ مُحَمَّدٍ',
+    translationFa: 'توسل مجرب در سجده بعد از نماز برای برآورده شدن حاجات مهم',
+    audioUrl: '/adhans/chant_salawat.mp3',
+    fallbackAudioUrl: 'https://cdn.islamic.network/quran/audio/128/ar.alafasy/3589.mp3',
+    audioAdhanId: 'chant_salawat',
+    durationSec: 16,
+    defaultOffsetMin: 15,
+    dhikrLibraryId: 'ya_fatima_100',
+  },
+  {
+    id: 'post_dhuhr_bahjat_rizq',
+    prayers: ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'],
+    badgeFa: '☀️ تعقیب وسعت رزق و عاقبت‌به‌خیری خانواده',
+    titleFa: 'ذکر آیت‌الله بهجت (اللَّهُمَّ أَغْنِنِي بِحَلَالِكَ) و دعای قرآنی خانواده',
+    arabicText: 'اللَّهُمَّ أَغْنِنِي بِحَلَالِكَ عَنْ حَرَامِكَ وَبِفَضْلِكَ عَمَّنْ سِوَاكَ ❀ رَبَّنَا هَبْ لَنَا مِنْ أَزْوَاجِنَا وَذُرِّيَّاتِنَا قُرَّةَ أَعْيُنٍ',
+    translationFa: 'بی‌نیازی با رزق حلال و عاقبت‌به‌خیری همسر و فرزندان (سوره فرقان آیه ۷۴)',
+    audioUrl: '/adhans/post_furqan.mp3',
+    fallbackAudioUrl: 'https://everyayah.com/data/Parhizgar_48kbps/025074.mp3',
+    audioAdhanId: 'post_furqan',
+    durationSec: 16,
+    defaultOffsetMin: 15,
+    dhikrLibraryId: 'bahjat_aghnini_halalika',
+  },
+  {
+    id: 'post_asr_istighfar_qadi',
+    prayers: ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'],
+    badgeFa: '🌤️ تعقیب استغفار و گشایش حاجات',
+    titleFa: '۷۰ مرتبه استغفار و ۴۰ مرتبه «يَا قَاضِيَ الْحَاجَاتِ»',
+    arabicText: 'وَاسْتَغْفِرُوا رَبَّكُمْ ثُمَّ تُوبُوا إِلَيْهِ ❀ يَا قَاضِيَ الْحَاجَاتِ',
+    translationFa: 'آمرزش‌خواهی پس از نماز و ذکر مجرب یا قاضی الحاجات برای گشایش امور',
+    audioUrl: '/adhans/chant_istighfar.mp3',
+    fallbackAudioUrl: 'https://cdn.islamic.network/quran/audio/128/ar.alafasy/1563.mp3',
+    audioAdhanId: 'chant_istighfar',
+    durationSec: 14,
+    defaultOffsetMin: 15,
+    dhikrLibraryId: 'ya_qadi_al_hajat_40',
+  },
+];

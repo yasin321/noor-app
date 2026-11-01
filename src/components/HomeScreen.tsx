@@ -204,6 +204,11 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
     };
     const onNightChanged = () => setNightCfg(getNightPrayerConfig());
     window.addEventListener('noor-night-prayer-changed', onNightChanged);
+    const onTravelChanged = () => {
+      setGuestCityIdState(getGuestCityId());
+      setIntelTick((t) => t + 1);
+    };
+    window.addEventListener('noor-travel-mode-changed', onTravelChanged);
     const interval = setInterval(refreshNow, 15000);
     document.addEventListener('visibilitychange', refreshNow);
     window.addEventListener('focus', refreshNow);
@@ -212,6 +217,7 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
       document.removeEventListener('visibilitychange', refreshNow);
       window.removeEventListener('focus', refreshNow);
       window.removeEventListener('noor-night-prayer-changed', onNightChanged);
+      window.removeEventListener('noor-travel-mode-changed', onTravelChanged);
     };
   }, []);
 
@@ -473,7 +479,7 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
       {showStudioModal && (
         <AdhanStudioAndTravelModal
           onClose={() => setShowStudioModal(false)}
-          onChanged={() => setIntelTick((t) => t + 1)}
+          onChanged={() => { setGuestCityIdState(getGuestCityId()); setIntelTick((t) => t + 1); }}
         />
       )}
       {showQuranModal && (
@@ -762,7 +768,16 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
                 >
                   <Icon size={16} color={isNext ? theme.bg : theme.primary} />
                 </div>
-                <span className="text-app font-medium text-xs whitespace-nowrap">{p.nameFa}</span>
+                <div className="min-w-0">
+                  <span className="text-app font-medium text-xs whitespace-nowrap block">{p.nameFa}</span>
+                  {(() => {
+                    const mtState = loadMosqueAndTravel();
+                    if (mtState.travelModeEnabled && mtState.isQasrPrayer && (p.key === 'dhuhr' || p.key === 'asr' || p.key === 'isha')) {
+                      return <span className="text-[9px] font-bold text-accent block">۲ رکعت (شکسته)</span>;
+                    }
+                    return null;
+                  })()}
+                </div>
               </div>
               <div className="flex items-center gap-1.5 flex-shrink-0">
                 <span className="text-app font-bold text-xs tabular-nums" dir="ltr">
