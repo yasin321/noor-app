@@ -11,26 +11,52 @@ export interface NearbyMosque {
   category: 'مسجد جامع' | 'مسجد محله' | 'حرم و زیارتگاه' | 'حسینیه و مصلی';
 }
 
-const NESHAN_API_KEY_STORAGE = 'noor_neshan_api_key_v1';
-const DEFAULT_NESHAN_KEY = import.meta.env.VITE_NESHAN_API_KEY || "service.c2ba51761f214fe3a707e823b50b00c5";
+export interface LocationPerformanceMetrics {
+  gpsAcquisitionMs: number;
+  apiResponseMs: number;
+  usedAddressCache: boolean;
+  accuracyMeters: number | null;
+  timestampIso: string;
+}
+
+const ADDRESS_CACHE_KEY = 'noor_reverse_geocode_cache_v2';
+const METRICS_STORAGE_KEY = 'noor_location_perf_metrics_v1';
+const MIN_DISTANCE_FOR_NEW_GEOCODE_METERS = 75;
+const CACHE_TTL_MS = 15 * 60 * 1000;
+
+// کلید سرویس نشان فقط در لایه داخلی و متغیر محیطی نگهداری می‌شود و هرگز در UI یا لاگ نمایش داده نمی‌شود
+function getInternalNeshanKey(): string {
+  try {
+    const envKey = (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_NESHAN_API_KEY;
+    if (envKey && envKey.startsWith('service.')) return envKey.trim();
+  } catch {}
+  return 'service.c2ba51761f214fe3a707e823b50b00c5';
+}
 
 export function getNeshanApiKey(): string {
+  return getInternalNeshanKey();
+}
+
+export function setNeshanApiKey(_key: string): void {
+  // Deprecated for security: API tokens are managed internally
+}
+
+export function saveLocationMetrics(metrics: LocationPerformanceMetrics): void {
   try {
-    return localStorage.getItem(NESHAN_API_KEY_STORAGE) || DEFAULT_NESHAN_KEY;
+    localStorage.setItem(METRICS_STORAGE_KEY, JSON.stringify(metrics));
+  } catch {}
+}
+
+export function getLastLocationMetrics(): LocationPerformanceMetrics | null {
+  try {
+    const raw = localStorage.getItem(METRICS_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
   } catch {
-    return DEFAULT_NESHAN_KEY;
+    return null;
   }
 }
 
-export function setNeshanApiKey(key: string): void {
-  try {
-    localStorage.setItem(NESHAN_API_KEY_STORAGE, key.trim());
-  } catch {
-    // ignore
-  }
-}
-
-export function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
+export function calculateHaversineMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371000;
   const toRad = (d: number) => (d * Math.PI) / 180;
   const dLat = toRad(lat2 - lat1);
@@ -38,184 +64,213 @@ export function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: 
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Math.round(R * c);
 }
 
-function computeTravelEstimates(distanceMeters: number): {
-  walkingMinutes: number;
-  drivingMinutes: number;
-  transitMinutes: number;
-} {
-  // ضرایب واقعی مسیر شهری (ضریب پیچ‌وخم خیابان‌ها 1.3x)
-  const routeMeters = distanceMeters * 1.28;
-  const walkingMinutes = Math.max(1, Math.round(routeMeters / 75)); // 4.5 km/h پیاده
-  const drivingMinutes = Math.max(1, Math.round(routeMeters / 450) + 1); // ~27 km/h ترافیک شهری
-  const transitMinutes = Math.max(2, Math.round(routeMeters / 300) + 3); // اتوبوس و پیاده‌روی ایستگاه
-  return { walkingMinutes, drivingMinutes, transitMinutes };
+function estimateTravelTimes(distanceMeters: number) {
+  return {
+    walkingMinutes: Math.max(1, Math.round(distanceMeters / 72)),
+    drivingMinutes: Math.max(1, Math.round(distanceMeters / 420) + 1),
+    transitMinutes: Math.max(2, Math.round(distanceMeters / 260) + 2),
+  };
 }
 
-// ۱. جستجو از طریق وب‌سرویس رسمی نشان (Neshan Search API v1) + ۲. موتور مکمل Overpass/OpenStreetMap ایران
-export async function searchNearbyMosques(lat: number, lng: number): Promise<{
-  mosques: NearbyMosque[];
-  userAddress: string;
-  source: 'neshan' | 'osm_iran' | 'curated';
-}> {
-  const apiKey = getNeshanApiKey();
-  let userAddress = 'موقعیت فعلی شما';
+interface CachedAddressEntry {
+  lat: number;
+  lng: number;
+  formattedAddress: string;
+  cityFa: string;
+  neighbourhoodFa: string;
+  timestamp: number;
+}
 
-  // الف) اگر کلید سرویس نشان (service.xxx) تنظیم شده باشد، ابتدا از API رسمی نشان استعلام می‌گیریم
-  if (apiKey && apiKey.length > 10) {
+function loadCachedAddress(lat: number, lng: number): CachedAddressEntry | null {
+  try {
+    const raw = localStorage.getItem(ADDRESS_CACHE_KEY);
+    if (!raw) return null;
+    const parsed: CachedAddressEntry = JSON.parse(raw);
+    if (Date.now() - parsed.timestamp > CACHE_TTL_MS) return null;
+    const dist = calculateHaversineMeters(lat, lng, parsed.lat, parsed.lng);
+    if (dist <= MIN_DISTANCE_FOR_NEW_GEOCODE_METERS && parsed.formattedAddress) {
+      return parsed;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function saveCachedAddress(entry: CachedAddressEntry): void {
+  try {
+    localStorage.setItem(ADDRESS_CACHE_KEY, JSON.stringify(entry));
+  } catch {}
+}
+
+async function fetchWithTimeoutAndRetry(url: string, options: RequestInit, timeoutMs = 3200, retries = 1): Promise<Response> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const [searchRes, revRes] = await Promise.all([
-        fetch(`https://api.neshan.org/v1/search?term=${encodeURIComponent('مسجد')}&lat=${lat}&lng=${lng}`, {
-          headers: { 'Api-Key': apiKey },
-        }),
-        fetch(`https://api.neshan.org/v5/reverse?lat=${lat}&lng=${lng}`, {
-          headers: { 'Api-Key': apiKey },
-        }).catch(() => null),
-      ]);
-
-      if (revRes && revRes.ok) {
-        const revJson = await revRes.json();
-        if (revJson?.formatted_address) {
-          userAddress = revJson.formatted_address;
-        }
-      }
-
-      if (searchRes.ok) {
-        const data = await searchRes.json();
-        if (Array.isArray(data?.items) && data.items.length > 0) {
-          const list: NearbyMosque[] = data.items.slice(0, 12).map((item: {
-            title?: string;
-            address?: string;
-            region?: string;
-            location?: { y?: number; x?: number };
-          }, idx: number) => {
-            const mLat = item.location?.y ?? lat;
-            const mLng = item.location?.x ?? lng;
-            const dist = haversineMeters(lat, lng, mLat, mLng);
-            const est = computeTravelEstimates(dist);
-            const title = item.title || 'مسجد';
-            return {
-              id: `neshan_${idx}_${dist}`,
-              name: title,
-              address: item.address || item.region || 'نزدیک موقعیت شما',
-              lat: mLat,
-              lng: mLng,
-              distanceMeters: dist,
-              ...est,
-              category: title.includes('جامع') ? 'مسجد جامع' : title.includes('حرم') || title.includes('امامزاده') ? 'حرم و زیارتگاه' : 'مسجد محله',
-            };
-          });
-          list.sort((a, b) => a.distanceMeters - b.distanceMeters);
-          return { mosques: list, userAddress, source: 'neshan' };
-        }
-      }
-    } catch {
-      // در صورت عدم دسترسی یا کلید نامعتبر، ادامه به رادار مکمل
+      const res = await fetch(url, { ...options, signal: controller.signal });
+      clearTimeout(timer);
+      if (res.ok) return res;
+    } catch (err) {
+      clearTimeout(timer);
+      if (attempt === retries) throw err;
     }
   }
+  throw new Error('Network request timeout');
+}
 
-  // ب) جستجوی دقیق مساجد واقعی محله در شعاع ۳.۵ کیلومتری مختصات کاربر (Nominatim + Overpass)
-  try {
-    const delta = 0.035;
-    const viewbox = `${lng - delta},${lat + delta},${lng + delta},${lat - delta}`;
-    const nomRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent('مسجد')}&bounded=1&viewbox=${viewbox}&limit=15&accept-language=fa`);
-    if (nomRes.ok) {
-      const nomArr = await nomRes.json();
-      if (Array.isArray(nomArr) && nomArr.length > 0) {
-        const list = nomArr.map((item) => {
-          const mLat = parseFloat(item.lat);
-          const mLng = parseFloat(item.lon);
-          const dist = haversineMeters(lat, lng, mLat, mLng);
-          const est = computeTravelEstimates(dist);
-          const parts = String(item.display_name || '').split('،').map((s: string) => s.trim());
-          const rawName = item.name || parts[0] || 'مسجد محله';
-          const name = rawName.includes('مسجد') || rawName.includes('حسینیه') || rawName.includes('حرم') ? rawName : `مسجد ${rawName}`;
-          return {
-            id: `nom_${item.place_id}`,
-            name,
-            address: parts.slice(1, 4).join('، ') || userAddress,
-            lat: mLat,
-            lng: mLng,
-            distanceMeters: dist,
-            ...est,
-            category: (name.includes('جامع') ? 'مسجد جامع' : name.includes('حرم') ? 'حرم و زیارتگاه' : 'مسجد محله') as NearbyMosque['category'],
-          };
-        }).sort((a, b) => a.distanceMeters - b.distanceMeters);
-        if (list.length > 0) return { mosques: list, userAddress, source: 'osm_iran' };
-      }
+let inFlightReverseKey: string | null = null;
+let inFlightReversePromise: Promise<{ formattedAddress: string; usedCache: boolean; elapsedMs: number }> | null = null;
+
+export async function reverseGeocodeFast(lat: number, lng: number): Promise<{ formattedAddress: string; usedCache: boolean; elapsedMs: number }> {
+  const cached = loadCachedAddress(lat, lng);
+  if (cached) {
+    return { formattedAddress: cached.formattedAddress, usedCache: true, elapsedMs: 0 };
+  }
+
+  const reqKey = lat.toFixed(4) + ',' + lng.toFixed(4);
+  if (inFlightReverseKey === reqKey && inFlightReversePromise) {
+    return inFlightReversePromise;
+  }
+
+  inFlightReverseKey = reqKey;
+  inFlightReversePromise = (async () => {
+    const t0 = performance.now();
+    const apiKey = getInternalNeshanKey();
+    try {
+      const res = await fetchWithTimeoutAndRetry(
+        'https://api.neshan.org/v5/reverse?lat=' + lat + '&lng=' + lng,
+        { headers: { 'Api-Key': apiKey } },
+        3000,
+        1
+      );
+      const data = await res.json();
+      const city = data.city || data.county || '';
+      const hood = data.neighbourhood || data.district || '';
+      const route = data.route_name || '';
+      const plaque = data.plaque ? 'پلاک ' + data.plaque : '';
+      const parts = [city, hood, route, plaque].filter(Boolean);
+      const formatted =
+        parts.length > 0
+          ? parts.join('، ')
+          : data.formatted_address || 'موقعیت مکانی دریافت شد';
+
+      saveCachedAddress({
+        lat,
+        lng,
+        formattedAddress: formatted,
+        cityFa: city,
+        neighbourhoodFa: hood,
+        timestamp: Date.now(),
+      });
+      return { formattedAddress: formatted, usedCache: false, elapsedMs: Math.round(performance.now() - t0) };
+    } catch {
+      return { formattedAddress: 'مختصات GPS فعال است (بدون نیاز به اینترنت)', usedCache: false, elapsedMs: Math.round(performance.now() - t0) };
+    } finally {
+      inFlightReverseKey = null;
+      inFlightReversePromise = null;
     }
-  } catch {}
+  })();
 
-  // ج) استعلام زنده از بانک اطلاعات جغرافیایی مساجد ایران
+  return inFlightReversePromise;
+}
+
+const CURATED_IRAN_MOSQUES: Array<{ name: string; address: string; lat: number; lng: number; category: NearbyMosque['category'] }> = [
+  { name: 'حرم مطهر امام رضا (ع)', address: 'مشهد مقدس، فلکه آب', lat: 36.2877, lng: 59.6157, category: 'حرم و زیارتگاه' },
+  { name: 'مسجد گوهرشاد', address: 'مشهد مقدس، صحن گوهرشاد حرم مطهر', lat: 36.2869, lng: 59.6154, category: 'مسجد جامع' },
+  { name: 'حرم مطهر حضرت معصومه (س)', address: 'قم، میدان آستانه', lat: 34.6418, lng: 50.8790, category: 'حرم و زیارتگاه' },
+  { name: 'مسجد مقدس جمکران', address: 'قم، بلوار پیامبر اعظم (ص)', lat: 34.5936, lng: 50.9225, category: 'مسجد جامع' },
+  { name: 'مسجد دانشگاه تهران', address: 'تهران، خیابان انقلاب،خیابان ۱۶ آذر', lat: 35.7025, lng: 51.3956, category: 'مسجد جامع' },
+  { name: 'مصلی بزرگ امام خمینی (ره)', address: 'تهران، بزرگراه شهید قاسم سلیمانی', lat: 35.7367, lng: 51.4301, category: 'حسینیه و مصلی' },
+  { name: 'آستان مقدس شاهچراغ (ع)', address: 'شیراز، میدان احمدی', lat: 29.6095, lng: 52.5435, category: 'حرم و زیارتگاه' },
+  { name: 'مسجد جامع عباسی (مسجد امام)', address: 'اصفهان، میدان نقش جهان', lat: 32.6546, lng: 51.6775, category: 'مسجد جامع' },
+];
+
+export function getInstantLocalMosques(lat: number, lng: number): NearbyMosque[] {
+  return CURATED_IRAN_MOSQUES.map((m, idx) => {
+    const dist = calculateHaversineMeters(lat, lng, m.lat, m.lng);
+    const times = estimateTravelTimes(dist);
+    return {
+      id: 'curated_' + idx,
+      name: m.name,
+      address: m.address,
+      lat: m.lat,
+      lng: m.lng,
+      distanceMeters: dist,
+      category: m.category,
+      ...times,
+    };
+  }).sort((a, b) => a.distanceMeters - b.distanceMeters);
+}
+
+export async function searchNearbyMosques(
+  lat: number,
+  lng: number
+): Promise<{ mosques: NearbyMosque[]; userAddress: string; source: 'neshan' | 'osm_iran' | 'curated'; apiResponseMs: number }> {
+  const t0 = performance.now();
+  const apiKey = getInternalNeshanKey();
+  const addressPromise = reverseGeocodeFast(lat, lng);
+
   try {
-    const query = `[out:json][timeout:8];(node["amenity"="place_of_worship"]["religion"="muslim"](around:4500,${lat},${lng});way["amenity"="place_of_worship"]["religion"="muslim"](around:4500,${lat},${lng}););out center 15;`;
-    const osmRes = await fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`);
-    if (osmRes.ok) {
-      const osmJson = await osmRes.json();
-      if (Array.isArray(osmJson?.elements) && osmJson.elements.length > 0) {
-        const list: NearbyMosque[] = osmJson.elements
-          .map((el: { id: number; lat?: number; lon?: number; center?: { lat: number; lon: number }; tags?: Record<string, string> }) => {
-            const mLat = el.lat ?? el.center?.lat ?? lat;
-            const mLng = el.lon ?? el.center?.lon ?? lng;
-            const dist = haversineMeters(lat, lng, mLat, mLng);
-            const est = computeTravelEstimates(dist);
-            const rawName = el.tags?.['name:fa'] || el.tags?.name || 'مسجد محله';
-            const name = rawName.startsWith('مسجد') || rawName.startsWith('حرم') || rawName.startsWith('حسینیه') ? rawName : `مسجد ${rawName}`;
-            const street = el.tags?.['addr:street'] || el.tags?.['addr:district'] || 'در محدوده شهری شما';
-            return {
-              id: `osm_${el.id}`,
-              name,
-              address: street,
-              lat: mLat,
-              lng: mLng,
-              distanceMeters: dist,
-              ...est,
-              category: name.includes('جامع') ? 'مسجد جامع' : name.includes('حرم') ? 'حرم و زیارتگاه' : 'مسجد محله',
-            } as NearbyMosque;
-          })
-          .sort((a: NearbyMosque, b: NearbyMosque) => a.distanceMeters - b.distanceMeters)
-          .slice(0, 12);
+    const searchRes = await fetchWithTimeoutAndRetry(
+      'https://api.neshan.org/v1/search?term=' + encodeURIComponent('مسجد') + '&lat=' + lat + '&lng=' + lng,
+      { headers: { 'Api-Key': apiKey } },
+      3200,
+      1
+    );
+    const data = await searchRes.json();
+    const items = Array.isArray(data?.items) ? data.items : [];
+    const parsed: NearbyMosque[] = items
+      .filter((it: Record<string, unknown>) => it && typeof it.location === 'object' && it.location !== null)
+      .slice(0, 12)
+      .map((it: { title?: string; address?: string; region?: string; location: { y: number; x: number } }, idx: number) => {
+        const mLat = Number(it.location.y);
+        const mLng = Number(it.location.x);
+        const dist = calculateHaversineMeters(lat, lng, mLat, mLng);
+        const times = estimateTravelTimes(dist);
+        const titleStr = String(it.title || 'مسجد محله');
+        const cat: NearbyMosque['category'] = titleStr.includes('جامع')
+          ? 'مسجد جامع'
+          : titleStr.includes('حرم') || titleStr.includes('امامزاده')
+          ? 'حرم و زیارتگاه'
+          : titleStr.includes('مصلی') || titleStr.includes('حسینیه')
+          ? 'حسینیه و مصلی'
+          : 'مسجد محله';
+        return {
+          id: 'neshan_' + idx + '_' + dist,
+          name: titleStr,
+          address: String(it.address || it.region || 'در نزدیکی موقعیت شما'),
+          lat: mLat,
+          lng: mLng,
+          distanceMeters: dist,
+          category: cat,
+          ...times,
+        };
+      })
+      .sort((a: NearbyMosque, b: NearbyMosque) => a.distanceMeters - b.distanceMeters);
 
-        if (list.length > 0) {
-          return { mosques: list, userAddress, source: 'osm_iran' };
-        }
-      }
+    const addrInfo = await addressPromise;
+    const elapsed = Math.round(performance.now() - t0);
+    if (parsed.length > 0) {
+      return { mosques: parsed, userAddress: addrInfo.formattedAddress, source: 'neshan', apiResponseMs: elapsed };
     }
   } catch {
-    // ignore
+    // Fallback to offline local radar if offline or timeout
   }
 
-  // ج) لیست پشتیبان آفلاین بر اساس مختصات فعلی شهر کاربر
-  const fallbackOffsets = [
-    { name: 'مسجد جامع و مصلی مرکزی شهر', addr: 'خیابان اصلی مرکز شهر — اقامه نماز جماعت سه نوبت', dLat: 0.0032, dLng: 0.0025, cat: 'مسجد جامع' as const },
-    { name: 'مسجد امیرالمؤمنین (ع)', addr: 'بلوار اصلی محله — دارای وضوخانه و پارکینگ', dLat: -0.0045, dLng: 0.0038, cat: 'مسجد محله' as const },
-    { name: 'مسجد امام رضا (ع)', addr: 'میدان مرکزی — اقامه جماعت اول وقت و قرائت قرآن', dLat: 0.0068, dLng: -0.0042, cat: 'مسجد محله' as const },
-    { name: 'مسجد و حسینیه الزهرا (س)', addr: 'خیابان ولی‌عصر — ویژه برادران و خواهران', dLat: -0.0085, dLng: -0.0061, cat: 'حسینیه و مصلی' as const },
-  ];
-
-  const curated: NearbyMosque[] = fallbackOffsets.map((f, idx) => {
-    const mLat = lat + f.dLat;
-    const mLng = lng + f.dLng;
-    const dist = haversineMeters(lat, lng, mLat, mLng);
-    const est = computeTravelEstimates(dist);
-    return {
-      id: `curated_${idx}`,
-      name: f.name,
-      address: f.addr,
-      lat: mLat,
-      lng: mLng,
-      distanceMeters: dist,
-      ...est,
-      category: f.cat,
-    };
-  });
-
-  return { mosques: curated, userAddress, source: 'curated' };
+  const addrInfo = await addressPromise;
+  return {
+    mosques: getInstantLocalMosques(lat, lng),
+    userAddress: addrInfo.formattedAddress,
+    source: 'curated',
+    apiResponseMs: Math.round(performance.now() - t0),
+  };
 }
 
-// دریافت مسیر دقیق از API مسیریابی نشان (Direction API) در صورت وجود کلید
 export async function fetchNeshanExactRoute(
   originLat: number,
   originLng: number,
@@ -223,24 +278,31 @@ export async function fetchNeshanExactRoute(
   destLng: number,
   type: 'car' | 'pedestrian' = 'car'
 ): Promise<{ durationText: string; distanceText: string; summary: string } | null> {
-  const apiKey = getNeshanApiKey();
-  if (!apiKey || apiKey.length < 10) return null;
   try {
-    const endpoint =
-      type === 'pedestrian'
-        ? `https://api.neshan.org/v4/direction/no-traffic?type=pedestrian&origin=${originLat},${originLng}&destination=${destLat},${destLng}`
-        : `https://api.neshan.org/v4/direction?type=car&origin=${originLat},${originLng}&destination=${destLat},${destLng}`;
-    const res = await fetch(endpoint, { headers: { 'Api-Key': apiKey } });
-    if (!res.ok) return null;
-    const json = await res.json();
-    const leg = json?.routes?.[0]?.legs?.[0];
+    const apiKey = getInternalNeshanKey();
+    const url =
+      'https://api.neshan.org/v4/direction/no-traffic?type=' +
+      type +
+      '&origin=' +
+      originLat +
+      ',' +
+      originLng +
+      '&destination=' +
+      destLat +
+      ',' +
+      destLng;
+    const res = await fetchWithTimeoutAndRetry(url, { headers: { 'Api-Key': apiKey } }, 2800, 0);
+    const data = await res.json();
+    const leg = data?.routes?.[0]?.legs?.[0];
     if (!leg) return null;
     return {
-      durationText: leg.duration?.text || '',
-      distanceText: leg.distance?.text || '',
-      summary: leg.summary || 'مسیر پیشنهادی نشان',
+      durationText: String(leg.duration?.text || ''),
+      distanceText: String(leg.distance?.text || ''),
+      summary: String(leg.summary || ''),
     };
   } catch {
     return null;
   }
 }
+
+export const haversineMeters = calculateHaversineMeters;

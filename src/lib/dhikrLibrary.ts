@@ -26,6 +26,93 @@ export type Dhikr = {
 
 export const dhikrLibrary: Dhikr[] = [
   {
+    id: 'sahib_zaman_barik',
+    arabic: 'اللَّهُمَّ بَارِكْ لِمَوْلَانَا صَاحِبِ الزَّمَانِ (عج)',
+    translit: 'Allahumma barik li-Mawlana Sahib az-Zaman',
+    translation: 'خدایا برای مولای ما حضرت صاحب‌الزمان (عج) برکت و گشایش قرار ده',
+    virtue: 'فضیلت مستند: جلب عنایت حضرت ولی‌عصر (عج) و یاد امام عصر در آغاز و پایان دعاها.',
+    count: 14,
+    category: 'mafatih',
+    source: 'صحیفه مهدیه و مفاتیح‌الجنان — ادعیه حضرت ولی‌عصر (عج)',
+    recommendedTime: 'هر روز پس از نمازهای واجب و پیش از آغاز کارهای روزانه',
+    defaultReminderTime: '07:00',
+  },
+  {
+    id: 'quran_furqan_74',
+    arabic: 'رَبَّنَا هَبْ لَنَا مِنْ أَزْوَاجِنَا وَذُرِّيَّاتِنَا قُرَّةَ أَعْيُنٍ وَاجْعَلْنَا لِلْمُتَّقِينَ إِمَامًا',
+    translit: 'Rabbana hab lana min azwajina wa dhurriyyatina qurrata a`yunin',
+    translation: 'پروردگارا! از همسران و فرزندانمان مایه روشنی چشم به ما عطا کن و ما را پیشوای پرهیزگاران قرار ده',
+    virtue: 'فضیلت مستند قرآنی: دعای عبادالرحمن برای صالح شدن همسر و فرزندان و آرامش کانون خانواده.',
+    count: 7,
+    category: 'quran',
+    source: 'قرآن کریم — سوره مبارکه فرقان، آیه ۷۴',
+    recommendedTime: 'در قنوت نمازها و تعقیبات بعد از نماز برای عاقبت‌به‌خیری خانواده و فرزندان',
+    defaultReminderTime: '13:15',
+    audioUrl: 'https://everyayah.com/data/Parhizgar_48kbps/025074.mp3',
+  },
+  {
+    id: 'ilahi_amanna_bifadlika',
+    arabic: 'إِلَٰهِي آمَنَّا بِفَضْلِكَ فَلَا تَأْخُذْنَا بِعَدْلِكَ يَا كَرِيمُ',
+    translit: 'Ilahi amanna bi-fadlika fala ta`khudhna bi-`adlika Ya Karim',
+    translation: 'معبودا! به فضل و بخشش تو ایمان آوردیم، پس ما را به عدل و حساب دقیق خود مؤاخذه مفرما ای کریم',
+    virtue: 'فضیلت مستند: اقرار به بندگی و درخواست معامله با فضل و رحمت الهی به جای حسابرسی سختگیرانه.',
+    count: 10,
+    category: 'mafatih',
+    source: 'مناجات‌های مأثوره و ادعیه سحرگاهی — مفاتیح‌الجنان',
+    recommendedTime: 'در سجده آخر نماز و مناجات شبانه و سحرگاهی',
+    defaultReminderTime: '22:15',
+  },
+  {
+    id: 'quran_al_imran_8',
+    arabic: 'رَبَّنَا لَا تُزِغْ قُلُوبَنَا بَعْدَ إِذْ هَدَيْتَنَا وَهَبْ لَنَا مِنْ لَدُنْكَ رَحْمَةً ۚ إِنَّكَ أَنْتَ الْوَهَّابُ',
+    translit: 'Rabbana la tuzigh qulubana ba`da idh hadaytana',
+    translation: 'پروردگارا! دل‌های ما را پس از آنکه هدایتمان فرمودی منحرف مساز و از سوی خود رحمتی به ما ببخش که تو بسیار بخشنده‌ای',
+    virtue: 'فضیلت مستند قرآنی: حفظ ایمان، ثبات قدم در هدایت و عاقبت‌به‌خیری در فتنه‌ها.',
+    count: 7,
+    category: 'quran',
+    source: 'قرآن کریم — سوره مبارکه آل‌عمران، آیه ۸ (راسخان در علم)',
+    recommendedTime: 'در قنوت نمازهای یومیه، نماز شب و پس از نماز صبح',
+    defaultReminderTime: '05:50',
+    audioUrl: 'https://everyayah.com/data/Parhizgar_48kbps/003008.mp3',
+  },
+  {
+    id: 'kumayl_man_li_ghayruk',
+    arabic: 'إِلَٰهِي وَرَبِّي مَنْ لِي غَيْرُكَ أَسْأَلُهُ كَشْفَ ضُرِّي وَالنَّظَرَ فِي أَمْرِي',
+    translit: 'Ilahi wa Rabbi man li ghayruka as`aluhu kashfa durri',
+    translation: 'ای معبود من و ای پروردگار من! من جز تو که را دارم که برطرف ساختن رنج و نظر لطف در کارم را از او بخواهم؟',
+    virtue: 'فضیلت مستند: اوج انقطاع الی الله و توکل محض بر پروردگار برای رفع گرفتاری‌ها.',
+    count: 7,
+    category: 'mafatih',
+    source: 'مفاتیح‌الجنان — دعای شریف کمیل (تعلیم امیرالمؤمنین ع به کمیل بن زیاد)',
+    recommendedTime: 'شب‌های جمعه و هنگام مناجات و خلوت با پروردگار',
+    defaultReminderTime: '21:15',
+  },
+  {
+    id: 'quran_anbiya_87_88_full',
+    arabic: 'لَا إِلَٰهَ إِلَّا أَنْتَ سُبْحَانَكَ إِنِّي كُنْتُ مِنَ الظَّالِمِينَ ۝ فَاسْتَجَبْنَا لَهُ وَنَجَّيْنَاهُ مِنَ الْغَمِّ ۚ وَكَذَٰلِكَ نُنْجِي الْمُؤْمِنِينَ',
+    translit: 'La ilaha illa Anta Subhanaka inni kuntu min az-zalimin, fastajabna lahu...',
+    translation: 'معبودی جز تو نیست، منزهی تو، من از ستمکاران بر خویش بودم؛ پس دعایش را اجابت کردیم و او را از اندوه رهانیدیم و این‌گونه مؤمنان را نجات می‌دهیم',
+    virtue: 'فضیلت مستند قرآنی: ذکر یونسیه به همراه آیه وعده حتمی الهی برای نجات مؤمنان از غم و اندوه.',
+    count: 40,
+    category: 'quran',
+    source: 'قرآن کریم — سوره مبارکه انبیاء، آیات ۸۷ و ۸۸',
+    recommendedTime: 'در سجده پس از نماز عشاء، نماز شب و هنگام شدت اندوه',
+    defaultReminderTime: '21:30',
+    audioUrl: 'https://everyayah.com/data/Parhizgar_48kbps/021087.mp3',
+  },
+  {
+    id: 'ya_jawadu_ya_karim',
+    arabic: 'يَا جَوَادُ يَا كَرِيمُ',
+    translit: 'Ya Jawadu Ya Karim',
+    translation: 'ای بسیار بخشنده و ای بزرگوار',
+    virtue: 'فضیلت مستند: خواندن خداوند به دو اسم عظیم جود و کرم و توسل به حضرت جوادالائمه (ع) برای گشایش امور.',
+    count: 14,
+    category: 'scholars',
+    source: 'مفاتیح‌الجنان — ادعیه توسل و تعقیبات',
+    recommendedTime: 'پس از نمازهای روزانه و هنگام طلب روزی و گشایش در کارها',
+    defaultReminderTime: '10:30',
+  },
+  {
     id: 'ya_fatima_100',
     arabic: 'يَا مَوْلَاتِي يَا فَاطِمَةُ أَغِيثِينِي (۱۰۰ مرتبه در سجده)',
     translit: 'Ya Mawlati Ya Fatimatu Aghithini',
@@ -457,3 +544,44 @@ export const dhikrCategories: Record<string, string> = {
   tahlil: 'تهلیل و توکل',
   takbir: 'تکبیر',
 };
+
+const FAVORITE_DHIKRS_KEY = 'noor_favorite_dhikrs_v1';
+const CUSTOM_COUNTS_KEY = 'noor_custom_dhikr_counts_v1';
+
+export function getFavoriteDhikrIds(): string[] {
+  try {
+    const raw = localStorage.getItem(FAVORITE_DHIKRS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function toggleFavoriteDhikr(id: string): string[] {
+  const current = getFavoriteDhikrIds();
+  const next = current.includes(id) ? current.filter((x) => x !== id) : [...current, id];
+  try {
+    localStorage.setItem(FAVORITE_DHIKRS_KEY, JSON.stringify(next));
+  } catch {}
+  return next;
+}
+
+export function getCustomDhikrCount(id: string, defaultCount: number): number {
+  try {
+    const raw = localStorage.getItem(CUSTOM_COUNTS_KEY);
+    if (!raw) return defaultCount;
+    const map = JSON.parse(raw);
+    return typeof map[id] === 'number' && map[id] > 0 ? map[id] : defaultCount;
+  } catch {
+    return defaultCount;
+  }
+}
+
+export function setCustomDhikrCount(id: string, count: number): void {
+  try {
+    const raw = localStorage.getItem(CUSTOM_COUNTS_KEY);
+    const map = raw ? JSON.parse(raw) : {};
+    map[id] = Math.max(1, Math.floor(count));
+    localStorage.setItem(CUSTOM_COUNTS_KEY, JSON.stringify(map));
+  } catch {}
+}

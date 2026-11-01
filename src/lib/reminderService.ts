@@ -11,7 +11,7 @@ import {
 import { dhikrLibrary } from './dhikrLibrary';
 import { logEvent } from './logger';
 import { getAdhanDurationMode, getAdhanDurationSeconds } from './adhans';
-import { calculatePrayerTimes } from './prayerTimes';
+import { calculatePrayerTimes, getNightPrayerConfig, calculateNightPrayerWindow } from './prayerTimes';
 import { getCityById, getGuestCityId, getCustomGpsCoords } from './cities';
 import { addMinutesToTimeStr, PRE_ADHAN_CHANT_OPTIONS } from './deenIntelligenceStore';
 
@@ -70,11 +70,13 @@ function resolvePrayerAlarmParams(reminderId: string, reminderTitle = ''): {
     reminderTitle.includes('مانده تا اذان') ||
     reminderTitle.includes('دقیقه تا اذان')
   ) {
-    const matchedChant = PRE_ADHAN_CHANT_OPTIONS.find((c) => reminderTitle.includes(c.titleFa));
+    const matchedChant =
+      PRE_ADHAN_CHANT_OPTIONS.find((c) => reminderId.includes(c.id) || reminderTitle.includes(c.titleFa)) ??
+      PRE_ADHAN_CHANT_OPTIONS[0];
     return {
       soundType: 'short_10s',
-      adhanId: matchedChant ? matchedChant.audioAdhanId : 'moazenzadeh_ardabili',
-      durationSeconds: matchedChant ? matchedChant.durationSec : 16,
+      adhanId: matchedChant.audioAdhanId,
+      durationSeconds: matchedChant.durationSec,
       volumePercent: 100,
     };
   }
@@ -82,7 +84,17 @@ function resolvePrayerAlarmParams(reminderId: string, reminderTitle = ''): {
   const globalMode = getAdhanDurationMode();
   const globalDurSec = getAdhanDurationSeconds(globalMode);
 
-  if (!reminderId.startsWith('prayer_auto_')) {
+  if (reminderId === 'prayer_auto_tahajjud') {
+      const npCfg = getNightPrayerConfig();
+      if (npCfg.soundMode === 'silent') {
+        return { soundType: 'silent', adhanId: 'chant_rabbanaghfir', durationSeconds: 0, volumePercent: 0 };
+      }
+      if (npCfg.soundMode === 'chant') {
+        return { soundType: 'short_10s', adhanId: 'chant_rabbanaghfir', durationSeconds: 15, volumePercent: 95 };
+      }
+      return { soundType: 'adhan', adhanId: selectedAdhan, durationSeconds: globalDurSec, volumePercent: 95 };
+    }
+    if (!reminderId.startsWith('prayer_auto_')) {
     return {
       soundType: 'alarm',
       adhanId: selectedAdhan,
@@ -115,7 +127,16 @@ function computeDynamicPrayerDate(reminder: LocalReminder, baseCandidate: Date):
     const method = localStorage.getItem('noor_guest_calc_method') || 'tehran';
     const dayTimes = calculatePrayerTimes(baseCandidate, lat, lng, city.timezone, method);
 
-    let pKey: 'fajr' | 'dhuhr' | 'asr' | 'maghrib' | 'isha' | null = null;
+    if (reminder.id === 'prayer_auto_tahajjud') {
+          const npWin = calculateNightPrayerWindow(dayTimes, getNightPrayerConfig());
+          const [nh, nm] = npWin.recommendedAlarmTime.split(':').map(Number);
+          if (!isNaN(nh) && !isNaN(nm)) {
+            const shifted = new Date(baseCandidate);
+            shifted.setHours(nh, nm, 0, 0);
+            return shifted;
+          }
+        }
+        let pKey: 'fajr' | 'dhuhr' | 'asr' | 'maghrib' | 'isha' | null = null;
     if (reminder.id.includes('fajr') || reminder.title.includes('صبح')) pKey = 'fajr';
     else if (reminder.id.includes('dhuhr') || reminder.title.includes('ظهر')) pKey = 'dhuhr';
     else if (reminder.id.includes('asr') || reminder.title.includes('عصر')) pKey = 'asr';
@@ -166,7 +187,7 @@ export async function ensureChannel(): Promise<void> {
       description: 'اعلان با اولویت بالا و پخش صدای اذان در اوقات شرعی',
       importance: 5,
       visibility: 1,
-      sound: 'adhan_mahur',
+      sound: undefined,
       vibration: true,
       lights: true,
     });
@@ -361,7 +382,7 @@ export async function scheduleReminder(
             title: reminder.title,
             body,
             channelId: targetChannelId,
-            sound: isPrayerAdhan ? 'adhan_mahur' : undefined,
+            sound: Capacitor.getPlatform() === 'android' ? undefined : (isPrayerAdhan ? 'adhan_mahur' : undefined),
             schedule: { at: target, allowWhileIdle: true },
             extra: { reminderId: reminder.id, dhikrId: reminder.dhikrId ?? '' },
           },
@@ -410,7 +431,7 @@ export async function scheduleReminder(
             title: reminder.title,
             body,
             channelId: targetChannelId,
-            sound: isPrayerAdhan ? 'adhan_mahur' : undefined,
+            sound: Capacitor.getPlatform() === 'android' ? undefined : (isPrayerAdhan ? 'adhan_mahur' : undefined),
             schedule: { at: atDate, allowWhileIdle: true },
             extra: { reminderId: reminder.id, dhikrId: reminder.dhikrId ?? '' },
           },
@@ -555,4 +576,37 @@ export async function toggleReminder(
 export async function deleteReminder(id: string): Promise<void> {
   await cancelReminder(id);
   deleteReminderFromStorage(id);
+}
+
+export async function snoozeReminderByMinutes(title: string, body: string, minutes = 10): Promise<void> {
+  const triggerAt = new Date(Date.now() + minutes * 60 * 1000);
+  const snoozeId = 890000 + (Date.now() % 9000);
+  if (Capacitor.getPlatform() === 'android') {
+    try {
+      await NoorAlarm.scheduleNativeAlarm({
+        id: snoozeId,
+        triggerAtMillis: triggerAt.getTime(),
+        title: '💤 یادآور مجدد: ' + title,
+        body,
+        soundType: 'short_10s',
+        adhanId: 'chant_rabbanaghfir',
+        durationSeconds: 15,
+        volumePercent: 95,
+      });
+      return;
+    } catch {}
+  }
+  try {
+    await LocalNotifications.schedule({
+      notifications: [
+        {
+          id: snoozeId,
+          title: '💤 یادآور مجدد: ' + title,
+          body,
+          channelId: REMINDER_CHANNEL_ID,
+          schedule: { at: triggerAt, allowWhileIdle: true },
+        },
+      ],
+    });
+  } catch {}
 }

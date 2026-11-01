@@ -2,7 +2,7 @@ import { createPortal } from 'react-dom';
 import { useState, useMemo } from 'react';
 import { BookOpen, Clock, Sparkles, BellPlus, Check, ArrowRight, Quote, Plus, Search, X, ScrollText, Star, Compass, HeartHandshake } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
-import { getAllDhikr, addCustomDhikr, dhikrCategories, type Dhikr } from '@/lib/dhikrLibrary';
+import { getAllDhikr, addCustomDhikr, dhikrCategories, getFavoriteDhikrIds, toggleFavoriteDhikr, getCustomDhikrCount, setCustomDhikrCount, type Dhikr } from '@/lib/dhikrLibrary';
 import { createReminder } from '@/lib/reminderService';
 import { startSession } from '@/lib/tasbihStorage';
 import { toFaDigits } from '@/lib/jalali';
@@ -51,6 +51,9 @@ export function LibraryScreen({ onNavigate }: { onNavigate?: (t: Tab) => void })
   const { theme } = useTheme();
   const [items, setItems] = useState<Dhikr[]>(() => getAllDhikr());
   const [selected, setSelected] = useState<Dhikr | null>(null);
+  const [favIds, setFavIds] = useState<string[]>(() => getFavoriteDhikrIds());
+  const [onlyFavs, setOnlyFavs] = useState(false);
+  const [userTargetCount, setUserTargetCount] = useState<number>(33);
   const [activeGroup, setActiveGroup] = useState<MacroGroupKey>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [reminderTime, setReminderTime] = useState('08:00');
@@ -65,6 +68,7 @@ export function LibraryScreen({ onNavigate }: { onNavigate?: (t: Tab) => void })
   const filtered = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return items.filter((d) => {
+      if (onlyFavs && !favIds.includes(d.id)) return false;
       if (activeGroup !== 'all') {
         const grp = MACRO_GROUPS.find((g) => g.key === activeGroup);
         if (grp && !grp.match(d.category)) return false;
@@ -78,16 +82,18 @@ export function LibraryScreen({ onNavigate }: { onNavigate?: (t: Tab) => void })
         (d.scholarNote ?? '').toLowerCase().includes(q)
       );
     });
-  }, [items, activeGroup, searchQuery]);
+  }, [items, activeGroup, searchQuery, onlyFavs, favIds]);
 
   const handleOpenDhikr = (d: Dhikr) => {
     setSelected(d);
+    setUserTargetCount(getCustomDhikrCount(d.id, d.count));
     setReminderTime(d.defaultReminderTime ?? '08:00');
     setScheduleStatus(null);
   };
 
   const handleStartTasbih = (d: Dhikr) => {
-    startSession(d.id, d.count);
+    setCustomDhikrCount(d.id, userTargetCount || d.count);
+    startSession(d.id, userTargetCount || d.count);
     onNavigate?.('tasbih');
   };
 
@@ -213,6 +219,32 @@ export function LibraryScreen({ onNavigate }: { onNavigate?: (t: Tab) => void })
           )}
         </div>
 
+        <div className="card-flat p-4 mb-3 flex items-center justify-between gap-2">
+          <div>
+            <p className="text-xs font-bold text-app">تعداد تکرار انتخابی شما برای این ذکر:</p>
+            <p className="text-[10px] text-muted">تعداد پیشنهادی منبع: {toFaDigits(selected.count)} مرتبه</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              min={1}
+              max={10000}
+              value={userTargetCount}
+              onChange={(e) => setUserTargetCount(Math.max(1, Number(e.target.value) || selected.count))}
+              className="w-20 px-2.5 py-2 rounded-xl text-xs font-bold text-center text-app border outline-none"
+              style={{ borderColor: theme.border, background: theme.bg }}
+              dir="ltr"
+            />
+            <button
+              type="button"
+              onClick={() => setFavIds(toggleFavoriteDhikr(selected.id))}
+              className="px-3 py-2 rounded-xl text-xs font-bold border"
+              style={{ borderColor: favIds.includes(selected.id) ? "#f43f5e" : theme.border, color: favIds.includes(selected.id) ? "#f43f5e" : theme.textMuted }}
+            >
+              {favIds.includes(selected.id) ? "❤️ محبوب" : "🤍 افزودن به محبوب‌ها"}
+            </button>
+          </div>
+        </div>
         <div className="card-flat p-4 mb-4 space-y-3">
           <p className="text-app font-bold text-sm">ثبت مستقیم در برنامه یادآوری روزانه</p>
           <div className="flex items-center gap-2">
@@ -246,7 +278,7 @@ export function LibraryScreen({ onNavigate }: { onNavigate?: (t: Tab) => void })
           style={{ background: theme.primary, color: theme.bg }}
         >
           <Check size={18} />
-          <span>شروع شمارش در تسبیح ({toFaDigits(selected.count)} مرتبه)</span>
+          <span>شروع شمارش در تسبیح ({toFaDigits(userTargetCount || selected.count)} مرتبه)</span>
         </button>
       </div>
     );
@@ -345,6 +377,20 @@ export function LibraryScreen({ onNavigate }: { onNavigate?: (t: Tab) => void })
         </button>
       </div>
 
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <button
+          type="button"
+          onClick={() => setOnlyFavs((v) => !v)}
+          className="px-3.5 py-2 rounded-xl text-xs font-bold border transition-all"
+          style={{
+            borderColor: onlyFavs ? "#f43f5e" : theme.border,
+            background: onlyFavs ? "rgba(244,63,94,0.14)" : theme.surface,
+            color: onlyFavs ? "#fb7185" : theme.textMuted,
+          }}
+        >
+          ❤️ فقط اذکار محبوب من ({toFaDigits(favIds.length)})
+        </button>
+      </div>
       {/* نوار جستجوی سریع و مدرن */}
       <div
         className="flex items-center gap-2.5 px-4 py-3 rounded-2xl border mb-4"

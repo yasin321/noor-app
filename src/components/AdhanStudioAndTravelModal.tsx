@@ -40,12 +40,15 @@ export function AdhanStudioAndTravelModal({ initialSection = 'studio', onClose, 
   const [mt, setMt] = useState(() => loadMosqueAndTravel());
   const [selectedPrayer, setSelectedPrayer] = useState<'fajr' | 'dhuhr' | 'asr' | 'maghrib' | 'isha'>('maghrib');
   const [preMinutes, setPreMinutes] = useState<number>(10);
-  const [selectedChantId, setSelectedChantId] = useState<PreAdhanChantId>('moazenzadeh_tasbihat');
+  const [selectedChantId, setSelectedChantId] = useState<PreAdhanChantId>('chant_salawat');
   const [playingChantId, setPlayingChantId] = useState<PreAdhanChantId | null>(null);
   const [savedNotice, setSavedNotice] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const stopChantAudio = () => {
+    if (Capacitor.getPlatform() === 'android') {
+      void NoorAlarm.stopActiveAlarm().catch(() => {});
+    }
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
@@ -122,7 +125,7 @@ export function AdhanStudioAndTravelModal({ initialSection = 'studio', onClose, 
     const triggerTime = addMinutesToTimeStr(pTimes[selectedPrayer], -preMinutes);
     const chant = PRE_ADHAN_CHANT_OPTIONS.find((c) => c.id === selectedChantId) ?? PRE_ADHAN_CHANT_OPTIONS[0];
 
-    const dynId = `pre_adhan_${selectedPrayer}_${preMinutes}`;
+    const dynId = `pre_adhan_${selectedPrayer}_${preMinutes}_${chant.id}`;
     const nowIso = new Date().toISOString();
     const dynReminder: LocalReminder = {
       id: dynId,

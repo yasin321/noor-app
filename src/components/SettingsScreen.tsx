@@ -16,7 +16,7 @@ import {
 } from '@/lib/adhans';
 import { CITIES, getCityById, getGuestCityId, setGuestCityId, type City } from '@/lib/cities';
 import { cancelAllScheduledNotifications, rescheduleAllReminders, checkPermission, requestPermission } from '@/lib/reminderService';
-import { getAvailableMethods } from '@/lib/prayerTimes';
+import { getAvailableMethods, getNightPrayerConfig, saveNightPrayerConfig, type NightPrayerConfig } from '@/lib/prayerTimes';
 import { getSpiritualDashboardStats, type PeriodRange } from '@/lib/tasbihStorage';
 import { getDhikr } from '@/lib/dhikrLibrary';
 import { getQuranDisplayMode, setQuranDisplayMode, type QuranDisplayMode } from '@/lib/quranCatalog';
@@ -24,6 +24,7 @@ import { getHomeModulesVisibility, setHomeModulesVisibility, type HomeModulesVis
 import { getNeshanApiKey, setNeshanApiKey } from '@/lib/neshanMosqueService';
 import { syncLocalStateToCloud } from '@/lib/cloudSyncService';
 import { AppTutorialModal } from '@/components/AppTutorialModal';
+import { AdhanStudioAndTravelModal } from '@/components/AdhanStudioAndTravelModal';
 import { VipAndAnalyticsModal } from '@/components/VipAndAnalyticsModal';
 import { getDiagnosticLogs, clearDiagnosticLogs, type AppLogEntry } from '@/lib/logger';
 import { toFaDigits } from '@/lib/jalali';
@@ -77,9 +78,11 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   });
   const [quranViewMode, setQuranViewModeState] = useState<QuranDisplayMode>(() => getQuranDisplayMode());
   const [homeModules, setHomeModules] = useState<HomeModulesVisibility>(() => getHomeModulesVisibility());
-  const [neshanKey, setNeshanKey] = useState<string>(() => getNeshanApiKey());
+  const [neshanKey, setNeshanKey] = useState<string>('');
+  const [nightPrayerCfg, setNightPrayerCfg] = useState<NightPrayerConfig>(() => getNightPrayerConfig());
 
   const [showVipModal, setShowVipModal] = useState(false);
+  const [showPreAdhanModal, setShowPreAdhanModal] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
   const [notifSupported, setNotifSupported] = useState(true);
   const [notifMessage, setNotifMessage] = useState<string | null>(null);
@@ -246,11 +249,10 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   };
 
   const applyAdhan = async (id: string) => {
+    try { localStorage.setItem(GUEST_ADHAN_KEY, id); } catch {}
+    setGuestAdhanId(id);
     if (profile) await updateProfile({ adhan_id: id });
-    else {
-      try { localStorage.setItem(GUEST_ADHAN_KEY, id); } catch {}
-      setGuestAdhanId(id);
-    }
+    await rescheduleAllReminders(notifEnabled);
   };
 
   const applyMethod = async (id: string) => {
@@ -516,40 +518,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
     );
   }
 
-  // ۴. زیرصفحه تنظیمات نقشه و مسجدیاب نشان
-  if (section === 'neshan') {
-    return (
-      <div className="w-full max-w-xl mx-auto px-3.5 pt-4 pb-28 animate-fade-in" dir="rtl">
-        <SubHeader title="تنظیمات مسجدیاب و نقشه نشان" />
-        <div className="card-flat p-4 space-y-3">
-          <p className="text-sm font-bold text-app">🔑 کلید وب‌سرویس نشان (Neshan API Key)</p>
-          <p className="text-xs text-muted leading-relaxed">
-            اپلیکیشن نور به صورت پیش‌فرض به کلید رسمی سرویس «نشان» متصل است. در صورت تمایل به تغییر کلید، کد <code>service.xxx</code> خود را وارد کنید:
-          </p>
-          <input
-            type="text"
-            dir="ltr"
-            value={neshanKey}
-            onChange={(e) => setNeshanKey(e.target.value)}
-            placeholder="service.xxxxxxxxxxxxxxxxxxxxxxxx"
-            className="w-full px-3.5 py-3 rounded-2xl text-xs font-mono text-app border outline-none"
-            style={{ borderColor: theme.border, background: theme.bg }}
-          />
-          <button
-            type="button"
-            onClick={() => {
-              setNeshanApiKey(neshanKey);
-              setSection('main');
-            }}
-            className="w-full py-3 rounded-2xl text-xs font-bold"
-            style={{ background: theme.primary, color: theme.bg }}
-          >
-            ذخیره کلید وب‌سرویس نشان
-          </button>
-        </div>
-      </div>
-    );
-  }
+  // ۴. امنیت توکن نشان: مدیریت توکن به صورت کامل در لایه سرویس داخلی انجام می‌شود
 
   // ۵. زیرصفحه پوسته‌ها
   if (section === 'theme') {
@@ -658,6 +627,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
     const handleChangeDurationMode = (m: AdhanPlaybackDurationMode) => {
       setDurationModeState(m);
       setAdhanDurationMode(m);
+      void rescheduleAllReminders(notifEnabled);
       const label = m === '10s' ? '۱۰ ثانیه اول (خلاصه)' : m === '30s' ? '۳۰ ثانیه اول (ملایم)' : 'پخش کامل اذان';
       setAdhanNotice(`✨ مدت پخش اذان روی «${label}» تنظیم شد.`);
     };
@@ -924,6 +894,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   return (
     <div className="w-full max-w-xl mx-auto px-3.5 pt-4 pb-28 animate-fade-in" dir="rtl">
       {showGuide && <AppTutorialModal onClose={() => setShowGuide(false)} />}
+      {showPreAdhanModal && <AdhanStudioAndTravelModal initialSection="studio" onClose={() => setShowPreAdhanModal(false)} />}
       {showVipModal && <VipAndAnalyticsModal initialTab="vip" onClose={() => setShowVipModal(false)} />}
 
       <div className="flex items-center justify-between mb-4">
@@ -1034,12 +1005,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
           value={methods.find((m) => m.id === currentMethod)?.name ?? 'جعفری'}
           onClick={() => setSection('method')}
         />
-        <RowItem
-          icon={Navigation}
-          title="مسجدیاب و کلید نقشه نشان"
-          value={neshanKey ? 'متصل به نشان ✓' : 'رادار پیش‌فرض فعال'}
-          onClick={() => setSection('neshan')}
-        />
+        
       </div>
 
       {/* دسته‌بندی ۳: داشبورد تحلیلی، پشتیبان‌گیری و اعلان‌ها */}

@@ -264,6 +264,7 @@ public class NoorAlarmPlugin extends Plugin {
 
     @PluginMethod
     public void stopPreviewAudio(PluginCall call) {
+        AdhanForegroundService.killActivePlayer(getContext());
         stopPreviewInternal();
         call.resolve();
     }

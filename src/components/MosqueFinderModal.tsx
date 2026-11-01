@@ -6,12 +6,14 @@ import { useTheme } from '@/hooks/useTheme';
 import { NoorAlarm } from '@/lib/reminderService';
 import {
   searchNearbyMosques,
+  getInstantLocalMosques,
+  saveLocationMetrics,
   fetchNeshanExactRoute,
   getNeshanApiKey,
   setNeshanApiKey,
   type NearbyMosque,
 } from '@/lib/neshanMosqueService';
-import { saveCustomGpsCoords } from '@/lib/cities';
+import { saveCustomGpsCoords, getCustomGpsCoords } from '@/lib/cities';
 import { loadMosqueAndTravel, saveMosqueAndTravel } from '@/lib/deenIntelligenceStore';
 import { toFaDigits } from '@/lib/jalali';
 
@@ -58,20 +60,45 @@ export function MosqueFinderModal({ cityName, defaultLat, defaultLng, onClose, o
   };
 
   const detectLiveGps = async () => {
+    const tStart = performance.now();
+    const cachedGps = getCustomGpsCoords();
+    const initialLat = cachedGps ? cachedGps.lat : coords.lat;
+    const initialLng = cachedGps ? cachedGps.lng : coords.lng;
+
+    // ۱. نمایش فوری مساجد اطراف با آخرین مختصات معتبر بدون توقف رابط کاربری
+    setMosques(getInstantLocalMosques(initialLat, initialLng));
+    setLoading(false);
     setGpsStatus('searching');
-    setLoading(true);
-    void loadNearby(coords.lat, coords.lng, false);
+
+    const onCoordsAcquired = async (lat: number, lng: number, acc: number | null) => {
+      const gpsMs = Math.round(performance.now() - tStart);
+      setCoords({ lat, lng });
+      setAccuracyMeters(acc);
+      setGpsStatus('locked');
+      saveCustomGpsCoords(lat, lng);
+      setMosques(getInstantLocalMosques(lat, lng));
+
+      const res = await searchNearbyMosques(lat, lng);
+      setMosques(res.mosques);
+      if (res.userAddress) {
+        setUserAddress(res.userAddress);
+        saveCustomGpsCoords(lat, lng, res.userAddress);
+      }
+      if (res.mosques.length > 0) setSelectedMosque(res.mosques[0]);
+      saveLocationMetrics({
+        gpsAcquisitionMs: gpsMs,
+        apiResponseMs: res.apiResponseMs,
+        usedAddressCache: res.apiResponseMs < 15,
+        accuracyMeters: acc,
+        timestampIso: new Date().toISOString(),
+      });
+    };
 
     if (Capacitor.getPlatform() === 'android' && typeof NoorAlarm.requestAndGetLocation === 'function') {
       try {
         const res = await NoorAlarm.requestAndGetLocation();
         if (res.hasCoords && typeof res.lat === 'number' && typeof res.lng === 'number') {
-          setCoords({ lat: res.lat, lng: res.lng });
-          saveCustomGpsCoords(res.lat, res.lng);
-          setGpsStatus('locked');
-          setAccuracyMeters(15);
-          await loadNearby(res.lat, res.lng, true);
-          showNotice('🎯 موقعیت دقیق GPS شما قفل شد و مساجد اطراف بروزرسانی شدند!');
+          await onCoordsAcquired(res.lat, res.lng, 12);
           return;
         }
       } catch {}
@@ -80,20 +107,16 @@ export function MosqueFinderModal({ cityName, defaultLat, defaultLng, onClose, o
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          const lat = pos.coords.latitude;
-          const lng = pos.coords.longitude;
-          setCoords({ lat, lng });
-          saveCustomGpsCoords(lat, lng);
-          setAccuracyMeters(Math.round(pos.coords.accuracy || 20));
-          setGpsStatus('locked');
-          void loadNearby(lat, lng, true);
-          showNotice('🎯 موقعیت دقیق GPS شما دریافت شد!');
+          void onCoordsAcquired(pos.coords.latitude, pos.coords.longitude, Math.round(pos.coords.accuracy || 18));
         },
         () => {
           setGpsStatus('fallback');
-          showNotice('⚠️ GPS دقیق پاسخ نداد؛ برای دقت خیابان روی «مکان‌یابی مجدد» بزنید.');
+          void searchNearbyMosques(initialLat, initialLng).then((r) => {
+            setMosques(r.mosques);
+            if (r.userAddress) setUserAddress(r.userAddress);
+          });
         },
-        { enableHighAccuracy: true, timeout: 6000, maximumAge: 0 }
+        { enableHighAccuracy: false, timeout: 3500, maximumAge: 180000 }
       );
     } else {
       setGpsStatus('fallback');
@@ -169,15 +192,7 @@ export function MosqueFinderModal({ cityName, defaultLat, defaultLng, onClose, o
             </div>
           </div>
           <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => setShowKeyInput((v) => !v)}
-              title="تنظیم کلید وب‌سرویس نشان"
-              className="p-2 rounded-xl border text-muted"
-              style={{ borderColor: theme.border }}
-            >
-              <KeyRound size={15} color={apiKeyInput ? theme.primary : theme.textMuted} />
-            </button>
+            
             <button type="button" onClick={onClose} className="text-muted p-1.5">
               <X size={20} />
             </button>

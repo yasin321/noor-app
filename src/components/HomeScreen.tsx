@@ -2,12 +2,12 @@ import { useState, useEffect, useMemo } from 'react';
 import { MapPin, Clock, Sunrise, Sunset, Moon, Sun, CloudSun, ArrowLeft, Hand, Bell, BellOff, Compass, Sparkles, LocateFixed, Navigation, BookOpen, Sliders, Calendar } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
-import { calculatePrayerTimes, getNextPrayer, getLocalDateString, timeToMinutes, PrayerTimes } from '@/lib/prayerTimes';
+import { calculatePrayerTimes, getNextPrayer, getLocalDateString, timeToMinutes, getNightPrayerConfig, saveNightPrayerConfig, calculateNightPrayerWindow, type NightPrayerConfig, type PrayerTimes } from '@/lib/prayerTimes';
 import { CITIES, getCityById, getGuestCityId, setGuestCityId, getCustomGpsCoords, saveCustomGpsCoords } from '@/lib/cities';
 import { getTodayTotal, getTodayRounds, getSession, fetchTodayStats, startSession } from '@/lib/tasbihStorage';
 import { toJalaliShort, getJalaliWeekday, toFaDigits } from '@/lib/jalali';
 import { dhikrLibrary } from '@/lib/dhikrLibrary';
-import { loadReminders, scheduleReminder, cancelReminder, checkPermission, requestPermission, NoorAlarm } from '@/lib/reminderService';
+import { loadReminders, scheduleReminder, cancelReminder, checkPermission, requestPermission, snoozeReminderByMinutes, NoorAlarm } from '@/lib/reminderService';
 import { Capacitor } from '@capacitor/core';
 import { saveReminder, type LocalReminder } from '@/lib/reminderStorage';
 import { VipAndAnalyticsModal } from '@/components/VipAndAnalyticsModal';
@@ -173,6 +173,7 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
   const [showTutorial, setShowTutorial] = useState(false);
   const [guestCityId, setGuestCityIdState] = useState(getGuestCityId());
   const [modulesVis] = useState<HomeModulesVisibility>(() => getHomeModulesVisibility());
+  const [nightCfg, setNightCfg] = useState<NightPrayerConfig>(() => getNightPrayerConfig());
 
   useEffect(() => {
     try {
@@ -197,7 +198,12 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
   const todayDate = getLocalDateString(now, city.timezone);
 
   useEffect(() => {
-    const refreshNow = () => setNow(new Date());
+    const refreshNow = () => {
+      setNow(new Date());
+      setNightCfg(getNightPrayerConfig());
+    };
+    const onNightChanged = () => setNightCfg(getNightPrayerConfig());
+    window.addEventListener('noor-night-prayer-changed', onNightChanged);
     const interval = setInterval(refreshNow, 15000);
     document.addEventListener('visibilitychange', refreshNow);
     window.addEventListener('focus', refreshNow);
@@ -205,6 +211,7 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
       clearInterval(interval);
       document.removeEventListener('visibilitychange', refreshNow);
       window.removeEventListener('focus', refreshNow);
+      window.removeEventListener('noor-night-prayer-changed', onNightChanged);
     };
   }, []);
 
@@ -261,7 +268,7 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
 
     for (const r of all) {
       if (r.id.startsWith('pre_adhan_') && r.enabled) {
-        const m = r.id.match(/^pre_adhan_([a-z]+)_(\d+)$/);
+        const m = r.id.match(/^pre_adhan_([a-z]+)_(\d+)/);
         if (m) {
           const pKey = m[1];
           const preMin = Number(m[2]);
@@ -415,7 +422,7 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
       });
       if (res.success) {
         setEnabledAlarms((prev) => ({ ...prev, [key]: true }));
-        showToast('🔔 آلارم اذان ' + nameFa + ' (' + timeStrVal + ') فعال شد');
+        showToast('🔔 آلارم اذان ' + nameFa + ' (' + timeStrVal + ') با صدای مؤذن انتخابی شما فعال شد');
       } else {
         reminder.enabled = false;
         saveReminder(reminder);
@@ -782,6 +789,105 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
           );
         })}
       </div>
+
+            {nightCfg.enabled && times && (() => {
+        const npWin = calculateNightPrayerWindow(times, nightCfg);
+        const isNightAlarmOn = Boolean(enabledAlarms['tahajjud']) || nightCfg.alarmEnabled;
+        return (
+          <div
+            className="card-flat p-4 mb-4 border transition-all animate-fade-in"
+            style={{
+              borderColor: isNightAlarmOn ? theme.accent : theme.primary,
+              background: 'radial-gradient(circle at top left, color-mix(in srgb, ' + theme.accent + ' 16%, transparent), ' + theme.surface + ')',
+            }}
+          >
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <div className="flex items-center gap-2">
+                <Moon size={18} color={theme.accent} />
+                <div>
+                  <h3 className="text-xs font-black text-app">🌙 نماز شب (تهجد و مناجات سحرگاهی)</h3>
+                  <p className="text-[11px] text-muted mt-0.5">بهترین زمان (ثلث آخر شب به افق {times.location}): {toFaDigits(npWin.descriptionFa)}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                aria-label={isNightAlarmOn ? 'خاموش کردن یادآور نماز شب' : 'فعال کردن یادآور نماز شب'}
+                onClick={async () => {
+                  const nextAlarmState = !isNightAlarmOn;
+                  const nextCfg = { ...nightCfg, alarmEnabled: nextAlarmState };
+                  setNightCfg(nextCfg);
+                  saveNightPrayerConfig(nextCfg);
+                  await togglePrayerAdhanAlarm('tahajjud', 'نماز شب', npWin.recommendedAlarmTime);
+                }}
+                className="px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1"
+                style={{
+                  background: isNightAlarmOn ? theme.accent : 'color-mix(in srgb, ' + theme.textMuted + ' 18%, transparent)',
+                  color: isNightAlarmOn ? theme.bg : theme.textMuted,
+                }}
+              >
+                {isNightAlarmOn ? <Bell size={13} /> : <BellOff size={13} />}
+                <span>{isNightAlarmOn ? 'یادآور فعال (' + toFaDigits(npWin.recommendedAlarmTime) + ')' : 'کوک یادآور'}</span>
+              </button>
+            </div>
+            <div className="flex items-center justify-between gap-2 pt-2 border-t" style={{ borderColor: theme.border }}>
+              <div className="flex gap-1">
+                {([
+                  { mode: 'last_third_start' as const, label: 'آغاز ثلث آخر' },
+                  { mode: 'before_fajr_45' as const, label: '۴۵د قبل صبح' },
+                  { mode: 'before_fajr_30' as const, label: '۳۰د قبل صبح' },
+                ]).map((opt) => (
+                  <button
+                    key={opt.mode}
+                    type="button"
+                    onClick={async () => {
+                      const nextCfg = { ...nightCfg, timingMode: opt.mode };
+                      setNightCfg(nextCfg);
+                      saveNightPrayerConfig(nextCfg);
+                      const newWin = calculateNightPrayerWindow(times, nextCfg);
+                      if (isNightAlarmOn) {
+                        const nowIso = new Date().toISOString();
+                        const rem: LocalReminder = {
+                          id: 'prayer_auto_tahajjud',
+                          title: '🌙 وقت فضیلت نماز شب به افق ' + city.nameFa,
+                          body: 'وَمِنَ اللَّيْلِ فَتَهَجَّدْ بِهِ نَافِلَةً لَكَ — وقت خلوت سحرگاهی و نماز شب',
+                          time: newWin.recommendedAlarmTime,
+                          days: [0, 1, 2, 3, 4, 5, 6],
+                          enabled: true,
+                          dhikrId: null,
+                          type: 'recurring',
+                          date: null,
+                          createdAt: nowIso,
+                          updatedAt: nowIso,
+                        };
+                        saveReminder(rem);
+                        await scheduleReminder(rem, true);
+                        showToast('🌙 ساعت یادآور نماز شب روی ' + toFaDigits(newWin.recommendedAlarmTime) + ' تنظیم شد.');
+                      }
+                    }}
+                    className="px-2 py-1 rounded-lg text-[10px] font-bold"
+                    style={{
+                      background: nightCfg.timingMode === opt.mode ? theme.primary : 'transparent',
+                      color: nightCfg.timingMode === opt.mode ? theme.bg : theme.textMuted,
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  void snoozeReminderByMinutes('نماز شب', 'یادآور مجدد وقت فضیلت نماز شب', 10);
+                  showToast('💤 یادآور نماز شب برای ۱۰ دقیقه دیگر (Snooze) تنظیم شد.');
+                }}
+                className="text-[10px] font-bold text-accent underline"
+              >
+                💤 تعویق ۱۰ دقیقه‌ای
+              </button>
+            </div>
+          </div>
+        );
+      })()}
 
       {modulesVis.showDailySummary && (
         <div className="card p-4">

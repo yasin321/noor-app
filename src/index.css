@@ -179,3 +179,10 @@ button, input, textarea, select { min-width: 0; }
     transition-duration: 0.01ms !important;
   }
 }
+
+.quran-mushaf-text {
+  font-family: 'UthmanTaha', 'KFGQPC Uthman Taha Naskh', 'Amiri Quran', 'Scheherazade New', 'Amiri', serif;
+  line-height: 2.55;
+  letter-spacing: 0;
+  word-spacing: 2px;
+}
