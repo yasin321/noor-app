@@ -150,6 +150,23 @@ export const CURATED_SURAHS: SelectedSurahInfo[] = [
 ];
 
 const AYAHS_PER_MUSHAF_PAGE = 10;
+// تعداد آیات ۱۱۴ سوره برای محاسبه شماره آیه کل قرآن در CDN جهانی
+const SURAH_AYAH_COUNTS = [
+  7,286,200,176,120,165,206,75,129,109,123,111,43,52,99,128,111,110,98,135,
+  112,78,118,64,77,227,93,88,69,60,34,30,73,54,45,83,182,88,75,85,
+  54,53,89,59,37,35,38,29,18,45,60,49,62,55,78,96,29,22,24,13,
+  14,11,11,18,12,12,30,52,52,44,28,28,20,56,40,31,50,40,46,42,
+  29,19,36,25,22,17,19,26,30,20,15,21,11,8,8,19,5,8,8,11,
+  11,8,3,9,5,4,7,3,6,3,5,4,5,6
+];
+
+function getGlobalAyahNumber(surahNumber: number, ayahInSurah: number): number {
+  let offset = 0;
+  for (let i = 0; i < surahNumber - 1; i++) {
+    offset += SURAH_AYAH_COUNTS[i] || 0;
+  }
+  return offset + ayahInSurah;
+}
 const PLAYBACK_SPEEDS = [1, 1.25, 1.5, 2, 3];
 
 // حذف ۱۰۰٪ بسم‌الله تکراری از ابتدای آیه ۱ در تمام رسم‌الخط‌ها (عثمان طه و استاندارد)
@@ -191,18 +208,12 @@ export function QuranAndMuhasabaModal({ initialMode = 'quran', onClose, onUpdate
 
   const currentSurah = CURATED_SURAHS.find((s) => s.number === qState.surahIndex) ?? CURATED_SURAHS[0];
 
-  const stopSurahAudio = () => {
+    const stopSurahAudio = () => {
     isPlayingRef.current = false;
     if (audioRef.current) {
       audioRef.current.onended = null;
       audioRef.current.onerror = null;
-      audioRef.current.pause();
-      audioRef.current.src = '';
-      audioRef.current = null;
-    }
-    if (preloadAudioRef.current) {
-      preloadAudioRef.current.src = '';
-      preloadAudioRef.current = null;
+      try { audioRef.current.pause(); } catch {}
     }
     setIsPlayingParhizgar(false);
     setPlayingAyahNumber(null);
@@ -262,7 +273,7 @@ export function QuranAndMuhasabaModal({ initialMode = 'quran', onClose, onUpdate
     onUpdated?.();
   };
 
-  const togglePlayParhizgar = (startAyah: number) => {
+    const togglePlayParhizgar = (startAyah: number) => {
     if (isPlayingRef.current || isPlayingParhizgar) {
       stopSurahAudio();
       return;
@@ -271,53 +282,84 @@ export function QuranAndMuhasabaModal({ initialMode = 'quran', onClose, onUpdate
     isPlayingRef.current = true;
     setIsPlayingParhizgar(true);
 
+    // استفاده از یک عنصر صوتی واحد که با کلیک کاربر Unlock می‌شود تا اندروید هرگز آیات بعدی را بلاک نکند
+    const player = audioRef.current ?? new Audio();
+    audioRef.current = player;
     const sPad = String(currentSurah.number).padStart(3, '0');
-    const buildAyahUrl = (aNum: number) =>
-      'https://everyayah.com/data/Parhizgar_48kbps/' + sPad + String(aNum).padStart(3, '0') + '.mp3';
 
-    const playAyahStep = (ayahNum: number) => {
+    const getCandidateUrls = (ayahNum: number): string[] => {
+      const aPad = String(ayahNum).padStart(3, '0');
+      const globalNum = getGlobalAyahNumber(currentSurah.number, ayahNum);
+      const list: string[] = [];
+      // ۱. اگر آیه اول سوره‌های باندل‌شده آفلاین است، اول فایل آفلاین داخل گوشی هم امتحان شود
+      if (ayahNum === 1) {
+        const localMap: Record<number, string> = {
+          56: '/adhans/post_waqiah.mp3',
+          36: '/adhans/post_yasin.mp3',
+          67: '/adhans/post_mulk.mp3',
+          51: '/adhans/post_dhariyat.mp3',
+          37: '/adhans/post_saffat.mp3',
+          55: '/adhans/post_rahman.mp3',
+        };
+        if (localMap[currentSurah.number]) list.push(localMap[currentSurah.number]);
+      }
+      // ۲. سرور استاد شهریار پرهیزگار + سرور CDN پرسرعت جهانی (بدون قطعی در ایران)
+      list.push('https://everyayah.com/data/Parhizgar_48kbps/' + sPad + aPad + '.mp3');
+      list.push('https://cdn.islamic.network/quran/audio/128/ar.alafasy/' + globalNum + '.mp3');
+      list.push('https://cdn.islamic.network/quran/audio/64/ar.abdulbasitmurattal/' + globalNum + '.mp3');
+      list.push(currentSurah.parhizgarSurahUrl);
+      return list;
+    };
+
+    const playAyahStep = (ayahNum: number, urlIndex = 0) => {
       if (!isPlayingRef.current || ayahNum > currentSurah.ayahCount) {
         stopSurahAudio();
         return;
       }
+      const candidates = getCandidateUrls(ayahNum);
+      if (urlIndex >= candidates.length) {
+        stopSurahAudio();
+        showToast('لطفاً اتصال اینترنت را برای پخش صوت کامل سوره بررسی کنید.');
+        return;
+      }
+
       setPlayingAyahNumber(ayahNum);
       updateQuranPosition(currentSurah.number, ayahNum);
 
       setTimeout(() => {
         const el = document.getElementById('mushaf-ayah-' + ayahNum);
         if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 90);
+      }, 100);
 
-      const player =
-        preloadAudioRef.current && preloadAudioRef.current.src === buildAyahUrl(ayahNum)
-          ? preloadAudioRef.current
-          : new Audio(buildAyahUrl(ayahNum));
+      const targetUrl = candidates[urlIndex];
+      const isFullSurahStream = targetUrl === currentSurah.parhizgarSurahUrl;
 
-      preloadAudioRef.current = null;
-      audioRef.current = player;
+      player.onended = null;
+      player.onerror = null;
+      player.src = targetUrl;
       player.playbackRate = playbackRateRef.current;
-
-      if (ayahNum + 1 <= currentSurah.ayahCount) {
-        const nextPreload = new Audio(buildAyahUrl(ayahNum + 1));
-        nextPreload.preload = 'auto';
-        preloadAudioRef.current = nextPreload;
-      }
 
       player.onended = () => {
         if (!isPlayingRef.current) return;
-        playAyahStep(ayahNum + 1);
+        if (isFullSurahStream) {
+          stopSurahAudio();
+        } else {
+          playAyahStep(ayahNum + 1, 0);
+        }
       };
+
       player.onerror = () => {
         if (!isPlayingRef.current) return;
-        stopSurahAudio();
-        showToast('برای پخش صوت استاد پرهیزگار، اتصال اینترنت را بررسی کنید.');
+        playAyahStep(ayahNum, urlIndex + 1);
       };
-      void player.play().catch(() => {
-        stopSurahAudio();
+
+      player.play().catch(() => {
+        if (!isPlayingRef.current) return;
+        playAyahStep(ayahNum, urlIndex + 1);
       });
     };
 
-    playAyahStep(startAyah);
+    playAyahStep(startAyah, 0);
   };
 
   const handleToggleBookmarkAyah = (ayah: QuranAyahItem) => {
