@@ -8,10 +8,15 @@ const config: CapacitorConfig = {
     androidScheme: 'https',
   },
   plugins: {
+    SplashScreen: {
+      launchShowDuration: 0,
+      launchAutoHide: true,
+      backgroundColor: '#071A16',
+      showSpinner: false,
+    },
     LocalNotifications: {
-      smallIcon: 'ic_stat_icon',
-      iconColor: '#10b981',
-      sound: undefined,
+      smallIcon: 'ic_stat_icon_config_sample',
+      iconColor: '#10B981',
     },
   },
 };
