@@ -134,7 +134,7 @@ const AYAHS_PER_MUSHAF_PAGE = 10;
 
 export function QuranAndMuhasabaModal({ initialMode = 'quran', onClose, onUpdated }: Props) {
   const { theme } = useTheme();
-  const [mode, setMode] = useState<'quran' | 'muhasaba'>(initialMode);
+  const [mode, setMode] = useState<'quran' | 'bookmarks' | 'muhasaba'>(initialMode);
   const [qState, setQState] = useState(() => loadQuranContinuity());
   const [ayahs, setAyahs] = useState<QuranAyahItem[]>([]);
   const [loadingSurah, setLoadingSurah] = useState(false);
@@ -368,30 +368,41 @@ export function QuranAndMuhasabaModal({ initialMode = 'quran', onClose, onUpdate
         )}
 
         <div
-          className="grid grid-cols-2 gap-1.5 p-1 rounded-2xl mb-3.5"
+          className="grid grid-cols-3 gap-1 p-1 rounded-2xl mb-3.5"
           style={{ background: 'color-mix(in srgb, ' + theme.primary + ' 10%, transparent)' }}
         >
           <button
             type="button"
             onClick={() => setMode('quran')}
-            className="py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5"
+            className="py-2 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1"
             style={{
               background: mode === 'quran' ? theme.primary : 'transparent',
               color: mode === 'quran' ? theme.bg : theme.textMuted,
             }}
           >
-            <BookOpen size={14} /> سوره‌های منتخب و مصحف
+            <BookOpen size={13} /> سوره‌ها و مصحف
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode('bookmarks')}
+            className="py-2 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1"
+            style={{
+              background: mode === 'bookmarks' ? theme.accent : 'transparent',
+              color: mode === 'bookmarks' ? theme.bg : theme.accent,
+            }}
+          >
+            <Bookmark size={13} /> نشانک‌ها ({toFaDigits(qState.bookmarks.length)})
           </button>
           <button
             type="button"
             onClick={() => setMode('muhasaba')}
-            className="py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5"
+            className="py-2 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1"
             style={{
               background: mode === 'muhasaba' ? theme.primary : 'transparent',
               color: mode === 'muhasaba' ? theme.bg : theme.textMuted,
             }}
           >
-            <Heart size={14} /> محاسبه نفس شبانه
+            <Heart size={13} /> محاسبه نفس
           </button>
         </div>
 
@@ -674,6 +685,61 @@ export function QuranAndMuhasabaModal({ initialMode = 'quran', onClose, onUpdate
                 <span>کوک یادآور {currentSurah.nameFa}</span>
               </button>
             </div>
+          </div>
+        ) : mode === 'bookmarks' ? (
+          <div className="space-y-3">
+            <div className="p-3 rounded-2xl border text-xs leading-relaxed" style={{ borderColor: theme.border, background: theme.bg }}>
+              💡 برای ذخیره هر آیه در این بخش، هنگام مطالعه قرآن روی شماره آیه ﴿۱﴾ یا آیکون 🔖 کنار ترجمه بزنید (یا انگشت خود را روی آیه نگه دارید).
+            </div>
+            {qState.bookmarks.length === 0 ? (
+              <div className="card-flat p-8 text-center space-y-2">
+                <Bookmark size={32} color={theme.textMuted} className="mx-auto opacity-40" />
+                <p className="text-xs font-bold text-app">هنوز آیه‌ای نشانک‌گذاری نکرده‌اید</p>
+              </div>
+            ) : (
+              <div className="space-y-2.5 max-h-[60vh] overflow-y-auto pr-0.5">
+                {qState.bookmarks.map((bm, idx) => (
+                  <div key={idx} className="card-flat p-4 space-y-2 border" style={{ borderColor: theme.primary }}>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-black text-primary">🔖 {bm.surahNameFa} — آیه {toFaDigits(bm.ayahNumber)}</span>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const foundSurah = CURATED_SURAHS.find((s) => s.nameFa === bm.surahNameFa || s.number === bm.surahNumber);
+                            if (foundSurah) {
+                              updateQuranPosition(foundSurah.number, bm.ayahNumber);
+                              setMode('quran');
+                            }
+                          }}
+                          className="px-2.5 py-1 rounded-lg text-[10px] font-bold"
+                          style={{ background: theme.primary, color: theme.bg }}
+                        >
+                          رفتن به آیه ←
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const next = {
+                              ...qState,
+                              bookmarks: qState.bookmarks.filter((_, i) => i !== idx),
+                            };
+                            setQState(next);
+                            saveQuranContinuity(next);
+                          }}
+                          className="px-2 py-1 rounded-lg text-[10px] font-bold text-red-400 border"
+                          style={{ borderColor: theme.border }}
+                        >
+                          حذف
+                        </button>
+                      </div>
+                    </div>
+                    {bm.arabic && <p className="quran-mushaf-text text-xl font-bold text-app leading-loose">{bm.arabic}</p>}
+                    <p className="text-xs text-muted leading-relaxed">{bm.note}</p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         ) : (
           <div className="space-y-3.5">

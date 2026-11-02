@@ -6,6 +6,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { NoorAlarm } from '@/lib/reminderService';
 import {
   searchNearbyMosques,
+  clearReverseGeocodeCache,
   getInstantLocalMosques,
   saveLocationMetrics,
   fetchNeshanExactRoute,
@@ -61,23 +62,17 @@ export function MosqueFinderModal({ cityName, defaultLat, defaultLng, onClose, o
 
   const detectLiveGps = async () => {
     const tStart = performance.now();
-    const cachedGps = getCustomGpsCoords();
-    const initialLat = cachedGps ? cachedGps.lat : coords.lat;
-    const initialLng = cachedGps ? cachedGps.lng : coords.lng;
-
-    // ۱. نمایش فوری مساجد اطراف با آخرین مختصات معتبر بدون توقف رابط کاربری
-    setMosques(getInstantLocalMosques(initialLat, initialLng));
-    setLoading(false);
+    clearReverseGeocodeCache();
     setGpsStatus('searching');
+    setUserAddress('در حال دریافت موقعیت دقیق خیابان شما از نشان...');
+    setLoading(true);
 
-    const onCoordsAcquired = async (lat: number, lng: number, acc: number | null) => {
+    const onExactCoords = async (lat: number, lng: number, acc: number | null) => {
       const gpsMs = Math.round(performance.now() - tStart);
       setCoords({ lat, lng });
       setAccuracyMeters(acc);
       setGpsStatus('locked');
       saveCustomGpsCoords(lat, lng);
-      setMosques(getInstantLocalMosques(lat, lng));
-
       const res = await searchNearbyMosques(lat, lng);
       setMosques(res.mosques);
       if (res.userAddress) {
@@ -85,42 +80,60 @@ export function MosqueFinderModal({ cityName, defaultLat, defaultLng, onClose, o
         saveCustomGpsCoords(lat, lng, res.userAddress);
       }
       if (res.mosques.length > 0) setSelectedMosque(res.mosques[0]);
+      setLoading(false);
       saveLocationMetrics({
         gpsAcquisitionMs: gpsMs,
         apiResponseMs: res.apiResponseMs,
-        usedAddressCache: res.apiResponseMs < 15,
+        usedAddressCache: false,
         accuracyMeters: acc,
         timestampIso: new Date().toISOString(),
       });
+      showNotice('🎯 موقعیت دقیق شما: ' + (res.userAddress || 'یافت شد'));
     };
 
+    // ۱. اولویت اول در اندروید: دریافت مستقیم از سرویس مکان‌یابی نیتیو سیستم‌عامل اندروید (سریع و بدون گیر کردن در WebView)
     if (Capacitor.getPlatform() === 'android' && typeof NoorAlarm.requestAndGetLocation === 'function') {
       try {
         const res = await NoorAlarm.requestAndGetLocation();
         if (res.hasCoords && typeof res.lat === 'number' && typeof res.lng === 'number') {
-          await onCoordsAcquired(res.lat, res.lng, 12);
+          await onExactCoords(res.lat, res.lng, 12);
           return;
         }
       } catch {}
     }
 
+    // ۲. در صورت اجرای وب یا عدم پاسخ نیتیو: تلاش دو مرحله‌ای با Geolocation
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          void onCoordsAcquired(pos.coords.latitude, pos.coords.longitude, Math.round(pos.coords.accuracy || 18));
+          void onExactCoords(pos.coords.latitude, pos.coords.longitude, Math.round(pos.coords.accuracy || 12));
         },
         () => {
-          setGpsStatus('fallback');
-          void searchNearbyMosques(initialLat, initialLng).then((r) => {
-            setMosques(r.mosques);
-            if (r.userAddress) setUserAddress(r.userAddress);
-          });
+          navigator.geolocation.getCurrentPosition(
+            (pos2) => {
+              void onExactCoords(pos2.coords.latitude, pos2.coords.longitude, Math.round(pos2.coords.accuracy || 25));
+            },
+            async () => {
+              const saved = getCustomGpsCoords();
+              const useLat = saved ? saved.lat : coords.lat;
+              const useLng = saved ? saved.lng : coords.lng;
+              setGpsStatus('fallback');
+              const fallbackRes = await searchNearbyMosques(useLat, useLng);
+              setMosques(fallbackRes.mosques);
+              if (fallbackRes.mosques.length > 0) setSelectedMosque(fallbackRes.mosques[0]);
+              setUserAddress(fallbackRes.userAddress || ('محدوده ' + cityName));
+              setLoading(false);
+            },
+            { enableHighAccuracy: false, timeout: 5000, maximumAge: 60000 }
+          );
         },
-        { enableHighAccuracy: false, timeout: 3500, maximumAge: 180000 }
+        { enableHighAccuracy: true, timeout: 4000, maximumAge: 15000 }
       );
-    } else {
-      setGpsStatus('fallback');
+      return;
     }
+
+    setGpsStatus('fallback');
+    setLoading(false);
   };
 
   useEffect(() => {

@@ -112,7 +112,7 @@ export interface QuranContinuityState {
   dailyTargetMinutes: 5 | 15 | 30;
   todayReadMinutes: number;
   lastReadIso: string | null;
-  bookmarks: Array<{ surahNameFa: string; ayahNumber: number; note: string }>;
+  bookmarks: Array<{ surahNumber?: number; surahNameFa: string; ayahNumber: number; arabic?: string; note: string }>;
 }
 
 export interface MosqueAndTravelState {

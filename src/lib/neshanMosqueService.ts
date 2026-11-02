@@ -306,3 +306,9 @@ export async function fetchNeshanExactRoute(
 }
 
 export const haversineMeters = calculateHaversineMeters;
+
+export function clearReverseGeocodeCache(): void {
+  try {
+    localStorage.removeItem('noor_reverse_geocode_cache_v2');
+  } catch {}
+}

@@ -4,6 +4,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
 import { calculatePrayerTimes, getNextPrayer, getLocalDateString, timeToMinutes, getNightPrayerConfig, saveNightPrayerConfig, calculateNightPrayerWindow, type NightPrayerConfig, type PrayerTimes } from '@/lib/prayerTimes';
 import { CITIES, getCityById, getGuestCityId, setGuestCityId, getCustomGpsCoords, saveCustomGpsCoords } from '@/lib/cities';
+import { reverseGeocodeFast, clearReverseGeocodeCache } from '@/lib/neshanMosqueService';
 import { getTodayTotal, getTodayRounds, getSession, fetchTodayStats, startSession } from '@/lib/tasbihStorage';
 import { toJalaliShort, getJalaliWeekday, toFaDigits } from '@/lib/jalali';
 import { dhikrLibrary } from '@/lib/dhikrLibrary';
@@ -342,8 +343,8 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
   };
 
   const detectNearestCity = async () => {
-    const applyCoords = (latitude: number, longitude: number) => {
-      saveCustomGpsCoords(latitude, longitude);
+    const applyCoords = async (latitude: number, longitude: number) => {
+      clearReverseGeocodeCache();
       let nearest = CITIES[0];
       let minDist = Infinity;
       for (const c of CITIES) {
@@ -353,21 +354,25 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
           nearest = c;
         }
       }
+      const addrRes = await reverseGeocodeFast(latitude, longitude);
+      const exactLabel = addrRes.formattedAddress || nearest.nameFa;
+      saveCustomGpsCoords(latitude, longitude, exactLabel);
       if (profile) {
         void updateProfile({ city_id: nearest.id });
       } else {
         setGuestCityId(nearest.id);
         setGuestCityIdState(nearest.id);
       }
-      showToast('📍 موقعیت دقیق شما تشخیص داده شد: «' + nearest.nameFa + '»');
+      setIntelTick((t) => t + 1);
+      showToast('📍 موقعیت دقیق شما: «' + exactLabel + '» (افق ' + nearest.nameFa + ')');
     };
 
-    showToast('در حال درخواست مجوز و تشخیص موقعیت مکانی...');
+    showToast('🛰️ در حال دریافت موقعیت دقیق شما از GPS و نقشه نشان...');
     if (Capacitor.getPlatform() === 'android' && typeof NoorAlarm.requestAndGetLocation === 'function') {
       try {
         const res = await NoorAlarm.requestAndGetLocation();
         if (res.hasCoords && typeof res.lat === 'number' && typeof res.lng === 'number') {
-          applyCoords(res.lat, res.lng);
+          await applyCoords(res.lat, res.lng);
           return;
         }
       } catch {}
@@ -375,12 +380,18 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
 
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
-        (pos) => applyCoords(pos.coords.latitude, pos.coords.longitude),
-        () => showToast('لطفاً GPS گوشی را روشن کنید یا از تنظیمات شهر را انتخاب نمایید.'),
-        { enableHighAccuracy: false, timeout: 10000, maximumAge: 600000 }
+        (pos) => { void applyCoords(pos.coords.latitude, pos.coords.longitude); },
+        () => {
+          navigator.geolocation.getCurrentPosition(
+            (pos2) => { void applyCoords(pos2.coords.latitude, pos2.coords.longitude); },
+            () => showToast('لطفاً مکان‌یاب (Location) گوشی را روشن کنید.'),
+            { enableHighAccuracy: false, timeout: 6000, maximumAge: 60000 }
+          );
+        },
+        { enableHighAccuracy: true, timeout: 4500, maximumAge: 30000 }
       );
     } else {
-      showToast('از بخش تنظیمات، شهر خود را از بین ۴۰ شهر انتخاب کنید.');
+      showToast('از بخش تنظیمات، شهر خود را انتخاب کنید.');
     }
   };
 
