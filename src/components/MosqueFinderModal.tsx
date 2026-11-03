@@ -1,17 +1,14 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { MapPin, Navigation, Footprints, Car, Bus, Compass, X, LocateFixed, Check, KeyRound, ExternalLink, Sparkles, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { MapPin, Navigation, Footprints, Car, Bus, Compass, X, LocateFixed, Check, ExternalLink, Sparkles, CheckCircle2, AlertTriangle, Route } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { useTheme } from '@/hooks/useTheme';
 import { NoorAlarm } from '@/lib/reminderService';
 import {
   searchNearbyMosques,
-  clearReverseGeocodeCache,
-  getInstantLocalMosques,
-  saveLocationMetrics,
   fetchNeshanExactRoute,
-  getNeshanApiKey,
-  setNeshanApiKey,
+  saveLocationMetrics,
+  clearReverseGeocodeCache,
   type NearbyMosque,
 } from '@/lib/neshanMosqueService';
 import { saveCustomGpsCoords, getCustomGpsCoords } from '@/lib/cities';
@@ -33,12 +30,10 @@ export function MosqueFinderModal({ cityName, defaultLat, defaultLng, onClose, o
   const [accuracyMeters, setAccuracyMeters] = useState<number | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [mosques, setMosques] = useState<NearbyMosque[]>([]);
-  const [userAddress, setUserAddress] = useState<string>(`محدوده ${cityName}`);
+  const [userAddress, setUserAddress] = useState<string>('محدوده ' + cityName);
   const [travelMode, setTravelMode] = useState<'walk' | 'car' | 'transit'>('walk');
   const [selectedMosque, setSelectedMosque] = useState<NearbyMosque | null>(null);
   const [routeDetail, setRouteDetail] = useState<{ durationText: string; distanceText: string; summary: string } | null>(null);
-  const [showKeyInput, setShowKeyInput] = useState<boolean>(false);
-  const [apiKeyInput, setApiKeyInput] = useState<string>(() => getNeshanApiKey());
   const [toast, setToast] = useState<string | null>(null);
 
   const showNotice = (msg: string) => {
@@ -46,25 +41,11 @@ export function MosqueFinderModal({ cityName, defaultLat, defaultLng, onClose, o
     setTimeout(() => setToast(null), 3200);
   };
 
-  const loadNearby = async (lat: number, lng: number, isExactGps: boolean) => {
-    setLoading(true);
-    const res = await searchNearbyMosques(lat, lng);
-    setMosques(res.mosques);
-    if (res.userAddress && res.userAddress !== 'موقعیت فعلی شما') {
-      setUserAddress(res.userAddress);
-      if (isExactGps) setGpsStatus('locked');
-    }
-    if (res.mosques.length > 0) {
-      setSelectedMosque(res.mosques[0]);
-    }
-    setLoading(false);
-  };
-
   const detectLiveGps = async () => {
     const tStart = performance.now();
     clearReverseGeocodeCache();
     setGpsStatus('searching');
-    setUserAddress('در حال دریافت موقعیت دقیق خیابان شما از نشان...');
+    setUserAddress('در حال اسکن رادار GPS و دریافت آدرس خیابان شما...');
     setLoading(true);
 
     const onExactCoords = async (lat: number, lng: number, acc: number | null) => {
@@ -88,10 +69,8 @@ export function MosqueFinderModal({ cityName, defaultLat, defaultLng, onClose, o
         accuracyMeters: acc,
         timestampIso: new Date().toISOString(),
       });
-      showNotice('🎯 موقعیت دقیق شما: ' + (res.userAddress || 'یافت شد'));
     };
 
-    // ۱. اولویت اول در اندروید: دریافت مستقیم از سرویس مکان‌یابی نیتیو سیستم‌عامل اندروید (سریع و بدون گیر کردن در WebView)
     if (Capacitor.getPlatform() === 'android' && typeof NoorAlarm.requestAndGetLocation === 'function') {
       try {
         const res = await NoorAlarm.requestAndGetLocation();
@@ -102,7 +81,6 @@ export function MosqueFinderModal({ cityName, defaultLat, defaultLng, onClose, o
       } catch {}
     }
 
-    // ۲. در صورت اجرای وب یا عدم پاسخ نیتیو: تلاش دو مرحله‌ای با Geolocation
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
@@ -159,234 +137,262 @@ export function MosqueFinderModal({ cityName, defaultLat, defaultLng, onClose, o
     saveMosqueAndTravel({
       ...mt,
       selectedMosqueName: m.name,
-      mosqueAnnouncement: `فاصله: ${toFaDigits(m.distanceMeters)} متر (${toFaDigits(m.walkingMinutes)} دقیقه پیاده) — ${m.address}`,
+      mosqueAnnouncement: 'فاصله: ' + formatDist(m.distanceMeters) + ' (' + toFaDigits(m.walkingMinutes) + ' دقیقه پیاده) — ' + m.address,
     });
-    showNotice(`🕌 «${m.name}» به عنوان مسجد منتخب شما در صفحه اول ثبت شد!`);
+    showNotice('🕌 «' + m.name + '» به عنوان مسجد منتخب شما در صفحه اول ثبت شد!');
     onMosqueSelected?.();
   };
 
   const openInNeshanApp = (m: NearbyMosque) => {
-    const neshanUrl = `https://nshn.ir/?lat=${m.lat}&lng=${m.lng}`;
+    const neshanUrl = 'https://nshn.ir/?lat=' + m.lat + '&lng=' + m.lng;
     window.open(neshanUrl, '_blank', 'noopener,noreferrer');
   };
 
   const openInGoogleMaps = (m: NearbyMosque) => {
     const modeParam = travelMode === 'walk' ? 'walking' : travelMode === 'transit' ? 'transit' : 'driving';
-    const gUrl = `https://www.google.com/maps/dir/?api=1&origin=${coords.lat},${coords.lng}&destination=${m.lat},${m.lng}&travelmode=${modeParam}`;
+    const gUrl = 'https://www.google.com/maps/dir/?api=1&origin=' + coords.lat + ',' + coords.lng + '&destination=' + m.lat + ',' + m.lng + '&travelmode=' + modeParam;
     window.open(gUrl, '_blank', 'noopener,noreferrer');
   };
 
   const formatDist = (meters: number) => {
-    if (meters < 1000) return `${toFaDigits(meters)} متر`;
-    return `${toFaDigits((meters / 1000).toFixed(1))} کیلومتر`;
+    if (meters < 1000) return toFaDigits(meters) + ' متر';
+    return toFaDigits((meters / 1000).toFixed(1)) + ' کیلومتر';
   };
 
   const node = (
     <div
       className="fixed inset-0 z-[999] overflow-y-auto flex items-stretch sm:items-center justify-center p-0 sm:p-4 animate-fade-in"
-      style={{ background: 'rgba(0,0,0,0.84)', backdropFilter: 'blur(7px)' }}
+      style={{ background: 'rgba(0,0,0,0.86)', backdropFilter: 'blur(8px)' }}
       dir="rtl"
     >
       <div
         className="w-full sm:max-w-lg min-h-[100dvh] sm:min-h-0 sm:rounded-3xl p-4 sm:p-5 border-0 sm:border shadow-2xl overflow-y-auto"
         style={{ background: theme.surface, borderColor: theme.border }}
       >
-        <div className="flex items-center justify-between pb-3 mb-2.5 border-b" style={{ borderColor: theme.border }}>
-          <div className="flex items-center gap-2">
+        {/* هدر لوکس مسجدیاب */}
+        <div className="flex items-center justify-between pb-3.5 mb-3 border-b" style={{ borderColor: theme.border }}>
+          <div className="flex items-center gap-2.5">
             <div
-              className="w-9 h-9 rounded-2xl flex items-center justify-center"
-              style={{ background: `color-mix(in srgb, ${theme.primary} 18%, transparent)` }}
+              className="w-10 h-10 rounded-2xl flex items-center justify-center relative shadow-md"
+              style={{
+                background: 'linear-gradient(135deg, ' + theme.primary + ', color-mix(in srgb, ' + theme.primary + ' 60%, #000))',
+              }}
             >
-              <Navigation size={18} color={theme.primary} />
+              <Navigation size={19} color={theme.bg} />
             </div>
             <div>
-              <h2 className="text-base font-black text-app">مسجدیاب و مسیریاب هوشمند نشان</h2>
-              <p className="text-[11px] text-primary font-bold truncate max-w-[220px]">{userAddress}</p>
+              <h2 className="text-base font-black text-app">رادار مسجدیاب و مسیریاب نشان</h2>
+              <p className="text-[11px] text-muted font-medium">یافتن نزدیک‌ترین مساجد محله به موقعیت لحظه‌ای شما</p>
             </div>
           </div>
-          <div className="flex items-center gap-1">
-            
-            <button type="button" onClick={onClose} className="text-muted p-1.5">
-              <X size={20} />
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-8 h-8 rounded-xl flex items-center justify-center border text-muted"
+            style={{ borderColor: theme.border }}
+          >
+            <X size={18} />
+          </button>
         </div>
 
+        {/* نوار وضعیت رادار GPS و آدرس دقیق خیابان */}
         <div
-          className="mb-3 p-2.5 rounded-2xl border flex items-center justify-between gap-2"
+          className="mb-3.5 p-3 rounded-2xl border flex items-center justify-between gap-2.5"
           style={{
             borderColor: gpsStatus === 'locked' ? theme.primary : theme.accent,
             background:
               gpsStatus === 'locked'
-                ? `color-mix(in srgb, ${theme.primary} 12%, transparent)`
-                : `color-mix(in srgb, ${theme.accent} 12%, transparent)`,
+                ? 'radial-gradient(circle at right, color-mix(in srgb, ' + theme.primary + ' 16%, transparent), ' + theme.bg + ')'
+                : 'color-mix(in srgb, ' + theme.accent + ' 12%, ' + theme.bg + ')',
           }}
         >
-          <div className="flex items-center gap-2 min-w-0">
-            {gpsStatus === 'locked' ? (
-              <CheckCircle2 size={16} color={theme.primary} className="shrink-0" />
-            ) : (
-              <AlertTriangle size={16} color={theme.accent} className="shrink-0" />
-            )}
-            <div className="min-w-0">
-              <p className="text-[11px] font-black text-app truncate">
-                {gpsStatus === 'locked'
-                  ? `موقعیت دقیق شما پیدا شد ${accuracyMeters ? `(دقت ${toFaDigits(accuracyMeters)} متر)` : '✓'}`
-                  : gpsStatus === 'searching'
-                  ? 'در حال قفل کردن رادار دقیق GPS...'
-                  : 'موقعیت تقریبی است — برای دقت خیابان لمس کنید'}
-              </p>
-              <p className="text-[10px] text-muted truncate">{userAddress}</p>
+          <div className="flex items-start gap-2.5 min-w-0 flex-1">
+            <div className="mt-0.5 shrink-0">
+              {gpsStatus === 'locked' ? (
+                <CheckCircle2 size={18} color={theme.primary} />
+              ) : (
+                <AlertTriangle size={18} color={theme.accent} />
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-black text-app">
+                  {gpsStatus === 'locked'
+                    ? 'موقعیت دقیق شما قفل شد'
+                    : gpsStatus === 'searching'
+                    ? 'در حال اسکن ماهواره GPS...'
+                    : 'موقعیت تقریبی شهر'}
+                </span>
+                {accuracyMeters && gpsStatus === 'locked' && (
+                  <span
+                    className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                    style={{ background: 'color-mix(in srgb, ' + theme.primary + ' 20%, transparent)', color: theme.primary }}
+                  >
+                    دقت {toFaDigits(accuracyMeters)} متر
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-primary font-bold leading-relaxed mt-0.5 break-words">{userAddress}</p>
             </div>
           </div>
           <button
             type="button"
             onClick={() => void detectLiveGps()}
-            className="px-2.5 py-1.5 rounded-xl text-[10px] font-bold flex items-center gap-1 shrink-0"
+            className="px-3 py-2 rounded-xl text-[11px] font-bold flex items-center gap-1 shrink-0 shadow-sm"
             style={{ background: theme.primary, color: theme.bg }}
           >
-            <LocateFixed size={12} />
-            <span>مکان‌یابی مجدد</span>
+            <LocateFixed size={13} />
+            <span>بروزرسانی</span>
           </button>
         </div>
 
         {toast && (
           <div
-            className="mb-3 rounded-2xl px-3 py-2 text-xs font-bold text-center shadow-lg"
+            className="mb-3 rounded-2xl px-3.5 py-2.5 text-xs font-bold text-center shadow-lg"
             style={{ background: theme.primary, color: theme.bg }}
           >
             {toast}
           </div>
         )}
 
-        {showKeyInput && (
-          <div className="card-flat p-3.5 mb-3 space-y-2 border" style={{ borderColor: theme.primary }}>
-            <p className="text-xs font-bold text-app">🔑 کلید وب‌سرویس نقشه نشان (Neshan API):</p>
-            <div className="flex gap-1.5">
-              <input
-                type="text"
-                dir="ltr"
-                value={apiKeyInput}
-                onChange={(e) => setApiKeyInput(e.target.value)}
-                placeholder="service.xxxxxxxxxxxxxxxxxxxxxxxx"
-                className="flex-1 px-3 py-2 rounded-xl text-xs text-app border outline-none font-mono"
-                style={{ borderColor: theme.border, background: theme.bg }}
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  setNeshanApiKey(apiKeyInput);
-                  setShowKeyInput(false);
-                  void loadNearby(coords.lat, coords.lng, gpsStatus === 'locked');
-                  showNotice('✅ کلید وب‌سرویس نشان ذخیره شد!');
-                }}
-                className="px-3.5 py-2 rounded-xl text-xs font-bold"
-                style={{ background: theme.primary, color: theme.bg }}
-              >
-                ذخیره
-              </button>
-            </div>
-          </div>
-        )}
-
+        {/* انتخابگر مدرن نوع وسیله نقلیه (با آیکون‌های تمیز بدون کاراکتر خراب) */}
         <div
-          className="grid grid-cols-3 gap-1.5 p-1.5 rounded-2xl mb-3"
-          style={{ background: theme.bg, border: `1px solid ${theme.border}` }}
+          className="grid grid-cols-3 gap-1.5 p-1.5 rounded-2xl mb-4"
+          style={{ background: theme.bg, border: '1px solid ' + theme.border }}
         >
           {[
-            { id: 'walk' as const, label: '🚶 پیاده', icon: Footprints },
-            { id: 'car' as const, label: '�� با خودرو', icon: Car },
-            { id: 'transit' as const, label: '🚌 اتوبوس/مترو', icon: Bus },
+            { id: 'walk' as const, label: 'پیاده‌روی', Icon: Footprints },
+            { id: 'car' as const, label: 'با خودرو', Icon: Car },
+            { id: 'transit' as const, label: 'اتوبوس و مترو', Icon: Bus },
           ].map((m) => {
             const active = travelMode === m.id;
+            const IconComp = m.Icon;
             return (
               <button
                 key={m.id}
                 type="button"
                 onClick={() => setTravelMode(m.id)}
-                className="py-2 rounded-xl text-xs font-bold transition-all"
+                className="py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5"
                 style={{
                   background: active ? theme.primary : 'transparent',
                   color: active ? theme.bg : theme.textMuted,
+                  boxShadow: active ? '0 4px 12px color-mix(in srgb, ' + theme.primary + ' 30%, transparent)' : undefined,
                 }}
               >
-                {m.label}
+                <IconComp size={14} />
+                <span>{m.label}</span>
               </button>
             );
           })}
         </div>
 
+        {/* کارت قهرمان (Hero Card) برای مسجد انتخاب‌شده */}
         {selectedMosque && (
           <div
-            className="rounded-3xl p-4 mb-3.5 border space-y-3"
+            className="rounded-3xl p-4 mb-4 border-2 space-y-3.5 relative overflow-hidden"
             style={{
-              background: `radial-gradient(circle at top right, color-mix(in srgb, ${theme.primary} 18%, transparent), ${theme.bg})`,
+              background: 'radial-gradient(circle at top left, color-mix(in srgb, ' + theme.primary + ' 20%, ' + theme.surface + '), ' + theme.bg + ')',
               borderColor: theme.primary,
+              boxShadow: '0 10px 28px rgba(0, 0, 0, 0.35)',
             }}
           >
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <span
-                  className="text-[10px] font-bold px-2.5 py-0.5 rounded-full inline-block mb-1"
-                  style={{ background: `color-mix(in srgb, ${theme.accent} 18%, transparent)`, color: theme.accent }}
-                >
-                  ✨ نزدیک‌ترین پیشنهاد: {selectedMosque.category}
-                </span>
-                <h3 className="text-base font-black text-app">{selectedMosque.name}</h3>
-                <p className="text-xs text-muted mt-0.5 leading-relaxed">{selectedMosque.address}</p>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <span
+                    className="text-[10px] font-black px-2.5 py-0.5 rounded-full"
+                    style={{ background: 'color-mix(in srgb, ' + theme.accent + ' 20%, transparent)', color: theme.accent }}
+                  >
+                    🕌 {selectedMosque.category}
+                  </span>
+                  {selectedMosque.distanceMeters <= 1500 && (
+                    <span
+                      className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                      style={{ background: 'color-mix(in srgb, ' + theme.primary + ' 20%, transparent)', color: theme.primary }}
+                    >
+                      در محله شما
+                    </span>
+                  )}
+                </div>
+                <h3 className="text-lg font-black text-app leading-snug">{selectedMosque.name}</h3>
+                <p className="text-xs text-muted mt-1 leading-relaxed">{selectedMosque.address}</p>
               </div>
-              <div className="text-left shrink-0">
+
+              <div
+                className="px-3 py-2 rounded-2xl text-center shrink-0 border"
+                style={{
+                  background: 'color-mix(in srgb, ' + theme.primary + ' 14%, ' + theme.surface + ')',
+                  borderColor: 'color-mix(in srgb, ' + theme.primary + ' 40%, transparent)',
+                }}
+              >
                 <span className="text-sm font-black text-primary block">{formatDist(selectedMosque.distanceMeters)}</span>
-                <span className="text-[10px] text-muted">فاصله تا شما</span>
+                <span className="text-[9px] font-bold text-muted block mt-0.5">فاصله مستقیم</span>
               </div>
             </div>
 
+            {/* ۳ باکس زمان رسیدن بر اساس پیاده / خودرو / اتوبوس */}
             <div className="grid grid-cols-3 gap-2 text-center">
               <div
-                className="p-2 rounded-2xl border"
+                onClick={() => setTravelMode('walk')}
+                className="p-2.5 rounded-2xl border cursor-pointer transition-all"
                 style={{
                   borderColor: travelMode === 'walk' ? theme.primary : theme.border,
-                  background: travelMode === 'walk' ? `color-mix(in srgb, ${theme.primary} 14%, transparent)` : theme.surface,
+                  background: travelMode === 'walk' ? 'color-mix(in srgb, ' + theme.primary + ' 18%, transparent)' : theme.surface,
                 }}
               >
-                <span className="text-[10px] text-muted block">🚶 پیاده‌روی</span>
+                <Footprints size={14} color={travelMode === 'walk' ? theme.primary : theme.textMuted} className="mx-auto mb-1" />
+                <span className="text-[10px] text-muted block">پیاده‌روی</span>
                 <strong className="text-xs font-black text-app">{toFaDigits(selectedMosque.walkingMinutes)} دقیقه</strong>
               </div>
+
               <div
-                className="p-2 rounded-2xl border"
+                onClick={() => setTravelMode('car')}
+                className="p-2.5 rounded-2xl border cursor-pointer transition-all"
                 style={{
                   borderColor: travelMode === 'car' ? theme.primary : theme.border,
-                  background: travelMode === 'car' ? `color-mix(in srgb, ${theme.primary} 14%, transparent)` : theme.surface,
+                  background: travelMode === 'car' ? 'color-mix(in srgb, ' + theme.primary + ' 18%, transparent)' : theme.surface,
                 }}
               >
-                <span className="text-[10px] text-muted block">🚗 با ماشین</span>
+                <Car size={14} color={travelMode === 'car' ? theme.primary : theme.textMuted} className="mx-auto mb-1" />
+                <span className="text-[10px] text-muted block">با خودرو</span>
                 <strong className="text-xs font-black text-app">
-                  {routeDetail && travelMode === 'car' ? routeDetail.durationText : `${toFaDigits(selectedMosque.drivingMinutes)} دقیقه`}
+                  {routeDetail && travelMode === 'car' ? routeDetail.durationText : toFaDigits(selectedMosque.drivingMinutes) + ' دقیقه'}
                 </strong>
               </div>
+
               <div
-                className="p-2 rounded-2xl border"
+                onClick={() => setTravelMode('transit')}
+                className="p-2.5 rounded-2xl border cursor-pointer transition-all"
                 style={{
                   borderColor: travelMode === 'transit' ? theme.primary : theme.border,
-                  background: travelMode === 'transit' ? `color-mix(in srgb, ${theme.primary} 14%, transparent)` : theme.surface,
+                  background: travelMode === 'transit' ? 'color-mix(in srgb, ' + theme.primary + ' 18%, transparent)' : theme.surface,
                 }}
               >
-                <span className="text-[10px] text-muted block">🚌 حمل‌ونقل عمومی</span>
+                <Bus size={14} color={travelMode === 'transit' ? theme.primary : theme.textMuted} className="mx-auto mb-1" />
+                <span className="text-[10px] text-muted block">حمل‌ونقل عمومی</span>
                 <strong className="text-xs font-black text-app">{toFaDigits(selectedMosque.transitMinutes)} دقیقه</strong>
               </div>
             </div>
 
             {routeDetail?.summary && (
-              <p className="text-[11px] text-accent font-bold text-center">
-                🛣️ مسیر پیشنهادی نشان: {routeDetail.summary} ({routeDetail.distanceText})
-              </p>
+              <div
+                className="px-3 py-2 rounded-xl border flex items-center justify-center gap-1.5 text-[11px] font-bold"
+                style={{
+                  borderColor: 'color-mix(in srgb, ' + theme.accent + ' 40%, transparent)',
+                  background: 'color-mix(in srgb, ' + theme.accent + ' 10%, transparent)',
+                  color: theme.accent,
+                }}
+              >
+                <Route size={13} />
+                <span>مسیر پیشنهادی نشان: {routeDetail.summary} ({routeDetail.distanceText})</span>
+              </div>
             )}
 
-            <div className="grid grid-cols-2 gap-2 pt-1">
+            <div className="grid grid-cols-2 gap-2 pt-0.5">
               <button
                 type="button"
                 onClick={() => openInNeshanApp(selectedMosque)}
-                className="py-2.5 px-3 rounded-2xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-md"
+                className="py-3 px-3 rounded-2xl text-xs font-black flex items-center justify-center gap-1.5 shadow-lg"
                 style={{ background: theme.primary, color: theme.bg }}
               >
                 <Navigation size={14} />
@@ -396,8 +402,8 @@ export function MosqueFinderModal({ cityName, defaultLat, defaultLng, onClose, o
               <button
                 type="button"
                 onClick={() => openInGoogleMaps(selectedMosque)}
-                className="py-2.5 px-3 rounded-2xl text-xs font-bold flex items-center justify-center gap-1.5 border"
-                style={{ borderColor: theme.accent, color: theme.accent }}
+                className="py-3 px-3 rounded-2xl text-xs font-bold flex items-center justify-center gap-1.5 border"
+                style={{ borderColor: theme.accent, color: theme.accent, background: 'color-mix(in srgb, ' + theme.accent + ' 8%, transparent)' }}
               >
                 <Compass size={14} />
                 <span>نقشه گوگل / بلد</span>
@@ -407,8 +413,12 @@ export function MosqueFinderModal({ cityName, defaultLat, defaultLng, onClose, o
             <button
               type="button"
               onClick={() => handleSetAsMyMosque(selectedMosque)}
-              className="w-full py-2 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1"
-              style={{ background: `color-mix(in srgb, ${theme.primary} 14%, transparent)`, color: theme.primary }}
+              className="w-full py-2.5 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1.5 border"
+              style={{
+                borderColor: 'color-mix(in srgb, ' + theme.primary + ' 35%, transparent)',
+                background: 'color-mix(in srgb, ' + theme.primary + ' 12%, transparent)',
+                color: theme.primary,
+              }}
             >
               <Sparkles size={13} />
               <span>انتخاب به عنوان مسجد ثابت من در صفحه اول</span>
@@ -416,43 +426,61 @@ export function MosqueFinderModal({ cityName, defaultLat, defaultLng, onClose, o
           </div>
         )}
 
+        {/* لیست مساجد نزدیک در همین شهر و محله */}
         <div>
-          <p className="text-xs font-bold text-muted mb-2 px-1">
-            {loading && mosques.length === 0
-              ? 'در حال اسکن مساجد اطراف شما...'
-              : `مساجد نزدیک به شما (${toFaDigits(mosques.length)} مسجد):`}
-          </p>
-          <div className="space-y-2 max-h-56 overflow-y-auto pr-0.5">
-            {mosques.map((m) => {
+          <div className="flex items-center justify-between mb-2.5 px-1">
+            <span className="text-xs font-black text-app">
+              {loading && mosques.length === 0
+                ? 'در حال اسکن مساجد محله شما...'
+                : 'مساجد نزدیک به شما در این محدوده (' + toFaDigits(mosques.length) + ' مسجد):'}
+            </span>
+            <span className="text-[10px] font-bold text-primary">مرتب‌شده بر اساس کمترین فاصله</span>
+          </div>
+
+          <div className="space-y-2 max-h-64 overflow-y-auto pr-0.5">
+            {mosques.map((m: NearbyMosque, idx: number) => {
               const isSel = selectedMosque?.id === m.id;
               const timeVal =
                 travelMode === 'walk'
-                  ? `${toFaDigits(m.walkingMinutes)}د پیاده`
+                  ? toFaDigits(m.walkingMinutes) + ' دقیقه پیاده'
                   : travelMode === 'car'
-                  ? `${toFaDigits(m.drivingMinutes)}د خودرو`
-                  : `${toFaDigits(m.transitMinutes)}د اتوبوس`;
+                  ? toFaDigits(m.drivingMinutes) + ' دقیقه با خودرو'
+                  : toFaDigits(m.transitMinutes) + ' دقیقه اتوبوس';
 
               return (
                 <button
                   key={m.id}
                   type="button"
                   onClick={() => setSelectedMosque(m)}
-                  className="w-full card-flat p-3 text-right flex items-center justify-between gap-2 transition-all"
+                  className="w-full p-3.5 rounded-2xl border text-right flex items-center justify-between gap-3 transition-all"
                   style={{
                     borderColor: isSel ? theme.primary : theme.border,
-                    background: isSel ? `color-mix(in srgb, ${theme.primary} 12%, ${theme.surface})` : theme.surface,
+                    background: isSel
+                      ? 'linear-gradient(90deg, color-mix(in srgb, ' + theme.primary + ' 16%, ' + theme.surface + '), ' + theme.surface + ')'
+                      : theme.bg,
                   }}
                 >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
-                      <MapPin size={14} color={isSel ? theme.primary : theme.textMuted} className="shrink-0" />
-                      <p className="text-xs font-bold text-app truncate">{m.name}</p>
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                    <div
+                      className="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-black shrink-0"
+                      style={{
+                        background: isSel ? theme.primary : 'color-mix(in srgb, ' + theme.primary + ' 14%, transparent)',
+                        color: isSel ? theme.bg : theme.primary,
+                      }}
+                    >
+                      {toFaDigits(idx + 1)}
                     </div>
-                    <p className="text-[11px] text-muted mt-0.5 truncate">{m.address}</p>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-xs font-black text-app truncate">{m.name}</p>
+                      </div>
+                      <p className="text-[11px] text-muted mt-0.5 truncate">{m.address}</p>
+                    </div>
                   </div>
+
                   <div className="text-left shrink-0">
                     <span className="text-xs font-black text-primary block">{formatDist(m.distanceMeters)}</span>
-                    <span className="text-[10px] text-accent font-bold">{timeVal}</span>
+                    <span className="text-[10px] text-accent font-bold block mt-0.5">{timeVal}</span>
                   </div>
                 </button>
               );
@@ -463,7 +491,7 @@ export function MosqueFinderModal({ cityName, defaultLat, defaultLng, onClose, o
         <button
           type="button"
           onClick={onClose}
-          className="w-full mt-4 py-2.5 rounded-2xl text-xs font-bold border"
+          className="w-full mt-4 py-3 rounded-2xl text-xs font-bold border"
           style={{ borderColor: theme.border, color: theme.text }}
         >
           <Check size={14} className="inline ml-1" /> بستن مسجدیاب
