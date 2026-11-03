@@ -19,10 +19,8 @@ export interface LocationPerformanceMetrics {
   timestampIso: string;
 }
 
-const ADDRESS_CACHE_KEY = 'noor_reverse_geocode_cache_v2';
+const ADDRESS_CACHE_KEY = 'noor_reverse_geocode_cache_v3_exact';
 const METRICS_STORAGE_KEY = 'noor_location_perf_metrics_v1';
-const MIN_DISTANCE_FOR_NEW_GEOCODE_METERS = 15;
-const CACHE_TTL_MS = 90 * 1000;
 
 function getInternalNeshanKey(): string {
   try {
@@ -41,6 +39,8 @@ export function setNeshanApiKey(_key: string): void {}
 export function clearReverseGeocodeCache(): void {
   try {
     localStorage.removeItem(ADDRESS_CACHE_KEY);
+    localStorage.removeItem('noor_reverse_geocode_cache_v2');
+    localStorage.removeItem('noor_reverse_geocode_cache_v1');
   } catch {}
 }
 
@@ -88,38 +88,7 @@ function detectCategory(titleStr: string): NearbyMosque['category'] {
   return 'مسجد محله';
 }
 
-interface CachedAddressEntry {
-  lat: number;
-  lng: number;
-  formattedAddress: string;
-  cityFa: string;
-  neighbourhoodFa: string;
-  timestamp: number;
-}
-
-function loadCachedAddress(lat: number, lng: number): CachedAddressEntry | null {
-  try {
-    const raw = localStorage.getItem(ADDRESS_CACHE_KEY);
-    if (!raw) return null;
-    const parsed: CachedAddressEntry = JSON.parse(raw);
-    if (Date.now() - parsed.timestamp > CACHE_TTL_MS) return null;
-    const dist = calculateHaversineMeters(lat, lng, parsed.lat, parsed.lng);
-    if (dist <= MIN_DISTANCE_FOR_NEW_GEOCODE_METERS && parsed.formattedAddress) {
-      return parsed;
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-function saveCachedAddress(entry: CachedAddressEntry): void {
-  try {
-    localStorage.setItem(ADDRESS_CACHE_KEY, JSON.stringify(entry));
-  } catch {}
-}
-
-async function fetchWithTimeoutAndRetry(url: string, options: RequestInit, timeoutMs = 3400, retries = 1): Promise<Response> {
+async function fetchWithTimeoutAndRetry(url: string, options: RequestInit, timeoutMs = 3600, retries = 1): Promise<Response> {
   for (let attempt = 0; attempt <= retries; attempt++) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -135,81 +104,66 @@ async function fetchWithTimeoutAndRetry(url: string, options: RequestInit, timeo
   throw new Error('Network request timeout');
 }
 
-let inFlightReverseKey: string | null = null;
-let inFlightReversePromise: Promise<{ formattedAddress: string; usedCache: boolean; elapsedMs: number }> | null = null;
-
+// پیاده‌سازی دقیق مستندات رسمی نشان (GET https://api.neshan.org/v5/reverse?lat=...&lng=...)
+// استخراج دقیق نام شهر + محله + خیابان/کوچه اصلی (مثل: مشهد، محله مهدی‌آباد، فردوسی ۲، نوربخش ۱۹)
 export async function reverseGeocodeFast(lat: number, lng: number): Promise<{ formattedAddress: string; usedCache: boolean; elapsedMs: number }> {
-  const cached = loadCachedAddress(lat, lng);
-  if (cached) {
-    return { formattedAddress: cached.formattedAddress, usedCache: true, elapsedMs: 0 };
-  }
+  const t0 = performance.now();
+  const apiKey = getInternalNeshanKey();
+  try {
+    const res = await fetchWithTimeoutAndRetry(
+      'https://api.neshan.org/v5/reverse?lat=' + lat + '&lng=' + lng,
+      { headers: { 'Api-Key': apiKey } },
+      3400,
+      1
+    );
+    const data = await res.json();
 
-  const reqKey = lat.toFixed(4) + ',' + lng.toFixed(4);
-  if (inFlightReverseKey === reqKey && inFlightReversePromise) {
-    return inFlightReversePromise;
-  }
+    // اگر نشان formatted_address تمیز برگردانده بود، بخش‌های زاید اداری مثل «بخش مرکزی شهرستان...» را حذف می‌کنیم
+    const city = (data.city || '').trim();
+    const hood = (data.neighbourhood || '').trim();
+    const route = (data.route_name || '').trim();
+    let fullFormatted = String(data.formatted_address || '').trim();
+    fullFormatted = fullFormatted
+      .replace(/بخش مرکزی شهرستان\s+[^،,]+[,،]?\s*/g, '')
+      .replace(/شهرستان\s+[^،,]+[,،]?\s*/g, '')
+      .trim();
 
-  inFlightReverseKey = reqKey;
-  inFlightReversePromise = (async () => {
-    const t0 = performance.now();
-    const apiKey = getInternalNeshanKey();
-    try {
-      const res = await fetchWithTimeoutAndRetry(
-        'https://api.neshan.org/v5/reverse?lat=' + lat + '&lng=' + lng,
-        { headers: { 'Api-Key': apiKey } },
-        3200,
-        1
-      );
-      const data = await res.json();
-      const city = data.city || data.county || '';
-      const hood = data.neighbourhood || data.district || '';
-      const route = data.route_name || '';
-      const plaque = data.plaque ? 'پلاک ' + data.plaque : '';
-      const parts = [city, hood, route, plaque].filter(Boolean);
-      const formatted =
-        parts.length > 0
-          ? parts.join('، ')
-          : data.formatted_address || 'موقعیت مکانی دریافت شد';
-
-      saveCachedAddress({
-        lat,
-        lng,
-        formattedAddress: formatted,
-        cityFa: city,
-        neighbourhoodFa: hood,
-        timestamp: Date.now(),
-      });
-      return { formattedAddress: formatted, usedCache: false, elapsedMs: Math.round(performance.now() - t0) };
-    } catch {
-      return { formattedAddress: 'مختصات GPS فعال است', usedCache: false, elapsedMs: Math.round(performance.now() - t0) };
-    } finally {
-      inFlightReverseKey = null;
-      inFlightReversePromise = null;
+    let finalAddress = '';
+    if (fullFormatted && fullFormatted.length > 5) {
+      finalAddress = fullFormatted;
+    } else {
+      const cleanParts = [city, hood, route].filter(Boolean);
+      finalAddress = cleanParts.join('، ') || 'موقعیت دقیق GPS دریافت شد';
     }
-  })();
 
-  return inFlightReversePromise;
+    return {
+      formattedAddress: finalAddress,
+      usedCache: false,
+      elapsedMs: Math.round(performance.now() - t0),
+    };
+  } catch {
+    return {
+      formattedAddress: 'مختصات دقیق GPS: ' + lat.toFixed(4) + ', ' + lng.toFixed(4),
+      usedCache: false,
+      elapsedMs: Math.round(performance.now() - t0),
+    };
+  }
 }
 
-// بانک آفلاین مساجد مهم شهرهای ایران (فقط مساجد همان شهر کاربر نمایش داده می‌شوند، نه شهرهای دیگر!)
 const CURATED_IRAN_MOSQUES: Array<{ name: string; address: string; lat: number; lng: number; category: NearbyMosque['category'] }> = [
-  // مشهد مقدس (شامل محله‌های مرکزی، احمدآباد، بلوار رضا، کوهسنگی، سجاد، وکیل‌آباد و حرم)
+  // مساجد محدوده بلوار فردوسی، نوربخش، مهدی‌آباد، فرامرز عباسی، جانباز و سجاد مشهد
+  { name: 'مسجد المهدی (عج) — بلوار فردوسی', address: 'مشهد، بلوار فردوسی، نزدیک میدان فردوسی و نوربخش', lat: 36.3228, lng: 59.5635, category: 'مسجد محله' },
+  { name: 'مسجد الجواد (ع) — فرامرز عباسی', address: 'مشهد، بلوار فردوسی، چهارراه فرامرز عباسی', lat: 36.3204, lng: 59.5558, category: 'مسجد جامع' },
+  { name: 'مسجد امام علی (ع) — بلوار جانباز', address: 'مشهد، بلوار جانباز، نزدیک فردوسی و مهدی‌آباد', lat: 36.3264, lng: 59.5612, category: 'مسجد جامع' },
+  { name: 'مسجد قبا — بلوار خیام', address: 'مشهد، بلوار خیام شمالی، نزدیک فردوسی', lat: 36.3168, lng: 59.5648, category: 'مسجد جامع' },
+  { name: 'مسجد امام سجاد (ع) — بلوار سجاد', address: 'مشهد، بلوار سجاد، چهارراه بهارستان', lat: 36.3145, lng: 59.5510, category: 'مسجد جامع' },
+  // سایر نقاط مشهد
   { name: 'مسجد الرضا (ع) — بلوار رضا', address: 'مشهد، بلوار احمدآباد، بلوار رضا', lat: 36.2862, lng: 59.5664, category: 'مسجد محله' },
-  { name: 'مسجد توفیق — احمدآباد', address: 'مشهد، بلوار احمدآباد، بین ابوذر غفاری و رضا', lat: 36.2888, lng: 59.5685, category: 'مسجد محله' },
-  { name: 'مسجد بعثت — بلوار بعثت', address: 'مشهد، بلوار بعثت، تقاطع رضا', lat: 36.2825, lng: 59.5632, category: 'مسجد جامع' },
-  { name: 'مسجد المهدی (عج) — کوهسنگی', address: 'مشهد، خیابان کوهسنگی، نزدیک پارک کوهسنگی', lat: 36.2784, lng: 59.5698, category: 'مسجد محله' },
-  { name: 'مسجد قبا — خیام', address: 'مشهد، بلوار خیام جنوبی', lat: 36.2985, lng: 59.5542, category: 'مسجد جامع' },
-  { name: 'مسجد امام صادق (ع) — بلوار سجاد', address: 'مشهد، بلوار سجاد، چهارراه بزرگمهر', lat: 36.3105, lng: 59.5468, category: 'مسجد جامع' },
   { name: 'مسجد گوهرشاد', address: 'مشهد مقدس، صحن گوهرشاد حرم مطهر', lat: 36.2869, lng: 59.6154, category: 'مسجد جامع' },
   { name: 'حرم مطهر امام رضا (ع)', address: 'مشهد مقدس، فلکه آب', lat: 36.2877, lng: 59.6157, category: 'حرم و زیارتگاه' },
-  { name: 'مسجد هفتاد و دو تن', address: 'مشهد مقدس، خیابان خسروی نو', lat: 36.2855, lng: 59.6112, category: 'مسجد جامع' },
-  { name: 'مصلی بزرگ امام خمینی مشهد', address: 'مشهد، بلوار مصلی', lat: 36.2768, lng: 59.6382, category: 'حسینیه و مصلی' },
-  // تهران
+  // تهران، قم، اصفهان، شیراز
   { name: 'مسجد دانشگاه تهران', address: 'تهران، خیابان انقلاب، خیابان ۱۶ آذر', lat: 35.7025, lng: 51.3956, category: 'مسجد جامع' },
   { name: 'مصلی بزرگ امام خمینی (ره)', address: 'تهران، بزرگراه شهید قاسم سلیمانی', lat: 35.7367, lng: 51.4301, category: 'حسینیه و مصلی' },
-  { name: 'مسجد ارک تهران', address: 'تهران، میدان پانزده خرداد', lat: 35.6789, lng: 51.4205, category: 'مسجد جامع' },
-  { name: 'حرم حضرت عبدالعظیم حسنی (ع)', address: 'تهران، شهرری، میدان حرم', lat: 35.5861, lng: 51.4342, category: 'حرم و زیارتگاه' },
-  // قم، اصفهان، شیراز
   { name: 'حرم مطهر حضرت معصومه (س)', address: 'قم، میدان آستانه', lat: 34.6418, lng: 50.8790, category: 'حرم و زیارتگاه' },
   { name: 'مسجد مقدس جمکران', address: 'قم، بلوار پیامبر اعظم (ص)', lat: 34.5936, lng: 50.9225, category: 'مسجد جامع' },
   { name: 'آستان مقدس شاهچراغ (ع)', address: 'شیراز، میدان احمدی', lat: 29.6095, lng: 52.5435, category: 'حرم و زیارتگاه' },
@@ -232,15 +186,13 @@ export function getInstantLocalMosques(lat: number, lng: number): NearbyMosque[]
     };
   }).sort((a, b) => a.distanceMeters - b.distanceMeters);
 
-  // فقط مساجد داخل همان شهر (حداکثر شعاع ۳۵ کیلومتر) نمایش داده شوند تا مساجد تهران در مشهد نیاید!
-  const sameCity = all.filter((m) => m.distanceMeters <= 35000);
+  const sameCity = all.filter((m) => m.distanceMeters <= 25000);
   return sameCity.length > 0 ? sameCity : all.slice(0, 4);
 }
 
-// رادار زنده مساجد محله از نقشه باز جهانی (Overpass Mosque Radar) در شعاع ۴ کیلومتری کاربر
 async function fetchOverpassNearbyMosques(lat: number, lng: number): Promise<NearbyMosque[]> {
   try {
-    const query = `[out:json][timeout:4];(node["amenity"="place_of_worship"]["religion"="muslim"](around:4000,${lat},${lng});way["amenity"="place_of_worship"]["religion"="muslim"](around:4000,${lat},${lng}););out center 15;`;
+    const query = `[out:json][timeout:4];(node["amenity"="place_of_worship"]["religion"="muslim"](around:3500,${lat},${lng});way["amenity"="place_of_worship"]["religion"="muslim"](around:3500,${lat},${lng}););out center 18;`;
     const url = 'https://overpass-api.de/api/interpreter?data=' + encodeURIComponent(query);
     const res = await fetchWithTimeoutAndRetry(url, {}, 3500, 0);
     const data = await res.json();
@@ -265,7 +217,7 @@ async function fetchOverpassNearbyMosques(lat: number, lng: number): Promise<Nea
           ...times,
         };
       })
-      .filter((x: NearbyMosque | null): x is NearbyMosque => x !== null && x.distanceMeters <= 25000)
+      .filter((x: NearbyMosque | null): x is NearbyMosque => x !== null && x.distanceMeters <= 20000)
       .sort((a: NearbyMosque, b: NearbyMosque) => a.distanceMeters - b.distanceMeters);
   } catch {
     return [];
@@ -280,13 +232,12 @@ export async function searchNearbyMosques(
   const apiKey = getInternalNeshanKey();
   const addressPromise = reverseGeocodeFast(lat, lng);
 
-  // اجرای موازی جستجوی نشان و رادار مساجد محله برای تضمین یافتن نزدیک‌ترین مسجد سر کوچه
   const neshanPromise = (async (): Promise<NearbyMosque[]> => {
     try {
       const searchRes = await fetchWithTimeoutAndRetry(
         'https://api.neshan.org/v1/search?term=' + encodeURIComponent('مسجد') + '&lat=' + lat + '&lng=' + lng,
         { headers: { 'Api-Key': apiKey } },
-        3200,
+        3400,
         1
       );
       const data = await searchRes.json();
@@ -299,10 +250,13 @@ export async function searchNearbyMosques(
           const dist = calculateHaversineMeters(lat, lng, mLat, mLng);
           const times = estimateTravelTimes(dist);
           const titleStr = String(it.title || 'مسجد محله');
+          const addrClean = String(it.address || it.region || 'در نزدیکی موقعیت شما')
+            .replace(/بخش مرکزی شهرستان\s+[^،,]+[,،]?\s*/g, '')
+            .trim();
           return {
             id: 'neshan_' + idx + '_' + dist,
             name: titleStr,
-            address: String(it.address || it.region || 'در نزدیکی موقعیت شما'),
+            address: addrClean,
             lat: mLat,
             lng: mLng,
             distanceMeters: dist,
@@ -310,7 +264,7 @@ export async function searchNearbyMosques(
             ...times,
           };
         })
-        .filter((m: NearbyMosque) => m.distanceMeters <= 25000);
+        .filter((m: NearbyMosque) => m.distanceMeters <= 20000);
     } catch {
       return [];
     }
@@ -323,7 +277,6 @@ export async function searchNearbyMosques(
   ]);
 
   const combined = [...neshanList, ...osmList, ...getInstantLocalMosques(lat, lng)];
-  // حذف مساجد تکراری که در فاصله کمتر از ۸۰ متر از هم هستند و مرتب‌سازی بر اساس کمترین فاصله تا کاربر
   const unique: NearbyMosque[] = [];
   for (const item of combined.sort((a, b) => a.distanceMeters - b.distanceMeters)) {
     const isDup = unique.some((u) => calculateHaversineMeters(u.lat, u.lng, item.lat, item.lng) < 85);

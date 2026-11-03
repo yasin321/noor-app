@@ -11,7 +11,7 @@ import {
   clearReverseGeocodeCache,
   type NearbyMosque,
 } from '@/lib/neshanMosqueService';
-import { saveCustomGpsCoords, getCustomGpsCoords } from '@/lib/cities';
+import { saveCustomGpsCoords, clearCustomGpsCoords } from '@/lib/cities';
 import { loadMosqueAndTravel, saveMosqueAndTravel } from '@/lib/deenIntelligenceStore';
 import { toFaDigits } from '@/lib/jalali';
 
@@ -41,19 +41,29 @@ export function MosqueFinderModal({ cityName, defaultLat, defaultLng, onClose, o
     setTimeout(() => setToast(null), 3200);
   };
 
-  const detectLiveGps = async () => {
+    const detectLiveGps = async () => {
     const tStart = performance.now();
     clearReverseGeocodeCache();
+    clearCustomGpsCoords(); // پاک‌سازی کامل مختصات قدیمی دکل مخابراتی (احمدآباد)
     setGpsStatus('searching');
-    setUserAddress('در حال اسکن رادار GPS و دریافت آدرس خیابان شما...');
+    setUserAddress('در حال قفل کردن ماهواره GPS روی خیابان و کوچه دقیق شما...');
     setLoading(true);
 
-    const onExactCoords = async (lat: number, lng: number, acc: number | null) => {
+    let bestAccuracySoFar = Infinity;
+    let hasResolvedAny = false;
+
+    const applyFix = async (lat: number, lng: number, realAcc: number) => {
+      // اگر قبلاً موقعیت دقیق‌تری (مثلاً دقت ۸ متر) دریافت شده، موقعیت بی‌دقت‌تر (مثلاً ۱۵۰ متر) روی آن نوشته نشود
+      if (hasResolvedAny && realAcc >= bestAccuracySoFar - 5) return;
+      bestAccuracySoFar = realAcc;
+      hasResolvedAny = true;
+
       const gpsMs = Math.round(performance.now() - tStart);
       setCoords({ lat, lng });
-      setAccuracyMeters(acc);
+      setAccuracyMeters(Math.round(realAcc));
       setGpsStatus('locked');
       saveCustomGpsCoords(lat, lng);
+
       const res = await searchNearbyMosques(lat, lng);
       setMosques(res.mosques);
       if (res.userAddress) {
@@ -66,52 +76,52 @@ export function MosqueFinderModal({ cityName, defaultLat, defaultLng, onClose, o
         gpsAcquisitionMs: gpsMs,
         apiResponseMs: res.apiResponseMs,
         usedAddressCache: false,
-        accuracyMeters: acc,
+        accuracyMeters: Math.round(realAcc),
         timestampIso: new Date().toISOString(),
       });
     };
 
+    // ۱. اجرای موازی رصدگر زنده High-Accuracy GPS مرورگر/WebView (که به Fused Location گوگل پلی متصل است)
+    let watchId: number | null = null;
+    if ('geolocation' in navigator) {
+      watchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          const acc = pos.coords.accuracy || 20;
+          // رد کردن مختصات پرت دکل مخابراتی (که دقت بالای ۳۰۰ متر دارند)
+          if (acc <= 250 || !hasResolvedAny) {
+            void applyFix(pos.coords.latitude, pos.coords.longitude, acc);
+          }
+        },
+        () => {},
+        { enableHighAccuracy: true, timeout: 9000, maximumAge: 0 }
+      );
+      setTimeout(() => {
+        if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+      }, 9500);
+    }
+
+    // ۲. اجرای موازی پلاگین نیتیو Fused/GPS اندروید با دقت واقعی سنسور
     if (Capacitor.getPlatform() === 'android' && typeof NoorAlarm.requestAndGetLocation === 'function') {
       try {
         const res = await NoorAlarm.requestAndGetLocation();
         if (res.hasCoords && typeof res.lat === 'number' && typeof res.lng === 'number') {
-          await onExactCoords(res.lat, res.lng, 12);
-          return;
+          const nativeAcc = typeof (res as { accuracy?: number }).accuracy === 'number' ? (res as { accuracy: number }).accuracy : 25;
+          await applyFix(res.lat, res.lng, nativeAcc);
         }
       } catch {}
     }
 
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          void onExactCoords(pos.coords.latitude, pos.coords.longitude, Math.round(pos.coords.accuracy || 12));
-        },
-        () => {
-          navigator.geolocation.getCurrentPosition(
-            (pos2) => {
-              void onExactCoords(pos2.coords.latitude, pos2.coords.longitude, Math.round(pos2.coords.accuracy || 25));
-            },
-            async () => {
-              const saved = getCustomGpsCoords();
-              const useLat = saved ? saved.lat : coords.lat;
-              const useLng = saved ? saved.lng : coords.lng;
-              setGpsStatus('fallback');
-              const fallbackRes = await searchNearbyMosques(useLat, useLng);
-              setMosques(fallbackRes.mosques);
-              if (fallbackRes.mosques.length > 0) setSelectedMosque(fallbackRes.mosques[0]);
-              setUserAddress(fallbackRes.userAddress || ('محدوده ' + cityName));
-              setLoading(false);
-            },
-            { enableHighAccuracy: false, timeout: 5000, maximumAge: 60000 }
-          );
-        },
-        { enableHighAccuracy: true, timeout: 4000, maximumAge: 15000 }
-      );
-      return;
-    }
-
-    setGpsStatus('fallback');
-    setLoading(false);
+    // ۳. در صورتی که بعد از ۵ ثانیه هیچ سیگنال GPS دریافت نشد
+    setTimeout(async () => {
+      if (!hasResolvedAny) {
+        setGpsStatus('fallback');
+        const fallbackRes = await searchNearbyMosques(coords.lat, coords.lng);
+        setMosques(fallbackRes.mosques);
+        if (fallbackRes.mosques.length > 0) setSelectedMosque(fallbackRes.mosques[0]);
+        setUserAddress('لطفاً مکان‌یاب (Location) گوشی را روشن کنید و دوباره بروزرسانی را بزنید');
+        setLoading(false);
+      }
+    }, 5500);
   };
 
   useEffect(() => {

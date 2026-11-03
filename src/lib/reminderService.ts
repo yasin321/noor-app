@@ -31,7 +31,7 @@ export interface NoorAlarmPluginInterface {
   cancelNativeAlarm(options: { id: number }): Promise<void>;
   stopActiveAlarm(): Promise<void>;
   openBatteryOptimizationSettings(): Promise<void>;
-  requestAndGetLocation(): Promise<{ hasCoords: boolean; lat?: number; lng?: number; provider?: string }>;
+  requestAndGetLocation(): Promise<{ hasCoords: boolean; lat?: number; lng?: number; provider?: string; accuracy?: number }>;
   updatePrayerWidget(options: { nextPrayerText: string; subtitleText: string }): Promise<void>;
 }
 

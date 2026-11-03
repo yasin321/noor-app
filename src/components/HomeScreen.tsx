@@ -3,7 +3,7 @@ import { MapPin, Clock, Sunrise, Sunset, Moon, Sun, CloudSun, ArrowLeft, Hand, B
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
 import { calculatePrayerTimes, getNextPrayer, getLocalDateString, timeToMinutes, getNightPrayerConfig, saveNightPrayerConfig, calculateNightPrayerWindow, type NightPrayerConfig, type PrayerTimes } from '@/lib/prayerTimes';
-import { CITIES, getCityById, getGuestCityId, setGuestCityId, getCustomGpsCoords, saveCustomGpsCoords } from '@/lib/cities';
+import { CITIES, getCityById, getGuestCityId, setGuestCityId, getCustomGpsCoords, saveCustomGpsCoords, clearCustomGpsCoords } from '@/lib/cities';
 import { reverseGeocodeFast, clearReverseGeocodeCache } from '@/lib/neshanMosqueService';
 import { getTodayTotal, getTodayRounds, getSession, fetchTodayStats, startSession } from '@/lib/tasbihStorage';
 import { toJalaliShort, getJalaliWeekday, toFaDigits } from '@/lib/jalali';
@@ -345,6 +345,7 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
   const detectNearestCity = async () => {
     const applyCoords = async (latitude: number, longitude: number) => {
       clearReverseGeocodeCache();
+      clearCustomGpsCoords();
       let nearest = CITIES[0];
       let minDist = Infinity;
       for (const c of CITIES) {
