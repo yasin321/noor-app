@@ -3,30 +3,43 @@ package com.noor.app;
 import android.Manifest;
 import android.app.AlarmManager;
 import android.app.PendingIntent;
-import android.appwidget.AppWidgetManager;
-import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.location.Address;
+import android.location.Geocoder;
 import android.location.Location;
 import android.location.LocationManager;
-import android.media.AudioAttributes;
-import android.media.MediaPlayer;
-import android.net.Uri;
-import android.widget.RemoteViews;
+import android.os.Build;
+import android.os.Looper;
+import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
-import com.getcapacitor.PermissionState;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import com.getcapacitor.annotation.Permission;
 import com.getcapacitor.annotation.PermissionCallback;
+import com.getcapacitor.PermissionState;
+import com.google.android.gms.location.CurrentLocationRequest;
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.Granularity;
+import com.google.android.gms.location.LocationCallback;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationResult;
+import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.location.Priority;
+import com.google.android.gms.tasks.CancellationTokenSource;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.List;
+import java.util.Locale;
 
 @CapacitorPlugin(
     name = "NoorAlarm",
@@ -41,374 +54,355 @@ import java.net.URL;
     }
 )
 public class NoorAlarmPlugin extends Plugin {
-    private MediaPlayer previewPlayer;
-
-    @PluginMethod
-    public void requestAndGetLocation(PluginCall call) {
-        if (getPermissionState("location") != PermissionState.GRANTED) {
-            requestPermissionForAlias("location", call, "locationPermsCallback");
-        } else {
-            resolveBestLocation(call);
-        }
-    }
-
-    @PermissionCallback
-    private void locationPermsCallback(PluginCall call) {
-        if (getPermissionState("location") == PermissionState.GRANTED) {
-            resolveBestLocation(call);
-        } else {
-            call.reject("LOCATION_PERMISSION_DENIED");
-        }
-    }
-
-    @SuppressWarnings("MissingPermission")
-    private void resolveBestLocation(PluginCall call) {
-        try {
-            LocationManager lm = (LocationManager) getContext().getSystemService(Context.LOCATION_SERVICE);
-            Location best = null;
-            if (lm != null) {
-                for (String provider : lm.getProviders(true)) {
-                    Location l = lm.getLastKnownLocation(provider);
-                    if (l != null && (best == null || l.getAccuracy() < best.getAccuracy())) {
-                        best = l;
-                    }
-                }
-            }
-            JSObject res = new JSObject();
-            res.put("granted", true);
-            if (best != null) {
-                res.put("lat", best.getLatitude());
-                res.put("lng", best.getLongitude());
-                res.put("hasCoords", true);
-            } else {
-                res.put("hasCoords", false);
-            }
-            call.resolve(res);
-        } catch (Exception e) {
-            call.reject("LOCATION_ERROR: " + e.getMessage());
-        }
-    }
-
-    @PluginMethod
-    public void downloadAdhanAudio(PluginCall call) {
-        String adhanId = call.getString("adhanId", "");
-        String audioUrl = call.getString("audioUrl", "");
-        String fallbackUrl = call.getString("fallbackUrl", "");
-        if (adhanId == null || adhanId.isEmpty()) {
-            call.reject("INVALID_PARAMS");
-            return;
-        }
-
-        new Thread(() -> {
-            File dir = new File(getContext().getFilesDir(), "adhans");
-            if (!dir.exists()) dir.mkdirs();
-            File targetFile = new File(dir, adhanId + ".mp3");
-
-            // اگر قبلاً فایل ناقص یا کپی اشتباه با حجم دقیق فایل ماهور (2289817 بایت) ذخیره شده بود، پاکش کن تا صدای واقعی دانلود شود
-            if (targetFile.exists() && targetFile.length() == 2289817L && !"mahur_saeed".equals(adhanId)) {
-                targetFile.delete();
-            }
-
-            String[] urlsToTry = new String[] { audioUrl, fallbackUrl };
-            boolean success = false;
-            String lastErr = "";
-
-            for (String u : urlsToTry) {
-                if (u == null || u.isEmpty()) continue;
-                HttpURLConnection conn = null;
-                try {
-                    URL url = new URL(u);
-                    conn = (HttpURLConnection) url.openConnection();
-                    conn.setInstanceFollowRedirects(true);
-                    conn.setConnectTimeout(12000);
-                    conn.setReadTimeout(25000);
-                    conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14; NoorApp/3.0)");
-                    conn.connect();
-
-                    int code = conn.getResponseCode();
-                    if (code >= 300 && code < 400) {
-                        String loc = conn.getHeaderField("Location");
-                        if (loc != null) {
-                            conn.disconnect();
-                            conn = (HttpURLConnection) new URL(loc).openConnection();
-                            conn.setInstanceFollowRedirects(true);
-                            conn.setConnectTimeout(12000);
-                            conn.setReadTimeout(25000);
-                            conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14; NoorApp/3.0)");
-                            conn.connect();
-                            code = conn.getResponseCode();
-                        }
-                    }
-
-                    if (code >= 200 && code < 300) {
-                        File tempFile = new File(dir, adhanId + ".tmp");
-                        try (InputStream in = conn.getInputStream();
-                             FileOutputStream out = new FileOutputStream(tempFile)) {
-                            byte[] buf = new byte[8192];
-                            int len;
-                            long total = 0;
-                            while ((len = in.read(buf)) != -1) {
-                                out.write(buf, 0, len);
-                                total += len;
-                            }
-                            out.flush();
-                            if (total > 15000) {
-                                if (targetFile.exists()) targetFile.delete();
-                                tempFile.renameTo(targetFile);
-                                success = true;
-                                break;
-                            } else {
-                                tempFile.delete();
-                            }
-                        }
-                    } else {
-                        lastErr = "HTTP " + code;
-                    }
-                } catch (Exception e) {
-                    lastErr = e.getMessage();
-                } finally {
-                    if (conn != null) conn.disconnect();
-                }
-            }
-
-            if (!success) {
-                call.reject("خطا در دریافت فایل صوتی این مؤذن (" + lastErr + ")؛ لطفاً اتصال اینترنت را بررسی کنید.");
-                return;
-            }
-
-            JSObject res = new JSObject();
-            res.put("downloaded", true);
-            res.put("adhanId", adhanId);
-            res.put("path", targetFile.getAbsolutePath());
-            call.resolve(res);
-        }).start();
-    }
-
-    @PluginMethod
-    public void listDownloadedAdhans(PluginCall call) {
-        JSArray arr = new JSArray();
-        arr.put("mahur_saeed");
-        File dir = new File(getContext().getFilesDir(), "adhans");
-        if (dir.exists() && dir.isDirectory()) {
-            File[] files = dir.listFiles();
-            if (files != null) {
-                for (File f : files) {
-                    if (f.isFile() && f.length() > 15000 && f.getName().endsWith(".mp3")) {
-                        String id = f.getName().replace(".mp3", "");
-                        // حذف فایل‌های کپی‌شدهٔ اشتباهی قبلی که دقیقاً هم‌حجم فایل ماهور بودند
-                        if (f.length() == 2289817L && !"mahur_saeed".equals(id)) {
-                            f.delete();
-                            continue;
-                        }
-                        arr.put(id);
-                    }
-                }
-            }
-        }
-        JSObject res = new JSObject();
-        res.put("ids", arr);
-        call.resolve(res);
-    }
-
-    @PluginMethod
-    public void previewAdhanAudio(PluginCall call) {
-        String adhanId = call.getString("adhanId", "mahur_saeed");
-        String audioUrl = call.getString("audioUrl", "");
-        int durationSeconds = call.getInt("durationSeconds", 0);
-        int volumePercent = call.getInt("volumePercent", 95);
-
-        stopPreviewInternal();
-        try {
-            previewPlayer = new MediaPlayer();
-            AudioAttributes attrs = new AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_MEDIA)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                    .build();
-            previewPlayer.setAudioAttributes(attrs);
-
-            File localFile = new File(new File(getContext().getFilesDir(), "adhans"), adhanId + ".mp3");
-            if (localFile.exists() && localFile.length() == 2289817L && !"mahur_saeed".equals(adhanId)) {
-                localFile.delete();
-            }
-
-            if ("mahur_saeed".equals(adhanId)) {
-                Uri rawUri = Uri.parse("android.resource://" + getContext().getPackageName() + "/" + R.raw.adhan_mahur);
-                previewPlayer.setDataSource(getContext(), rawUri);
-            } else if (localFile.exists() && localFile.length() > 15000) {
-                previewPlayer.setDataSource(localFile.getAbsolutePath());
-            } else if (audioUrl != null && !audioUrl.isEmpty()) {
-                previewPlayer.setDataSource(audioUrl);
-            } else {
-                call.reject("ابتدا دکمه دریافت این مؤذن را بزنید.");
-                return;
-            }
-
-            float vol = Math.max(0.05f, Math.min(1.0f, volumePercent / 100.0f));
-            previewPlayer.setOnPreparedListener(mp -> {
-                mp.setVolume(vol, vol);
-                mp.start();
-            });
-            previewPlayer.prepareAsync();
-
-            if (durationSeconds > 0) {
-                new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(
-                        this::stopPreviewInternal,
-                        durationSeconds * 1000L
-                );
-            }
-            call.resolve();
-        } catch (Exception e) {
-            call.reject("خطا در پخش پیش‌نمایش: " + e.getMessage());
-        }
-    }
-
-    @PluginMethod
-    public void stopPreviewAudio(PluginCall call) {
-        AdhanForegroundService.killActivePlayer(getContext());
-        stopPreviewInternal();
-        call.resolve();
-    }
-
-    private void stopPreviewInternal() {
-        if (previewPlayer != null) {
-            try {
-                if (previewPlayer.isPlaying()) previewPlayer.stop();
-            } catch (Exception ignored) {}
-            try {
-                previewPlayer.release();
-            } catch (Exception ignored) {}
-            previewPlayer = null;
-        }
-    }
-
-    @PluginMethod
-    public void updatePrayerWidget(PluginCall call) {
-        String nextPrayerText = call.getString("nextPrayerText", "اوقات شرعی نور");
-        String subtitleText = call.getString("subtitleText", "برای مشاهده اوقات شرعی لمس کنید");
-        try {
-            Context context = getContext();
-            AppWidgetManager gm = AppWidgetManager.getInstance(context);
-            ComponentName cn = new ComponentName(context, NoorPrayerWidgetProvider.class);
-            int[] ids = gm.getAppWidgetIds(cn);
-            if (ids != null && ids.length > 0) {
-                RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.noor_prayer_widget);
-                views.setTextViewText(R.id.widget_next_prayer, nextPrayerText);
-                views.setTextViewText(R.id.widget_subtitle, subtitleText);
-                gm.updateAppWidget(ids, views);
-            }
-            call.resolve();
-        } catch (Exception e) {
-            call.resolve();
-        }
-    }
 
     @PluginMethod
     public void scheduleNativeAlarm(PluginCall call) {
         Integer id = call.getInt("id", 1001);
-        Long triggerAtMillis = call.getLong("triggerAtMillis", 0L);
-        String title = call.getString("title", "یادآوری نور");
-        String body = call.getString("body", "وقت ذکر و آرامش");
+        Long triggerAtMillis = call.getLong("triggerAtMillis", System.currentTimeMillis() + 5000L);
+        String title = call.getString("title", "وقت اذان و نیایش");
+        String body = call.getString("body", "حَیَّ عَلَی الصَّلَاة");
         String soundType = call.getString("soundType", "adhan");
         String adhanId = call.getString("adhanId", "mahur_saeed");
         Integer durationSeconds = call.getInt("durationSeconds", 0);
-        Integer volumePercent = call.getInt("volumePercent", 90);
+        Integer volumePercent = call.getInt("volumePercent", 100);
 
-        if (triggerAtMillis == null || triggerAtMillis <= System.currentTimeMillis()) {
-            call.reject("Invalid triggerAtMillis");
-            return;
-        }
-
-        Context context = getContext();
-        AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
-        if (am == null) {
-            call.reject("AlarmManager unavailable");
-            return;
-        }
-
-        Intent intent = new Intent(context, AdhanAlarmReceiver.class);
-        intent.setAction(AdhanAlarmReceiver.ACTION_TRIGGER);
+        Context ctx = getContext();
+        AlarmManager am = (AlarmManager) ctx.getSystemService(Context.ALARM_SERVICE);
+        Intent intent = new Intent(ctx, AdhanAlarmReceiver.class);
+        intent.putExtra("id", id != null ? id : 1001);
         intent.putExtra("title", title);
         intent.putExtra("body", body);
         intent.putExtra("soundType", soundType);
         intent.putExtra("adhanId", adhanId);
         intent.putExtra("durationSeconds", durationSeconds != null ? durationSeconds : 0);
-        intent.putExtra("volumePercent", volumePercent != null ? volumePercent : 90);
+        intent.putExtra("volumePercent", volumePercent != null ? volumePercent : 100);
 
-        PendingIntent operation = PendingIntent.getBroadcast(
-                context,
-                id,
+        PendingIntent pi = PendingIntent.getBroadcast(
+                ctx,
+                id != null ? id : 1001,
                 intent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
 
-        Intent showIntent = new Intent(context, MainActivity.class);
-        PendingIntent showPending = PendingIntent.getActivity(
-                context,
-                id,
-                showIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
-        );
-
-        AlarmManager.AlarmClockInfo clockInfo = new AlarmManager.AlarmClockInfo(triggerAtMillis, showPending);
-        am.setAlarmClock(clockInfo, operation);
-
-        JSObject res = new JSObject();
-        res.put("scheduled", true);
-        call.resolve(res);
+        long targetTime = triggerAtMillis != null ? triggerAtMillis : System.currentTimeMillis() + 5000L;
+        if (am != null) {
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    Intent showIntent = new Intent(ctx, MainActivity.class);
+                    PendingIntent showPi = PendingIntent.getActivity(
+                            ctx, id != null ? id : 1001, showIntent,
+                            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+                    );
+                    AlarmManager.AlarmClockInfo clockInfo = new AlarmManager.AlarmClockInfo(targetTime, showPi);
+                    am.setAlarmClock(clockInfo, pi);
+                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, targetTime, pi);
+                } else {
+                    am.setExact(AlarmManager.RTC_WAKEUP, targetTime, pi);
+                }
+            } catch (SecurityException se) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, targetTime, pi);
+                } else {
+                    am.set(AlarmManager.RTC_WAKEUP, targetTime, pi);
+                }
+            }
+        }
+        call.resolve();
     }
 
     @PluginMethod
     public void cancelNativeAlarm(PluginCall call) {
         Integer id = call.getInt("id", 1001);
-        Context context = getContext();
-        AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
-
-        Intent intent = new Intent(context, AdhanAlarmReceiver.class);
-        intent.setAction(AdhanAlarmReceiver.ACTION_TRIGGER);
-
-        PendingIntent operation = PendingIntent.getBroadcast(
-                context,
-                id,
+        Context ctx = getContext();
+        AlarmManager am = (AlarmManager) ctx.getSystemService(Context.ALARM_SERVICE);
+        Intent intent = new Intent(ctx, AdhanAlarmReceiver.class);
+        PendingIntent pi = PendingIntent.getBroadcast(
+                ctx,
+                id != null ? id : 1001,
                 intent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
-
-        if (am != null) am.cancel(operation);
-        operation.cancel();
+        if (am != null) {
+            am.cancel(pi);
+        }
         call.resolve();
     }
 
     @PluginMethod
-    public void triggerTestAlarmNow(PluginCall call) {
-        Context context = getContext();
-        String title = call.getString("title", "اذان به افق شهر شما");
-        String body = call.getString("body", "حَیَّ عَلَی الصَّلَاة — تست پخش اذان و باز شدن صفحه قفل");
-        String soundType = call.getString("soundType", "adhan");
-        String adhanId = call.getString("adhanId", "mahur_saeed");
-        Integer durationSeconds = call.getInt("durationSeconds", 0);
-        Integer volumePercent = call.getInt("volumePercent", 90);
-
-        Intent intent = new Intent(context, AdhanAlarmReceiver.class);
-        intent.setAction(AdhanAlarmReceiver.ACTION_TRIGGER);
-        intent.putExtra("title", title);
-        intent.putExtra("body", body);
-        intent.putExtra("soundType", soundType);
-        intent.putExtra("adhanId", adhanId);
-        intent.putExtra("durationSeconds", durationSeconds != null ? durationSeconds : 0);
-        intent.putExtra("volumePercent", volumePercent != null ? volumePercent : 90);
-        context.sendBroadcast(intent);
+    public void stopActiveAlarm(PluginCall call) {
+        Context ctx = getContext();
+        AdhanForegroundService.killActivePlayer(ctx);
+        Intent stopIntent = new Intent(ctx, AdhanForegroundService.class);
+        stopIntent.setAction(AdhanForegroundService.ACTION_STOP);
+        ctx.startService(stopIntent);
         call.resolve();
     }
 
     @PluginMethod
-    public void updateWidget(PluginCall call) {
-        String title = call.getString("title", "🌿 دستیار معنوی نور");
-        String nextPrayer = call.getString("nextPrayer", "اوقات شرعی و یادآور اذان");
-        String subtitle = call.getString("subtitle", "برای مشاهده اوقات شرعی لمس کنید");
-        NoorPrayerWidgetProvider.pushWidgetUpdate(getContext(), title, nextPrayer, subtitle);
+    public void updatePrayerWidget(PluginCall call) {
+        String nextPrayerText = call.getString("nextPrayerText", "همراه معنوی نور");
+        String subtitleText = call.getString("subtitleText", "اوقات شرعی و ذکر روزانه");
+        Context ctx = getContext();
+        SharedPreferences prefs = ctx.getSharedPreferences("noor_widget_prefs", Context.MODE_PRIVATE);
+        prefs.edit()
+                .putString("next_prayer_text", nextPrayerText)
+                .putString("subtitle_text", subtitleText)
+                .apply();
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void requestAndGetLocation(PluginCall call) {
+        if (getPermissionState("location") != PermissionState.GRANTED) {
+            requestPermissionForAlias("location", call, "locationPermCallback");
+        } else {
+            fetchFusedHighAccuracyLocation(call);
+        }
+    }
+
+    @PermissionCallback
+    private void locationPermCallback(PluginCall call) {
+        if (getPermissionState("location") == PermissionState.GRANTED) {
+            fetchFusedHighAccuracyLocation(call);
+        } else {
+            JSObject ret = new JSObject();
+            ret.put("hasCoords", false);
+            call.resolve(ret);
+        }
+    }
+
+    // دریافت آدرس آفلاین از Geocoder داخلی سیستم‌عامل اندروید (برای مواقع بدون اینترنت یا مکمل نشان)
+    private String getOfflineAndroidAddress(Context ctx, double lat, double lng) {
+        try {
+            Geocoder geocoder = new Geocoder(ctx, new Locale("fa", "IR"));
+            List<Address> addresses = geocoder.getFromLocation(lat, lng, 1);
+            if (addresses != null && !addresses.isEmpty()) {
+                Address a = addresses.get(0);
+                StringBuilder sb = new StringBuilder();
+                if (a.getLocality() != null) sb.append(a.getLocality());
+                if (a.getSubLocality() != null) {
+                    if (sb.length() > 0) sb.append("، ");
+                    sb.append(a.getSubLocality());
+                }
+                if (a.getThoroughfare() != null) {
+                    if (sb.length() > 0) sb.append("، ");
+                    sb.append(a.getThoroughfare());
+                }
+                if (sb.length() > 0) return sb.toString();
+                if (a.getAddressLine(0) != null) return a.getAddressLine(0);
+            }
+        } catch (Exception ignored) {}
+        return "";
+    }
+
+    private void resolveWithLocation(PluginCall call, Context ctx, Location loc, String providerName) {
         JSObject ret = new JSObject();
-        ret.put("updated", true);
+        ret.put("hasCoords", true);
+        ret.put("lat", loc.getLatitude());
+        ret.put("lng", loc.getLongitude());
+        ret.put("accuracy", loc.hasAccuracy() ? Math.round(loc.getAccuracy()) : 12);
+        ret.put("provider", providerName);
+        String nativeAddr = getOfflineAndroidAddress(ctx, loc.getLatitude(), loc.getLongitude());
+        if (nativeAddr != null && !nativeAddr.isEmpty()) {
+            ret.put("nativeAddress", nativeAddr);
+        }
         call.resolve(ret);
     }
 
+    // پیاده‌سازی دقیق مستندات رسمی نشان با Google Play Services FusedLocationProviderClient
+    private void fetchFusedHighAccuracyLocation(final PluginCall call) {
+        final Context ctx = getContext();
+        boolean fine = ContextCompat.checkSelfPermission(ctx, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+        boolean coarse = ContextCompat.checkSelfPermission(ctx, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+        if (!fine && !coarse) {
+            JSObject ret = new JSObject();
+            ret.put("hasCoords", false);
+            call.resolve(ret);
+            return;
+        }
+
+        try {
+            final FusedLocationProviderClient fusedClient = LocationServices.getFusedLocationProviderClient(ctx);
+            final boolean[] resolved = new boolean[]{false};
+
+            // ۱. درخواست موقعیت لحظه‌ای (Fresh High-Accuracy Fix) با maxUpdateAgeMillis = 0 (بدون کش قدیمی!)
+            CurrentLocationRequest currentReq = new CurrentLocationRequest.Builder()
+                    .setPriority(Priority.PRIORITY_HIGH_ACCURACY)
+                    .setGranularity(Granularity.GRANULARITY_FINE)
+                    .setMaxUpdateAgeMillis(0)
+                    .setDurationMillis(4500)
+                    .build();
+
+            CancellationTokenSource cts = new CancellationTokenSource();
+            fusedClient.getCurrentLocation(currentReq, cts.getToken())
+                    .addOnSuccessListener(loc -> {
+                        if (!resolved[0] && loc != null) {
+                            resolved[0] = true;
+                            resolveWithLocation(call, ctx, loc, "gms_fused_current");
+                        }
+                    });
+
+            // ۲. اجرای هم‌زمان requestLocationUpdates با بازه ۵۰۰ میلی‌ثانیه برای قفل فوری مثل اپ نشان
+            LocationRequest liveReq = new LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 500)
+                    .setMinUpdateIntervalMillis(250)
+                    .setWaitForAccurateLocation(false)
+                    .setMaxUpdates(3)
+                    .build();
+
+            final LocationCallback callback = new LocationCallback() {
+                @Override
+                public void onLocationResult(@NonNull LocationResult result) {
+                    Location best = result.getLastLocation();
+                    if (best == null) return;
+                    // اگر دقت عالی (زیر ۶۵ متر) است، بلافاصله قفل کن
+                    if (!resolved[0] && (!best.hasAccuracy() || best.getAccuracy() <= 65f)) {
+                        resolved[0] = true;
+                        fusedClient.removeLocationUpdates(this);
+                        resolveWithLocation(call, ctx, best, "gms_fused_stream");
+                    }
+                }
+            };
+
+            fusedClient.requestLocationUpdates(liveReq, callback, Looper.getMainLooper());
+
+            // ۳. تایم‌اوت ایمنی ۳.۸ ثانیه در صورت بودن در زیرزمین یا گوشی بدون گوگل‌پلی
+            new android.os.Handler(Looper.getMainLooper()).postDelayed(() -> {
+                if (!resolved[0]) {
+                    try { fusedClient.removeLocationUpdates(callback); } catch (Exception ignored) {}
+                    fusedClient.getLastLocation().addOnSuccessListener(lastLoc -> {
+                        if (!resolved[0] && lastLoc != null) {
+                            resolved[0] = true;
+                            resolveWithLocation(call, ctx, lastLoc, "gms_fused_last");
+                        } else if (!resolved[0]) {
+                            fallbackToAndroidGpsManager(call, ctx);
+                        }
+                    }).addOnFailureListener(e -> {
+                        if (!resolved[0]) fallbackToAndroidGpsManager(call, ctx);
+                    });
+                }
+            }, 3800L);
+
+        } catch (Exception e) {
+            fallbackToAndroidGpsManager(call, ctx);
+        }
+    }
+
+    private void fallbackToAndroidGpsManager(PluginCall call, Context ctx) {
+        try {
+            LocationManager lm = (LocationManager) ctx.getSystemService(Context.LOCATION_SERVICE);
+            if (lm != null) {
+                Location gps = lm.isProviderEnabled(LocationManager.GPS_PROVIDER) ? lm.getLastKnownLocation(LocationManager.GPS_PROVIDER) : null;
+                if (gps != null) {
+                    resolveWithLocation(call, ctx, gps, "android_gps");
+                    return;
+                }
+            }
+        } catch (Exception ignored) {}
+        JSObject ret = new JSObject();
+        ret.put("hasCoords", false);
+        call.resolve(ret);
+    }
+
+    @PluginMethod
+    public void downloadAdhanAudio(PluginCall call) {
+        final String adhanId = call.getString("adhanId", "mahur_saeed");
+        final String audioUrl = call.getString("audioUrl", "");
+        final String fallbackUrl = call.getString("fallbackUrl", "");
+        if (audioUrl == null || audioUrl.isEmpty()) {
+            JSObject ret = new JSObject();
+            ret.put("downloaded", false);
+            call.resolve(ret);
+            return;
+        }
+        new Thread(() -> {
+            File dir = new File(getContext().getFilesDir(), "adhans");
+            if (!dir.exists()) dir.mkdirs();
+            String ext = audioUrl.endsWith(".ogg") ? ".ogg" : ".mp3";
+            File outFile = new File(dir, adhanId + ext);
+            boolean ok = downloadFileUrl(audioUrl, outFile);
+            if (!ok && fallbackUrl != null && !fallbackUrl.isEmpty()) {
+                ok = downloadFileUrl(fallbackUrl, outFile);
+            }
+            JSObject ret = new JSObject();
+            ret.put("downloaded", ok);
+            if (ok) ret.put("path", outFile.getAbsolutePath());
+            call.resolve(ret);
+        }).start();
+    }
+
+    private boolean downloadFileUrl(String urlStr, File dest) {
+        try {
+            URL url = new URL(urlStr);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setConnectTimeout(10000);
+            conn.setReadTimeout(15000);
+            conn.connect();
+            if (conn.getResponseCode() != HttpURLConnection.HTTP_OK) return false;
+            InputStream is = conn.getInputStream();
+            FileOutputStream fos = new FileOutputStream(dest);
+            byte[] buf = new byte[8192];
+            int len;
+            while ((len = is.read(buf)) > 0) {
+                fos.write(buf, 0, len);
+            }
+            fos.flush();
+            fos.close();
+            is.close();
+            return dest.length() > 1024;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    @PluginMethod
+    public void listDownloadedAdhans(PluginCall call) {
+        File dir = new File(getContext().getFilesDir(), "adhans");
+        JSArray arr = new JSArray();
+        if (dir.exists() && dir.isDirectory()) {
+            File[] files = dir.listFiles();
+            if (files != null) {
+                for (File f : files) {
+                    if (f.length() > 1024) {
+                        String name = f.getName().replace(".mp3", "").replace(".ogg", "");
+                        arr.put(name);
+                    }
+                }
+            }
+        }
+        JSObject ret = new JSObject();
+        ret.put("ids", arr);
+        call.resolve(ret);
+    }
+
+    @PluginMethod
+    public void previewAdhanAudio(PluginCall call) {
+        String adhanId = call.getString("adhanId", "mahur_saeed");
+        Integer durationSeconds = call.getInt("durationSeconds", 15);
+        Integer volumePercent = call.getInt("volumePercent", 95);
+        Context ctx = getContext();
+        Intent srv = new Intent(ctx, AdhanForegroundService.class);
+        srv.putExtra("title", "پیش‌نمایش صوتی نور");
+        srv.putExtra("body", "در حال پخش نمونه صوتی...");
+        srv.putExtra("soundType", "adhan");
+        srv.putExtra("adhanId", adhanId);
+        srv.putExtra("durationSeconds", durationSeconds != null ? durationSeconds : 15);
+        srv.putExtra("volumePercent", volumePercent != null ? volumePercent : 95);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            ctx.startForegroundService(srv);
+        } else {
+            ctx.startService(srv);
+        }
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void stopPreviewAudio(PluginCall call) {
+        Context ctx = getContext();
+        AdhanForegroundService.killActivePlayer(ctx);
+        Intent stopIntent = new Intent(ctx, AdhanForegroundService.class);
+        stopIntent.setAction(AdhanForegroundService.ACTION_STOP);
+        ctx.startService(stopIntent);
+        call.resolve();
+    }
 }
