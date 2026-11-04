@@ -11,8 +11,10 @@ import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
 import android.location.LocationManager;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Looper;
+import android.provider.Settings;
 import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
 import com.getcapacitor.JSArray;
@@ -40,6 +42,8 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import org.json.JSONObject;
 
 @CapacitorPlugin(
     name = "NoorAlarm",
@@ -54,72 +58,162 @@ import java.util.Locale;
     }
 )
 public class NoorAlarmPlugin extends Plugin {
+    public static final String ALARM_STORE_PREFS = "noor_native_alarms_store_v1";
 
-    @PluginMethod
-    public void scheduleNativeAlarm(PluginCall call) {
-        Integer id = call.getInt("id", 1001);
-        Long triggerAtMillis = call.getLong("triggerAtMillis", System.currentTimeMillis() + 5000L);
-        String title = call.getString("title", "وقت اذان و نیایش");
-        String body = call.getString("body", "حَیَّ عَلَی الصَّلَاة");
-        String soundType = call.getString("soundType", "adhan");
-        String adhanId = call.getString("adhanId", "mahur_saeed");
-        Integer durationSeconds = call.getInt("durationSeconds", 0);
-        Integer volumePercent = call.getInt("volumePercent", 100);
-
-        Context ctx = getContext();
+    // متد مرکزی ثبت آلارم در سیستم‌عامل اندروید (هم از داخل اپ و هم پس از ریستارت گوشی)
+    public static void scheduleExactWithSystem(
+            Context ctx,
+            int alarmId,
+            long targetTime,
+            String title,
+            String body,
+            String soundType,
+            String adhanId,
+            int durationSeconds,
+            int volumePercent
+    ) {
         AlarmManager am = (AlarmManager) ctx.getSystemService(Context.ALARM_SERVICE);
+        if (am == null) return;
+
         Intent intent = new Intent(ctx, AdhanAlarmReceiver.class);
-        intent.putExtra("id", id != null ? id : 1001);
+        intent.setAction(AdhanAlarmReceiver.ACTION_TRIGGER);
+        intent.setData(Uri.parse("noor://alarm/" + alarmId));
+        intent.putExtra("id", alarmId);
         intent.putExtra("title", title);
         intent.putExtra("body", body);
         intent.putExtra("soundType", soundType);
         intent.putExtra("adhanId", adhanId);
-        intent.putExtra("durationSeconds", durationSeconds != null ? durationSeconds : 0);
-        intent.putExtra("volumePercent", volumePercent != null ? volumePercent : 100);
+        intent.putExtra("durationSeconds", durationSeconds);
+        intent.putExtra("volumePercent", volumePercent);
 
         PendingIntent pi = PendingIntent.getBroadcast(
                 ctx,
-                id != null ? id : 1001,
+                alarmId,
                 intent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
 
-        long targetTime = triggerAtMillis != null ? triggerAtMillis : System.currentTimeMillis() + 5000L;
-        if (am != null) {
-            try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                    Intent showIntent = new Intent(ctx, MainActivity.class);
-                    PendingIntent showPi = PendingIntent.getActivity(
-                            ctx, id != null ? id : 1001, showIntent,
-                            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
-                    );
-                    AlarmManager.AlarmClockInfo clockInfo = new AlarmManager.AlarmClockInfo(targetTime, showPi);
-                    am.setAlarmClock(clockInfo, pi);
-                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, targetTime, pi);
-                } else {
-                    am.setExact(AlarmManager.RTC_WAKEUP, targetTime, pi);
-                }
-            } catch (SecurityException se) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, targetTime, pi);
-                } else {
-                    am.set(AlarmManager.RTC_WAKEUP, targetTime, pi);
-                }
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                Intent showIntent = new Intent(ctx, MainActivity.class);
+                PendingIntent showPi = PendingIntent.getActivity(
+                        ctx,
+                        alarmId,
+                        showIntent,
+                        PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+                );
+                AlarmManager.AlarmClockInfo clockInfo = new AlarmManager.AlarmClockInfo(targetTime, showPi);
+                am.setAlarmClock(clockInfo, pi);
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, targetTime, pi);
+            } else {
+                am.setExact(AlarmManager.RTC_WAKEUP, targetTime, pi);
+            }
+        } catch (SecurityException se) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, targetTime, pi);
+            } else {
+                am.set(AlarmManager.RTC_WAKEUP, targetTime, pi);
             }
         }
-        call.resolve();
+    }
+
+    // بازیابی خودکار تمام آلارم‌های آینده از حافظه دائم نیتیو بلافاصله پس از روشن شدن یا ریستارت گوشی
+    public static void restorePersistedAlarms(Context ctx) {
+        try {
+            SharedPreferences prefs = ctx.getSharedPreferences(ALARM_STORE_PREFS, Context.MODE_PRIVATE);
+            Map<String, ?> all = prefs.getAll();
+            if (all == null || all.isEmpty()) return;
+            long now = System.currentTimeMillis();
+            SharedPreferences.Editor editor = prefs.edit();
+            for (Map.Entry<String, ?> entry : all.entrySet()) {
+                try {
+                    String rawJson = String.valueOf(entry.getValue());
+                    JSONObject obj = new JSONObject(rawJson);
+                    int id = obj.optInt("id", -1);
+                    long triggerAt = obj.optLong("triggerAtMillis", 0L);
+                    if (id == -1 || triggerAt <= now) {
+                        editor.remove(entry.getKey());
+                        continue;
+                    }
+                    scheduleExactWithSystem(
+                            ctx,
+                            id,
+                            triggerAt,
+                            obj.optString("title", "وقت اذان و نیایش"),
+                            obj.optString("body", "حَیَّ عَلَی الصَّلَاة"),
+                            obj.optString("soundType", "adhan"),
+                            obj.optString("adhanId", "mahur_saeed"),
+                            obj.optInt("durationSeconds", 0),
+                            obj.optInt("volumePercent", 100)
+                    );
+                } catch (Exception ignored) {}
+            }
+            editor.apply();
+        } catch (Exception ignored) {}
+    }
+
+    public static void removePersistedAlarm(Context ctx, int alarmId) {
+        try {
+            SharedPreferences prefs = ctx.getSharedPreferences(ALARM_STORE_PREFS, Context.MODE_PRIVATE);
+            prefs.edit().remove("alarm_" + alarmId).apply();
+        } catch (Exception ignored) {}
+    }
+
+    @PluginMethod
+    public void scheduleNativeAlarm(PluginCall call) {
+        Integer idObj = call.getInt("id", 1001);
+        int alarmId = idObj != null ? idObj : 1001;
+        Long triggerAtMillis = call.getLong("triggerAtMillis", System.currentTimeMillis() + 5000L);
+        long targetTime = triggerAtMillis != null ? triggerAtMillis : System.currentTimeMillis() + 5000L;
+        String title = call.getString("title", "وقت اذان و نیایش");
+        String body = call.getString("body", "حَیَّ عَلَی الصَّلَاة");
+        String soundType = call.getString("soundType", "adhan");
+        String adhanId = call.getString("adhanId", "mahur_saeed");
+        Integer durationObj = call.getInt("durationSeconds", 0);
+        int durationSeconds = durationObj != null ? durationObj : 0;
+        Integer volumeObj = call.getInt("volumePercent", 100);
+        int volumePercent = volumeObj != null ? volumeObj : 100;
+
+        Context ctx = getContext();
+
+        // ۱. ذخیره در حافظه دائم نیتیو برای بازیابی خودکار پس از ریستارت گوشی
+        try {
+            JSONObject record = new JSONObject();
+            record.put("id", alarmId);
+            record.put("triggerAtMillis", targetTime);
+            record.put("title", title);
+            record.put("body", body);
+            record.put("soundType", soundType);
+            record.put("adhanId", adhanId);
+            record.put("durationSeconds", durationSeconds);
+            record.put("volumePercent", volumePercent);
+            SharedPreferences prefs = ctx.getSharedPreferences(ALARM_STORE_PREFS, Context.MODE_PRIVATE);
+            prefs.edit().putString("alarm_" + alarmId, record.toString()).apply();
+        } catch (Exception ignored) {}
+
+        // ۲. ثبت در AlarmManager هسته اندروید با اکشن صریح ACTION_TRIGGER
+        scheduleExactWithSystem(ctx, alarmId, targetTime, title, body, soundType, adhanId, durationSeconds, volumePercent);
+
+        JSObject ret = new JSObject();
+        ret.put("scheduled", true);
+        call.resolve(ret);
     }
 
     @PluginMethod
     public void cancelNativeAlarm(PluginCall call) {
-        Integer id = call.getInt("id", 1001);
+        Integer idObj = call.getInt("id", 1001);
+        int alarmId = idObj != null ? idObj : 1001;
         Context ctx = getContext();
+        removePersistedAlarm(ctx, alarmId);
+
         AlarmManager am = (AlarmManager) ctx.getSystemService(Context.ALARM_SERVICE);
         Intent intent = new Intent(ctx, AdhanAlarmReceiver.class);
+        intent.setAction(AdhanAlarmReceiver.ACTION_TRIGGER);
+        intent.setData(Uri.parse("noor://alarm/" + alarmId));
         PendingIntent pi = PendingIntent.getBroadcast(
                 ctx,
-                id != null ? id : 1001,
+                alarmId,
                 intent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
@@ -140,15 +234,22 @@ public class NoorAlarmPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void openBatteryOptimizationSettings(PluginCall call) {
+        try {
+            Context ctx = getContext();
+            Intent intent = new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            ctx.startActivity(intent);
+        } catch (Exception ignored) {}
+        call.resolve();
+    }
+
+    @PluginMethod
     public void updatePrayerWidget(PluginCall call) {
         String nextPrayerText = call.getString("nextPrayerText", "همراه معنوی نور");
         String subtitleText = call.getString("subtitleText", "اوقات شرعی و ذکر روزانه");
         Context ctx = getContext();
-        SharedPreferences prefs = ctx.getSharedPreferences("noor_widget_prefs", Context.MODE_PRIVATE);
-        prefs.edit()
-                .putString("next_prayer_text", nextPrayerText)
-                .putString("subtitle_text", subtitleText)
-                .apply();
+        NoorPrayerWidgetProvider.pushWidgetUpdate(ctx, "🌿 دستیار معنوی نور", nextPrayerText, subtitleText);
         call.resolve();
     }
 
@@ -172,7 +273,6 @@ public class NoorAlarmPlugin extends Plugin {
         }
     }
 
-    // دریافت آدرس آفلاین از Geocoder داخلی سیستم‌عامل اندروید (برای مواقع بدون اینترنت یا مکمل نشان)
     private String getOfflineAndroidAddress(Context ctx, double lat, double lng) {
         try {
             Geocoder geocoder = new Geocoder(ctx, new Locale("fa", "IR"));
@@ -210,7 +310,6 @@ public class NoorAlarmPlugin extends Plugin {
         call.resolve(ret);
     }
 
-    // پیاده‌سازی دقیق مستندات رسمی نشان با Google Play Services FusedLocationProviderClient
     private void fetchFusedHighAccuracyLocation(final PluginCall call) {
         final Context ctx = getContext();
         boolean fine = ContextCompat.checkSelfPermission(ctx, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
@@ -226,7 +325,6 @@ public class NoorAlarmPlugin extends Plugin {
             final FusedLocationProviderClient fusedClient = LocationServices.getFusedLocationProviderClient(ctx);
             final boolean[] resolved = new boolean[]{false};
 
-            // ۱. درخواست موقعیت لحظه‌ای (Fresh High-Accuracy Fix) با maxUpdateAgeMillis = 0 (بدون کش قدیمی!)
             CurrentLocationRequest currentReq = new CurrentLocationRequest.Builder()
                     .setPriority(Priority.PRIORITY_HIGH_ACCURACY)
                     .setGranularity(Granularity.GRANULARITY_FINE)
@@ -243,7 +341,6 @@ public class NoorAlarmPlugin extends Plugin {
                         }
                     });
 
-            // ۲. اجرای هم‌زمان requestLocationUpdates با بازه ۵۰۰ میلی‌ثانیه برای قفل فوری مثل اپ نشان
             LocationRequest liveReq = new LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 500)
                     .setMinUpdateIntervalMillis(250)
                     .setWaitForAccurateLocation(false)
@@ -255,7 +352,6 @@ public class NoorAlarmPlugin extends Plugin {
                 public void onLocationResult(@NonNull LocationResult result) {
                     Location best = result.getLastLocation();
                     if (best == null) return;
-                    // اگر دقت عالی (زیر ۶۵ متر) است، بلافاصله قفل کن
                     if (!resolved[0] && (!best.hasAccuracy() || best.getAccuracy() <= 65f)) {
                         resolved[0] = true;
                         fusedClient.removeLocationUpdates(this);
@@ -266,7 +362,6 @@ public class NoorAlarmPlugin extends Plugin {
 
             fusedClient.requestLocationUpdates(liveReq, callback, Looper.getMainLooper());
 
-            // ۳. تایم‌اوت ایمنی ۳.۸ ثانیه در صورت بودن در زیرزمین یا گوشی بدون گوگل‌پلی
             new android.os.Handler(Looper.getMainLooper()).postDelayed(() -> {
                 if (!resolved[0]) {
                     try { fusedClient.removeLocationUpdates(callback); } catch (Exception ignored) {}

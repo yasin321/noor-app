@@ -40,6 +40,7 @@ public class AdhanAlarmActivity extends AppCompatActivity {
                 : "حَیَّ عَلَی الصَّلَاة — وقت فضیلت نماز فرا رسیده است";
 
         boolean isPreAdhan = titleText.contains("مانده تا اذان") || titleText.contains("دقیقه تا اذان") || titleText.contains("پیش از اذان");
+        boolean isPostAdhan = titleText.contains("تعقیبات") || titleText.contains("تسبیحات") || titleText.contains("سوره") || titleText.contains("آیةالکرسی") || titleText.contains("پس از اذان");
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
@@ -48,7 +49,7 @@ public class AdhanAlarmActivity extends AppCompatActivity {
         root.setPadding(68, 68, 68, 68);
 
         TextView badge = new TextView(this);
-        badge.setText(isPreAdhan ? "🔔 تواشیح و آمادگی پیش از اذان" : "🕌 همراه معنوی نور — وقت اذان");
+        badge.setText(isPreAdhan ? "🔔 تواشیح و آمادگی پیش از اذان" : isPostAdhan ? "📿 تعقیبات نماز و تلاوت سوره" : "🕌 همراه معنوی نور — وقت اذان");
         badge.setTextColor(Color.parseColor(isPreAdhan ? "#38BDF8" : "#34D399"));
         badge.setTextSize(18f);
         badge.setTypeface(Typeface.DEFAULT_BOLD);
@@ -100,7 +101,7 @@ public class AdhanAlarmActivity extends AppCompatActivity {
         body.setLayoutParams(bodyParams);
 
         Button stopBtn = new Button(this);
-        stopBtn.setText(isPreAdhan ? "⏹️ توقف تواشیح و بستن" : "⏹️ توقف اذان و بستن");
+        stopBtn.setText(isPreAdhan ? "⏹️ توقف تواشیح و بستن" : isPostAdhan ? "⏹️ توقف صوت تعقیبات و بستن" : "⏹️ توقف اذان و بستن");
         stopBtn.setTextColor(Color.parseColor("#04151F"));
         stopBtn.setTextSize(17f);
         stopBtn.setTypeface(Typeface.DEFAULT_BOLD);

@@ -13,7 +13,7 @@ import { logEvent } from './logger';
 import { getAdhanDurationMode, getAdhanDurationSeconds } from './adhans';
 import { calculatePrayerTimes, getNightPrayerConfig, calculateNightPrayerWindow } from './prayerTimes';
 import { getCityById, getGuestCityId, getCustomGpsCoords } from './cities';
-import { addMinutesToTimeStr, PRE_ADHAN_CHANT_OPTIONS } from './deenIntelligenceStore';
+import { addMinutesToTimeStr, PRE_ADHAN_CHANT_OPTIONS, POST_ADHAN_OPTIONS } from './deenIntelligenceStore';
 
 export { loadReminders, type LocalReminder };
 

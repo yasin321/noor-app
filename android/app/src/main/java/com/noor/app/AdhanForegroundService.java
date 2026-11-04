@@ -7,9 +7,9 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ServiceInfo;
 import android.content.res.AssetFileDescriptor;
 import android.media.AudioAttributes;
-import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.media.RingtoneManager;
 import android.net.Uri;
@@ -24,13 +24,13 @@ import androidx.core.app.NotificationCompat;
 import java.io.File;
 
 public class AdhanForegroundService extends Service {
-    public static final String CHANNEL_ID = "noor_fullscreen_alarm_v6";
+    public static final String CHANNEL_ID = "noor_fullscreen_alarm_v7";
     public static final String ACTION_STOP = "com.noor.app.ACTION_STOP_ADHAN";
     private static final int NOTIF_ID = 88001;
 
     private static final Object PLAYER_LOCK = new Object();
     private static MediaPlayer activePlayer = null;
-    private static Handler stopHandler = new Handler(Looper.getMainLooper());
+    private static final Handler stopHandler = new Handler(Looper.getMainLooper());
     private static Runnable stopRunnable = null;
     private PowerManager.WakeLock wakeLock;
 
@@ -59,7 +59,7 @@ public class AdhanForegroundService extends Service {
                 } catch (Exception ignored) {}
                 try {
                     NotificationManager nm = (NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE);
-                    if (nm != null) nm.cancelAll();
+                    if (nm != null) nm.cancel(NOTIF_ID);
                 } catch (Exception ignored) {}
             }
         }
@@ -73,7 +73,13 @@ public class AdhanForegroundService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        if (intent != null && ACTION_STOP.equals(intent.getAction())) {
+        if (intent != null && "ACTION_RESTORE_ALARMS".equals(intent.getAction())) {
+            NoorAlarmPlugin.restorePersistedAlarms(this);
+            stopSelf();
+            return START_NOT_STICKY;
+        }
+
+        if (intent != null && (ACTION_STOP.equals(intent.getAction()) || AdhanAlarmReceiver.ACTION_STOP.equals(intent.getAction()))) {
             killActivePlayer(this);
             sendBroadcast(new Intent(AdhanAlarmActivity.ACTION_CLOSE_UI));
             stopForeground(true);
@@ -81,7 +87,6 @@ public class AdhanForegroundService extends Service {
             return START_NOT_STICKY;
         }
 
-        // همیشه قبل از شروع صدای جدید، هر صدای در حال پخش قبلی را ۱۰۰٪ قطع کن تا تداخل رخ ندهد
         killActivePlayer(this);
         acquireWakeLock();
 
@@ -131,7 +136,11 @@ public class AdhanForegroundService extends Service {
                 .addAction(android.R.drawable.ic_media_pause, "⏹️ توقف کامل صدا", stopPi)
                 .build();
 
-        startForeground(NOTIF_ID, notification);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(NOTIF_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK);
+        } else {
+            startForeground(NOTIF_ID, notification);
+        }
 
         try {
             startActivity(fullScreenIntent);
@@ -151,6 +160,7 @@ public class AdhanForegroundService extends Service {
             try {
                 MediaPlayer mp = new MediaPlayer();
                 activePlayer = mp;
+                mp.setWakeMode(getApplicationContext(), PowerManager.PARTIAL_WAKE_LOCK);
                 mp.setAudioAttributes(
                         new AudioAttributes.Builder()
                                 .setUsage(AudioAttributes.USAGE_ALARM)
@@ -175,8 +185,8 @@ public class AdhanForegroundService extends Service {
                     String[] candidates = new String[] {
                             "public/adhans/" + adhanId + ".mp3",
                             "public/adhans/" + adhanId + ".ogg",
-                            "public/adhans/chant_salawat.mp3",
-                            "public/adhans/mahur_saeed.ogg"
+                            "public/adhans/mahur_saeed.ogg",
+                            "public/adhans/chant_salawat.mp3"
                     };
                     for (String path : candidates) {
                         try {
@@ -263,7 +273,7 @@ public class AdhanForegroundService extends Service {
                     "پخش تمام‌صفحه اذان و تواشیح نور",
                     NotificationManager.IMPORTANCE_HIGH
             );
-            channel.setDescription("روشن شدن صفحه قفل و پخش اذان و ذکر قبل از اذان");
+            channel.setDescription("روشن شدن صفحه قفل و پخش اذان، تواشیح قبل از اذان و تعقیبات");
             channel.setSound(null, null);
             channel.enableVibration(true);
             channel.setBypassDnd(true);
