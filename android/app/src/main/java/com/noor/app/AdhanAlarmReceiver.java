@@ -20,7 +20,7 @@ public class AdhanAlarmReceiver extends BroadcastReceiver {
                 Intent.ACTION_LOCKED_BOOT_COMPLETED.equals(action) ||
                 "android.intent.action.QUICKBOOT_POWERON".equals(action) ||
                 Intent.ACTION_MY_PACKAGE_REPLACED.equals(action) ||
-                Intent.ACTION_TIME_SET.equals(action) ||
+                "android.intent.action.TIME_SET".equals(action) ||
                 Intent.ACTION_TIMEZONE_CHANGED.equals(action)) {
             NoorAlarmPlugin.restorePersistedAlarms(context);
             return;
