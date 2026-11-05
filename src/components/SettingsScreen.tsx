@@ -1,4 +1,5 @@
 import { getTemperatureUnit, setTemperatureUnit, type TempUnit } from '@/lib/weatherService';
+
 import { useState, useEffect, useRef } from 'react';
 import {
   Palette, Volume2, Bell, LogOut, User, Check, LogIn, MapPin,
