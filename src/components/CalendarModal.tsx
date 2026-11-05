@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { fetchLiveWeather, getTemperatureUnit, formatTempValue, type LiveWeatherData } from '@/lib/weatherService';
+import { WeatherCuteArtwork } from '@/components/WeatherCuteCard';
 import { createPortal } from 'react-dom';
 import { Calendar, X, ChevronRight, ChevronLeft, Sparkles, ArrowLeftRight, AlertTriangle } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
@@ -151,6 +153,12 @@ function getJalaliMonthLength(jy: number, jm: number): number {
 export function CalendarModal({ cityLat, cityLng, cityTimezone, cityName, onClose }: Props) {
   const { theme } = useTheme();
   const [mode, setMode] = useState<'calendar' | 'converter'>('calendar');
+  const [weatherData, setWeatherData] = useState<LiveWeatherData | null>(null);
+  const tempUnit = getTemperatureUnit();
+
+  useEffect(() => {
+    fetchLiveWeather(cityLat, cityLng).then(setWeatherData);
+  }, [cityLat, cityLng]);
   const todayParts = getJalaliParts(new Date());
 
   const [viewJy, setViewJy] = useState<number>(todayParts.jy);
@@ -321,6 +329,24 @@ export function CalendarModal({ cityLat, cityLng, cityTimezone, cityName, onClos
                 <span>·</span>
                 <span dir="ltr">🌍 {gregorianStr}</span>
               </div>
+              {(() => {
+                const matchedForecast = weatherData?.daily.find((d) => d.dateIso === gregorianStr);
+                if (!matchedForecast) return null;
+                return (
+                  <div
+                    className="mt-2.5 pt-2 border-t flex items-center justify-between px-2 text-xs"
+                    style={{ borderColor: theme.border }}
+                  >
+                    <div className="flex items-center gap-2">
+                      <WeatherCuteArtwork condition={matchedForecast.condition} size={30} />
+                      <span className="font-bold text-app">هوای این روز ({cityName}): {matchedForecast.labelFa}</span>
+                    </div>
+                    <span className="font-black text-primary">
+                      کمینه {toFaDigits(formatTempValue(matchedForecast.tempMinC, tempUnit))}° | بیشینه {toFaDigits(formatTempValue(matchedForecast.tempMaxC, tempUnit))}°
+                    </span>
+                  </div>
+                );
+              })()}
             </div>
 
             {allDayOccasions.length > 0 && (
@@ -355,6 +381,46 @@ export function CalendarModal({ cityLat, cityLng, cityTimezone, cityName, onClos
               </div>
             )}
 
+            {/* نوار پیش‌بینی آب‌وهوای ۷ روز آینده در تقویم */}
+            {weatherData && weatherData.daily.length > 0 && (
+              <div className="card-flat p-3.5 mb-3.5 border" style={{ borderColor: theme.border }}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-black text-primary">🌤️ پیش‌بینی آب‌وهوای ۷ روز آینده ({cityName})</span>
+                  <span className="text-[10px] font-bold text-muted">واحد: {tempUnit === "F" ? "فارنهایت °F" : "سلسیوس °C"}</span>
+                </div>
+                <div className="grid grid-cols-7 gap-1 text-center">
+                  {weatherData.daily.slice(0, 7).map((df, idx) => {
+                    const dObj = new Date(df.dateIso + "T12:00:00");
+                    const jParts = getJalaliParts(dObj);
+                    const isSelectedDay = df.dateIso === gregorianStr;
+                    return (
+                      <button
+                        key={df.dateIso}
+                        type="button"
+                        onClick={() => {
+                          setViewJy(jParts.jy);
+                          setViewJm(jParts.jm);
+                          setSelectedJd(jParts.jd);
+                        }}
+                        className="p-1.5 rounded-2xl border flex flex-col items-center justify-between transition-all"
+                        style={{
+                          borderColor: isSelectedDay ? theme.primary : 'transparent',
+                          background: isSelectedDay ? 'color-mix(in srgb, ' + theme.primary + ' 18%, transparent)' : theme.bg,
+                        }}
+                      >
+                        <span className="text-[10px] font-bold text-muted">{idx === 0 ? "امروز" : getJalaliWeekday(dObj).slice(0, 3)}</span>
+                        <span className="text-[10px] font-black text-app">{toFaDigits(jParts.jd)}</span>
+                        <div className="my-0.5">
+                          <WeatherCuteArtwork condition={df.condition} size={26} />
+                        </div>
+                        <span className="text-[10px] font-black text-primary">{toFaDigits(formatTempValue(df.tempMaxC, tempUnit))}°</span>
+                        <span className="text-[9px] text-muted">{toFaDigits(formatTempValue(df.tempMinC, tempUnit))}°</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             <div className="card-flat p-4 mb-3 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-primary flex items-center gap-1">

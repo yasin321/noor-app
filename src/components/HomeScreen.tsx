@@ -19,6 +19,7 @@ import { loadQuranContinuity, loadMosqueAndTravel, addMinutesToTimeStr } from '@
 import { logEvent } from '@/lib/logger';
 import { QiblaCompassModal } from '@/components/QiblaCompassModal';
 import { CalendarModal } from '@/components/CalendarModal';
+import { WeatherCuteHeaderWidget } from '@/components/WeatherCuteCard';
 import { AppTutorialModal, TUTORIAL_SEEN_KEY } from '@/components/AppTutorialModal';
 import type { Tab } from '@/components/BottomNav';
 

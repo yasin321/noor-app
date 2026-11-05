@@ -7,6 +7,7 @@ import {
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { useTheme } from '@/hooks/useTheme';
+import { getTemperatureUnit, setTemperatureUnit, type TempUnit } from '@/lib/weatherService';
 import { useAuth } from '@/hooks/useAuth';
 import { themes } from '@/lib/themes';
 import {
