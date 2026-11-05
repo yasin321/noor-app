@@ -1,3 +1,4 @@
+import { getTemperatureUnit, setTemperatureUnit, type TempUnit } from '@/lib/weatherService';
 import { useState, useEffect, useRef } from 'react';
 import {
   Palette, Volume2, Bell, LogOut, User, Check, LogIn, MapPin,
@@ -7,7 +8,9 @@ import {
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { useTheme } from '@/hooks/useTheme';
-import { getTemperatureUnit, setTemperatureUnit, type TempUnit } from '@/lib/weatherService';
+
+import { OCCASION_MOTIFS, getSelectedOccasionMotif, setSelectedOccasionMotif, type OccasionMotifId } from '@/components/ThemeBackdropPattern';
+
 import { useAuth } from '@/hooks/useAuth';
 import { themes } from '@/lib/themes';
 import {
