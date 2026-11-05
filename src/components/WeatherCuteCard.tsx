@@ -252,3 +252,63 @@ export function WeatherCuteHeaderWidget({
     </div>
   );
 }
+
+
+export function CompactHeaderWeatherPill({
+  cityName,
+  lat,
+  lng,
+  onOpenCalendar,
+}: {
+  cityName: string;
+  lat: number;
+  lng: number;
+  onOpenCalendar: () => void;
+}) {
+  const [weather, setWeather] = useState<LiveWeatherData | null>(null);
+  const [unit, setUnit] = useState<TempUnit>(() => getTemperatureUnit());
+
+  useEffect(() => {
+    let mounted = true;
+    fetchLiveWeather(lat, lng).then((w) => {
+      if (mounted) setWeather(w);
+    });
+    const onUnitChange = () => setUnit(getTemperatureUnit());
+    window.addEventListener('noor-weather-unit-changed', onUnitChange);
+    return () => {
+      mounted = false;
+      window.removeEventListener('noor-weather-unit-changed', onUnitChange);
+    };
+  }, [lat, lng]);
+
+  const cond = weather?.condition ?? 'sunny';
+  const curTemp = weather ? formatTempValue(weather.tempC, unit) : 22;
+  const minTemp = weather ? formatTempValue(weather.tempMinC, unit) : 14;
+  const maxTemp = weather ? formatTempValue(weather.tempMaxC, unit) : 25;
+  const unitSym = unit === 'F' ? '°F' : '°';
+
+  return (
+    <button
+      type="button"
+      onClick={onOpenCalendar}
+      title={`آب‌وهوای امروز ${cityName} — برای مشاهده پیش‌بینی ۷ روزه در تقویم لمس کنید`}
+      className="px-2.5 py-1 rounded-2xl border flex items-center gap-1.5 transition-transform active:scale-95 shadow-sm"
+      style={{
+        background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.22) 0%, rgba(251, 191, 36, 0.16) 55%, rgba(15, 41, 34, 0.85) 100%)',
+        borderColor: 'rgba(251, 191, 36, 0.45)',
+      }}
+    >
+      <div className="-my-1">
+        <WeatherCuteArtwork condition={cond} size={24} />
+      </div>
+      <div className="text-right leading-tight">
+        <div className="flex items-center gap-1">
+          <span className="text-xs font-black text-white" dir="ltr">{toFaDigits(curTemp)}{unitSym}</span>
+        </div>
+        <span className="text-[9px] font-bold text-emerald-200/90 block">
+          {toFaDigits(minTemp)}°/{toFaDigits(maxTemp)}°
+        </span>
+      </div>
+    </button>
+  );
+}

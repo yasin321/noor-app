@@ -1,3 +1,4 @@
+import { getAlarmPlaybackSpeed, setAlarmPlaybackSpeed } from '@/lib/reminderService';
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Plane, BellRing, X, Check, Square, Play, Trash2, CheckCircle2, AlertTriangle } from 'lucide-react';
@@ -37,6 +38,7 @@ const PRAYER_LABELS: Array<{ key: PrayerKey; nameFa: string }> = [
 ];
 
 export function AdhanStudioAndTravelModal({ initialSection = 'studio', onClose, onChanged }: Props) {
+  const [alarmSpeed, setAlarmSpeed] = useState<number>(() => getAlarmPlaybackSpeed());
   const { theme } = useTheme();
   const [tab, setTab] = useState<'pre_adhan' | 'post_adhan' | 'travel'>(
     initialSection === 'travel'
@@ -504,6 +506,38 @@ export function AdhanStudioAndTravelModal({ initialSection = 'studio', onClose, 
 
         {tab === 'post_adhan' && (
           <div className="space-y-3.5">
+            <div className="p-3.5 rounded-2xl border space-y-2" style={{ borderColor: theme.border, background: theme.bg }}>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black text-app">⏩ سرعت پخش صوت اعلان و تلاوت سوره:</span>
+                <span className="text-[11px] font-black text-primary" dir="ltr">{alarmSpeed}x</span>
+              </div>
+              <div className="grid grid-cols-5 gap-1.5" dir="ltr">
+                {[0.85, 1.0, 1.25, 1.5, 2.0].map((sp) => {
+                  const active = alarmSpeed === sp;
+                  return (
+                    <button
+                      key={sp}
+                      type="button"
+                      onClick={() => {
+                        setAlarmPlaybackSpeed(sp);
+                        setAlarmSpeed(sp);
+                      }}
+                      className="py-1.5 rounded-xl text-xs font-bold border transition-all"
+                      style={{
+                        borderColor: active ? theme.primary : theme.border,
+                        background: active ? theme.primary : theme.surface,
+                        color: active ? theme.bg : theme.text,
+                      }}
+                    >
+                      {sp}x
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-[10px] text-muted leading-relaxed">
+                ✨ تمام سوره‌ها و ادعیه انتخابی پس از اذان به طور کامل تا آخرین آیه و با سرعت انتخابی شما پخش می‌شوند.
+              </p>
+            </div>
             {postAlarmsList.length > 0 && (
               <div className="card-flat p-3 space-y-2 border" style={{ borderColor: theme.primary }}>
                 <p className="text-xs font-black text-primary">📿 یادآورهای فعال سوره و تعقیبات پس از اذان شما:</p>

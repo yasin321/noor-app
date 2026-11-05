@@ -610,3 +610,22 @@ export async function snoozeReminderByMinutes(title: string, body: string, minut
     });
   } catch {}
 }
+
+
+const ALARM_SPEED_KEY = 'noor_alarm_playback_speed_v1';
+
+export function getAlarmPlaybackSpeed(): number {
+  try {
+    const raw = localStorage.getItem(ALARM_SPEED_KEY);
+    const parsed = raw ? parseFloat(raw) : 1.0;
+    return [0.85, 1.0, 1.25, 1.5, 2.0].includes(parsed) ? parsed : 1.0;
+  } catch {
+    return 1.0;
+  }
+}
+
+export function setAlarmPlaybackSpeed(speed: number): void {
+  try {
+    localStorage.setItem(ALARM_SPEED_KEY, String(speed));
+  } catch {}
+}

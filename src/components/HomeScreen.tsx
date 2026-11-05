@@ -1,3 +1,4 @@
+import { CompactHeaderWeatherPill } from '@/components/WeatherCuteCard';
 import { useState, useEffect, useMemo } from 'react';
 import { MapPin, Clock, Sunrise, Sunset, Moon, Sun, CloudSun, ArrowLeft, Hand, Bell, BellOff, Compass, Sparkles, LocateFixed, Navigation, BookOpen, Sliders, Calendar } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
@@ -572,6 +573,12 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
             <Navigation size={13} />
             <span>مسجدیاب</span>
           </button>
+            <CompactHeaderWeatherPill
+              cityName={city.nameFa}
+              lat={city.lat}
+              lng={city.lng}
+              onOpenCalendar={() => setShowCalendar(true)}
+            />
 
           <button
             type="button"
