@@ -32,7 +32,7 @@ export interface NoorAlarmPluginInterface {
   stopActiveAlarm(): Promise<void>;
   openBatteryOptimizationSettings(): Promise<void>;
   requestAndGetLocation(): Promise<{ hasCoords: boolean; lat?: number; lng?: number; provider?: string; accuracy?: number; nativeAddress?: string }>;
-  updatePrayerWidget(options: { nextPrayerText: string; subtitleText: string }): Promise<void>;
+  updatePrayerWidget(options: { nextPrayerText: string; subtitleText: string; titleText?: string; fajr?: string; sunrise?: string; dhuhr?: string; maghrib?: string; midnight?: string }): Promise<void>;
 }
 
 export const NoorAlarm = registerPlugin<NoorAlarmPluginInterface>('NoorAlarm');
@@ -74,9 +74,9 @@ function resolvePrayerAlarmParams(reminderId: string, reminderTitle = ''): {
       PRE_ADHAN_CHANT_OPTIONS.find((c) => reminderId.includes(c.id) || reminderTitle.includes(c.titleFa)) ??
       PRE_ADHAN_CHANT_OPTIONS[0];
     return {
-      soundType: 'short_10s',
+      soundType: 'full_chant',
       adhanId: matchedChant.audioAdhanId,
-      durationSeconds: matchedChant.durationSec,
+      durationSeconds: 0,
       volumePercent: 100,
     };
   }

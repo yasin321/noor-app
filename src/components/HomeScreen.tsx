@@ -328,10 +328,20 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
             : 0;
         setNext({ key: n.key, nameFa: n.nameFa, time: n.time, remaining: n.remaining, progress });
         if (Capacitor.getPlatform() === 'android' && typeof NoorAlarm.updatePrayerWidget === 'function') {
-          void NoorAlarm.updatePrayerWidget({
-            nextPrayerText: 'اذان ' + n.nameFa + ': ساعت ' + n.time,
-            subtitleText: 'به افق ' + city.nameFa + ' (' + n.remaining + ' مانده)',
-          });
+                const npSafe = getNextPrayer(times);
+      const npName = npSafe?.nameFa ?? 'اذان صبح';
+      const npTime = npSafe?.time ?? times.fajr;
+      const npRem = npSafe?.remaining ?? '--';
+      void NoorAlarm.updatePrayerWidget({
+        titleText: '📍 افق ' + city.nameFa,
+        nextPrayerText: `${npName}: ساعت ${toFaDigits(npTime)}`,
+        subtitleText: `به افق ${city.nameFa} (${toFaDigits(npRem)} مانده)`,
+        fajr: toFaDigits(times.fajr),
+        sunrise: toFaDigits(times.sunrise),
+        dhuhr: toFaDigits(times.dhuhr),
+        maghrib: toFaDigits(times.maghrib),
+        midnight: toFaDigits(times.midnight),
+      });
         }
       }
     }

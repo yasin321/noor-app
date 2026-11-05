@@ -214,7 +214,7 @@ public class AdhanForegroundService extends Service {
                     mp.setDataSource(this, fallbackUri);
                 }
 
-                float vol = Math.max(0.05f, Math.min(1.0f, volumePercent / 100.0f));
+                                float vol = Math.max(0.05f, Math.min(1.0f, volumePercent / 100.0f));
                 mp.setVolume(vol, vol);
                 mp.setLooping(false);
                 mp.setOnCompletionListener(player -> {
@@ -226,14 +226,17 @@ public class AdhanForegroundService extends Service {
                 mp.prepare();
                 mp.start();
 
-                int maxSeconds = durationSeconds > 0 ? durationSeconds : ("short_10s".equals(soundType) ? 16 : 210);
-                stopRunnable = () -> {
-                    killActivePlayer(AdhanForegroundService.this);
-                    sendBroadcast(new Intent(AdhanAlarmActivity.ACTION_CLOSE_UI));
-                    stopForeground(true);
-                    stopSelf();
-                };
-                stopHandler.postDelayed(stopRunnable, maxSeconds * 1000L);
+                // اگر کاربر حالت پخش کامل (durationSeconds <= 0) را انتخاب کرده یا اعلان قبل/بعد از اذان کامل است،
+                // اجازه بده تا انتهای فایل صوتی (OnCompletionListener) به طور کامل پخش شود و زود قطع نشود!
+                if (durationSeconds > 0 && "short_10s".equals(soundType)) {
+                    stopRunnable = () -> {
+                        killActivePlayer(AdhanForegroundService.this);
+                        sendBroadcast(new Intent(AdhanAlarmActivity.ACTION_CLOSE_UI));
+                        stopForeground(true);
+                        stopSelf();
+                    };
+                    stopHandler.postDelayed(stopRunnable, durationSeconds * 1000L);
+                }
             } catch (Exception e) {
                 killActivePlayer(this);
             }

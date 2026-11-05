@@ -2,40 +2,133 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="#062E22"
-    android:gravity="center_vertical"
+    android:layout_height="wrap_content"
+    android:background="@drawable/noor_widget_luxury_bg"
     android:orientation="vertical"
     android:padding="14dp">
 
-    <TextView
-        android:id="@+id/widget_title"
+    <!-- ردیف اول: نام شهر و تاریخ در راست | اذان بعدی و زمان مانده در چپ -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:gravity="right"
-        android:text="🌿 دستیار معنوی نور"
-        android:textColor="#34D399"
-        android:textSize="12sp"
-        android:textStyle="bold" />
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
 
-    <TextView
-        android:id="@+id/widget_next_prayer"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:gravity="right"
-        android:text="اوقات شرعی و یادآور اذان"
-        android:textColor="#FEF3C7"
-        android:textSize="16sp"
-        android:textStyle="bold" />
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="right"
+            android:orientation="vertical">
 
-    <TextView
-        android:id="@+id/widget_subtitle"
+            <TextView
+                android:id="@+id/widget_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="📍 افق مشهد مقدس"
+                android:textColor="#34D399"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/widget_next_prayer"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="اذان ظهر: ۱۱:۵۰"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/noor_widget_pill_bg"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:paddingLeft="10dp"
+            android:paddingTop="5dp"
+            android:paddingRight="10dp"
+            android:paddingBottom="5dp">
+
+            <TextView
+                android:id="@+id/widget_day_badge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="☀️ ذکر و اوقات امروز"
+                android:textColor="#FDE68A"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/widget_subtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="همراه معنوی نور"
+                android:textColor="#A7F3D0"
+                android:textSize="10sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- ردیف دوم: ۵ ستون اوقات شرعی به سبک ویجت iOS Azangoo با آیکون‌های نجومی -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
-        android:gravity="right"
-        android:text="برای مشاهده اوقات شرعی و تسبیح لمس کنید"
-        android:textColor="#D1FAE5"
-        android:textSize="11sp" />
+        android:layout_marginTop="10dp"
+        android:layout_marginBottom="10dp"
+        android:baselineAligned="false"
+        android:orientation="horizontal"
+        android:weightSum="5">
+
+        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:orientation="vertical">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="🌌" android:textSize="13sp" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="نیمه‌شب" android:textColor="#A7F3D0" android:textSize="10sp" />
+            <TextView android:id="@+id/widget_time_midnight" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="۲۲:۴۵" android:textColor="#FFFFFF" android:textSize="12sp" android:textStyle="bold" />
+        </LinearLayout>
+
+        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:orientation="vertical">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="🌙" android:textSize="13sp" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="مغرب" android:textColor="#A7F3D0" android:textSize="10sp" />
+            <TextView android:id="@+id/widget_time_maghrib" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="۱۷:۱۰" android:textColor="#FDE68A" android:textSize="12sp" android:textStyle="bold" />
+        </LinearLayout>
+
+        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:orientation="vertical">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="☀️" android:textSize="13sp" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="ظهر" android:textColor="#A7F3D0" android:textSize="10sp" />
+            <TextView android:id="@+id/widget_time_dhuhr" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="۱۱:۳۵" android:textColor="#FDE68A" android:textSize="12sp" android:textStyle="bold" />
+        </LinearLayout>
+
+        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:orientation="vertical">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="🌄" android:textSize="13sp" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="طلوع" android:textColor="#A7F3D0" android:textSize="10sp" />
+            <TextView android:id="@+id/widget_time_sunrise" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="۰۶:۱۵" android:textColor="#FFFFFF" android:textSize="12sp" android:textStyle="bold" />
+        </LinearLayout>
+
+        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:orientation="vertical">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="🕌" android:textSize="13sp" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="صبح" android:textColor="#A7F3D0" android:textSize="10sp" />
+            <TextView android:id="@+id/widget_time_fajr" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="۰۴:۵۰" android:textColor="#FDE68A" android:textSize="12sp" android:textStyle="bold" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- ردیف سوم: نوار ذکر پویا بر اساس ساعت روز و روز هفته -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/noor_widget_pill_bg"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="8dp">
+
+        <TextView
+            android:id="@+id/widget_dynamic_dhikr"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="✨ ذکر امروز: اللَّهُمَّ صَلِّ عَلَى مُحَمَّدٍ وَآلِ مُحَمَّدٍ وَعَجِّلْ فَرَجَهُمْ"
+            android:textColor="#FEF08A"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+    </LinearLayout>
 </LinearLayout>

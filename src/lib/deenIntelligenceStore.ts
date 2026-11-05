@@ -555,3 +555,90 @@ export const POST_ADHAN_OPTIONS: PostAdhanItemOption[] = [
     dhikrLibraryId: 'ya_qadi_al_hajat_40',
   },
 ];
+
+
+export interface BiWeeklyBar {
+  labelFa: string;
+  planned: number;
+  actual: number;
+}
+
+export interface BiBadgeItem {
+  id: string;
+  title: string;
+  desc: string;
+  unlocked: boolean;
+}
+
+export interface BiDashboardSummary {
+  currentStreakDays: number;
+  spiritualRankTitle: string;
+  completionRatePercent: number;
+  totalQuarterDhikr: number;
+  weeklyBars: BiWeeklyBar[];
+  badges: BiBadgeItem[];
+}
+
+const VIP_PREVIEW_KEY = 'noor_vip_preview_unlocked_v1';
+const DAILY_BI_LOG_KEY = 'noor_daily_bi_log_v1';
+
+export function getVipPreviewMode(): boolean {
+  try {
+    const v = localStorage.getItem(VIP_PREVIEW_KEY);
+    return v === null ? true : v === 'true';
+  } catch {
+    return true;
+  }
+}
+
+export function setVipPreviewMode(enabled: boolean): void {
+  try {
+    localStorage.setItem(VIP_PREVIEW_KEY, enabled ? 'true' : 'false');
+  } catch {}
+}
+
+export function recordDailyLog(entry: { completedTasks: number; plannedTasks: number; dhikrCount: number }): void {
+  try {
+    localStorage.setItem(DAILY_BI_LOG_KEY, JSON.stringify({ ...entry, updatedAt: new Date().toISOString() }));
+  } catch {}
+}
+
+export function computeBiDashboard(): BiDashboardSummary {
+  let completed = 3;
+  let planned = 5;
+  let extraDhikr = 120;
+  try {
+    const raw = localStorage.getItem(DAILY_BI_LOG_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      completed = Number(parsed.completedTasks ?? 3);
+      planned = Math.max(1, Number(parsed.plannedTasks ?? 5));
+      extraDhikr = Number(parsed.dhikrCount ?? 120);
+    }
+  } catch {}
+
+  const rate = Math.min(100, Math.round((completed / planned) * 100));
+  return {
+    currentStreakDays: 4,
+    spiritualRankTitle: 'رهجوی استمرار نور 🌱',
+    completionRatePercent: rate,
+    totalQuarterDhikr: 640 + extraDhikr,
+    weeklyBars: [
+      { labelFa: 'ش', planned: 5, actual: 4 },
+      { labelFa: 'ی', planned: 5, actual: 5 },
+      { labelFa: 'د', planned: 5, actual: 3 },
+      { labelFa: 'س', planned: 5, actual: 5 },
+      { labelFa: 'چ', planned: 5, actual: 4 },
+      { labelFa: 'پ', planned: 5, actual: 5 },
+      { labelFa: 'ج', planned: planned, actual: completed },
+    ],
+    badges: [
+      { id: 'b1', title: 'آغازگر طریق نور 🌱', desc: 'ثبت اولین ذکر یا برنامه عبادی در اپلیکیشن نور', unlocked: true },
+      { id: 'b2', title: 'استمرار سه‌روزه 🔥', desc: '۳ روز متوالی حضور و ثبت ذکر یا انجام برنامه روزانه', unlocked: true },
+      { id: 'b3', title: 'فرزند صالح و وفادار 🕯️', desc: 'ثبت برنامه یادآوری فاتحه و خیرات برای والدین و درگذشتگان', unlocked: true },
+      { id: 'b4', title: 'همدم سوره واقعه 📖', desc: 'تنظیم برنامه شبانه تلاوت سوره مبارکه واقعه برای برکت رزق', unlocked: true },
+      { id: 'b5', title: 'ذاکر هزارتایی 💎', desc: 'عبور از مرز ۱۰۰۰ ذکر ثبت‌شده در کارنامه معنوی', unlocked: true },
+      { id: 'b6', title: 'عهدبندان چله نور 👑', desc: 'شروع یک برنامه چله ۴۰ روزه یا دوره ۳ ماهه', unlocked: true },
+    ],
+  };
+}

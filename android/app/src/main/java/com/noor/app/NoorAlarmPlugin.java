@@ -248,8 +248,17 @@ public class NoorAlarmPlugin extends Plugin {
     public void updatePrayerWidget(PluginCall call) {
         String nextPrayerText = call.getString("nextPrayerText", "همراه معنوی نور");
         String subtitleText = call.getString("subtitleText", "اوقات شرعی و ذکر روزانه");
+        String titleText = call.getString("titleText", "📍 افق شهر شما");
         Context ctx = getContext();
-        NoorPrayerWidgetProvider.pushWidgetUpdate(ctx, "🌿 دستیار معنوی نور", nextPrayerText, subtitleText);
+        SharedPreferences prefs = ctx.getSharedPreferences("noor_widget_prefs", Context.MODE_PRIVATE);
+        SharedPreferences.Editor ed = prefs.edit();
+        if (call.getString("fajr") != null) ed.putString("fajr", call.getString("fajr"));
+        if (call.getString("sunrise") != null) ed.putString("sunrise", call.getString("sunrise"));
+        if (call.getString("dhuhr") != null) ed.putString("dhuhr", call.getString("dhuhr"));
+        if (call.getString("maghrib") != null) ed.putString("maghrib", call.getString("maghrib"));
+        if (call.getString("midnight") != null) ed.putString("midnight", call.getString("midnight"));
+        ed.apply();
+        NoorPrayerWidgetProvider.pushWidgetUpdate(ctx, titleText, nextPrayerText, subtitleText);
         call.resolve();
     }
 

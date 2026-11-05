@@ -34,14 +34,7 @@ const MACRO_GROUPS: Array<{
     icon: Star,
     match: (c) => c === 'scholars',
   },
-  {
-    key: 'quran',
-    title: 'سوره‌ها و آیات مجرب',
-    subtitle: 'واقعه، ذاریات و آیات گره‌گشا',
-    icon: BookOpen,
-    match: (c) => c === 'quran',
-  },
-  {
+    {
     key: 'mafatih',
     title: 'مفاتیح و زیارات',
     subtitle: 'امام زمان (عج)، امام رضا (ع) و والدین',
@@ -59,7 +52,7 @@ const MACRO_GROUPS: Array<{
 
 export function LibraryScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
   const { theme } = useTheme();
-  const [items, setItems] = useState<Dhikr[]>(() => getAllDhikr());
+  const [items, setItems] = useState<Dhikr[]>(() => getAllDhikr().filter((d) => d.category !== 'quran'));
   const [selected, setSelected] = useState<Dhikr | null>(null);
   const [activeGroup, setActiveGroup] = useState<MacroGroupKey>('all');
   const [favIds, setFavIds] = useState<string[]>(() => getFavoriteDhikrIds());
@@ -136,7 +129,7 @@ export function LibraryScreen({ onNavigate }: { onNavigate?: (t: Tab) => void })
       source: customSource,
       recommendedTime: customTimeNote,
     });
-    setItems(getAllDhikr());
+    setItems(getAllDhikr().filter((d) => d.category !== 'quran'));
     setShowAddCustom(false);
     setCustomArabic('');
     setCustomTranslation('');
