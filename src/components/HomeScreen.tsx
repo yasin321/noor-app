@@ -1,3 +1,4 @@
+import { NastaliqMahdiCrown, CelestialPrayerArcGauge, ThemePatternWatermark } from '@/components/FigmaLuxuryElements';
 import { CompactHeaderWeatherPill } from '@/components/WeatherCuteCard';
 import { useState, useEffect, useMemo } from 'react';
 import { MapPin, Clock, Sunrise, Sunset, Moon, Sun, CloudSun, ArrowLeft, Hand, Bell, BellOff, Compass, Sparkles, LocateFixed, Navigation, BookOpen, Sliders, Calendar } from 'lucide-react';
@@ -169,6 +170,7 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
   const [showQibla, setShowQibla] = useState(false);
   const [showMosqueFinder, setShowMosqueFinder] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
+  const [showQuickGuide, setShowQuickGuide] = useState(false);
   const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
   const [showStudioModal, setShowStudioModal] = useState(false);
   const [showQuranModal, setShowQuranModal] = useState(false);
@@ -470,6 +472,8 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="animate-pulse-ring w-14 h-14 rounded-full" style={{ background: theme.primary, opacity: 0.3 }} />
+        <NastaliqMahdiCrown onOpenGuide={() => setShowQuickGuide(true)} />
+        {showQuickGuide && <AppTutorialModal onClose={() => setShowQuickGuide(false)} />}
       </div>
     );
   }

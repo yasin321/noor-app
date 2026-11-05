@@ -1,5 +1,8 @@
 # <div align="center">🕌 همراه معنوی نور (Noor Spiritual Companion)</div>
 
+<h3 align="center">✨ اللَّهُمَّ بَارِكْ لِمَوْلَانَا صَاحِبِ الزَّمَانِ (عج) ✨</h3>
+<p align="center"><strong>طراحی، معماری و توسعه توسط: یاسین (Yasin)</strong></p>
+
 <div align="center">
 
 [![Build Noor Android APK](https://github.com/yasin321/noor-app/actions/workflows/build-apk.yml/badge.svg)](https://github.com/yasin321/noor-app/actions/workflows/build-apk.yml)
