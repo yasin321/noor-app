@@ -41,7 +41,7 @@
         <receiver
             android:name=".AdhanAlarmReceiver"
             android:enabled="true"
-            android:exported="true"
+            android:exported="false"
             android:directBootAware="true">
             <intent-filter>
                 <action android:name="com.noor.app.ACTION_TRIGGER_ADHAN_ALARM" />

@@ -1,3 +1,4 @@
+import { VipAnalyticsModal } from '@/components/VipAnalyticsModal';
 import { NastaliqMahdiCrown, CelestialPrayerArcGauge, ThemePatternWatermark } from '@/components/FigmaLuxuryElements';
 import { CompactHeaderWeatherPill } from '@/components/WeatherCuteCard';
 import { useState, useEffect, useMemo } from 'react';
@@ -170,6 +171,7 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
   const [showQibla, setShowQibla] = useState(false);
   const [showMosqueFinder, setShowMosqueFinder] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
+  const [showBiModal, setShowBiModal] = useState(false);
   const [showQuickGuide, setShowQuickGuide] = useState(false);
   const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
   const [showStudioModal, setShowStudioModal] = useState(false);
@@ -474,6 +476,7 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
         <div className="animate-pulse-ring w-14 h-14 rounded-full" style={{ background: theme.primary, opacity: 0.3 }} />
         <NastaliqMahdiCrown onOpenGuide={() => setShowQuickGuide(true)} />
         {showQuickGuide && <AppTutorialModal onClose={() => setShowQuickGuide(false)} />}
+        {showBiModal && <VipAnalyticsModal onClose={() => setShowBiModal(false)} />}
       </div>
     );
   }
@@ -577,6 +580,15 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
             <Navigation size={13} />
             <span>مسجدیاب</span>
           </button>
+            <button
+              type="button"
+              onClick={() => setShowBiModal(true)}
+              className="px-2.5 py-1.5 rounded-2xl border flex items-center gap-1 text-xs font-bold transition-transform active:scale-95"
+              style={{ background: "rgba(168, 85, 247, 0.18)", borderColor: "rgba(168, 85, 247, 0.45)", color: "#E9D5FF" }}
+              title="داشبورد تحلیلی Power BI، ماتریس حرارتی سالانه و دفترچه قضا"
+            >
+              <span>📊 آمار و VIP</span>
+            </button>
             <CompactHeaderWeatherPill
               cityName={city.nameFa}
               lat={city.lat}

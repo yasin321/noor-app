@@ -135,7 +135,7 @@ jobs:
         if: success() && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v2.0.0
+          tag_name: v2.2.${{ github.run_number }}
           name: "🌿 نسخه ۲.۰.۰ اپلیکیشن نور (Noor Official Release)"
           body: |
             ### ✨ ویژگی‌های نسخه ۲.۰.۰ اپلیکیشن نور
