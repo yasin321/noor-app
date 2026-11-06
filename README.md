@@ -1,54 +1,61 @@
 # <div align="center">🕌 همراه معنوی نور (Noor Spiritual Companion)</div>
 
 <h3 align="center">✨ اللَّهُمَّ بَارِكْ لِمَوْلَانَا صَاحِبِ الزَّمَانِ (عج) ✨</h3>
-<p align="center"><strong>طراحی، معماری و توسعه توسط: یاسین (Yasin)</strong></p>
 
 <div align="center">
 
-[![Build Noor Android APK](https://github.com/yasin321/noor-app/actions/workflows/build-apk.yml/badge.svg)](https://github.com/yasin321/noor-app/actions/workflows/build-apk.yml)
+[![Build & Release Noor Android APK](https://github.com/yasin321/noor-app/actions/workflows/build-apk.yml/badge.svg)](https://github.com/yasin321/noor-app/actions/workflows/build-apk.yml)
 [![Noor CI](https://github.com/yasin321/noor-app/actions/workflows/ci.yml/badge.svg)](https://github.com/yasin321/noor-app/actions/workflows/ci.yml)
-[![Browser E2E & Responsive](https://github.com/yasin321/noor-app/actions/workflows/e2e.yml/badge.svg)](https://github.com/yasin321/noor-app/actions/workflows/e2e.yml)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)
+[![GitHub release (latest by date)](https://img.shields.io/github/v/release/yasin321/noor-app?color=10B981&label=Latest%20Release&logo=android)](https://github.com/yasin321/noor-app/releases/latest)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.x_Strict-3178C6?logo=typescript&logoColor=white)
 ![React](https://img.shields.io/badge/React-18.x-61DAFB?logo=react&logoColor=black)
-![Capacitor Android](https://img.shields.io/badge/Capacitor_Native-Android_14%2B-3DDC84?logo=android&logoColor=white)
+![Android SDK](https://img.shields.io/badge/Android_Native-API_34%2B-3DDC84?logo=android&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-F59E0B)
 
-**یک سوپراپلیکیشن مدرن، اصیل و مهندسی‌شده برای مدیریت هوشمند اوقات شرعی، اذان‌گوی تمام‌صفحه نیتیو، مصحف آفلاین عثمان‌طه، رادار مسجدیاب ۵ موتوره و داشبورد تحلیلی معنوی (BI)**
+**سوپراپلیکیشن مدرن و مهندسی‌شده اوقات شرعی، اذان‌گوی نیتیو اندروید، مصحف عثمان‌طه، قبله‌نمای عمودی هوش مصنوعی (AR/AI)، رادار مسجدیاب ۵ موتوره و داشبورد تحلیلی Power BI**
 
-[📲 **دانلود آخرین نسخه اندروید (APK) از بخش Releases**](https://github.com/yasin321/noor-app/releases/latest) · [📖 **مستندات معماری (Architecture)**](./ARCHITECTURE.md) · [🐞 **گزارش باگ**](https://github.com/yasin321/noor-app/issues)
+[📲 **دانلود آخرین نسخه اندروید (APK) از بخش Releases**](https://github.com/yasin321/noor-app/releases/latest) · [🏛️ **معماری فنی (Architecture)**](./ARCHITECTURE.md) · [📋 **تاریخچه نسخه‌ها (Changelog)**](./CHANGELOG.md) · [🛡️ **امنیت و حریم خصوصی**](./SECURITY.md)
 
 </div>
 
 ---
 
-## ✨ ویژگی‌های برجسته و تمایزهای مهندسی (Key Highlights)
+## 🪪 شناسنامه رسمی پروژه (Product Identity Card)
 
-### ۱. 🔔 موتور آلارم و اذان‌گوی سطح کرنل اندروید (`AlarmManager.setAlarmClock`)
-- **بیدارباش تضمینی در حالت Doze Mode و صفحه قفل:** استفاده از `setAlarmClock` در لایه جاوا (`NoorAlarmPlugin.java`) و سرویس پیش‌زمینه `mediaPlayback` سازگار با **Android 14/15**.
-- **پایداری ۱۰۰٪ پس از ریستارت گوشی (Reboot Survival):** ذخیره‌سازی مشخصات کامل آلارم‌ها در `SharedPreferences` نیتیو و بازگردانی خودکار توسط `BootReceiver` و `AdhanAlarmReceiver` به محض روشن شدن گوشی (حتی بدون باز کردن اپلیکیشن).
-- **سه لایه اعلان مجزا با کنترل سرعت پخش (`0.85x` تا `2.0x`):**
-  1. **پیش از اذان:** نواهای ملکوتی (ناد علی ع، اسماء الحسنی، مناجات ربنا و فرازهای طلایی استاد عبدالباسط و منشاوی).
-  2. **خود اذان:** گنجینه اذان‌های ماندگار ایران و جهان (استاد رحیم و سلیم مؤذن‌زاده اردبیلی، استاد آقاتی حرم رضوی، سید جواد ذبیحی، صبحدل، منصوری، غلوش).
-  3. **پس از اذان:** تسبیحات حضرت زهرا (س)، آیةالکرسی، دعای فرج و **تلاوت کامل سوره‌های منتخب** با صدای استاد پرهیزگار.
+| ویژگی / مشخصه | جزئیات فنی و اجرایی |
+| :--- | :--- |
+| **نام محصول** | **همراه معنوی نور (Noor Spiritual Companion)** |
+| **خالق، طراح محصول و معمار نرم‌افزار** | **یاسین (Yasin)** — [@yasin321](https://github.com/yasin321) |
+| **نسخه فعلی (Production Release)** | `v3.0.x` (نسخه‌بندی خودکار CI/CD منطبق با هر کامیت در شاخه `main`) |
+| **پلتفرم‌های هدف** | **Android 8.0 تا Android 15 (API 26–35)** + نسخه وب پیش‌رونده (**PWA**) |
+| **پشته فناوری فرانت‌اند** | React 18 · TypeScript (Strict Mode) · Vite · Tailwind CSS · Custom SVG Vector Engine |
+| **پشته فناوری نیتیو اندروید** | Java · Capacitor Custom Bridge · `AlarmManager.setAlarmClock` · `FusedLocationProviderClient` · `ForegroundService (mediaPlayback)` |
+| **موتورهای نقشه و مکان‌یابی** | ۵ موتور موازی: **Neshan Maps API** + **OSM Nominatim** + **Overpass Radar** + **Google Places** + **Offline Android Geocoder** |
+| **پوشش تست و تضمین کیفیت** | بررسی سخت‌گیرانه تایپ‌اسکریپت (`tsc --noEmit`) + تست‌های واحد **Vitest** + تست‌های مرورگر **Playwright E2E** |
+| **مجوز انتشار (License)** | **MIT Open-Source License** |
 
-### ۲. 🧭 رادار مسجدیاب ۵ موتوره و نقشه زنده تعاملی
-- **مکان‌یابی نقطه‌ای داخل ساختمان (`Google Play Services FusedLocationProviderClient`):** ترکیب سیگنال GPS، وای‌فای و سنسورهای حرکتی با دقت زیر ۱۰ متر و حذف خطای دکل‌های مخابراتی.
-- **جستجوی موازی ۵ کاناله:** ترکیب هم‌زمان **API رسمی نشان (`v5/reverse` & `v1/search`)**، **OpenStreetMap Nominatim Viewbox**، **Overpass Mosque Radar**، **Google Maps Places** و **Geocoder آفلاین اندروید**.
-- **نقشه زنده (Interactive Street Map):** نمایش دایره آبی تپنده کاربر و پین‌های مساجد اطراف با قابلیت جابه‌جایی دستی پین روی نقشه و مسیریابی مستقیم.
+---
 
-### ۳. 📖 مصحف آفلاین عثمان‌طه و سیستم صوتی هوشمند
-- باندل کامل متن و ترجمه سوره‌های مجرب با رسم‌الخط استاندارد عثمان‌طه و حذف هوشمند بسم‌الله تکراری.
-- پخش پیوسته آیه‌به‌آیه با اسکرول خودکار و ورق زدن اتوماتیک صفحات مصحف.
+## ✨ تمایزهای کلیدی نسخه ۳.۰ (2026 Figma Redesign & Native Core)
 
-### ۴. 🌤️ هواشناسی زنده، تقویم سه‌گانه نجومی و ۱۲ پوسته مناسبتی
-- **ویجت آب‌وهوای فیگما (Figma-Grade Weather Pill):** نمایش دمای لحظه‌ای، وضعیت آسمان، کمینه/بیشینه و پیش‌بینی ۷ روزه در تقویم (با پشتیبانی از `°C` و `°F`).
-- **تقویم شمسی، قمری و میلادی:** همراه با محاسبه دقیق نجومی **قمر در عقرب** و مناسبت‌های ملی و مذهبی.
+### ۱. 🎨 طراحی رابط کاربری ۲۰۲۶ (Figma Luxury UI)
+- **افق تصویری پویا (`DynamicShrineHorizonArt`):** تصویرسازی برداری گنبد طلایی، گلدسته‌ها و افق آسمان که بر اساس شهر انتخابی (مشهد، قم، شیراز، تهران...) و وقت شرعی فعلی تغییر می‌کند.
+- **قوس هلالی بزرگ اذان (`CelestialPrayerArcGauge`):** نمایش مسیر رسیدن به اذان بعدی روی مدار هلالی نیم‌دایره با گوی نورانی متحرک.
 - **۱۲ پوسته چشمنواز (۶ پوسته مناسبتی طرح‌دار + ۶ پوسته کلاسیک):** شامل ضیافت رمضان 🌙، شب یلدا 🍉، عید نوروز 🌱، ماه محرم 🏴، ایام فاطمیه 🕯️ و شکوفه بهاری 🌸.
 
-### ۵. 📊 جعبه ابزار VIP، داشبورد BI و ویجت صفحه اصلی اندروید
-- **ابزارهای VIP:** پیگیری نماز اول وقت، دفترچه شمارش معکوس نماز و روزه قضا، سپر خلوت و سم‌زدایی دیجیتال (Khushu Focus) و حلقه ختم خانوادگی.
-- **داشبورد BI:** نمودار میله‌ای تحقق برنامه‌های هفتگی (`Planned vs. Actual`) و **نقشه حرارتی ۳۵ روزه به سبک گیت‌هاب (GitHub Heatmap)**.
-- **ویجت نیتیو ۵ ستونه اندروید (`NoorPrayerWidgetProvider`):** نمایش ۵ وقت شرعی به همراه **ذکر پویا** بر اساس روز هفته و ساعت شبانه‌روز.
+### ۲. 🧭 قبله‌نمای عمودی بدون لرزش + واقعیت افزوده (AI / AR Mode)
+- **عملکرد در حالت عمودی (Upright Portrait):** جبران مثلثاتی محور دید پشت گوشی بدون نیاز به قرار دادن افقی گوشی روی زمین.
+- **فیلتر ضدلرزش (`Circular EMA Filter`):** میانگین‌گیری برداری روی $\sin(\theta)$ و $\cos(\theta)$ برای حذف کامل پرش عقربه.
+- **نمای هوشمند دوربین (AR Kaaba Lock):** نمایش کعبه سه‌بعدی، فاصله دقیق تا مکه مکرمه، ویبره لمسی در لحظه هم‌راستایی و راهنمای کالیبراسیون شکل $\infty$.
+
+### ۳. 🔔 استودیو اعلان قبل از اذان، خود اذان و سوره کامل پس از نماز
+- **پشتیبانی از سرعت پخش (`0.85x` تا `2.0x`):** تنظیم سرعت قرائت از طریق `PlaybackParams` در هسته اندروید.
+- **گنجینه صوتی منتخب:** نوای ناد علی (ع)، تواشیح اسماء الحسنی، فرازهای طلایی عبدالباسط و منشاوی، اذان‌های ماندگار ایران (مؤذن‌زاده، آقاتی، ذبیحی، صبحدل، منصوری) و پخش کامل سوره‌های مجرب پس از اذان.
+
+### ۴. 📊 داشبورد تحلیلی Power BI و جعبه ابزار VIP
+- **۴ کارت KPI کلیدی:** زنجیره فعلی (`Current Streak`)، بهترین رکورد (`Best Streak`)، نرخ استمرار ۳۰ روزه (`Consistency %`) و مقایسه هفتگی (`▲ 81%`).
+- **ماتریس حرارتی ۵۲ هفته‌ای (`Activity History Heatmap`)** با ۳ تم نئونی (بنفش، نارنجی، زمردی) + نمودار موجی تحقق ماهانه.
+- **دفترچه هوشمند نماز و روزه قضا** + **تایمر ۱۵ دقیقه‌ای خلوت خشوع**.
 
 ---
 
@@ -56,12 +63,12 @@
 
 ```mermaid
 graph TD
-    subgraph UI ["لایه رابط کاربری (React 18 + TypeScript + Tailwind)"]
-        Home["HomeScreen (اوقات شرعی، آب‌وهوا، بنر مناسبتی)"]
+    subgraph UI ["لایه رابط کاربری ۲۰۲۶ (React 18 + TypeScript + Figma SVG)"]
+        Home["HomeScreen (افق حرم، قوس هلالی اذان، داک ۴ آیکونی)"]
+        Qibla["QiblaCompass (عمودی + ضدلرزش EMA + دوربین AR/AI)"]
         Mosque["MosqueFinderModal (نقشه زنده + ۵ موتور جستجو)"]
         Quran["QuranAndMuhasabaModal (مصحف عثمان‌طه + ترتیل)"]
-        Studio["AdhanStudioAndTravelModal (پیش/پس از اذان + سرعت پخش)"]
-        VIP["VipAnalyticsModal (داشبورد BI + دفترچه قضا + Heatmap)"]
+        VIP["VipAnalyticsModal (Power BI Heatmap + دفترچه قضا)"]
     end
 
     subgraph Bridge ["پل ارتباطی کاپاسیتور (Capacitor Native Bridge)"]
@@ -72,9 +79,8 @@ graph TD
         Fused["FusedLocationProviderClient (GPS دقیق)"]
         AlarmMgr["AlarmManager.setAlarmClock (ضد Doze)"]
         Prefs["SharedPreferences (noor_native_alarms_store)"]
-        Boot["BootReceiver & AdhanAlarmReceiver"]
+        Boot["BootReceiver (پایداری پس از ریستارت)"]
         Service["AdhanForegroundService (MediaPlayback + WakeLock + Speed)"]
-        FullUI["AdhanAlarmActivity (باز شدن روی صفحه قفل)"]
         Widget["NoorPrayerWidgetProvider (ویجت ۵ ستونه + ذکر ساعتی)"]
     end
 
@@ -86,55 +92,27 @@ graph TD
     Prefs --> Boot
     Boot --> AlarmMgr
     AlarmMgr --> Service
-    Service --> FullUI
 ```
 
 ---
 
-## 🚀 راه‌اندازی و توسعه (Quick Start & Build)
+## 🚀 دستورات نصب، تست و بیلد (Quick Start)
 
 ```bash
-# ۱. نصب وابستگی‌ها
+# ۱. نصب پکیج‌ها
 npm install
 
-# ۲. بررسی تایپ‌های TypeScript (بدون خطا)
+# ۲. بررسی تایپ‌های TypeScript و اجرای تست‌ها
 npm run typecheck
-
-# ۳. اجرای تست‌های واحد و یکپارچگی (Vitest)
 npm test
 
-# ۴. اجرای محیط توسعه وب
-npm run dev
-
-# ۵. ساخت باندل نهایی و همگام‌سازی با اندروید
+# ۳. بیلد نهایی و همگام‌سازی با پروژه اندروید
 npm run build
 npx cap sync android
 ```
 
 ---
 
-## 📁 ساختار پوشه‌های پروژه (Project Structure)
-
-```text
-noor-app/
-├── android/app/src/main/java/com/noor/app/
-│   ├── MainActivity.java              # اکتیویتی اصلی و تنظیمات شتاب‌دهنده سخت‌افزاری WebView
-│   ├── NoorAlarmPlugin.java           # پلاگین نیتیو آلارم، مکان‌یاب Fused، ویجت و مدیریت صوت
-│   ├── AdhanAlarmReceiver.java        # گیرنده سیگنال آلارم و بازیابی خودکار پس از ریستارت
-│   ├── BootReceiver.java              # تضمین کوک مجدد آلارم‌ها در رویداد BOOT_COMPLETED
-│   ├── AdhanForegroundService.java    # سرویس پخش صوت با WakeLock و تنظیم سرعت (PlaybackParams)
-│   ├── AdhanAlarmActivity.java        # رابط تمام‌صفحه بیدارکننده صفحه قفل گوشی
-│   └── NoorPrayerWidgetProvider.java  # ویجت ۵ ستونه اندروید با موتور ذکر هوشمند ساعتی/روزانه
-├── src/
-│   ├── components/                    # کامپوننت‌های رابط کاربری و مودال‌های تخصصی
-│   ├── hooks/                         # هوک‌های مدیریت تم و احراز هویت
-│   ├── lib/                           # منطق تجاری، محاسبات نجومی، سرویس‌های نقشه و هواشناسی
-│   └── App.tsx                        # هسته مسیریابی، ژست‌های لمسی و مدیریت چرخه حیات
-└── .github/workflows/                 # پایپ‌لاین‌های CI/CD، تست شبیه‌ساز و انتشار خودکار APK
-```
-
----
-
 <div align="center">
-  ساخته‌شده با ❤️ و دقت مهندسی برای تجربه‌ای آرامش‌بخش و معنوی
+  طراحی، معماری و توسعه توسط <strong>یاسین (Yasin)</strong> · منتشرشده تحت مجوز MIT
 </div>
