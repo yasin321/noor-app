@@ -1,3 +1,4 @@
+import { QiblaCompass } from '@/components/QiblaCompass';
 import { VipAnalyticsModal } from '@/components/VipAnalyticsModal';
 import { NastaliqMahdiCrown, CelestialPrayerArcGauge, ThemePatternWatermark } from '@/components/FigmaLuxuryElements';
 import { CompactHeaderWeatherPill } from '@/components/WeatherCuteCard';
