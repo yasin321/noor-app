@@ -1,3 +1,4 @@
+import { AdhanStudioAndTravelModal } from '@/components/AdhanStudioAndTravelModal';
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Plus, Bell, Trash2, Calendar, Clock, Repeat, X, Check, AlertCircle, Pencil, CheckCircle2, Circle, Sparkles, Flame } from 'lucide-react';
