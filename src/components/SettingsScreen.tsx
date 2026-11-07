@@ -64,6 +64,7 @@ const FONT_OPTIONS = [
 
 export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   const { theme, themeId, setThemeId } = useTheme();
+  const [showAdhanStudioInSettings, setShowAdhanStudioInSettings] = useState(false);
   const { profile, signOut, updateProfile, user } = useAuth();
   const [section, setSection] = useState<SettingsSection>('main');
 
