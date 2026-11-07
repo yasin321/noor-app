@@ -1,10 +1,10 @@
 import { toFaDigits } from '@/lib/jalali';
+import { Calendar } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 
-// تبدیل «۱س ۴۹د» یا «۵ س ۱ د» به «۱ ساعت و ۴۹ دقیقه» کامل و روان
 export function expandRemainingTimeFa(raw: string): string {
   if (!raw) return '';
-  let s = raw.trim();
+  const s = raw.trim();
   const hmMatch = s.match(/([0-9۰-۹]+)\s*س\s*و?\s*([0-9۰-۹]+)\s*د/);
   if (hmMatch) {
     return `${toFaDigits(hmMatch[1])} ساعت و ${toFaDigits(hmMatch[2])} دقیقه`;
@@ -20,25 +20,122 @@ export function expandRemainingTimeFa(raw: string): string {
   return toFaDigits(s);
 }
 
-// ۱. وکتورهای مناسبتی برای کارت‌های پوسته در تنظیمات و پس‌زمینه کارت‌ها
+// محاسبه شماره روز از ابتدای سال شمسی (از ۱ تا ۳۶۵ — مثلاً روز ۲۴۵ سال ۱۴۰۵ مطابق عکس نمونه شما)
+export function getDayOfJalaliYear(date: Date): {
+  dayNum: number;
+  monthName: string;
+  yearNum: number;
+  dayOfYear: number;
+} {
+  let jy = 1405;
+  let jm = 8;
+  let jd = 17;
+  try {
+    const parts = new Intl.DateTimeFormat('en-US-u-ca-persian', {
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+    }).formatToParts(date);
+    jy = parseInt(parts.find((p) => p.type === 'year')?.value || '1405', 10);
+    jm = parseInt(parts.find((p) => p.type === 'month')?.value || '8', 10);
+    jd = parseInt(parts.find((p) => p.type === 'day')?.value || '17', 10);
+  } catch {}
+  const monthNames = [
+    'فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور',
+    'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'
+  ];
+  let daysBefore = 0;
+  for (let m = 1; m < jm; m++) {
+    daysBefore += m <= 6 ? 31 : 30;
+  }
+  return {
+    dayNum: jd,
+    monthName: monthNames[jm - 1] || 'آبان',
+    yearNum: jy,
+    dayOfYear: daysBefore + jd,
+  };
+}
+
+// کارت عمودی تاریخ و روزشمار سال (دقیقاً مطابق عکس نمونه image_421791.png شما)
+export function VerticalJalaliDayCounterCard({
+  now,
+  weekdayFa,
+  onClick,
+}: {
+  now: Date;
+  weekdayFa: string;
+  onClick: () => void;
+}) {
+  const { theme } = useTheme();
+  const info = getDayOfJalaliYear(now);
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title="مشاهده تقویم کامل، مناسبت‌ها و پیش‌بینی ۷ روزه آب‌وهوا"
+      className="w-[104px] sm:w-[114px] shrink-0 rounded-[28px] p-3 border flex flex-col items-center justify-between text-center transition-transform active:scale-95 shadow-xl relative overflow-hidden"
+      style={{
+        background: `linear-gradient(180deg, color-mix(in srgb, ${theme.surfaceAlt} 94%, #000000) 0%, ${theme.surface} 100%)`,
+        borderColor: 'rgba(251, 191, 36, 0.5)',
+        boxShadow: 'inset 0 1px 1px rgba(255, 255, 255, 0.16), 0 10px 25px rgba(0, 0, 0, 0.35)',
+      }}
+    >
+      <div
+        className="w-8 h-8 rounded-xl flex items-center justify-center mb-1"
+        style={{ background: 'rgba(251, 191, 36, 0.14)', border: '1px solid rgba(251, 191, 36, 0.38)' }}
+      >
+        <Calendar size={17} color="#FBBF24" />
+      </div>
+
+      <span className="text-xs font-black text-white leading-tight">{weekdayFa}</span>
+      <strong
+        className="text-3xl font-black leading-none my-1"
+        style={{ color: '#FBBF24', textShadow: '0 2px 12px rgba(251, 191, 36, 0.35)' }}
+      >
+        {toFaDigits(info.dayNum)}
+      </strong>
+      <span className="text-[11px] font-bold text-emerald-100/90">
+        {info.monthName} {toFaDigits(info.yearNum)}
+      </span>
+
+      {/* خط جداکننده طلایی ظریف وسط کارت مطابق عکس نمونه */}
+      <div
+        className="w-4/5 h-[1px] my-2"
+        style={{ background: 'linear-gradient(90deg, transparent, rgba(251, 191, 36, 0.65), transparent)' }}
+      />
+
+      <div className="leading-tight">
+        <span className="text-[10px] font-bold text-emerald-200/80 block">روز</span>
+        <strong className="text-lg font-black text-white block my-0.5">
+          {toFaDigits(info.dayOfYear)}
+        </strong>
+        <span className="text-[10px] font-bold text-emerald-200/80 block">
+          سال {toFaDigits(info.yearNum)}
+        </span>
+      </div>
+    </button>
+  );
+}
+
+// وکتورهای مناسبتی داخل کارت‌ها (سبک و سریع بدون هیچ افت فریمی)
 export function ThemePatternWatermark({ themeId, className = '' }: { themeId: string; className?: string }) {
   if (themeId === 'ramadan_night') {
     return (
       <svg className={`pointer-events-none absolute inset-0 w-full h-full ${className}`} viewBox="0 0 320 140" fill="none">
-        <path d="M275 22C261 22 250 33 250 47C250 61 261 72 275 72C267 66 262 57 262 47C262 37 267 28 275 22Z" fill="#FBBF24" fillOpacity="0.48" />
+        <path d="M275 22C261 22 250 33 250 47C250 61 261 72 275 72C267 66 262 57 262 47C262 37 267 28 275 22Z" fill="#FBBF24" fillOpacity="0.45" />
         <line x1="45" y1="0" x2="45" y2="28" stroke="#FBBF24" strokeWidth="1.5" />
         <polygon points="45,28 56,44 45,62 34,44" fill="#F59E0B" fillOpacity="0.45" stroke="#FDE68A" strokeWidth="1" />
-        <line x1="88" y1="0" x2="88" y2="18" stroke="#38BDF8" strokeWidth="1.3" />
-        <polygon points="88,18 96,30 88,44 80,30" fill="#38BDF8" fillOpacity="0.38" stroke="#BAE6FD" strokeWidth="1" />
       </svg>
     );
   }
   if (themeId === 'yalda_fest') {
     return (
       <svg className={`pointer-events-none absolute inset-0 w-full h-full ${className}`} viewBox="0 0 320 140" fill="none">
-        <circle cx="55" cy="68" r="26" fill="#E11D48" fillOpacity="0.45" stroke="#FDA4AF" strokeWidth="1.2" />
+        <circle cx="55" cy="68" r="24" fill="#E11D48" fillOpacity="0.45" stroke="#FDA4AF" strokeWidth="1.4" />
+        <polygon points="50,44 55,34 60,44" fill="#FB7185" />
         <path d="M225 96 A34 34 0 0 0 293 96 Z" fill="#10B981" fillOpacity="0.45" />
-        <path d="M231 96 A28 28 0 0 0 287 96 Z" fill="#F43F5E" fillOpacity="0.5" />
+        <path d="M231 96 A28 28 0 0 0 287 96 Z" fill="#F43F5E" fillOpacity="0.52" />
       </svg>
     );
   }
@@ -56,7 +153,7 @@ export function ThemePatternWatermark({ themeId, className = '' }: { themeId: st
     return (
       <svg className={`pointer-events-none absolute inset-0 w-full h-full ${className}`} viewBox="0 0 320 140" fill="none">
         <line x1="52" y1="14" x2="52" y2="125" stroke="#F59E0B" strokeWidth="2.2" />
-        <path d="M52 20 C88 14 112 34 142 24 L142 58 C112 68 88 48 52 54 Z" fill="#EF4444" fillOpacity="0.45" />
+        <path d="M52 20 C88 14 112 34 142 24 L142 58 C112 68 88 48 52 54 Z" fill="#EF4444" fillOpacity="0.48" />
       </svg>
     );
   }
@@ -71,7 +168,7 @@ export function ThemePatternWatermark({ themeId, className = '' }: { themeId: st
   return null;
 }
 
-// ۲. صحنه گرافیکی بزرگ و باشکوه بالای صفحه خانه که با انتخاب هر پوسته و هر شهر تغییر رنگ و طرح می‌دهد
+// صحنه گرافیکی بالای صفحه با وکتورهای اختصاصی هر مناسبت (یلدا، نوروز، محرم، رمضان، فاطمیه و حرم مطهر) — فوق‌سریع و بدون لگ
 export function DynamicShrineHorizonArt({
   cityName,
   themeId,
@@ -94,123 +191,102 @@ export function DynamicShrineHorizonArt({
 
   return (
     <div
-      className="relative w-full h-[215px] overflow-hidden select-none"
+      className="relative w-full h-[205px] overflow-hidden select-none"
       style={{
         background: theme.gradient,
         borderBottom: `1px solid ${theme.border}`,
       }}
     >
-      {/* هاله نورانی مرکزی */}
-      <div
-        className="absolute left-1/2 -translate-x-1/2 top-8 w-80 h-44 rounded-full blur-2xl opacity-60 pointer-events-none"
-        style={{ background: `radial-gradient(circle, ${domeColor} 0%, transparent 72%)` }}
-      />
-
-      {/* تصویرسازی کامل گنبد، گلدسته‌ها، فانوس‌های مناسبتی، سروها و افق شهر */}
-      <svg viewBox="0 0 420 220" className="w-full h-full object-cover" fill="none" preserveAspectRatio="xMidYBottom slice">
+      <svg viewBox="0 0 420 210" className="w-full h-full object-cover" fill="none" preserveAspectRatio="xMidYBottom slice">
         <defs>
-          <linearGradient id="shrineGoldDomeDyn" x1="0%" y1="0%" x2="100%" y2="100%">
+          <linearGradient id="shrineGoldDomeFast" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stopColor="#FEF08A" />
             <stop offset="50%" stopColor={domeColor} />
             <stop offset="100%" stopColor="#78350F" />
           </linearGradient>
-          <linearGradient id="minaretGlowDyn" x1="50%" y1="0%" x2="50%" y2="100%">
-            <stop offset="0%" stopColor="#FDE68A" />
-            <stop offset="100%" stopColor="#92400E" />
-          </linearGradient>
-          <linearGradient id="horizonFadeBottom" x1="50%" y1="0%" x2="50%" y2="100%">
+          <linearGradient id="horizonFadeFast" x1="50%" y1="0%" x2="50%" y2="100%">
             <stop offset="0%" stopColor={theme.bg} stopOpacity="0" />
-            <stop offset="82%" stopColor={theme.bg} stopOpacity="0.75" />
+            <stop offset="82%" stopColor={theme.bg} stopOpacity="0.78" />
             <stop offset="100%" stopColor={theme.bg} stopOpacity="1" />
           </linearGradient>
         </defs>
 
-        {/* ستارگان و هلال ماه طلایی */}
-        <circle cx="55" cy="36" r="1.6" fill="#FEF08A" fillOpacity="0.85" />
-        <circle cx="105" cy="24" r="1.3" fill="#FEF08A" fillOpacity="0.7" />
-        <circle cx="325" cy="30" r="1.8" fill="#FEF08A" fillOpacity="0.8" />
-        <circle cx="370" cy="52" r="1.4" fill="#FEF08A" fillOpacity="0.65" />
-        <path d="M84 52C73 52 64 61 64 72C64 83 73 92 84 92C77 87 73 80 73 72C73 64 77 57 84 52Z" fill="#FDE047" fillOpacity="0.9" />
+        {/* ستارگان و هلال ماه */}
+        <circle cx="55" cy="40" r="1.6" fill="#FEF08A" fillOpacity="0.85" />
+        <circle cx="115" cy="28" r="1.4" fill="#FEF08A" fillOpacity="0.7" />
+        <circle cx="335" cy="34" r="1.7" fill="#FEF08A" fillOpacity="0.8" />
+        <path d="M78 58C68 58 60 66 60 76C60 86 68 94 78 94C72 90 68 83 68 76C68 69 72 62 78 58Z" fill="#FDE047" fillOpacity="0.9" />
 
-        {/* المان‌های اختصاصی هر تم مناسبتی در آسمان افق */}
-        {themeId === 'ramadan_night' && (
-          <g>
-            <line x1="340" y1="0" x2="340" y2="38" stroke="#FBBF24" strokeWidth="1.5" />
-            <polygon points="340,38 352,55 340,74 328,55" fill="#F59E0B" fillOpacity="0.75" stroke="#FEF08A" strokeWidth="1.2" />
-            <line x1="380" y1="0" x2="380" y2="24" stroke="#38BDF8" strokeWidth="1.5" />
-            <polygon points="380,24 389,37 380,52 371,37" fill="#38BDF8" fillOpacity="0.65" stroke="#E0F2FE" strokeWidth="1" />
-          </g>
-        )}
-
+        {/* طرح اختصاصی شب یلدا (انار و هندوانه در افق) */}
         {themeId === 'yalda_fest' && (
           <g>
-            <circle cx="355" cy="66" r="22" fill="#E11D48" fillOpacity="0.65" stroke="#FDA4AF" strokeWidth="1.5" />
-            <polygon points="350,44 355,35 360,44" fill="#FB7185" />
+            <circle cx="348" cy="82" r="24" fill="#E11D48" fillOpacity="0.75" stroke="#FDA4AF" strokeWidth="1.5" />
+            <polygon points="342,58 348,48 354,58" fill="#FB7185" />
+            <path d="M40 135 A32 32 0 0 0 104 135 Z" fill="#10B981" fillOpacity="0.7" />
+            <path d="M45 135 A27 27 0 0 0 99 135 Z" fill="#F43F5E" fillOpacity="0.8" />
           </g>
         )}
 
+        {/* طرح اختصاصی عید نوروز و بهار (شکوفه‌های بهاری و سبزه) */}
         {(themeId === 'nowruz_spring' || themeId === 'blossom_serenity') && (
           <g>
-            <circle cx="348" cy="54" r="12" fill="#F472B6" fillOpacity="0.65" />
-            <circle cx="348" cy="54" r="4" fill="#FEF08A" />
-            <circle cx="382" cy="40" r="9" fill="#34D399" fillOpacity="0.65" />
-            <circle cx="382" cy="40" r="3" fill="#FEF08A" />
+            <circle cx="345" cy="70" r="15" fill="#F472B6" fillOpacity="0.7" />
+            <circle cx="345" cy="70" r="5" fill="#FEF08A" />
+            <circle cx="380" cy="54" r="11" fill="#34D399" fillOpacity="0.7" />
+            <circle cx="380" cy="54" r="4" fill="#FEF08A" />
+            <circle cx="52" cy="82" r="13" fill="#F472B6" fillOpacity="0.65" />
+            <circle cx="52" cy="82" r="4" fill="#FEF08A" />
           </g>
         )}
 
+        {/* طرح اختصاصی ماه محرم و عاشورا (بیرق‌های سرخ و کتیبه) */}
         {themeId === 'muharram_ashura' && (
           <g>
-            <line x1="345" y1="18" x2="345" y2="120" stroke="#F59E0B" strokeWidth="2.5" />
-            <path d="M345 22 C372 16 392 32 412 24 L412 52 C392 60 372 44 345 50 Z" fill="#EF4444" fillOpacity="0.75" />
+            <line x1="340" y1="26" x2="340" y2="145" stroke="#F59E0B" strokeWidth="2.5" />
+            <path d="M340 30 C368 24 388 40 410 32 L410 62 C388 70 368 54 340 60 Z" fill="#EF4444" fillOpacity="0.82" />
+            <line x1="65" y1="36" x2="65" y2="145" stroke="#F59E0B" strokeWidth="2.2" />
+            <path d="M65 40 C90 34 108 48 128 40 L128 66 C108 74 90 60 65 66 Z" fill="#991B1B" fillOpacity="0.85" />
           </g>
         )}
 
-        {/* پرندگان حرم */}
-        <path d="M105 96 Q109 91 113 96 Q117 91 121 96" stroke="#FEF08A" strokeWidth="1.4" strokeOpacity="0.75" fill="none" />
-        <path d="M128 84 Q131 80 134 84 Q137 80 140 84" stroke="#FEF08A" strokeWidth="1.2" strokeOpacity="0.65" fill="none" />
+        {/* طرح اختصاصی ماه رمضان (فانوس‌های طلایی) */}
+        {themeId === 'ramadan_night' && (
+          <g>
+            <line x1="342" y1="0" x2="342" y2="48" stroke="#FBBF24" strokeWidth="1.6" />
+            <polygon points="342,48 355,66 342,86 329,66" fill="#F59E0B" fillOpacity="0.8" stroke="#FEF08A" strokeWidth="1.2" />
+            <line x1="382" y1="0" x2="382" y2="32" stroke="#38BDF8" strokeWidth="1.5" />
+            <polygon points="382,32 392,46 382,62 372,46" fill="#38BDF8" fillOpacity="0.7" stroke="#E0F2FE" strokeWidth="1" />
+          </g>
+        )}
 
-        {/* کوهستان و افق دوردست */}
-        <path d="M0 178 Q105 142 210 168 T420 158 L420 220 L0 220 Z" fill={theme.surface} fillOpacity="0.75" />
+        {/* گلدسته‌ها و گنبد طلایی حرم در مرکز افق */}
+        <path d="M0 172 Q105 138 210 162 T420 152 L420 210 L0 210 Z" fill={theme.surface} fillOpacity="0.78" />
+        <rect x="152" y="54" width="11" height="120" fill="url(#shrineGoldDomeFast)" rx="2" />
+        <rect x="148" y="74" width="19" height="6" rx="2" fill="#FEF08A" />
+        <polygon points="157.5,36 151,54 164,54" fill="#FEF08A" />
 
-        {/* گلدسته‌های طلایی حرم (راست و چپ گنبد) */}
-        <rect x="152" y="54" width="11" height="126" fill="url(#minaretGlowDyn)" rx="2" />
-        <rect x="148" y="76" width="19" height="6" rx="2" fill="#FEF08A" />
-        <polygon points="157.5,35 151,54 164,54" fill="#FEF08A" />
-        <line x1="157.5" y1="22" x2="157.5" y2="35" stroke="#FEF08A" strokeWidth="1.8" />
+        <rect x="258" y="62" width="10" height="112" fill="url(#shrineGoldDomeFast)" rx="2" />
+        <rect x="254" y="80" width="18" height="5" rx="2" fill="#FEF08A" />
+        <polygon points="263,45 257,62 269,62" fill="#FEF08A" />
 
-        <rect x="258" y="64" width="10" height="116" fill="url(#minaretGlowDyn)" rx="2" />
-        <rect x="254" y="84" width="18" height="5" rx="2" fill="#FEF08A" />
-        <polygon points="263,46 257,64 269,64" fill="#FEF08A" />
+        <path d="M174 172 C174 110 246 110 246 172 Z" fill="url(#shrineGoldDomeFast)" stroke="#FEF08A" strokeWidth="1.5" />
+        <line x1="210" y1="94" x2="210" y2="120" stroke="#FEF08A" strokeWidth="2.2" />
+        <circle cx="210" cy="103" r="3.8" fill="#FEF08A" />
 
-        {/* گنبد طلایی باشکوه در مرکز */}
-        <path d="M174 178 C174 114 246 114 246 178 Z" fill="url(#shrineGoldDomeDyn)" stroke="#FEF08A" strokeWidth="1.5" />
-        <line x1="210" y1="98" x2="210" y2="126" stroke="#FEF08A" strokeWidth="2.2" />
-        <circle cx="210" cy="108" r="3.8" fill="#FEF08A" />
-
-        {/* ایوان و رواق‌های حرم */}
-        <rect x="122" y="164" width="176" height="38" rx="4" fill={theme.surfaceAlt} stroke="#FBBF24" strokeWidth="1.1" strokeOpacity="0.65" />
-        <path d="M198 202 L198 172 C198 162 222 162 222 172 L222 202 Z" fill={theme.bg} stroke={theme.primary} strokeWidth="1.2" />
-
-        {/* درختان سرو حاشیه */}
-        <circle cx="22" cy="158" r="36" fill={theme.surface} fillOpacity="0.88" />
-        <circle cx="48" cy="178" r="26" fill={theme.surfaceAlt} fillOpacity="0.88" />
-        <circle cx="398" cy="162" r="34" fill={theme.surface} fillOpacity="0.85" />
-
-        {/* محو شدن نرم پایین تصویر به داخل رنگ پس‌زمینه پوسته انتخابی */}
-        <rect x="0" y="145" width="420" height="75" fill="url(#horizonFadeBottom)" />
+        <rect x="122" y="160" width="176" height="36" rx="4" fill={theme.surfaceAlt} stroke="#FBBF24" strokeWidth="1.1" strokeOpacity="0.65" />
+        <rect x="0" y="140" width="420" height="70" fill="url(#horizonFadeFast)" />
       </svg>
     </div>
   );
 }
 
-// ۳. کتیبه نستعلیق طلایی «اللَّهُمَّ بَارِكْ لِمَوْلَانَا صَاحِبِ الزَّمَانِ (عج)»
 export function NastaliqMahdiCrown({ onOpenGuide }: { onOpenGuide?: () => void }) {
   const { theme } = useTheme();
   return (
     <div
-      className="px-3 py-1.5 rounded-2xl border flex items-center justify-between gap-2 backdrop-blur-md shadow-md"
+      className="px-3 py-1.5 rounded-2xl border flex items-center justify-between gap-2 shadow-md"
       style={{
-        background: `color-mix(in srgb, ${theme.surface} 82%, transparent)`,
+        background: `color-mix(in srgb, ${theme.surface} 90%, #000000)`,
         borderColor: theme.border,
       }}
     >
@@ -245,7 +321,7 @@ export function NastaliqMahdiCrown({ onOpenGuide }: { onOpenGuide?: () => void }
   );
 }
 
-// ۴. قوس هلالی بزرگ ۲۰۲۶ (بدون نوار خطی اضافه در پایین + نوشتن کامل «۱ ساعت و ۴۹ دقیقه تا اذان مغرب»)
+// قوس هلالی بزرگ با نشانگر خورشید/ماه طلایی روی سرِ قوس (به جای دایره سفید گنگ!)
 export function CelestialPrayerArcGauge({
   progressPercent,
   remainingText,
@@ -261,22 +337,22 @@ export function CelestialPrayerArcGauge({
   accentColor: string;
   primaryColor: string;
 }) {
-  const clamped = Math.max(8, Math.min(100, progressPercent || 35));
-  const r = 106;
+  const clamped = Math.max(10, Math.min(100, progressPercent || 42));
+  const r = 92;
   const arcLen = Math.PI * r;
   const dashOffset = arcLen - (arcLen * clamped) / 100;
   const angleRad = Math.PI * (1 - clamped / 100);
-  const cx = 130 - r * Math.cos(angleRad);
-  const cy = 116 - r * Math.sin(angleRad);
+  const cx = 115 - r * Math.cos(angleRad);
+  const cy = 104 - r * Math.sin(angleRad);
 
   const fullRemainingFa = expandRemainingTimeFa(remainingText);
 
   return (
-    <div className="relative flex flex-col items-center justify-center pt-1 pb-1">
-      <div className="relative w-[256px] h-[126px] flex flex-col items-center justify-end">
-        <svg viewBox="0 0 260 128" className="absolute inset-0 w-full h-full overflow-visible pointer-events-none">
+    <div className="relative flex flex-col items-center justify-center">
+      <div className="relative w-[224px] h-[112px] flex flex-col items-center justify-end">
+        <svg viewBox="0 0 230 116" className="absolute inset-0 w-full h-full overflow-visible pointer-events-none">
           <defs>
-            <linearGradient id="heroArcGrad2026Clean" x1="100%" y1="0%" x2="0%" y2="0%">
+            <linearGradient id="heroArcGradGolden" x1="100%" y1="0%" x2="0%" y2="0%">
               <stop offset="0%" stopColor={primaryColor} />
               <stop offset="55%" stopColor={accentColor} />
               <stop offset="100%" stopColor="#FEF08A" />
@@ -284,55 +360,53 @@ export function CelestialPrayerArcGauge({
           </defs>
           {/* مسیر پس‌زمینه هلال */}
           <path
-            d="M 24 116 A 106 106 0 0 1 236 116"
+            d="M 23 104 A 92 92 0 0 1 207 104"
             fill="none"
             stroke="rgba(255, 255, 255, 0.13)"
-            strokeWidth="8.5"
+            strokeWidth="8"
             strokeLinecap="round"
           />
-          {/* مسیر پرشونده هلال */}
+          {/* مسیر پرشونده طلایی هلال */}
           <path
-            d="M 24 116 A 106 106 0 0 1 236 116"
+            d="M 23 104 A 92 92 0 0 1 207 104"
             fill="none"
-            stroke="url(#heroArcGrad2026Clean)"
-            strokeWidth="8.5"
+            stroke="url(#heroArcGradGolden)"
+            strokeWidth="8"
             strokeLinecap="round"
             strokeDasharray={arcLen}
             strokeDashoffset={dashOffset}
           />
-          {/* گوی نورانی روی مدار هلال */}
-          <circle cx={cx} cy={cy} r="11" fill={accentColor} fillOpacity="0.34" />
-          <circle cx={cx} cy={cy} r="5.5" fill="#FEF08A" stroke="#FFFFFF" strokeWidth="1.8" />
+          {/* نشانگر خورشید/ستاره طلایی روی سرِ هلال (نشان‌دهنده میزان زمان سپری‌شده تا اذان) */}
+          <circle cx={cx} cy={cy} r="10" fill="#F59E0B" fillOpacity="0.32" />
+          <circle cx={cx} cy={cy} r="5.5" fill="#FBBF24" stroke="#FEF08A" strokeWidth="2" />
         </svg>
 
-        {/* محتوای داخل هلال */}
         <div className="relative z-10 text-center pb-0.5">
           <span
-            className="inline-block px-3 py-0.5 rounded-full text-[11px] font-black mb-1"
+            className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-black mb-0.5"
             style={{
-              background: `color-mix(in srgb, ${primaryColor} 24%, transparent)`,
+              background: `color-mix(in srgb, ${primaryColor} 22%, transparent)`,
               color: primaryColor,
               border: `1px solid ${primaryColor}`,
             }}
           >
             نماز بعدی
           </span>
-          <h2 className="text-2xl font-black text-white leading-tight">
+          <h2 className="text-xl font-black text-white leading-tight">
             نماز {nextPrayerName}
           </h2>
           <div
-            className="text-4xl font-black tracking-tight mt-0.5"
-            style={{ color: accentColor, textShadow: '0 4px 18px rgba(245, 158, 11, 0.35)' }}
+            className="text-3xl sm:text-4xl font-black tracking-tight mt-0.5"
+            style={{ color: accentColor, textShadow: '0 4px 16px rgba(245, 158, 11, 0.35)' }}
           >
             {toFaDigits(nextPrayerTime)}
           </div>
         </div>
       </div>
 
-      {/* متن کامل و شیوای زمان باقی‌مانده (بدون نوار خطی اضافه!) */}
-      <div className="mt-2.5 px-4 py-1.5 rounded-full border bg-black/20 border-white/10 flex items-center justify-center gap-1.5">
-        <span className="text-xs">🕒</span>
-        <span className="text-xs font-black text-white">
+      <div className="mt-2 px-3 py-1 rounded-full border bg-black/25 border-white/10 flex items-center justify-center gap-1.5">
+        <span className="text-[11px]">⏳</span>
+        <span className="text-[11px] font-black text-white">
           {fullRemainingFa} تا اذان {nextPrayerName}
         </span>
       </div>

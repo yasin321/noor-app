@@ -281,33 +281,27 @@ export function CompactHeaderWeatherPill({
     };
   }, [lat, lng]);
 
-  const cond = weather?.condition ?? 'sunny';
-  const curTemp = weather ? formatTempValue(weather.tempC, unit) : 22;
-  const minTemp = weather ? formatTempValue(weather.tempMinC, unit) : 14;
-  const maxTemp = weather ? formatTempValue(weather.tempMaxC, unit) : 25;
+  const cond = weather?.condition ?? 'partly_cloudy';
+  const curTemp = weather ? formatTempValue(weather.tempC, unit) : 24;
   const unitSym = unit === 'F' ? '°F' : '°';
 
   return (
     <button
       type="button"
       onClick={onOpenCalendar}
-      title={`آب‌وهوای امروز ${cityName} — برای مشاهده پیش‌بینی ۷ روزه در تقویم لمس کنید`}
-      className="px-2.5 py-1 rounded-2xl border flex items-center gap-1.5 transition-transform active:scale-95 shadow-sm"
+      title={`آب‌وهوای ${cityName} — لمس برای پیش‌بینی ۷ روزه`}
+      className="px-3.5 py-1.5 rounded-full border flex items-center gap-2 transition-transform active:scale-95 shadow-lg"
       style={{
-        background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.22) 0%, rgba(251, 191, 36, 0.16) 55%, rgba(15, 41, 34, 0.85) 100%)',
-        borderColor: 'rgba(251, 191, 36, 0.45)',
+        background: 'linear-gradient(135deg, rgba(14, 58, 47, 0.92) 0%, rgba(7, 32, 26, 0.96) 100%)',
+        borderColor: 'rgba(251, 191, 36, 0.55)',
+        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.35)',
       }}
     >
-      <div className="-my-1">
-        <WeatherCuteArtwork condition={cond} size={24} />
-      </div>
-      <div className="text-right leading-tight">
-        <div className="flex items-center gap-1">
-          <span className="text-xs font-black text-white" dir="ltr">{toFaDigits(curTemp)}{unitSym}</span>
-        </div>
-        <span className="text-[9px] font-bold text-emerald-200/90 block">
-          {toFaDigits(minTemp)}°/{toFaDigits(maxTemp)}°
-        </span>
+      <span className="text-base sm:text-lg font-black text-white tracking-tight leading-none" dir="ltr">
+        {toFaDigits(curTemp)}{unitSym}
+      </span>
+      <div className="-my-1 shrink-0">
+        <WeatherCuteArtwork condition={cond} size={30} />
       </div>
     </button>
   );
