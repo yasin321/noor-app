@@ -1,7 +1,7 @@
 import { QiblaCompass } from '@/components/QiblaCompass';
 import { VipAnalyticsModal } from '@/components/VipAnalyticsModal';
-import { NastaliqMahdiCrown, CelestialPrayerArcGauge, ThemePatternWatermark } from '@/components/FigmaLuxuryElements';
 import { CompactHeaderWeatherPill } from '@/components/WeatherCuteCard';
+import { NastaliqMahdiCrown, CelestialPrayerArcGauge, ThemePatternWatermark, DynamicShrineHorizonArt } from '@/components/FigmaLuxuryElements';
 import { useState, useEffect, useMemo } from 'react';
 import { MapPin, Clock, Sunrise, Sunset, Moon, Sun, CloudSun, ArrowLeft, Hand, Bell, BellOff, Compass, Sparkles, LocateFixed, Navigation, BookOpen, Sliders, Calendar } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
@@ -474,6 +474,8 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
   if (!times) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
+      {/* پس‌زمینه پانورامای حرم و افق شهر ۲۰۲۶ */}
+      <DynamicShrineHorizonArt cityName={city.nameFa} themeId={theme.id} nextPrayerKey={times ? (getNextPrayer(times)?.key ?? 'fajr') : 'fajr'} />
         <div className="animate-pulse-ring w-14 h-14 rounded-full" style={{ background: theme.primary, opacity: 0.3 }} />
         <NastaliqMahdiCrown onOpenGuide={() => setShowQuickGuide(true)} />
         {showQuickGuide && <AppTutorialModal onClose={() => setShowQuickGuide(false)} />}
@@ -980,3 +982,5 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
     </div>
   );
 }
+
+export const NOOR_UI_BUILD_STAMP = '2026-v3-1794029488910';
