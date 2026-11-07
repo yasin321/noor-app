@@ -159,7 +159,7 @@ function getContextualSpiritualTip(now: Date): {
   };
 }
 
-export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
+export function LegacyHomeScreenUnused({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
   const { theme } = useTheme();
   const { profile, user, updateProfile } = useAuth();
   const [times, setTimes] = useState<PrayerTimes | null>(null);
@@ -984,3 +984,418 @@ export function HomeScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
 }
 
 export const NOOR_UI_BUILD_STAMP = '2026-v3-1794029488910';
+
+
+// === START_2026_MASTER_HOMESCREEN ===
+export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
+  const { theme } = useTheme();
+  const [now, setNow] = useState(() => new Date());
+  const [city, setCity] = useState(() => {
+    try {
+      const saved = localStorage.getItem('noor_selected_city');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed.lat === 'number' && typeof parsed.lng === 'number') {
+          return parsed;
+        }
+      }
+    } catch {}
+    return { name: 'Tehran', nameFa: 'تهران', lat: 35.6892, lng: 51.3890 };
+  });
+
+  const [calcMethod] = useState<any>(() => {
+    try {
+      return localStorage.getItem('noor_calc_method') || 'tehran';
+    } catch {
+      return 'tehran';
+    }
+  });
+
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [showMosqueFinder, setShowMosqueFinder] = useState(false);
+  const [showQuranAndMuhasaba, setShowQuranAndMuhasaba] = useState(false);
+  const [showStudioAndTravel, setShowStudioAndTravel] = useState(false);
+  const [showQibla, setShowQibla] = useState(false);
+  const [showBiModal, setShowBiModal] = useState(false);
+  const [showQuickGuide, setShowQuickGuide] = useState(false);
+  const [showCityPicker, setShowCityPicker] = useState(false);
+  const [modulesVis] = useState(() => getHomeModulesVisibility());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 15000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const times = calculatePrayerTimes(now, city.lat, city.lng, calcMethod);
+  const nextPrayerInfo = times ? getNextPrayer(times) : null;
+  const nextPrayer = {
+    key: nextPrayerInfo?.key ?? 'dhuhr',
+    nameFa: nextPrayerInfo?.nameFa ?? 'ظهر',
+    time: nextPrayerInfo?.time ?? (times?.dhuhr || '12:00'),
+    remaining: nextPrayerInfo?.remaining ?? '۱ ساعت و ۲۰ دقیقه',
+    progress: (nextPrayerInfo as { progress?: number } | null)?.progress ?? 62,
+  };
+
+  const quickCities = [
+    { name: 'Mashhad', nameFa: 'مشهد مقدس', lat: 36.2972, lng: 59.6067 },
+    { name: 'Tehran', nameFa: 'تهران', lat: 35.6892, lng: 51.3890 },
+    { name: 'Qom', nameFa: 'قم', lat: 34.6416, lng: 50.8746 },
+    { name: 'Isfahan', nameFa: 'اصفهان', lat: 32.6546, lng: 51.6680 },
+    { name: 'Shiraz', nameFa: 'شیراز', lat: 29.5918, lng: 52.5837 },
+    { name: 'Tabriz', nameFa: 'تبریز', lat: 38.0962, lng: 46.2738 },
+    { name: 'Karbala', nameFa: 'کربلای معلی', lat: 32.6160, lng: 44.0323 },
+    { name: 'Najaf', nameFa: 'نجف اشرف', lat: 31.9959, lng: 44.3146 },
+    { name: 'Makkah', nameFa: 'مکه مکرمه', lat: 21.4225, lng: 39.8262 },
+    { name: 'Madinah', nameFa: 'مدینه منوره', lat: 24.4672, lng: 39.6111 },
+  ];
+
+  const prayerColumns = [
+    { key: 'fajr', nameFa: 'صبح', time: times?.fajr ?? '05:05', icon: Sunrise },
+    { key: 'sunrise', nameFa: 'طلوع', time: times?.sunrise ?? '06:31', icon: Sun },
+    { key: 'dhuhr', nameFa: 'ظهر', time: times?.dhuhr ?? '11:50', icon: Sun },
+    ...((modulesVis as any).showAsrPrayer !== false ? [{ key: 'asr', nameFa: 'عصر', time: times?.asr ?? '14:42', icon: Sunset }] : []),
+    { key: 'maghrib', nameFa: 'مغرب', time: times?.maghrib ?? '17:23', icon: Sunset },
+    ...((modulesVis as any).showIshaPrayer !== false ? [{ key: 'isha', nameFa: 'عشاء', time: times?.isha ?? '18:11', icon: Moon }] : []),
+  ];
+
+  return (
+    <div className="min-h-screen pb-28 relative overflow-x-hidden select-none" dir="rtl">
+      {/* ۱. افق تصویری پویا از گنبد و گلدسته حرم و آسمان شهر (۲۰۲۶) */}
+      <DynamicShrineHorizonArt cityName={city.nameFa} themeId={theme.id} nextPrayerKey={nextPrayer.key} />
+
+      <div className="max-w-lg mx-auto px-4 pt-3 relative z-10">
+        {/* ۲. کتیبه نستعلیق طلایی اللهم بارک لمولانا صاحب الزمان (عج) */}
+        <NastaliqMahdiCrown onOpenGuide={() => setShowQuickGuide(true)} />
+        {showQuickGuide && <AppTutorialModal onClose={() => setShowQuickGuide(false)} />}
+        {showBiModal && <VipAnalyticsModal onClose={() => setShowBiModal(false)} />}
+
+        {/* ۳. نوار کپسولی ۳تایی بالای صفحه (انتخاب شهر | دمای زنده | تاریخ تقویم) — بدون هیچ‌گونه روی هم افتادن متن */}
+        <div className="grid grid-cols-3 gap-2 mb-3">
+          <button
+            type="button"
+            onClick={() => setShowCityPicker(true)}
+            className="py-2 px-2.5 rounded-2xl border flex items-center justify-center gap-1.5 text-xs font-black backdrop-blur-md transition-transform active:scale-95 shadow-sm"
+            style={{ background: 'rgba(10, 32, 26, 0.80)', borderColor: 'rgba(52, 211, 153, 0.42)', color: '#ECFDF5' }}
+          >
+            <MapPin size={14} color="#34D399" />
+            <span className="truncate">{city.nameFa}</span>
+          </button>
+
+          <div className="flex justify-center">
+            <CompactHeaderWeatherPill
+              cityName={city.nameFa}
+              lat={city.lat}
+              lng={city.lng}
+              onOpenCalendar={() => setShowCalendar(true)}
+            />
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setShowCalendar(true)}
+            className="py-2 px-2 rounded-2xl border flex items-center justify-center gap-1 text-[11px] font-black backdrop-blur-md transition-transform active:scale-95 shadow-sm"
+            style={{ background: 'rgba(10, 32, 26, 0.80)', borderColor: 'rgba(251, 191, 36, 0.42)', color: '#FEF08A' }}
+          >
+            <Calendar size={13} color="#FBBF24" />
+            <span className="truncate">تقویم و هوا ▾</span>
+          </button>
+        </div>
+
+        {/* ۴. ردیف خوش‌آمدگویی «سلام، یاسین ✨» + دکمه زنگوله استودیو اذان و نشانگر «نور» */}
+        <div className="flex items-center justify-between px-1 mb-3">
+          <div className="flex items-center gap-2.5">
+            <div
+              className="w-11 h-11 rounded-full border-2 flex items-center justify-center text-lg shadow-lg"
+              style={{ background: 'linear-gradient(135deg, #065F46, #042F2E)', borderColor: '#FBBF24' }}
+            >
+              👤
+            </div>
+            <div>
+              <h1 className="text-base font-black text-white drop-shadow">سلام، یاسین ✨</h1>
+              <p className="text-[11px] font-bold text-emerald-200/95">
+                {getJalaliWeekday(now)} · به افق {city.nameFa}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowStudioAndTravel(true)}
+              className="w-10 h-10 rounded-2xl border flex items-center justify-center relative backdrop-blur-md transition-transform active:scale-95"
+              style={{ background: 'rgba(10, 32, 26, 0.82)', borderColor: 'rgba(251, 191, 36, 0.5)', color: '#FBBF24' }}
+              title="استودیو تواشیح قبل اذان و سوره پس از اذان"
+            >
+              <Bell size={18} />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500" />
+            </button>
+            <div className="text-left">
+              <span className="text-xl font-black text-amber-300 tracking-tight block leading-none">نور</span>
+              <span className="text-[9px] font-bold text-emerald-200/80">همراه معنوی شما</span>
+            </div>
+          </div>
+        </div>
+
+        {/* ۵. کارت شیشه‌ای نماز بعدی با قوس هلالی بزرگ ۲۰۲۶ (Large Celestial Horizon Arc) */}
+        <div
+          className="rounded-3xl p-4 mb-3.5 relative overflow-hidden border shadow-2xl backdrop-blur-xl"
+          style={{
+            background: 'linear-gradient(145deg, rgba(13, 56, 44, 0.90) 0%, rgba(7, 28, 23, 0.96) 100%)',
+            borderColor: 'rgba(251, 191, 36, 0.45)',
+            boxShadow: '0 16px 40px rgba(0, 0, 0, 0.48), inset 0 1px 1px rgba(255, 255, 255, 0.2)',
+          }}
+        >
+          <ThemePatternWatermark themeId={theme.id} className="opacity-75" />
+          <CelestialPrayerArcGauge
+            progressPercent={nextPrayer.progress}
+            remainingText={nextPrayer.remaining}
+            nextPrayerName={nextPrayer.nameFa}
+            nextPrayerTime={nextPrayer.time}
+            accentColor={theme.accent}
+            primaryColor={theme.primary}
+          />
+        </div>
+
+        {/* ۶. داک ۴ آیکونی شیشه‌ای ۲۰۲۶ (قرآن | تقویم | مسجدیاب | قبله‌نما AR) */}
+        <div className="grid grid-cols-4 gap-2.5 mb-3.5">
+          <button
+            type="button"
+            onClick={() => setShowQuranAndMuhasaba(true)}
+            className="rounded-3xl p-3 border flex flex-col items-center justify-center gap-1.5 transition-all active:scale-95 shadow-md"
+            style={{ background: 'linear-gradient(145deg, rgba(16, 62, 50, 0.90), rgba(9, 34, 28, 0.95))', borderColor: 'rgba(52, 211, 153, 0.38)' }}
+          >
+            <div className="w-11 h-11 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(16, 185, 129, 0.2)', border: '1px solid rgba(52, 211, 153, 0.45)' }}>
+              <BookOpen size={21} color="#34D399" />
+            </div>
+            <span className="text-xs font-black text-white">قرآن</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowCalendar(true)}
+            className="rounded-3xl p-3 border flex flex-col items-center justify-center gap-1.5 transition-all active:scale-95 shadow-md"
+            style={{ background: 'linear-gradient(145deg, rgba(16, 62, 50, 0.90), rgba(9, 34, 28, 0.95))', borderColor: 'rgba(52, 211, 153, 0.38)' }}
+          >
+            <div className="w-11 h-11 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(16, 185, 129, 0.2)', border: '1px solid rgba(52, 211, 153, 0.45)' }}>
+              <Calendar size={21} color="#34D399" />
+            </div>
+            <span className="text-xs font-black text-white">تقویم</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowMosqueFinder(true)}
+            className="rounded-3xl p-3 border flex flex-col items-center justify-center gap-1.5 transition-all active:scale-95 shadow-md"
+            style={{ background: 'linear-gradient(145deg, rgba(16, 62, 50, 0.90), rgba(9, 34, 28, 0.95))', borderColor: 'rgba(52, 211, 153, 0.38)' }}
+          >
+            <div className="w-11 h-11 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(16, 185, 129, 0.2)', border: '1px solid rgba(52, 211, 153, 0.45)' }}>
+              <Navigation size={21} color="#34D399" />
+            </div>
+            <span className="text-xs font-black text-white">مسجدیاب</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowQibla(true)}
+            className="rounded-3xl p-3 border flex flex-col items-center justify-center gap-1.5 transition-all active:scale-95 shadow-md"
+            style={{ background: 'linear-gradient(145deg, rgba(16, 62, 50, 0.90), rgba(9, 34, 28, 0.95))', borderColor: 'rgba(251, 191, 36, 0.45)' }}
+          >
+            <div className="w-11 h-11 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(251, 191, 36, 0.2)', border: '1px solid rgba(251, 191, 36, 0.5)' }}>
+              <Compass size={21} color="#FBBF24" />
+            </div>
+            <span className="text-xs font-black text-amber-200">قبله‌نما AR</span>
+          </button>
+        </div>
+
+        {/* ۷. جدول ستونی افقی «اوقات شرعی امروز» */}
+        <div
+          className="rounded-3xl p-4 mb-3.5 border shadow-lg"
+          style={{ background: 'linear-gradient(145deg, rgba(13, 46, 38, 0.92), rgba(8, 28, 23, 0.96))', borderColor: theme.border }}
+        >
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-black text-white flex items-center gap-1.5">
+              <span>🕌</span>
+              <span>اوقات شرعی امروز به افق {city.nameFa}</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowStudioAndTravel(true)}
+              className="text-[10px] font-bold text-amber-300 underline"
+            >
+              تنظیم زنگ و تواشیح 🔔
+            </button>
+          </div>
+          <div className="grid gap-1.5 text-center" style={{ gridTemplateColumns: `repeat(${prayerColumns.length}, minmax(0, 1fr))` }}>
+            {prayerColumns.map((p) => {
+              const isNext = nextPrayer.key === p.key;
+              const Icon = p.icon;
+              return (
+                <button
+                  key={p.key}
+                  type="button"
+                  onClick={() => setShowStudioAndTravel(true)}
+                  className="py-2.5 px-1 rounded-2xl border flex flex-col items-center justify-between gap-1.5 transition-all active:scale-95"
+                  style={{
+                    background: isNext ? 'rgba(16, 185, 129, 0.25)' : 'rgba(255, 255, 255, 0.04)',
+                    borderColor: isNext ? '#34D399' : 'rgba(255, 255, 255, 0.08)',
+                  }}
+                >
+                  <span className="text-[11px] font-black text-white">{p.nameFa}</span>
+                  <strong className="text-xs font-black tracking-tight" style={{ color: isNext ? '#FBBF24' : '#E2E8F0' }}>
+                    {toFaDigits(p.time)}
+                  </strong>
+                  <Icon size={14} color={isNext ? '#FBBF24' : '#34D399'} />
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ۸. کارت گرافیکی «پیشنهاد امروز: ذکر و نیایش برای آرامش دل» با تصویر تسبیح */}
+        <div
+          onClick={() => onNavigate('tasbih')}
+          role="button"
+          tabIndex={0}
+          className="rounded-3xl p-4 mb-3.5 border cursor-pointer transition-all active:scale-[0.99] relative overflow-hidden shadow-lg"
+          style={{ background: 'linear-gradient(135deg, rgba(16, 66, 53, 0.94) 0%, rgba(7, 28, 22, 0.98) 100%)', borderColor: 'rgba(251, 191, 36, 0.40)' }}
+        >
+          <svg className="pointer-events-none absolute left-2 bottom-0 w-28 h-24 opacity-85" viewBox="0 0 120 100" fill="none">
+            <circle cx="48" cy="52" r="26" stroke="#FBBF24" strokeWidth="5" strokeDasharray="4 7" strokeLinecap="round" />
+            <path d="M22 52 L8 68" stroke="#10B981" strokeWidth="3.5" strokeLinecap="round" />
+            <circle cx="22" cy="52" r="4.5" fill="#34D399" />
+          </svg>
+          <div className="relative z-10 flex items-center justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5 mb-1">
+                <Sparkles size={14} color="#FBBF24" />
+                <span className="text-xs font-black text-amber-300">پیشنهاد امروز</span>
+              </div>
+              <h3 className="text-sm font-black text-white leading-snug">ذکر و نیایش برای آرامش دل و وسعت رزق</h3>
+              <p className="text-[11px] text-emerald-100/80 truncate mt-1">أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ</p>
+            </div>
+            <span className="px-3.5 py-2 rounded-2xl text-xs font-black shrink-0 shadow-md" style={{ background: 'linear-gradient(135deg, #FBBF24, #D97706)', color: '#071A16' }}>
+              ▶ شروع ذکر
+            </span>
+          </div>
+        </div>
+
+        {/* ۹. ردیف دوتایی پایین: «خلاصه فعالیت امروز (Power BI)» + «تسبیح روزانه» */}
+        <div className="grid grid-cols-2 gap-2.5 mb-3">
+          <button
+            type="button"
+            onClick={() => setShowBiModal(true)}
+            className="rounded-3xl p-3.5 border text-right flex items-center justify-between gap-2 transition-all active:scale-95 shadow-md"
+            style={{ background: 'linear-gradient(145deg, rgba(13, 46, 38, 0.92), rgba(8, 28, 23, 0.96))', borderColor: theme.border }}
+          >
+            <div>
+              <span className="text-[11px] font-black text-emerald-300 block">📊 خلاصه فعالیت</span>
+              <strong className="text-lg font-black text-white block mt-0.5">۴/۵</strong>
+              <span className="text-[10px] text-muted block">داشبورد Power BI ←</span>
+            </div>
+            <svg width="44" height="44" viewBox="0 0 44 44" className="shrink-0">
+              <circle cx="22" cy="22" r="17" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="4.5" />
+              <circle cx="22" cy="22" r="17" fill="none" stroke="#34D399" strokeWidth="4.5" strokeLinecap="round" strokeDasharray="106.8" strokeDashoffset="22" transform="rotate(-90 22 22)" />
+            </svg>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onNavigate('tasbih')}
+            className="rounded-3xl p-3.5 border text-right flex items-center justify-between gap-2 transition-all active:scale-95 shadow-md"
+            style={{ background: 'linear-gradient(145deg, rgba(13, 46, 38, 0.92), rgba(8, 28, 23, 0.96))', borderColor: theme.border }}
+          >
+            <div className="min-w-0">
+              <span className="text-[11px] font-black text-amber-300 block">📿 تسبیح روزانه</span>
+              <strong className="text-base font-black text-white block mt-0.5 truncate">۳۳ از ۱۰۰</strong>
+              <span className="text-[10px] text-emerald-300 font-bold block">ادامه شمارش ←</span>
+            </div>
+            <div className="w-11 h-11 rounded-full border-2 flex items-center justify-center shrink-0 text-sm" style={{ borderColor: '#34D399', background: 'rgba(16, 185, 129, 0.14)' }}>
+              📿
+            </div>
+          </button>
+        </div>
+      </div>
+
+      {/* مودال انتخاب سریع شهر */}
+      {showCityPicker && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.82)', backdropFilter: 'blur(6px)' }}
+          onClick={() => setShowCityPicker(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-3xl p-5 border max-h-[80vh] overflow-y-auto space-y-2"
+            style={{ background: theme.surface, borderColor: theme.border }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-sm font-black text-app mb-2">📍 انتخاب افق شهر</h3>
+            <div className="grid grid-cols-2 gap-2">
+              {quickCities.map((c) => (
+                <button
+                  key={c.name}
+                  type="button"
+                  onClick={() => {
+                    setCity(c);
+                    try { localStorage.setItem('noor_selected_city', JSON.stringify(c)); } catch {}
+                    setShowCityPicker(false);
+                  }}
+                  className="p-2.5 rounded-2xl border text-right text-xs font-bold"
+                  style={{
+                    borderColor: c.nameFa === city.nameFa ? theme.primary : theme.border,
+                    background: c.nameFa === city.nameFa ? 'rgba(16,185,129,0.2)' : theme.bg,
+                    color: theme.text,
+                  }}
+                >
+                  {c.nameFa}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* مودال قبله‌نمای عمودی هوشمند (همراه با AR/AI و بدون لرزش) */}
+      {showQibla && (
+        <QiblaCompass
+          lat={city.lat}
+          lng={city.lng}
+          cityName={city.nameFa}
+          onClose={() => setShowQibla(false)}
+        />
+      )}
+
+      {showCalendar && (
+        <CalendarModal
+          cityName={city.nameFa}
+          cityTimezone={city.timezone || "Asia/Tehran"}
+          cityLat={city.lat}
+          cityLng={city.lng}
+          onClose={() => setShowCalendar(false)}
+        />
+      )}
+
+      {showMosqueFinder && (
+        <MosqueFinderModal
+          cityName={city.nameFa}
+          defaultLat={city.lat}
+          defaultLng={city.lng}
+          onClose={() => setShowMosqueFinder(false)}
+        />
+      )}
+
+      {showQuranAndMuhasaba && (
+        <QuranAndMuhasabaModal
+          onClose={() => setShowQuranAndMuhasaba(false)}
+        />
+      )}
+
+      {showStudioAndTravel && (
+        <AdhanStudioAndTravelModal
+          onClose={() => setShowStudioAndTravel(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+export default HomeScreen;
