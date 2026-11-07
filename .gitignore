@@ -41,3 +41,7 @@ android/gradle-info.txt
 # Local environment and project tools
 .env
 .bolt/
+
+# Temporary audit & script files
+notification-audit-dump.txt
+*.cjs

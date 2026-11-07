@@ -21,6 +21,7 @@
 }
 
 html {
+  font-size: 16.8px;
   min-height: 100%;
   background: var(--bg);
   color-scheme: dark;
@@ -177,4 +178,11 @@ button, input, textarea, select { min-width: 0; }
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+.quran-mushaf-text {
+  font-family: 'UthmanTaha', 'KFGQPC Uthman Taha Naskh', 'Amiri Quran', 'Scheherazade New', 'Amiri', serif;
+  line-height: 2.55;
+  letter-spacing: 0;
+  word-spacing: 2px;
 }

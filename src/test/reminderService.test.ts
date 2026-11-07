@@ -1,9 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { getUpcomingOccurrences, scheduleReminder, type LocalReminder } from '@/lib/reminderService';
 
 describe('reminderService scheduling', () => {
   beforeEach(() => {
+    vi.spyOn(Capacitor, 'getPlatform').mockReturnValue('android');
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 9, 22, 8, 0, 0));
     vi.mocked(LocalNotifications.checkPermissions).mockResolvedValue({ display: 'granted' });
@@ -15,6 +17,7 @@ describe('reminderService scheduling', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
     vi.clearAllMocks();
   });
 

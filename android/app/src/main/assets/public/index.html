@@ -2,26 +2,123 @@
 <html lang="fa" dir="rtl">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
-    <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
-    <link rel="apple-touch-icon" href="/icon-192.png" />
-    <link rel="manifest" href="/manifest.json" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <meta name="theme-color" content="#0a1f1a" />
-    <meta name="description" content="نور - اپلیکیشن اوقات شرعی، تسبیح و ذکر" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="نور" />
-    <title>نور | همراه معنوی شما</title>
-  <meta property="og:image" content="https://bolt.new/static/og_default.png">
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:image" content="https://bolt.new/static/og_default.png">
-  <script type="module" crossorigin src="/assets/index-DRWxjy1v.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-OfYiFiuB.css">
-</head>
+    <meta name="theme-color" content="#071A16" />
+    <title>همراه معنوی نور</title>
+    <link href="https://fonts.googleapis.com/css2?family=Gulzar&family=Noto+Nastaliq+Urdu:wght@400;700&family=Amiri+Quran&display=swap" rel="stylesheet">
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        background-color: #071A16;
+        color: #ECFDF5;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        overflow-x: hidden;
+      }
+      #noor-instant-boot-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: space-between;
+        padding: 38px 20px;
+        text-align: center;
+        -webkit-user-select: none;
+           -moz-user-select: none;
+                user-select: none;
+        background: radial-gradient(circle at 50% 38%, #0F3D33 0%, #071A16 64%, #030C0A 100%);
+        transition: opacity 0.45s ease-out, visibility 0.45s ease-out;
+      }
+      #noor-instant-boot-splash.splash-hidden {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+      }
+      .noor-splash-frame {
+        position: absolute;
+        inset: 14px;
+        border-radius: 28px;
+        border: 1.5px solid rgba(251, 191, 36, 0.28);
+        box-shadow: inset 0 0 40px rgba(16, 185, 129, 0.12);
+        pointer-events: none;
+      }
+    </style>
+    <script type="module" crossorigin src="/assets/index-BCbtHYr_.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-Dy4DNOpo.css">
+  </head>
   <body>
+    <!-- صفحه گرافیکی فوری که در لحظه ۰.۰ ثانیه (در تمام مدت لود شدن برنامه) بدون هیچ صفحه سبز خالی نمایش داده می‌شود -->
+    <div id="noor-instant-boot-splash" dir="rtl">
+      <div class="noor-splash-frame"></div>
+
+      <div style="position: relative; z-index: 10; padding-top: 6px;">
+        <div style="display: inline-block; padding: 6px 20px; border-radius: 999px; border: 1px solid rgba(251, 191, 36, 0.35); background: rgba(13, 46, 38, 0.78); color: #FDE68A; font-size: 14px; font-weight: bold; font-family: 'Amiri Quran', serif;">
+          بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
+        </div>
+      </div>
+
+      <div style="position: relative; z-index: 10; display: flex; flex-direction: column; align-items: center; margin: auto 0;">
+        <div style="width: 240px; height: 240px; display: flex; align-items: center; justify-content: center; margin-bottom: 14px;">
+          <svg viewBox="0 0 260 260" style="width: 100%; height: 100%; filter: drop-shadow(0 12px 24px rgba(0,0,0,0.45));">
+            <defs>
+              <radialGradient id="shamsaGlowBoot" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#10B981" stop-opacity="0.45" />
+                <stop offset="65%" stop-color="#059669" stop-opacity="0.12" />
+                <stop offset="100%" stop-color="#071A16" stop-opacity="0" />
+              </radialGradient>
+              <linearGradient id="royalGoldBoot" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#FEF08A" />
+                <stop offset="45%" stop-color="#F59E0B" />
+                <stop offset="100%" stop-color="#B45309" />
+              </linearGradient>
+              <linearGradient id="emeraldGlassBoot" x1="50%" y1="0%" x2="50%" y2="100%">
+                <stop offset="0%" stop-color="#114B3E" />
+                <stop offset="100%" stop-color="#06201A" />
+              </linearGradient>
+            </defs>
+            <circle cx="130" cy="130" r="122" fill="url(#shamsaGlowBoot)" />
+            <g stroke="url(#royalGoldBoot)" stroke-width="1.4" fill="rgba(245, 158, 11, 0.06)">
+              <rect x="48" y="48" width="164" height="164" rx="22" transform="rotate(0 130 130)" />
+              <rect x="48" y="48" width="164" height="164" rx="22" transform="rotate(30 130 130)" />
+              <rect x="48" y="48" width="164" height="164" rx="22" transform="rotate(60 130 130)" />
+            </g>
+            <circle cx="130" cy="130" r="92" fill="url(#emeraldGlassBoot)" stroke="url(#royalGoldBoot)" stroke-width="3" />
+            <circle cx="130" cy="130" r="84" fill="none" stroke="#34D399" stroke-width="1" stroke-dasharray="3 3" />
+            <path d="M130 56 C96 78 82 108 82 148 L82 184 L178 184 L178 148 C178 108 164 78 130 56 Z" fill="rgba(4, 20, 16, 0.72)" stroke="url(#royalGoldBoot)" stroke-width="2.8" />
+            <path d="M130 68 C104 86 92 112 92 148 L92 176 L168 176 L168 148 C168 112 156 86 130 68 Z" fill="none" stroke="#34D399" stroke-width="1.1" stroke-opacity="0.65" />
+            <line x1="130" y1="68" x2="130" y2="98" stroke="#FDE68A" stroke-width="1.8" />
+            <path d="M120 104 Q130 92 140 104 L136 120 Q130 126 124 120 Z" fill="url(#royalGoldBoot)" />
+            <circle cx="130" cy="112" r="16" fill="#FDE68A" fill-opacity="0.22" />
+            <path d="M130 134 L134 145 L145 149 L134 153 L130 164 L126 153 L115 149 L126 145 Z" fill="#34D399" />
+            <circle cx="130" cy="149" r="3" fill="#FEF08A" />
+            <rect x="72" y="184" width="116" height="5" rx="2.5" fill="url(#royalGoldBoot)" />
+          </svg>
+        </div>
+
+        <h1 style="margin: 0 0 4px 0; font-size: 28px; font-weight: 900; color: #ECFDF5; text-shadow: 0 4px 18px rgba(16, 185, 129, 0.45);">
+          همراه معنوی نور
+        </h1>
+        <p style="margin: 0 0 18px 0; font-size: 12px; font-weight: bold; color: #6EE7B7;">
+          اوقات شرعی · مصحف عثمان طه · آب‌وهوا و مسجدیاب
+        </p>
+
+        <div style="position: relative; padding: 14px 22px; border-radius: 24px; border: 1px solid rgba(251, 191, 36, 0.55); background: linear-gradient(135deg, rgba(17, 62, 51, 0.90) 0%, rgba(7, 26, 22, 0.95) 100%); box-shadow: 0 14px 36px rgba(0, 0, 0, 0.55), inset 0 0 24px rgba(251, 191, 36, 0.12); max-width: 340px;">
+          <p style="margin: 0; font-family: 'Noto Nastaliq Urdu', 'Gulzar', 'Amiri Quran', serif; font-size: 21px; line-height: 2.35; color: #FEF08A; text-shadow: 0 2px 12px rgba(245, 158, 11, 0.35);">
+            اللَّهُمَّ بَارِكْ لِمَوْلَانَا صَاحِبِ الزَّمَانِ (عج)
+          </p>
+          <p style="margin: 4px 0 0 0; font-size: 11px; color: #D1FAE5;">
+            خدایا برای مولای ما حضرت صاحب‌الزمان (عج) برکت و گشایش قرار ده
+          </p>
+        </div>
+      </div>
+
+      <div style="position: relative; z-index: 10; font-size: 11px; font-weight: bold; color: #A7F3D0;">
+        در حال بارگذاری گنجینه نور...
+      </div>
+    </div>
+
     <div id="root"></div>
   </body>
 </html>
