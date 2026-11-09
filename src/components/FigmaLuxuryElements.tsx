@@ -192,7 +192,7 @@ export function DynamicShrineHorizonArt({
   return (
     <div
       className="relative w-full h-[222px] overflow-hidden select-none transition-all duration-500"
-      style={{ background: design.skyGradient }}
+      style={{ background: design.fallbackGradient }}
     >
       <RenderHeroArtworkScene design={design} />
 
