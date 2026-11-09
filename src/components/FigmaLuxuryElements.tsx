@@ -1,3 +1,5 @@
+import { useState, useEffect } from 'react';
+import { resolveActiveHeroDesign, RenderHeroArtworkScene, Hero30SelectorModal } from '@/components/HeroHorizon30Gallery';
 import { toFaDigits } from '@/lib/jalali';
 import { Calendar } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
@@ -177,120 +179,68 @@ export function DynamicShrineHorizonArt({
   themeId: string;
   nextPrayerKey?: string;
 }) {
-  const { theme } = useTheme();
-  const domeColor =
-    themeId === 'sapphire' || cityName.includes('شیراز') || cityName.includes('اصفهان')
-      ? '#38BDF8'
-      : themeId === 'rose' || themeId === 'yalda_fest'
-      ? '#FB7185'
-      : themeId === 'violet' || themeId === 'blossom_serenity'
-      ? '#C084FC'
-      : themeId === 'muharram_ashura'
-      ? '#EF4444'
-      : '#FBBF24';
+  const [design, setDesign] = useState(() => resolveActiveHeroDesign(cityName, themeId));
+  const [showGalleryModal, setShowGalleryModal] = useState(false);
+
+  useEffect(() => {
+    const updateHero = () => setDesign(resolveActiveHeroDesign(cityName, themeId));
+    updateHero();
+    window.addEventListener('noor-hero-changed', updateHero);
+    return () => window.removeEventListener('noor-hero-changed', updateHero);
+  }, [cityName, themeId]);
 
   return (
     <div
-      className="relative w-full h-[205px] overflow-hidden select-none"
-      style={{
-        background: theme.gradient,
-        borderBottom: `1px solid ${theme.border}`,
-      }}
+      className="relative w-full h-[222px] overflow-hidden select-none transition-all duration-500"
+      style={{ background: design.skyGradient }}
     >
-      <svg viewBox="0 0 420 210" className="w-full h-full object-cover" fill="none" preserveAspectRatio="xMidYBottom slice">
-        <defs>
-          <linearGradient id="shrineGoldDomeFast" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#FEF08A" />
-            <stop offset="50%" stopColor={domeColor} />
-            <stop offset="100%" stopColor="#78350F" />
-          </linearGradient>
-          <linearGradient id="horizonFadeFast" x1="50%" y1="0%" x2="50%" y2="100%">
-            <stop offset="0%" stopColor={theme.bg} stopOpacity="0" />
-            <stop offset="82%" stopColor={theme.bg} stopOpacity="0.78" />
-            <stop offset="100%" stopColor={theme.bg} stopOpacity="1" />
-          </linearGradient>
-        </defs>
+      <RenderHeroArtworkScene design={design} />
 
-        {/* ستارگان و هلال ماه */}
-        <circle cx="55" cy="40" r="1.6" fill="#FEF08A" fillOpacity="0.85" />
-        <circle cx="115" cy="28" r="1.4" fill="#FEF08A" fillOpacity="0.7" />
-        <circle cx="335" cy="34" r="1.7" fill="#FEF08A" fillOpacity="0.8" />
-        <path d="M78 58C68 58 60 66 60 76C60 86 68 94 78 94C72 90 68 83 68 76C68 69 72 62 78 58Z" fill="#FDE047" fillOpacity="0.9" />
+      {/* دکمه ظریف انتخاب دستی/خودکار از بین ۳۰ طرح افق روی گوشه پایین چپ تصویر */}
+      <button
+        type="button"
+        onClick={() => setShowGalleryModal(true)}
+        className="absolute bottom-5 left-4 z-30 px-2.5 py-1 rounded-full border text-[10px] font-black flex items-center gap-1 backdrop-blur-md transition-transform active:scale-95 shadow-lg"
+        style={{
+          background: 'rgba(7, 26, 22, 0.78)',
+          borderColor: 'rgba(251, 191, 36, 0.5)',
+          color: '#FEF08A',
+        }}
+        title="تغییر طرح معماری بالای صفحه (۳۰ طرح مناسبتی و شهرهای ایران)"
+      >
+        <span>🎨 طرح افق (۳۰)</span>
+      </button>
 
-        {/* طرح اختصاصی شب یلدا (انار و هندوانه در افق) */}
-        {themeId === 'yalda_fest' && (
-          <g>
-            <circle cx="348" cy="82" r="24" fill="#E11D48" fillOpacity="0.75" stroke="#FDA4AF" strokeWidth="1.5" />
-            <polygon points="342,58 348,48 354,58" fill="#FB7185" />
-            <path d="M40 135 A32 32 0 0 0 104 135 Z" fill="#10B981" fillOpacity="0.7" />
-            <path d="M45 135 A27 27 0 0 0 99 135 Z" fill="#F43F5E" fillOpacity="0.8" />
-          </g>
-        )}
-
-        {/* طرح اختصاصی عید نوروز و بهار (شکوفه‌های بهاری و سبزه) */}
-        {(themeId === 'nowruz_spring' || themeId === 'blossom_serenity') && (
-          <g>
-            <circle cx="345" cy="70" r="15" fill="#F472B6" fillOpacity="0.7" />
-            <circle cx="345" cy="70" r="5" fill="#FEF08A" />
-            <circle cx="380" cy="54" r="11" fill="#34D399" fillOpacity="0.7" />
-            <circle cx="380" cy="54" r="4" fill="#FEF08A" />
-            <circle cx="52" cy="82" r="13" fill="#F472B6" fillOpacity="0.65" />
-            <circle cx="52" cy="82" r="4" fill="#FEF08A" />
-          </g>
-        )}
-
-        {/* طرح اختصاصی ماه محرم و عاشورا (بیرق‌های سرخ و کتیبه) */}
-        {themeId === 'muharram_ashura' && (
-          <g>
-            <line x1="340" y1="26" x2="340" y2="145" stroke="#F59E0B" strokeWidth="2.5" />
-            <path d="M340 30 C368 24 388 40 410 32 L410 62 C388 70 368 54 340 60 Z" fill="#EF4444" fillOpacity="0.82" />
-            <line x1="65" y1="36" x2="65" y2="145" stroke="#F59E0B" strokeWidth="2.2" />
-            <path d="M65 40 C90 34 108 48 128 40 L128 66 C108 74 90 60 65 66 Z" fill="#991B1B" fillOpacity="0.85" />
-          </g>
-        )}
-
-        {/* طرح اختصاصی ماه رمضان (فانوس‌های طلایی) */}
-        {themeId === 'ramadan_night' && (
-          <g>
-            <line x1="342" y1="0" x2="342" y2="48" stroke="#FBBF24" strokeWidth="1.6" />
-            <polygon points="342,48 355,66 342,86 329,66" fill="#F59E0B" fillOpacity="0.8" stroke="#FEF08A" strokeWidth="1.2" />
-            <line x1="382" y1="0" x2="382" y2="32" stroke="#38BDF8" strokeWidth="1.5" />
-            <polygon points="382,32 392,46 382,62 372,46" fill="#38BDF8" fillOpacity="0.7" stroke="#E0F2FE" strokeWidth="1" />
-          </g>
-        )}
-
-        {/* گلدسته‌ها و گنبد طلایی حرم در مرکز افق */}
-        <path d="M0 172 Q105 138 210 162 T420 152 L420 210 L0 210 Z" fill={theme.surface} fillOpacity="0.78" />
-        <rect x="152" y="54" width="11" height="120" fill="url(#shrineGoldDomeFast)" rx="2" />
-        <rect x="148" y="74" width="19" height="6" rx="2" fill="#FEF08A" />
-        <polygon points="157.5,36 151,54 164,54" fill="#FEF08A" />
-
-        <rect x="258" y="62" width="10" height="112" fill="url(#shrineGoldDomeFast)" rx="2" />
-        <rect x="254" y="80" width="18" height="5" rx="2" fill="#FEF08A" />
-        <polygon points="263,45 257,62 269,62" fill="#FEF08A" />
-
-        <path d="M174 172 C174 110 246 110 246 172 Z" fill="url(#shrineGoldDomeFast)" stroke="#FEF08A" strokeWidth="1.5" />
-        <line x1="210" y1="94" x2="210" y2="120" stroke="#FEF08A" strokeWidth="2.2" />
-        <circle cx="210" cy="103" r="3.8" fill="#FEF08A" />
-
-        <rect x="122" y="160" width="176" height="36" rx="4" fill={theme.surfaceAlt} stroke="#FBBF24" strokeWidth="1.1" strokeOpacity="0.65" />
-        <rect x="0" y="140" width="420" height="70" fill="url(#horizonFadeFast)" />
-      </svg>
+      {showGalleryModal && (
+        <Hero30SelectorModal
+          cityName={cityName}
+          onClose={() => setShowGalleryModal(false)}
+        />
+      )}
     </div>
   );
 }
 
 export function NastaliqMahdiCrown({ onOpenGuide }: { onOpenGuide?: () => void }) {
   const { theme } = useTheme();
+  const [design, setDesign] = useState(() => resolveActiveHeroDesign('مشهد', theme.id));
+
+  useEffect(() => {
+    const updateHero = () => setDesign(resolveActiveHeroDesign('مشهد', theme.id));
+    updateHero();
+    window.addEventListener('noor-hero-changed', updateHero);
+    return () => window.removeEventListener('noor-hero-changed', updateHero);
+  }, [theme.id]);
+
   return (
     <div
       className="px-3 py-1.5 rounded-2xl border flex items-center justify-between gap-2 shadow-md"
       style={{
-        background: `color-mix(in srgb, ${theme.surface} 90%, #000000)`,
-        borderColor: theme.border,
+        background: 'rgba(7, 24, 20, 0.72)',
+        borderColor: 'rgba(251, 191, 36, 0.42)',
       }}
     >
-      <span className="text-[11px] shrink-0" style={{ color: theme.accent }}>✨</span>
+      <span className="text-[11px] shrink-0 text-amber-300">✨</span>
       <p
         className="text-center text-xs sm:text-sm font-bold truncate"
         style={{
@@ -299,7 +249,7 @@ export function NastaliqMahdiCrown({ onOpenGuide }: { onOpenGuide?: () => void }
           lineHeight: '2.0',
         }}
       >
-        اللَّهُمَّ بَارِكْ لِمَوْلَانَا صَاحِبِ الزَّمَانِ (عج)
+        {design.crownTextFa}
       </p>
       {onOpenGuide ? (
         <button
@@ -307,15 +257,15 @@ export function NastaliqMahdiCrown({ onOpenGuide }: { onOpenGuide?: () => void }
           onClick={onOpenGuide}
           className="px-2.5 py-0.5 rounded-full text-[10px] font-black shrink-0 border transition-transform active:scale-95"
           style={{
-            background: `color-mix(in srgb, ${theme.accent} 22%, transparent)`,
+            background: 'rgba(251, 191, 36, 0.2)',
             color: '#FDE68A',
-            borderColor: theme.border,
+            borderColor: 'rgba(251, 191, 36, 0.45)',
           }}
         >
           راهنما
         </button>
       ) : (
-        <span className="text-[11px] shrink-0" style={{ color: theme.accent }}>✨</span>
+        <span className="text-[11px] shrink-0 text-amber-300">✨</span>
       )}
     </div>
   );

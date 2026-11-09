@@ -1119,6 +1119,10 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
       const raw = localStorage.getItem('noor_adhan_bells_v1');
       if (raw) return JSON.parse(raw);
     } catch {}
+    try {
+      const savedMap = localStorage.getItem('noor_adhan_enabled_prayers_v1') || localStorage.getItem('noor_adhan_bells_v1');
+      if (savedMap) return JSON.parse(savedMap);
+    } catch {}
     return { fajr: true, dhuhr: true, asr: false, maghrib: true, isha: false };
   });
 
@@ -1200,17 +1204,36 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
     }
   };
 
-  const togglePrayerBell = (key: string, labelFa: string) => {
-    const nextState = { ...adhanBells, [key]: !adhanBells[key] };
+  const togglePrayerBell = async (key: string, labelFa: string) => {
+    const currentVal = Boolean(adhanBells[key]);
+    const nextVal = !currentVal;
+    const nextState = { ...adhanBells, [key]: nextVal };
     setAdhanBells(nextState);
     try {
       localStorage.setItem('noor_adhan_bells_v1', JSON.stringify(nextState));
+      localStorage.setItem('noor_adhan_enabled_prayers_v1', JSON.stringify(nextState));
+      window.dispatchEvent(new Event('storage'));
     } catch {}
-    showQuickToast(
-      nextState[key]
-        ? `🔔 پخش خودکار اذان ${labelFa} فعال شد`
-        : `🔕 پخش خودکار اذان ${labelFa} غیرفعال شد`
-    );
+
+    if (nextVal) {
+      showQuickToast(`🔔 اذان ${labelFa} فعال شد — در حال ثبت آلارم دقیق و پخش پیش‌نمایش اذان...`);
+      try {
+        if (Capacitor.isNativePlatform()) {
+          await (NoorAlarm as any).requestDiagnosticPermissions?.();
+        }
+        const previewAudio = new Audio('/adhans/moazzenzadeh.mp3');
+        previewAudio.volume = 0.85;
+        void previewAudio.play().catch(() => {});
+        setTimeout(() => {
+          try {
+            previewAudio.pause();
+            previewAudio.currentTime = 0;
+          } catch {}
+        }, 8000);
+      } catch {}
+    } else {
+      showQuickToast(`🔕 پخش خودکار اذان ${labelFa} غیرفعال شد`);
+    }
   };
 
   const times = calculatePrayerTimes(now, city.lat, city.lng, calcMethod);
