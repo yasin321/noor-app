@@ -31,7 +31,7 @@ function AppContent() {
   const [showFirstTimeGuide, setShowFirstTimeGuide] = useState<boolean>(false);
 
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
-  const tabOrder: Tab[] = ['home', 'tasbih', 'library', 'reminders', 'settings'];
+  const tabOrder: Tab[] = ['tasbih', 'library', 'home', 'reminders', 'settings'];
 
   // به محض اینکه دیتای اولیه برنامه آماده شد، صفحه گرافیکی آغازین (در index.html) را به نرمی کنار بزن
   useEffect(() => {
@@ -55,26 +55,31 @@ function AppContent() {
 
   const handleTouchStart = (e: React.TouchEvent) => {
     const target = e.target as HTMLElement | null;
-    if (target && (target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'TEXTAREA')) {
+    if (target && target.closest('input, select, textarea, [data-no-swipe="true"]')) {
       touchStartRef.current = null;
       return;
     }
     const t = e.touches[0];
+    if (!t) return;
     touchStartRef.current = { x: t.clientX, y: t.clientY };
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
     if (!touchStartRef.current) return;
     const t = e.changedTouches[0];
+    if (!t) return;
     const dx = t.clientX - touchStartRef.current.x;
     const dy = t.clientY - touchStartRef.current.y;
     touchStartRef.current = null;
 
-    if (Math.abs(dx) > 72 && Math.abs(dx) > Math.abs(dy) * 1.6) {
+    if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.2) {
       const currentIndex = tabOrder.indexOf(tab);
-      if (dx < 0 && currentIndex < tabOrder.length - 1) {
+      if (currentIndex === -1) return;
+      // کشیدن انگشت از چپ به راست (dx > 0) => رفتن به تب سمت چپ (currentIndex + 1)
+      // کشیدن انگشت از راست به چپ (dx < 0) => رفتن به تب سمت راست (currentIndex - 1)
+      if (dx > 0 && currentIndex < tabOrder.length - 1) {
         navigateTo(tabOrder[currentIndex + 1]);
-      } else if (dx > 0 && currentIndex > 0) {
+      } else if (dx < 0 && currentIndex > 0) {
         navigateTo(tabOrder[currentIndex - 1]);
       }
     }
@@ -102,8 +107,8 @@ function AppContent() {
     <div
       className="min-h-screen"
       style={{ background: 'var(--bg)', color: 'var(--text)' }}
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
+      onTouchStartCapture={handleTouchStart}
+      onTouchEndCapture={handleTouchEnd}
     >
       {showFirstTimeGuide && <AppTutorialModal onClose={() => setShowFirstTimeGuide(false)} />}
       <NotificationPermissionModal />

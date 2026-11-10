@@ -22,7 +22,7 @@ import {
   getAdhanDurationSeconds, type Adhan, type AdhanPlaybackDurationMode
 } from '@/lib/adhans';
 import { CITIES, getCityById, getGuestCityId, setGuestCityId, type City } from '@/lib/cities';
-import { cancelAllScheduledNotifications, rescheduleAllReminders, checkPermission, requestPermission } from '@/lib/reminderService';
+import { NoorAlarm, cancelAllScheduledNotifications, rescheduleAllReminders, checkPermission, requestPermission } from '@/lib/reminderService';
 import { getAvailableMethods, getNightPrayerConfig, saveNightPrayerConfig, type NightPrayerConfig } from '@/lib/prayerTimes';
 import { getSpiritualDashboardStats, type PeriodRange } from '@/lib/tasbihStorage';
 import { getDhikr } from '@/lib/dhikrLibrary';
@@ -674,6 +674,40 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
 
     return (
       <div className="w-full max-w-xl mx-auto px-3.5 pt-4 pb-28 animate-fade-in" dir="rtl">
+        {/* بنر تست واقعی ۵ ثانیه بعد اذان در حالت قفل صفحه */}
+        <div className="max-w-lg mx-auto px-4 pt-3">
+          <div className="p-4 rounded-3xl border space-y-2" style={{ background: 'rgba(16, 185, 129, 0.14)', borderColor: '#34D399' }}>
+            <p className="text-xs font-black text-white">⏱️ تست پخش اذان در حالت قفل صفحه (۵ ثانیه بعد)</p>
+            <p className="text-[11px] text-emerald-200/90 leading-relaxed">
+              دکمه زیر را بزنید و بلافاصله صفحه گوشی را قفل کنید؛ ۵ ثانیه بعد صدای مؤذن انتخابی روی صفحه قفل پخش می‌شود:
+            </p>
+            <button
+              type="button"
+              onClick={async () => {
+                const chosenId = localStorage.getItem('noor_guest_adhan_id') || 'mahur_saeed';
+                if (Capacitor.isNativePlatform()) {
+                  await NoorAlarm.scheduleNativeAlarm({
+                    id: 70998,
+                    triggerAtMillis: Date.now() + 5000,
+                    title: '🕌 تست پخش اذان روی صفحه قفل',
+                    body: 'همراه معنوی نور — پخش خودکار اذان با صدای مؤذن انتخابی شما',
+                    soundType: 'adhan',
+                    adhanId: chosenId,
+                    durationSeconds: 30,
+                    volumePercent: 100,
+                  });
+                  alert('⏱️ آلارم اذان برای ۵ ثانیه دیگر کوک شد! همین الان صفحه گوشی را قفل کنید.');
+                } else {
+                  void playAdhanPreview(adhans.find((a) => a.id === chosenId) || adhans[0]);
+                }
+              }}
+              className="w-full py-2.5 rounded-2xl text-xs font-black shadow-md transition-transform active:scale-95"
+              style={{ background: '#10B981', color: '#041B15' }}
+            >
+              🚀 فعال‌سازی تست ۵ ثانیه بعد اذان (قفل صفحه)
+            </button>
+          </div>
+        </div>
         <SubHeader title="کلکسیون مؤذنان و مدت پخش اذان" />
 
         {adhanNotice && (

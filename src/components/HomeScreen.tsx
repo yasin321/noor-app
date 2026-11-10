@@ -1,3 +1,5 @@
+import { rescheduleAll } from '@/lib/reminderService';
+import { adhans, playAdhanPreview, stopAdhanPreview, getAdhanDurationMode, getAdhanDurationSeconds } from '@/lib/adhans';
 import { QiblaCompass } from '@/components/QiblaCompass';
 import { VipAnalyticsModal } from '@/components/VipAnalyticsModal';
 import { CompactHeaderWeatherPill } from '@/components/WeatherCuteCard';
@@ -989,56 +991,6 @@ export const NOOR_UI_BUILD_STAMP = '2026-v3-1794029488910';
 
 
 // === START_2026_MASTER_HOMESCREEN ===
-type SyncedCityItem = {
-  name: string;
-  nameFa: string;
-  lat: number;
-  lng: number;
-  timezone: string;
-};
-
-const ALL_SYNCED_CITIES: SyncedCityItem[] = [
-  { name: 'Tehran', nameFa: 'تهران', lat: 35.6892, lng: 51.3890, timezone: 'Asia/Tehran' },
-  { name: 'Mashhad', nameFa: 'مشهد', lat: 36.2972, lng: 59.6067, timezone: 'Asia/Tehran' },
-  { name: 'Qom', nameFa: 'قم', lat: 34.6416, lng: 50.8746, timezone: 'Asia/Tehran' },
-  { name: 'Isfahan', nameFa: 'اصفهان', lat: 32.6546, lng: 51.6680, timezone: 'Asia/Tehran' },
-  { name: 'Shiraz', nameFa: 'شیراز', lat: 29.5918, lng: 52.5837, timezone: 'Asia/Tehran' },
-  { name: 'Tabriz', nameFa: 'تبریز', lat: 38.0962, lng: 46.2738, timezone: 'Asia/Tehran' },
-  { name: 'Ahvaz', nameFa: 'اهواز (خوزستان)', lat: 31.3183, lng: 48.6706, timezone: 'Asia/Tehran' },
-  { name: 'Abadan', nameFa: 'آبادان', lat: 30.3392, lng: 48.3043, timezone: 'Asia/Tehran' },
-  { name: 'Dezful', nameFa: 'دزفول', lat: 32.3811, lng: 48.4058, timezone: 'Asia/Tehran' },
-  { name: 'Karaj', nameFa: 'کرج (البرز)', lat: 35.8400, lng: 50.9391, timezone: 'Asia/Tehran' },
-  { name: 'Kermanshah', nameFa: 'کرمانشاه', lat: 34.3142, lng: 47.0650, timezone: 'Asia/Tehran' },
-  { name: 'Rasht', nameFa: 'رشت (گیلان)', lat: 37.2808, lng: 49.5832, timezone: 'Asia/Tehran' },
-  { name: 'Sari', nameFa: 'ساری (مازندران)', lat: 36.5633, lng: 53.0601, timezone: 'Asia/Tehran' },
-  { name: 'Gorgan', nameFa: 'گرگان (گلستان)', lat: 36.8427, lng: 54.4439, timezone: 'Asia/Tehran' },
-  { name: 'Urmia', nameFa: 'ارومیه', lat: 37.5527, lng: 45.0761, timezone: 'Asia/Tehran' },
-  { name: 'Ardabil', nameFa: 'اردبیل', lat: 38.2498, lng: 48.2933, timezone: 'Asia/Tehran' },
-  { name: 'Zanjan', nameFa: 'زنجان', lat: 36.6736, lng: 48.4787, timezone: 'Asia/Tehran' },
-  { name: 'Qazvin', nameFa: 'قزوین', lat: 36.2688, lng: 50.0041, timezone: 'Asia/Tehran' },
-  { name: 'Hamadan', nameFa: 'همدان', lat: 34.7989, lng: 48.5150, timezone: 'Asia/Tehran' },
-  { name: 'Sanandaj', nameFa: 'سنندج (کردستان)', lat: 35.3219, lng: 46.9862, timezone: 'Asia/Tehran' },
-  { name: 'Khorramabad', nameFa: 'خرم‌آباد (لرستان)', lat: 33.4878, lng: 48.3558, timezone: 'Asia/Tehran' },
-  { name: 'Ilam', nameFa: 'ایلام', lat: 33.6374, lng: 46.4227, timezone: 'Asia/Tehran' },
-  { name: 'Arak', nameFa: 'اراک (مرکزی)', lat: 34.0954, lng: 49.7013, timezone: 'Asia/Tehran' },
-  { name: 'Kashan', nameFa: 'کاشان', lat: 33.9850, lng: 51.4100, timezone: 'Asia/Tehran' },
-  { name: 'Yazd', nameFa: 'یزد', lat: 31.8974, lng: 54.3569, timezone: 'Asia/Tehran' },
-  { name: 'Kerman', nameFa: 'کرمان', lat: 30.2839, lng: 57.0834, timezone: 'Asia/Tehran' },
-  { name: 'Bandar Abbas', nameFa: 'بندرعباس (هرمزگان)', lat: 27.1832, lng: 56.2666, timezone: 'Asia/Tehran' },
-  { name: 'Bushehr', nameFa: 'بوشهر', lat: 28.9234, lng: 50.8203, timezone: 'Asia/Tehran' },
-  { name: 'Zahedan', nameFa: 'زاهدان', lat: 29.4963, lng: 60.8629, timezone: 'Asia/Tehran' },
-  { name: 'Birjand', nameFa: 'بیرجند', lat: 32.8649, lng: 59.2262, timezone: 'Asia/Tehran' },
-  { name: 'Bojnord', nameFa: 'بجنورد', lat: 37.4747, lng: 57.3290, timezone: 'Asia/Tehran' },
-  { name: 'Semnan', nameFa: 'سمنان', lat: 35.5769, lng: 53.3970, timezone: 'Asia/Tehran' },
-  { name: 'Shahrekord', nameFa: 'شهرکرد', lat: 32.3256, lng: 50.8644, timezone: 'Asia/Tehran' },
-  { name: 'Yasuj', nameFa: 'یاسوج', lat: 30.6682, lng: 51.5879, timezone: 'Asia/Tehran' },
-  { name: 'Sabzevar', nameFa: 'سبزوار', lat: 36.2126, lng: 57.6819, timezone: 'Asia/Tehran' },
-  { name: 'Neyshabur', nameFa: 'نیشابور', lat: 36.2133, lng: 58.7958, timezone: 'Asia/Tehran' },
-  { name: 'Karbala', nameFa: 'کربلای معلی', lat: 32.6160, lng: 44.0323, timezone: 'Asia/Baghdad' },
-  { name: 'Najaf', nameFa: 'نجف اشرف', lat: 31.9959, lng: 44.3146, timezone: 'Asia/Baghdad' },
-  { name: 'Makkah', nameFa: 'مکه مکرمه', lat: 21.4225, lng: 39.8262, timezone: 'Asia/Riyadh' },
-  { name: 'Madinah', nameFa: 'مدینه منوره', lat: 24.4672, lng: 39.6111, timezone: 'Asia/Riyadh' },
-];
 export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
   const { theme } = useTheme();
   const [now, setNow] = useState(() => new Date());
@@ -1046,82 +998,69 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
   const [statusBanner, setStatusBanner] = useState<string | null>(null);
   const [citySearchQuery, setCitySearchQuery] = useState('');
 
-  // خواندن شهر و روش محاسبه مستقیماً از noor_settings (مشترک با SettingsScreen) و لیست کامل ۸۵ شهر ALL_SYNCED_CITIES
-  const readSyncedCityAndMethod = (): { cityObj: SyncedCityItem; method: any } => {
+  // خواندن شهر مستقیماً از سیستم رسمی برنامه (getGuestCityId و CITIES از @/lib/cities)
+  const resolveCurrentCity = () => {
     try {
-      const rawSettings = localStorage.getItem('noor_settings');
-      if (rawSettings) {
-        const parsed = JSON.parse(rawSettings);
-        const foundInIran = ALL_SYNCED_CITIES.find(
-          (c: SyncedCityItem) => c.name === parsed.city || c.nameFa === parsed.city || c.nameFa.startsWith(parsed.city)
-        );
-        if (foundInIran) {
-          return {
-            cityObj: foundInIran,
-            method: (parsed.method as any) || 'tehran',
-          };
-        }
-      }
       const savedCustom = localStorage.getItem('noor_selected_city');
       if (savedCustom) {
-        const p = JSON.parse(savedCustom);
-        if (p && typeof p.lat === 'number' && typeof p.lng === 'number') {
+        const parsed = JSON.parse(savedCustom);
+        if (parsed && typeof parsed.lat === 'number' && typeof parsed.lng === 'number') {
           return {
-            cityObj: {
-              name: p.name || 'Custom',
-              nameFa: p.nameFa || 'موقعیت من',
-              lat: p.lat,
-              lng: p.lng,
-              timezone: p.timezone || 'Asia/Tehran',
-            },
-            method: 'tehran',
+            id: parsed.id || 'custom',
+            name: parsed.name || 'Custom',
+            nameFa: parsed.nameFa || 'موقعیت من',
+            lat: parsed.lat,
+            lng: parsed.lng,
+            timezone: parsed.timezone || 'Asia/Tehran',
           };
         }
       }
+      const guestId = getGuestCityId();
+      const found = getCityById(guestId);
+      if (found) {
+        return {
+          id: found.id,
+          name: found.name,
+          nameFa: found.nameFa,
+          lat: found.lat,
+          lng: found.lng,
+          timezone: 'Asia/Tehran',
+        };
+      }
     } catch {}
-    return { cityObj: ALL_SYNCED_CITIES[1] || ALL_SYNCED_CITIES[0], method: 'tehran' };
+    return {
+      id: 'mashhad',
+      name: 'Mashhad',
+      nameFa: 'مشهد',
+      lat: 36.2972,
+      lng: 59.6067,
+      timezone: 'Asia/Tehran',
+    };
   };
 
-  const [syncedState, setSyncedState] = useState(() => readSyncedCityAndMethod());
-  const city = syncedState.cityObj;
-  const calcMethod = syncedState.method;
+  const [city, setCity] = useState(() => resolveCurrentCity());
 
-  // همگام‌سازی خودکار و لحظه‌ای هر وقت کاربر از تب تنظیمات به تب خانه برمی‌گردد یا شهر را عوض می‌کند
   useEffect(() => {
-    const syncNow = () => setSyncedState(readSyncedCityAndMethod());
-    const interval = setInterval(() => {
+    const timer = setInterval(() => {
       setNow(new Date());
-      syncNow();
-    }, 2500);
-    window.addEventListener('storage', syncNow);
-    window.addEventListener('focus', syncNow);
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('storage', syncNow);
-      window.removeEventListener('focus', syncNow);
-    };
+      setCity(resolveCurrentCity());
+    }, 3000);
+    return () => clearInterval(timer);
   }, []);
 
-  // ذخیره شهر هم در noor_settings (برای تنظیمات) و هم در noor_selected_city (برای خانه)
-  const applySelectedCityEverywhere = (newCity: SyncedCityItem) => {
+  const applyCitySelection = (c: { id: string; name: string; nameFa: string; lat: number; lng: number; timezone?: string }) => {
     try {
-      const raw = localStorage.getItem('noor_settings');
-      const parsed = raw ? JSON.parse(raw) : {};
-      parsed.city = newCity.name;
-      localStorage.setItem('noor_settings', JSON.stringify(parsed));
-      localStorage.setItem('noor_selected_city', JSON.stringify(newCity));
+      setGuestCityId(c.id);
+      localStorage.setItem('noor_selected_city', JSON.stringify(c));
     } catch {}
-    setSyncedState((prev) => ({ ...prev, cityObj: newCity }));
+    setCity({ ...c, timezone: c.timezone || 'Asia/Tehran' });
+    void rescheduleAll();
   };
 
   const [adhanBells, setAdhanBells] = useState<Record<string, boolean>>(() => {
     try {
       const raw = localStorage.getItem('noor_adhan_bells_v1');
       if (raw) return JSON.parse(raw);
-    } catch {}
-    try {
-      const savedMap = localStorage.getItem('noor_adhan_enabled_prayers_v1') || localStorage.getItem('noor_adhan_bells_v1');
-      if (savedMap) return JSON.parse(savedMap);
     } catch {}
     return { fajr: true, dhuhr: true, asr: false, maghrib: true, isha: false };
   });
@@ -1138,29 +1077,27 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
 
   const showQuickToast = (msg: string) => {
     setStatusBanner(msg);
-    setTimeout(() => setStatusBanner(null), 3500);
+    setTimeout(() => setStatusBanner(null), 4000);
   };
 
-  // مکان‌یابی خودکار و دقیق با درخواست مجوز سیستمی اندروید + بررسی تمام ۸۵ شهر ایران و ژئوکودر معکوس
+  // مکان‌یابی خودکار GPS با استفاده از متد واقعی NoorAlarm.requestAndGetLocation() در پروژه شما!
   const autoDetectLocationNow = async () => {
     setLocatingGps(true);
-    showQuickToast('📡 در حال دریافت مجوز و تشخیص موقعیت دقیق شما...');
+    showQuickToast('📡 در حال دریافت مجوز و موقعیت دقیق GPS از سیستم اندروید...');
     try {
       let lat: number | null = null;
       let lng: number | null = null;
 
-      // ۱. تلاش اول از طریق پلاگین نیتیو اندروید (همراه با اخذ مجوز خودکار)
       if (Capacitor.isNativePlatform()) {
         try {
-          const nativePos = await (NoorAlarm as any).getNativeCoordinates();
-          if (nativePos && typeof nativePos.lat === 'number' && typeof nativePos.lng === 'number') {
-            lat = nativePos.lat;
-            lng = nativePos.lng;
+          const res = await NoorAlarm.requestAndGetLocation();
+          if (res && res.hasCoords && typeof res.lat === 'number' && typeof res.lng === 'number') {
+            lat = res.lat;
+            lng = res.lng;
           }
         } catch {}
       }
 
-      // ۲. تلاش دوم از طریق Geolocation استاندارد
       if (lat === null || lng === null) {
         const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
           navigator.geolocation.getCurrentPosition(resolve, reject, {
@@ -1174,27 +1111,25 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
       }
 
       if (lat !== null && lng !== null) {
-        // پیدا کردن نزدیک‌ترین شهر از بین تمام شهرهای ایران (ALL_SYNCED_CITIES)
-        let nearest = ALL_SYNCED_CITIES[0];
+        let nearest = CITIES[0];
         let minDist = Infinity;
-        for (const c of ALL_SYNCED_CITIES) {
+        for (const c of CITIES) {
           const d = Math.hypot(c.lat - lat, c.lng - lng);
           if (d < minDist) {
             minDist = d;
             nearest = c;
           }
         }
-
-        const matchedCity: SyncedCityItem = {
+        const matched = {
+          id: nearest.id,
           name: nearest.name,
           nameFa: nearest.nameFa,
           lat,
           lng,
-          timezone: nearest.timezone || 'Asia/Tehran',
+          timezone: 'Asia/Tehran',
         };
-
-        applySelectedCityEverywhere(matchedCity);
-        showQuickToast(`✅ موقعیت شما با موفقیت روی «${matchedCity.nameFa}» تنظیم شد`);
+        applyCitySelection(matched);
+        showQuickToast(`✅ موقعیت شما با GPS روی «${matched.nameFa}» تنظیم شد`);
         setShowCityPicker(false);
       }
     } catch {
@@ -1204,82 +1139,145 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
     }
   };
 
-  const togglePrayerBell = async (key: string, labelFa: string) => {
+  const times = calculatePrayerTimes(now, city.lat, city.lng);
+  const nextPrayerInfo = times ? getNextPrayer(times) : null;
+  const nextPrayer = {
+    key: nextPrayerInfo?.key ?? 'fajr',
+    nameFa: nextPrayerInfo?.nameFa ?? 'صبح',
+    time: nextPrayerInfo?.time ?? (times?.fajr || '04:45'),
+    remaining: nextPrayerInfo?.remaining ?? '۱ ساعت و ۳۰ دقیقه',
+    progress: (nextPrayerInfo as { progress?: number } | null)?.progress ?? 55,
+  };
+
+  // کوک کردن مستقیم آلارم نیتیو کرنل اندروید (NoorAlarm.scheduleNativeAlarm) که حتی با صفحه قفل اذان می‌گوید!
+  const scheduleNativeLockscreenAdhanForPrayer = async (
+    prayerKey: string,
+    labelFa: string,
+    timeStr: string,
+    enable: boolean
+  ) => {
+    const alarmIds: Record<string, number> = {
+      fajr: 70101,
+      dhuhr: 70102,
+      asr: 70103,
+      maghrib: 70104,
+      isha: 70105,
+    };
+    const alarmId = alarmIds[prayerKey] || 70199;
+
+    if (!Capacitor.isNativePlatform()) return;
+
+    try {
+      if (!enable) {
+        await NoorAlarm.cancelNativeAlarm({ id: alarmId });
+        return;
+      }
+
+      const [hh, mm] = timeStr.split(':').map((n) => parseInt(n, 10));
+      if (isNaN(hh) || isNaN(mm)) return;
+
+      const target = new Date();
+      target.setHours(hh, mm, 0, 0);
+      if (target.getTime() <= Date.now()) {
+        target.setDate(target.getDate() + 1);
+      }
+
+      const selectedAdhanId = localStorage.getItem('noor_guest_adhan_id') || 'mahur_saeed';
+      const durSec = getAdhanDurationSeconds(getAdhanDurationMode());
+
+      await NoorAlarm.scheduleNativeAlarm({
+        id: alarmId,
+        triggerAtMillis: target.getTime(),
+        title: `🕌 اذان ${labelFa} به افق ${city.nameFa}`,
+        body: `حي على الصلاة — وقت نماز ${labelFa} فرا رسیده است`,
+        soundType: 'adhan',
+        adhanId: selectedAdhanId,
+        durationSeconds: durSec,
+        volumePercent: 100,
+      });
+    } catch {}
+  };
+
+  const togglePrayerBell = async (key: string, labelFa: string, timeStr: string) => {
     const currentVal = Boolean(adhanBells[key]);
     const nextVal = !currentVal;
     const nextState = { ...adhanBells, [key]: nextVal };
     setAdhanBells(nextState);
     try {
       localStorage.setItem('noor_adhan_bells_v1', JSON.stringify(nextState));
-      localStorage.setItem('noor_adhan_enabled_prayers_v1', JSON.stringify(nextState));
-      window.dispatchEvent(new Event('storage'));
     } catch {}
 
+    await scheduleNativeLockscreenAdhanForPrayer(key, labelFa, timeStr, nextVal);
+    void rescheduleAll();
+
     if (nextVal) {
-      showQuickToast(`🔔 اذان ${labelFa} فعال شد — در حال ثبت آلارم دقیق و پخش پیش‌نمایش اذان...`);
-      try {
-        if (Capacitor.isNativePlatform()) {
-          await (NoorAlarm as any).requestDiagnosticPermissions?.();
-        }
-        const previewAudio = new Audio('/adhans/moazzenzadeh.mp3');
-        previewAudio.volume = 0.85;
-        void previewAudio.play().catch(() => {});
-        setTimeout(() => {
-          try {
-            previewAudio.pause();
-            previewAudio.currentTime = 0;
-          } catch {}
-        }, 8000);
-      } catch {}
+      const selectedAdhanId = localStorage.getItem('noor_guest_adhan_id') || 'mahur_saeed';
+      void playAdhanPreview(adhans.find((a) => a.id === selectedAdhanId) || adhans[0]);
+      setTimeout(() => stopAdhanPreview(), 7000);
+      showQuickToast(`🔔 زنگ اذان ${labelFa} (ساعت ${toFaDigits(timeStr)}) روی قفل صفحه کوک شد`);
     } else {
+      stopAdhanPreview();
       showQuickToast(`🔕 پخش خودکار اذان ${labelFa} غیرفعال شد`);
     }
   };
 
-  const times = calculatePrayerTimes(now, city.lat, city.lng, calcMethod);
-  const nextPrayerInfo = times ? getNextPrayer(times) : null;
-  const nextPrayer = {
-    key: nextPrayerInfo?.key ?? 'fajr',
-    nameFa: nextPrayerInfo?.nameFa ?? 'صبح',
-    time: nextPrayerInfo?.time ?? (times?.fajr || '04:42'),
-    remaining: nextPrayerInfo?.remaining ?? '۱ ساعت و ۴۵ دقیقه',
-    progress: (nextPrayerInfo as { progress?: number } | null)?.progress ?? 55,
+  // تست فوری ۵ ثانیه بعد اذان روی صفحه قفل
+  const trigger5SecondLockScreenTest = async () => {
+    const selectedAdhanId = localStorage.getItem('noor_guest_adhan_id') || 'mahur_saeed';
+    if (Capacitor.isNativePlatform()) {
+      try {
+        await NoorAlarm.scheduleNativeAlarm({
+          id: 70999,
+          triggerAtMillis: Date.now() + 5000,
+          title: '🕌 تست پخش اذان در حالت قفل صفحه',
+          body: 'همراه معنوی نور — پخش خودکار اذان با صدای مؤذن انتخابی شما',
+          soundType: 'adhan',
+          adhanId: selectedAdhanId,
+          durationSeconds: 30,
+          volumePercent: 100,
+        });
+        showQuickToast('⏱️ آلارم اذان برای ۵ ثانیه دیگر کوک شد! همین الان صفحه گوشی را قفل (خاموش) کنید.');
+        return;
+      } catch {}
+    }
+    void playAdhanPreview(adhans.find((a) => a.id === selectedAdhanId) || adhans[0]);
+    showQuickToast('🔊 در حال پخش پیش‌نمایش صدای مؤذن انتخابی...');
   };
 
   const prayerColumns = [
-    { key: 'fajr', nameFa: 'صبح', time: times?.fajr ?? '04:42', icon: Sunrise, hasAdhan: true },
-    { key: 'sunrise', nameFa: 'طلوع', time: times?.sunrise ?? '06:00', icon: Sun, hasAdhan: false },
+    { key: 'fajr', nameFa: 'صبح', time: times?.fajr ?? '04:45', icon: Sunrise, hasAdhan: true },
+    { key: 'sunrise', nameFa: 'طلوع', time: times?.sunrise ?? '06:03', icon: Sun, hasAdhan: false },
     { key: 'dhuhr', nameFa: 'ظهر', time: times?.dhuhr ?? '11:17', icon: Sun, hasAdhan: true },
     ...((modulesVis as any).showAsrPrayer !== false
-      ? [{ key: 'asr', nameFa: 'عصر', time: times?.asr ?? '14:08', icon: Sunset, hasAdhan: true }]
+      ? [{ key: 'asr', nameFa: 'عصر', time: times?.asr ?? '14:06', icon: Sunset, hasAdhan: true }]
       : []),
-    { key: 'maghrib', nameFa: 'مغرب', time: times?.maghrib ?? '16:47', icon: Sunset, hasAdhan: true },
+    { key: 'maghrib', nameFa: 'مغرب', time: times?.maghrib ?? '16:44', icon: Sunset, hasAdhan: true },
     ...((modulesVis as any).showIshaPrayer !== false
-      ? [{ key: 'isha', nameFa: 'عشاء', time: times?.isha ?? '17:28', icon: Moon, hasAdhan: true }]
+      ? [{ key: 'isha', nameFa: 'عشاء', time: times?.isha ?? '17:36', icon: Moon, hasAdhan: true }]
       : []),
   ];
 
-  const filteredCities = ALL_SYNCED_CITIES.filter(
-    (c: SyncedCityItem) =>
+  const filteredCities = CITIES.filter(
+    (c) =>
       !citySearchQuery.trim() ||
       c.nameFa.includes(citySearchQuery.trim()) ||
+      ((c as any).provinceFa || "").includes(citySearchQuery.trim()) ||
       c.name.toLowerCase().includes(citySearchQuery.trim().toLowerCase())
   );
 
   return (
     <div
-      className="min-h-screen pb-32 relative overflow-x-hidden select-none"
+      className="min-h-screen pb-32 relative select-none"
       style={{ background: theme.bg, color: theme.text }}
       dir="rtl"
     >
-      {/* ۱. هدر بالای صفحه: کتیبه اللهم بارک + کپسول دمای بزرگ و کپسول شهر (دقیقاً مطابق عکس نمونه image_421792.png) */}
+      {/* ۱. هدر بالای صفحه با تصویر افق ۳۰تایی کاملاً آفلاین */}
       <div className="relative">
         <DynamicShrineHorizonArt cityName={city.nameFa} themeId={theme.id} nextPrayerKey={nextPrayer.key} />
 
         <div className="absolute top-2.5 inset-x-0 z-20 max-w-lg mx-auto px-4 space-y-2.5">
           <NastaliqMahdiCrown onOpenGuide={() => setShowQuickGuide(true)} />
 
-          {/* ردیف کپسول شهر و کپسول بزرگ دما (بدون دکمه اضافی تغییر شهر!) */}
           <div className="flex items-center justify-between gap-2 pt-0.5">
             <button
               type="button"
@@ -1294,10 +1292,9 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
                 color: '#ECFDF5',
                 boxShadow: '0 4px 16px rgba(0, 0, 0, 0.35)',
               }}
-              title="تشخیص خودکار موقعیت با GPS یا انتخاب شهر"
             >
               <MapPin size={16} color="#34D399" className={locatingGps ? 'animate-bounce' : ''} />
-              <span>{locatingGps ? 'مکان‌یابی...' : city.nameFa.replace(' مقدس', '')}</span>
+              <span>{locatingGps ? 'مکان‌یابی...' : city.nameFa}</span>
               <span className="text-xs opacity-80">⌄</span>
             </button>
 
@@ -1314,7 +1311,7 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
       {statusBanner && (
         <div className="max-w-lg mx-auto px-4 mt-2 relative z-30">
           <div
-            className="px-3.5 py-2 rounded-2xl border text-xs font-black text-center shadow-lg"
+            className="px-3.5 py-2.5 rounded-2xl border text-xs font-black text-center shadow-lg"
             style={{ background: theme.surfaceAlt, borderColor: theme.primary, color: theme.text }}
           >
             {statusBanner}
@@ -1327,16 +1324,13 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
 
       {/* ۲. بدنه اصلی صفحه خانه */}
       <div className="max-w-lg mx-auto px-4 -mt-4 relative z-10 space-y-3.5">
-        {/* ترکیب فوق‌العاده شکیل فیگمایی: کارت عمودی تاریخ و روزشمار سال (image_421791.png) در کنار کارت قوس هلالی اذان! */}
         <div className="flex items-stretch gap-2.5">
-          {/* کارت عمودی تاریخ و روزشمار سال (شنبه ۱۷ آبان ۱۴۰۵ | روز ۲۴۶ سال ۱۴۰۵) */}
           <VerticalJalaliDayCounterCard
             now={now}
             weekdayFa={getJalaliWeekday(now)}
             onClick={() => setShowCalendar(true)}
           />
 
-          {/* کارت قوس هلالی بزرگ اذان بعدی */}
           <div
             className="flex-1 rounded-[28px] p-3.5 relative overflow-hidden border shadow-2xl flex flex-col justify-center"
             style={{
@@ -1357,7 +1351,7 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
           </div>
         </div>
 
-        {/* ۳. داک ۴ آیکونی شیشه‌ای ۲۰۲۶ (قرآن | تقویم و هوا | مسجدیاب | قبله‌نما AR) */}
+        {/* ۳. داک ۴ آیکونی شیشه‌ای ۲۰۲۶ */}
         <div className="grid grid-cols-4 gap-2.5">
           <button
             type="button"
@@ -1420,28 +1414,42 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
           </button>
         </div>
 
-        {/* ۴. جدول ستونی «اوقات شرعی امروز» همراه با زنگوله کوچک (🔔/🔕) + دکمه مستقیم استودیو تواشیح و سوره پس از اذان */}
+        {/* ۴. جدول ستونی «اوقات شرعی امروز» + دکمه تست ۵ ثانیه‌ای اذان روی قفل صفحه */}
         <div
           className="rounded-3xl p-4 border shadow-lg"
           style={{ background: theme.card, borderColor: theme.border }}
         >
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-black flex items-center gap-1.5" style={{ color: theme.text }}>
+          <div className="flex items-center justify-between gap-1 mb-3 flex-wrap">
+            <span className="text-xs font-black flex items-center gap-1" style={{ color: theme.text }}>
               <span>🕌</span>
-              <span>اوقات شرعی امروز به افق {city.nameFa}</span>
+              <span>اوقات شرعی ({city.nameFa})</span>
             </span>
-            <button
-              type="button"
-              onClick={() => setShowStudioAndTravel(true)}
-              className="px-2.5 py-1 rounded-xl text-[10px] font-black border flex items-center gap-1 transition-transform active:scale-95"
-              style={{
-                background: `color-mix(in srgb, ${theme.accent} 18%, transparent)`,
-                borderColor: theme.accent,
-                color: theme.accent,
-              }}
-            >
-              <span>🔔 اعلان قبل و پس از اذان</span>
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => void trigger5SecondLockScreenTest()}
+                className="px-2.5 py-1 rounded-xl text-[10px] font-black border flex items-center gap-1 transition-transform active:scale-95"
+                style={{
+                  background: 'rgba(16, 185, 129, 0.2)',
+                  borderColor: '#34D399',
+                  color: '#6EE7B7',
+                }}
+              >
+                <span>⏱️ تست ۵ ثانیه اذان</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowStudioAndTravel(true)}
+                className="px-2.5 py-1 rounded-xl text-[10px] font-black border flex items-center gap-1 transition-transform active:scale-95"
+                style={{
+                  background: `color-mix(in srgb, ${theme.accent} 18%, transparent)`,
+                  borderColor: theme.accent,
+                  color: theme.accent,
+                }}
+              >
+                <span>🔔 تواشیح قبل/پس از اذان</span>
+              </button>
+            </div>
           </div>
 
           <div
@@ -1473,7 +1481,7 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
                   {p.hasAdhan ? (
                     <button
                       type="button"
-                      onClick={() => togglePrayerBell(p.key, p.nameFa)}
+                      onClick={() => void togglePrayerBell(p.key, p.nameFa, p.time)}
                       title={`پخش خودکار اذان ${p.nameFa}`}
                       className="mt-0.5 w-7 h-7 rounded-xl border flex items-center justify-center transition-transform active:scale-90"
                       style={{
@@ -1571,7 +1579,7 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
         </div>
       </div>
 
-      {/* مودال انتخاب شهر متصل به کل ۸۵ شهر ایران (ALL_SYNCED_CITIES) + مکان‌یابی خودکار GPS */}
+      {/* مودال انتخاب شهر متصل به لیست کامل CITIES در @/lib/cities + مکان‌یاب نیتیو */}
       {showCityPicker && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -1608,23 +1616,31 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
             />
 
             <div className="grid grid-cols-2 gap-2 overflow-y-auto pr-1" style={{ maxHeight: '46vh' }}>
-              {filteredCities.map((c: SyncedCityItem) => (
+              {filteredCities.map((c) => (
                 <button
-                  key={c.name}
+                  key={c.id}
                   type="button"
                   onClick={() => {
-                    applySelectedCityEverywhere(c);
+                    applyCitySelection({
+                      id: c.id,
+                      name: c.name,
+                      nameFa: c.nameFa,
+                      lat: c.lat,
+                      lng: c.lng,
+                      timezone: 'Asia/Tehran',
+                    });
                     setShowCityPicker(false);
                     showQuickToast(`📍 افق شرعی روی «${c.nameFa}» تنظیم شد`);
                   }}
                   className="p-2.5 rounded-2xl border text-right text-xs font-bold transition-all"
                   style={{
-                    borderColor: c.name === city.name || c.nameFa === city.nameFa ? theme.primary : theme.border,
-                    background: c.name === city.name || c.nameFa === city.nameFa ? theme.primaryGlow : theme.bg,
+                    borderColor: c.id === city.id || c.nameFa === city.nameFa ? theme.primary : theme.border,
+                    background: c.id === city.id || c.nameFa === city.nameFa ? theme.primaryGlow : theme.bg,
                     color: theme.text,
                   }}
                 >
-                  {c.nameFa}
+                  <span>{c.nameFa}</span>
+                  <span className="text-[9px] text-muted block">{(c as any).provinceFa || ""}</span>
                 </button>
               ))}
             </div>
