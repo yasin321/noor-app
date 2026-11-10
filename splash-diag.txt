@@ -1,0 +1,1558 @@
+=== SPLASH & BUILD DIAGNOSTIC REPORT ===
+
+[MATCH] android\app\src\main\java\com\noor\app\AdhanAlarmActivity.java
+[MATCH] android\app\src\main\java\com\noor\app\MainActivity.java
+[MATCH] android\app\src\main\java\com\noor\app\NoorPrayerWidgetProvider.java
+[MATCH] android\app\src\main\res\layout\noor_prayer_widget.xml
+[MATCH] src\App.tsx
+[MATCH] src\components\CalendarModal.tsx
+[MATCH] src\components\HeroHorizon30Gallery.tsx
+[MATCH] src\components\HomeScreen.tsx
+[MATCH] src\components\MosqueFinderModal.tsx
+[MATCH] src\components\QuranAndMuhasabaModal.tsx
+[MATCH] src\components\SettingsScreen.tsx
+[MATCH] src\components\ThemeBackdropPattern.tsx
+[MATCH] src\components\VipAnalyticsModal.tsx
+[MATCH] src\components\VipAndAnalyticsModal.tsx
+[MATCH] src\lib\dhikrLibrary.ts
+[MATCH] .github\workflows\build-apk.yml
+[INDEX.HTML SIZE] 10794
+
+--- FILE: android\app\src\main\java\com\noor\app\AdhanAlarmActivity.java ---
+package com.noor.app;
+
+import android.app.KeyguardManager;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.graphics.Color;
+import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
+import android.os.Build;
+import android.os.Bundle;
+import android.view.Gravity;
+import android.view.WindowManager;
+import android.widget.Button;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+import androidx.appcompat.app.AppCompatActivity;
+
+public class AdhanAlarmActivity extends AppCompatActivity {
+    public static final String ACTION_CLOSE_UI = "com.noor.app.ACTION_CLOSE_ALARM_UI";
+
+    private final BroadcastReceiver closeReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            finishAndRemoveTask();
+        }
+    };
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        turnScreenOnAndUnlock();
+
+        String titleText = getIntent() != null && getIntent().getStringExtra("title") != null
+                ? getIntent().getStringExtra("title")
+                : "وقت اذان و نیایش";
+        String bodyText = getIntent() != null && getIntent().getStringExtra("body") != null
+                ? getIntent().getStringExtra("body")
+                : "حَیَّ عَلَی الصَّلَاة — وقت فضیلت نماز فرا رسیده است";
+
+        boolean isPreAdhan = titleText.contains("مانده تا اذان") || titleText.contains("دقیقه تا اذان") || titleText.contains("پیش از اذان");
+        boolean isPostAdhan = titleText.contains("تعقیبات") || titleText.contains("تسبیحات") || titleText.contains("سوره") || titleText.contains("آیةالکرسی") || titleText.contains("پس از اذان");
+
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setGravity(Gravity.CENTER);
+        root.setBackgroundColor(Color.parseColor(isPreAdhan ? "#091E26" : "#04151F"));
+        root.setPadding(68, 68, 68, 68);
+
+        TextView badge = new TextView(this);
+        badge.setText(isPreAdhan ? "🔔 تواشیح و آمادگی پیش از اذان" : isPostAdhan ? "📿 تعقیبات نماز و تلاوت سوره" : "🕌 همراه معنوی نور — وقت اذان");
+        badge.setTextColor(Color.parseColor(isPreAdhan ? "#38BDF8" : "#34D399"));
+        badge.setTextSize(18f);
+        badge.setTypeface(Typeface.DEFAULT_BOLD);
+        badge.setGravity(Gravity.CENTER);
+
+        TextView eqIndicator = new TextView(this);
+        eqIndicator.setText(isPreAdhan ? "ılılı در حال پخش تواشیح و ذکر پیش از اذان ılılı" : "ılılı در حال پخش صدای مؤذن ılılı");
+        eqIndicator.setTextColor(Color.parseColor("#A7F3D0"));
+        eqIndicator.setTextSize(13f);
+        eqIndicator.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams eqParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        eqParams.setMargins(0, 16, 0, 24);
+        eqIndicator.setLayoutParams(eqParams);
+
+        TextView title = new TextView(this);
+        title.setText(titleText);
+        title.setTextColor(Color.parseColor("#FEF08A"));
+        title.setTextSize(26f);
+        title.setTypeface(Typeface.DEFAULT_BOLD);
+        title.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        titleParams.setMargins(0, 12, 0, 28);
+        title.setLayoutParams(titleParams);
+
+        // کادر ویژه نمایش متن عربی تواشیح یا دعای قبل از اذان
+        TextView body = new TextView(this);
+        body.setText(bodyText);
+        body.setTextColor(Color.parseColor("#FFFFFF"));
+        body.setTextSize(19f);
+        body.setTypeface(Typeface.DEFAULT_BOLD);
+        body.setGravity(Gravity.CENTER);
+        GradientDrawable cardBg = new GradientDrawable();
+        cardBg.setColor(Color.parseColor("#112E38"));
+        cardBg.setStroke(2, Color.parseColor(isPreAdhan ? "#38BDF8" : "#10B981"));
+        cardBg.setCornerRadius(36f);
+        body.setBackground(cardBg);
+        body.setPadding(44, 44, 44, 44);
+        LinearLayout.LayoutParams bodyParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        bodyParams.setMargins(0, 0, 0, 64);
+        body.setLayoutParams(bodyParams);
+
+        Button stopBtn = new Button(this);
+        stopBtn.setText(isPreAdhan ? "⏹️ توقف تواشیح و بستن" : isPostAdhan ? "⏹️ توقف صوت تعقیبات و بستن" : "⏹️ توقف اذان و بستن");
+        stopBtn.setTextColor(Color.parseColor("#04151F"));
+        stopBtn.setTextSize(17f);
+        stopBtn.setTypeface(Typeface.DEFAULT_BOLD);
+        GradientDrawable stopBg = new GradientDrawable();
+        stopBg.setColor(Color.parseColor("#FBBF24"));
+        stopBg.setCornerRadius(48f);
+        stopBtn.setBackground(stopBg);
+        stopBtn.setPadding(60, 34, 60, 34);
+        LinearLayout.LayoutParams stopParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        stopParams.setMargins(0, 0, 0, 24);
+        stopBtn.setLayoutParams(stopParams);
+
+        stopBtn.setOnClickListener(v -> {
+            Intent stopIntent = new Intent(this, AdhanForegroundService.class);
+            stopIntent.setAction(AdhanForegroundService.ACTION_STOP);
+            startService(stopIntent);
+            finishAndRemoveTask();
+        });
+
+        Button openAppBtn = new Button(this);
+        openAppBtn.setText("�� باز کردن اپلیکیشن نور");
+        openAppBtn.setTextColor(Color.parseColor("#34D399"));
+        openAppBtn.setTextSize(15f);
+        openAppBtn.setTypeface(Typeface.DEFAULT_BOLD);
+        GradientDrawable openBg = new GradientDrawable();
+        openBg.setColor(Color.parseColor("#0F2922"));
+        openBg.setStroke(3, Color.parseColor("#10B981"));
+        openBg.setCornerRadius(48f);
+        openAppBtn.setBackground(openBg);
+        openAppBtn.setPadding(60, 30, 60, 30);
+        LinearLayout.LayoutParams openParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        openAppBtn.setLayoutParams(openParams);
+
+        openAppBtn.setOnClickListener(v -> {
+            Intent stopIntent = new Intent(this, AdhanForegroundService.class);
+            stopIntent.setAction(AdhanForegroundService.ACTION_STOP);
+            startService(stopIntent);
+
+            Intent mainIntent = new Intent(this, MainActivity.class);
+            mainIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            startActivity(mainIntent);
+            finish();
+        });
+
+        root.addView(badge);
+        root.addView(eqIndicator);
+        root.addView(title);
+        root.addView(body);
+        root.addView(stopBtn);
+        root.addView(openAppBtn);
+        setContentView(root);
+
+        IntentFilter filter = new IntentFilter(ACTION_CLOSE_UI);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(closeReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            registerReceiver(closeReceiver, filter);
+        }
+    }
+
+    private void turnScreenOnAndUnlock() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true);
+            setTurnScreenOn(true);
+            KeyguardManager km = (KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE);
+            if (km != null) {
+                km.requestDismissKeyguard(this, null);
+            }
+        }
+        getWindow().addFlags(
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED |
+                WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD |
+                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON |
+                WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON |
+                WindowManager.LayoutParams.FLAG_FULLSCREEN
+        );
+    }
+
+    @Override
+    protected void onDestroy() {
+        try {
+            unregisterReceiver(closeReceiver);
+        } catch (Exception ignored) {}
+        super.onDestroy();
+    }
+}
+
+
+--- FILE: android\app\src\main\java\com\noor\app\AdhanAlarmReceiver.java ---
+package com.noor.app;
+
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.os.Build;
+import android.os.PowerManager;
+
+public class AdhanAlarmReceiver extends BroadcastReceiver {
+    public static final String ACTION_TRIGGER = "com.noor.app.ACTION_TRIGGER_ADHAN_ALARM";
+    public static final String ACTION_STOP = "com.noor.app.ACTION_STOP_ADHAN_ALARM";
+
+    @Override
+    public void onReceive(Context context, Intent intent) {
+        if (intent == null) return;
+        String action = intent.getAction();
+
+        // ۱. اگر رویداد ریستارت گوشی، آپدیت برنامه یا تغییر ساعت بود، تمام آلارم‌های آینده را در AlarmManager بازنشانی کن
+        if (Intent.ACTION_BOOT_COMPLETED.equals(action) ||
+                Intent.ACTION_LOCKED_BOOT_COMPLETED.equals(action) ||
+                "android.intent.action.QUICKBOOT_POWERON".equals(action) ||
+                Intent.ACTION_MY_PACKAGE_REPLACED.equals(action) ||
+                "android.intent.action.TIME_SET".equals(action) ||
+                Intent.ACTION_TIMEZONE_CHANGED.equals(action)) {
+            NoorAlarmPlugin.restorePersistedAlarms(context);
+            return;
+        }
+
+        // ۲. اگر دستور توقف آلارم بود
+        if (ACTION_STOP.equals(action) || AdhanForegroundService.ACTION_STOP.equals(action)) {
+            AdhanForegroundService.killActivePlayer(context);
+            Intent stopService = new Intent(context, AdhanForegroundService.class);
+            stopService.setAction(AdhanForegroundService.ACTION_STOP);
+            context.stopService(stopService);
+            context.sendBroadcast(new Intent(AdhanAlarmActivity.ACTION_CLOSE_UI));
+            return;
+        }
+
+        // ۳. اجرای آلارم اذان، پیش از اذان یا تعقیبات (حتی اگر action خالی باشد ولی دارای title یا id باشد)
+        if (ACTION_TRIGGER.equals(action) || intent.hasExtra("title") || intent.hasExtra("id")) {
+            // گرفتن WakeLock فوری ۱۰ ثانیه‌ای برای تضمین بالا آمدن سرویس روی صفحه قفل خاموش
+            try {
+                PowerManager pm = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
+                if (pm != null) {
+                    PowerManager.WakeLock wl = pm.newWakeLock(
+                            PowerManager.PARTIAL_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP,
+                            "noor:ReceiverTransitionWakeLock"
+                    );
+                    wl.acquire(10000L);
+                }
+            } catch (Exception ignored) {}
+
+            int alarmId = intent.getIntExtra("id", -1);
+            if (alarmId != -1) {
+                NoorAlarmPlugin.removePersistedAlarm(context, alarmId);
+            }
+
+            Intent serviceIntent = new Intent(context, AdhanForegroundService.class);
+            serviceIntent.putExtra("title", intent.getStringExtra("title"));
+            serviceIntent.putExtra("body", intent.getStringExtra("body"));
+            serviceIntent.putExtra("soundType", intent.getStringExtra("soundType"));
+            serviceIntent.putExtra("adhanId", intent.getStringExtra("adhanId"));
+            serviceIntent.putExtra("durationSeconds", intent.getIntExtra("durationSeconds", 0));
+            serviceIntent.putExtra("volumePercent", intent.getIntExtra("volumePercent", 100));
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(serviceIntent);
+            } else {
+                context.startService(serviceIntent);
+            }
+        }
+    }
+}
+
+
+--- FILE: android\app\src\main\java\com\noor\app\AdhanForegroundService.java ---
+package com.noor.app;
+
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.app.Service;
+import android.content.Context;
+import android.content.Intent;
+import android.content.pm.ServiceInfo;
+import android.content.res.AssetFileDescriptor;
+import android.media.AudioAttributes;
+import android.media.MediaPlayer;
+import android.media.RingtoneManager;
+import android.net.Uri;
+import android.os.Build;
+import android.os.Handler;
+import android.os.IBinder;
+import android.os.Looper;
+import android.os.PowerManager;
+import android.os.VibrationEffect;
+import android.os.Vibrator;
+import androidx.core.app.NotificationCompat;
+import java.io.File;
+
+public class AdhanForegroundService extends Service {
+    public static final String CHANNEL_ID = "noor_fullscreen_alarm_v7";
+    public static final String ACTION_STOP = "com.noor.app.ACTION_STOP_ADHAN";
+    private static final int NOTIF_ID = 88001;
+
+    private static final Object PLAYER_LOCK = new Object();
+    private static MediaPlayer activePlayer = null;
+    private static final Handler stopHandler = new Handler(Looper.getMainLooper());
+    private static Runnable stopRunnable = null;
+    private PowerManager.WakeLock wakeLock;
+
+    public static void killActivePlayer(Context ctx) {
+        synchronized (PLAYER_LOCK) {
+            if (stopRunnable != null) {
+                stopHandler.removeCallbacks(stopRunnable);
+                stopRunnable = null;
+            }
+            if (activePlayer != null) {
+                try {
+                    if (activePlayer.isPlaying()) {
+                        activePlayer.stop();
+                    }
+                } catch (Exception ignored) {}
+                try {
+                    activePlayer.reset();
+                    activePlayer.release();
+                } catch (Exception ignored) {}
+                activePlayer = null;
+            }
+            if (ctx != null) {
+                try {
+                    Vibrator vib = (Vibrator) ctx.getSystemService(Context.VIBRATOR_SERVICE);
+                    if (vib != null) vib.cancel();
+                } catch (Exception ignored) {}
+                try {
+                    NotificationManager nm = (NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE);
+                    if (nm != null) nm.cancel(NOTIF_ID);
+                } catch (Exception ignored) {}
+            }
+        }
+    }
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        createAlarmChannel();
+    }
+
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        if (intent != null && "ACTION_RESTORE_ALARMS".equals(intent.getAction())) {
+            NoorAlarmPlugin.restorePersistedAlarms(this);
+            stopSelf();
+            return START_NOT_STICKY;
+        }
+
+        if (intent != null && (ACTION_STOP.equals(intent.getAction()) || AdhanAlarmReceiver.ACTION_STOP.equals(intent.getAction()))) {
+            killActivePlayer(this);
+            sendBroadcast(new Intent(AdhanAlarmActivity.ACTION_CLOSE_UI));
+            stopForeground(true);
+            stopSelf();
+            return START_NOT_STICKY;
+        }
+
+        killActivePlayer(this);
+        acquireWakeLock();
+
+        String title = intent != null && intent.getStringExtra("title") != null
+                ? intent.getStringExtra("title")
+                : "وقت اذان و نیایش";
+        String body = intent != null && intent.getStringExtra("body") != null
+                ? intent.getStringExtra("body")
+                : "حَیَّ عَلَی الصَّلَاة";
+        String soundType = intent != null && intent.getStringExtra("soundType") != null
+                ? intent.getStringExtra("soundType")
+                : "adhan";
+        String adhanId = intent != null && intent.getStringExtra("adhanId") != null
+                ? intent.getStringExtra("adhanId")
+                : "mahur_saeed";
+        int durationSeconds = intent != null ? intent.getIntExtra("durationSeconds", 0) : 0;
+        int volumePercent = intent != null ? intent.getIntExtra("volumePercent", 100) : 100;
+
+        Intent fullScreenIntent = new Intent(this, AdhanAlarmActivity.class);
+        fullScreenIntent.putExtra("title", title);
+        fullScreenIntent.putExtra("body", body);
+        fullScreenIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        PendingIntent fullScreenPi = PendingIntent.getActivity(
+                this, 201, fullScreenIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
+
+        Intent stopIntent = new Intent(this, AdhanForegroundService.class);
+        stopIntent.setAction(ACTION_STOP);
+        PendingIntent stopPi = PendingIntent.getService(
+                this, 202, stopIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
+
+        Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
+                .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+                .setContentTitle(title)
+                .setContentText(body)
+                .setStyle(new NotificationCompat.BigTextStyle().bigText(body))
+                .setPriority(NotificationCompat.PRIORITY_MAX)
+                .setCategory(NotificationCompat.CATEGORY_ALARM)
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .setOngoing(true)
+                .setAutoCancel(false)
+                .setFullScreenIntent(fullScreenPi, true)
+                .setContentIntent(fullScreenPi)
+                .addAction(android.R.drawable.ic_media_pause, "⏹️ توقف کامل صدا", stopPi)
+                .build();
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(NOTIF_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK);
+        } else {
+            startForeground(NOTIF_ID, notification);
+        }
+
+        try {
+            startActivity(fullScreenIntent);
+        } catch (Exception ignored) {}
+
+        triggerShortVibration();
+        startAudioPlayback(soundType, adhanId, durationSeconds, volumePercent);
+
+        return START_NOT_STICKY;
+    }
+
+    private void startAudioPlayback(String soundType, String adhanId, int durationSeconds, int volumePercent) {
+        if ("silent".equals(soundType) || volumePercent <= 0) {
+            return;
+        }
+        synchronized (PLAYER_LOCK) {
+            try {
+                MediaPlayer mp = new MediaPlayer();
+                activePlayer = mp;
+                mp.setWakeMode(getApplicationContext(), PowerManager.PARTIAL_WAKE_LOCK);
+                mp.setAudioAttributes(
+                        new AudioAttributes.Builder()
+                                .setUsage(AudioAttributes.USAGE_ALARM)
+                                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                                .build()
+                );
+
+                boolean loaded = false;
+                File downloadedDir = new File(getFilesDir(), "adhans");
+                File customMp3 = new File(downloadedDir, adhanId + ".mp3");
+                File customOgg = new File(downloadedDir, adhanId + ".ogg");
+
+                if (customMp3.exists() && customMp3.length() > 1024) {
+                    mp.setDataSource(customMp3.getAbsolutePath());
+                    loaded = true;
+                } else if (customOgg.exists() && customOgg.length() > 1024) {
+                    mp.setDataSource(customOgg.getAbsolutePath());
+                    loaded = true;
+                }
+
+                if (!loaded) {
+                    String[] candidates = new String[] {
+                            "public/adhans/" + adhanId + ".mp3",
+                            "public/adhans/" + adhanId + ".ogg",
+                            "public/adhans/mahur_saeed.ogg",
+                            "public/adhans/chant_salawat.mp3"
+                    };
+                    for (String path : candidates) {
+                        try {
+                            AssetFileDescriptor afd = getAssets().openFd(path);
+                            mp.setDataSource(afd.getFileDescriptor(), afd.getStartOffset(), afd.getLength());
+                            afd.close();
+                            loaded = true;
+                            break;
+                        } catch (Exception ignored) {}
+                    }
+                }
+
+                if (!loaded) {
+                    int rawId = getResources().getIdentifier("adhan_mahur", "raw", getPackageName());
+                    if (rawId != 0) {
+                        AssetFileDescriptor afd = getResources().openRawResourceFd(rawId);
+                        mp.setDataSource(afd.getFileDescriptor(), afd.getStartOffset(), afd.getLength());
+                        afd.close();
+                        loaded = true;
+                    }
+                }
+
+                if (!loaded) {
+                    Uri fallbackUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
+                    mp.setDataSource(this, fallbackUri);
+                }
+
+                                float vol = Math.max(0.05f, Math.min(1.0f, volumePercent / 100.0f));
+                mp.setVolume(vol, vol);
+                mp.setLooping(false);
+                mp.setOnCompletionListener(player -> {
+                    killActivePlayer(AdhanForegroundService.this);
+                    sendBroadcast(new Intent(AdhanAlarmActivity.ACTION_CLOSE_UI));
+                    stopForeground(true);
+                    stopSelf();
+                });
+                mp.prepare();
+                mp.start();
+
+                // اگر کاربر حالت پخش کامل (durationSeconds <= 0) را انتخاب کرده یا اعلان قبل/بعد از اذان کامل است،
+                // اجازه بده تا انتهای فایل صوتی (OnCompletionListener) به طور کامل پخش شود و زود قطع نشود!
+                if (durationSeconds > 0 && "short_10s".equals(soundType)) {
+                    stopRunnable = () -> {
+                        killActivePlayer(AdhanForegroundService.this);
+                        sendBroadcast(new Intent(AdhanAlarmActivity.ACTION_CLOSE_UI));
+                        stopForeground(true);
+                        stopSelf();
+                    };
+                    stopHandler.postDelayed(stopRunnable, durationSeconds * 1000L);
+                }
+            } catch (Exception e) {
+                killActivePlayer(this);
+            }
+        }
+    }
+
+    private void triggerShortVibration() {
+        try {
+            Vibrator v = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+            if (v != null && v.hasVibrator()) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    v.vibrate(VibrationEffect.createWaveform(new long[]{0, 400, 250, 400}, -1));
+                } else {
+                    v.vibrate(600);
+                }
+            }
+        } catch (Exception ignored) {}
+    }
+
+    private void acquireWakeLock() {
+        try {
+            PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+            if (pm != null) {
+                wakeLock = pm.newWakeLock(
+                        PowerManager.PARTIAL_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP,
+                        "noor:AdhanAlarmWakeLock"
+                );
+                wakeLock.acquire(4 * 60 * 1000L);
+            }
+        } catch (Exception ignored) {}
+    }
+
+    private void createAlarmChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel channel = new NotificationChannel(
+                    CHANNEL_ID,
+                    "پخش تمام‌صفحه اذان و تواشیح نور",
+                    NotificationManager.IMPORTANCE_HIGH
+            );
+            channel.setDescription("روشن شدن صفحه قفل و پخش اذان، تواشیح قبل از اذان و تعقیبات");
+            channel.setSound(null, null);
+            channel.enableVibration(true);
+            channel.setBypassDnd(true);
+            channel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
+            NotificationManager nm = getSystemService(NotificationManager.class);
+            if (nm != null) nm.createNotificationChannel(channel);
+        }
+    }
+
+    @Override
+    public void onDestroy() {
+        killActivePlayer(this);
+        try {
+            if (wakeLock != null && wakeLock.isHeld()) wakeLock.release();
+        } catch (Exception ignored) {}
+        super.onDestroy();
+    }
+
+    @Override
+    public IBinder onBind(Intent intent) {
+        return null;
+    }
+}
+
+
+--- FILE: android\app\src\main\java\com\noor\app\BootReceiver.java ---
+package com.noor.app;
+
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.util.Log;
+
+public class BootReceiver extends BroadcastReceiver {
+    private static final String TAG = "NoorBootReceiver";
+
+    @Override
+    public void onReceive(Context context, Intent intent) {
+        if (intent == null) return;
+        String action = intent.getAction();
+        if (Intent.ACTION_BOOT_COMPLETED.equals(action) ||
+                Intent.ACTION_LOCKED_BOOT_COMPLETED.equals(action) ||
+                "android.intent.action.QUICKBOOT_POWERON".equals(action) ||
+                Intent.ACTION_MY_PACKAGE_REPLACED.equals(action)) {
+            Log.i(TAG, "Device booted or package replaced; restoring persisted Noor native alarms...");
+            NoorAlarmPlugin.restorePersistedAlarms(context);
+        }
+    }
+}
+
+
+--- FILE: android\app\src\main\java\com\noor\app\MainActivity.java ---
+package com.noor.app;
+
+import android.graphics.Color;
+import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.view.Gravity;
+import android.view.View;
+import android.view.ViewGroup;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.widget.FrameLayout;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+import com.getcapacitor.BridgeActivity;
+
+public class MainActivity extends BridgeActivity {
+    private View nativeRoyalSplashView = null;
+
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        registerPlugin(NoorAlarmPlugin.class);
+        super.onCreate(savedInstanceState);
+
+        try {
+            getWindow().setStatusBarColor(Color.parseColor("#071A16"));
+            getWindow().setNavigationBarColor(Color.parseColor("#071A16"));
+
+            FrameLayout rootLayout = (FrameLayout) getWindow().getDecorView().findViewById(android.R.id.content);
+            if (rootLayout != null) {
+                LinearLayout splash = new LinearLayout(this);
+                splash.setOrientation(LinearLayout.VERTICAL);
+                splash.setGravity(Gravity.CENTER);
+                GradientDrawable bg = new GradientDrawable(
+                        GradientDrawable.Orientation.TOP_BOTTOM,
+                        new int[]{Color.parseColor("#0F3D33"), Color.parseColor("#071A16"), Color.parseColor("#030C0A")}
+                );
+                splash.setBackground(bg);
+                splash.setPadding(56, 80, 56, 80);
+
+                TextView bismillah = new TextView(this);
+                bismillah.setText("بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ");
+                bismillah.setTextColor(Color.parseColor("#FDE68A"));
+                bismillah.setTextSize(15f);
+                bismillah.setTypeface(Typeface.SERIF, Typeface.BOLD);
+                bismillah.setGravity(Gravity.CENTER);
+                GradientDrawable pillBg = new GradientDrawable();
+                pillBg.setColor(Color.parseColor("#113E33"));
+                pillBg.setStroke(2, Color.parseColor("#66FBBF24"));
+                pillBg.setCornerRadius(99f);
+                bismillah.setBackground(pillBg);
+                bismillah.setPadding(48, 18, 48, 18);
+
+                TextView emblem = new TextView(this);
+                emblem.setText("🕌");
+                emblem.setTextSize(64f);
+                emblem.setGravity(Gravity.CENTER);
+                LinearLayout.LayoutParams emParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                emParams.setMargins(0, 56, 0, 20);
+                emblem.setLayoutParams(emParams);
+
+                TextView appTitle = new TextView(this);
+                appTitle.setText("همراه معنوی نور");
+                appTitle.setTextColor(Color.parseColor("#ECFDF5"));
+                appTitle.setTextSize(28f);
+                appTitle.setTypeface(Typeface.DEFAULT_BOLD);
+                appTitle.setGravity(Gravity.CENTER);
+
+                TextView appSub = new TextView(this);
+                appSub.setText("اوقات شرعی · مصحف عثمان طه · آب‌وهوا و مسجدیاب");
+                appSub.setTextColor(Color.parseColor("#6EE7B7"));
+                appSub.setTextSize(12f);
+                appSub.setTypeface(Typeface.DEFAULT_BOLD);
+                appSub.setGravity(Gravity.CENTER);
+                LinearLayout.LayoutParams subParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                subParams.setMargins(0, 10, 0, 56);
+                appSub.setLayoutParams(subParams);
+
+                LinearLayout duaCard = new LinearLayout(this);
+                duaCard.setOrientation(LinearLayout.VERTICAL);
+                duaCard.setGravity(Gravity.CENTER);
+                GradientDrawable cardBg = new GradientDrawable();
+                cardBg.setColor(Color.parseColor("#0D2E26"));
+                cardBg.setStroke(3, Color.parseColor("#99FBBF24"));
+                cardBg.setCornerRadius(48f);
+                duaCard.setBackground(cardBg);
+                duaCard.setPadding(52, 48, 52, 48);
+
+                TextView duaArabic = new TextView(this);
+                duaArabic.setText("اللَّهُمَّ بَارِكْ لِمَوْلَانَا صَاحِبِ الزَّمَانِ (عج)");
+                duaArabic.setTextColor(Color.parseColor("#FEF08A"));
+                duaArabic.setTextSize(21f);
+                duaArabic.setTypeface(Typeface.SERIF, Typeface.BOLD);
+                duaArabic.setGravity(Gravity.CENTER);
+
+                TextView duaFa = new TextView(this);
+                duaFa.setText("خدایا برای مولای ما حضرت صاحب‌الزمان (عج) برکت و گشایش قرار ده");
+                duaFa.setTextColor(Color.parseColor("#D1FAE5"));
+                duaFa.setTextSize(12f);
+                duaFa.setGravity(Gravity.CENTER);
+                LinearLayout.LayoutParams faParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                faParams.setMargins(0, 18, 0, 0);
+                duaFa.setLayoutParams(faParams);
+
+                duaCard.addView(duaArabic);
+                duaCard.addView(duaFa);
+
+                splash.addView(bismillah);
+                splash.addView(emblem);
+                splash.addView(appTitle);
+                splash.addView(appSub);
+                splash.addView(duaCard);
+
+                rootLayout.addView(splash, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+                nativeRoyalSplashView = splash;
+            }
+
+            if (getBridge() != null && getBridge().getWebView() != null) {
+                WebView webView = getBridge().getWebView();
+                webView.setBackgroundColor(Color.parseColor("#071A16"));
+                webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+                WebSettings ws = webView.getSettings();
+                ws.setCacheMode(WebSettings.LOAD_DEFAULT);
+                ws.setDomStorageEnabled(true);
+                ws.setDatabaseEnabled(true);
+                ws.setRenderPriority(WebSettings.RenderPriority.HIGH);
+            }
+
+            new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                if (nativeRoyalSplashView != null) {
+                    nativeRoyalSplashView.animate()
+                            .alpha(0f)
+                            .setDuration(420)
+                            .withEndAction(() -> {
+                                if (nativeRoyalSplashView != null && nativeRoyalSplashView.getParent() instanceof ViewGroup) {
+                                    ((ViewGroup) nativeRoyalSplashView.getParent()).removeView(nativeRoyalSplashView);
+                                    nativeRoyalSplashView = null;
+                                }
+                            })
+                            .start();
+                }
+            }, 2200);
+        } catch (Exception ignored) {}
+    }
+}
+
+
+--- FILE: android\app\src\main\java\com\noor\app\NoorAlarmPlugin.java ---
+package com.noor.app;
+
+import android.Manifest;
+import android.app.AlarmManager;
+import android.app.PendingIntent;
+import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.location.Address;
+import android.location.Geocoder;
+import android.location.Location;
+import android.location.LocationManager;
+import android.net.Uri;
+import android.os.Build;
+import android.os.Looper;
+import android.provider.Settings;
+import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
+import com.getcapacitor.JSArray;
+import com.getcapacitor.JSObject;
+import com.getcapacitor.Plugin;
+import com.getcapacitor.PluginCall;
+import com.getcapacitor.PluginMethod;
+import com.getcapacitor.annotation.CapacitorPlugin;
+import com.getcapacitor.annotation.Permission;
+import com.getcapacitor.annotation.PermissionCallback;
+import com.getcapacitor.PermissionState;
+import com.google.android.gms.location.CurrentLocationRequest;
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.Granularity;
+import com.google.android.gms.location.LocationCallback;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationResult;
+import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.location.Priority;
+import com.google.android.gms.tasks.CancellationTokenSource;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import org.json.JSONObject;
+
+@CapacitorPlugin(
+    name = "NoorAlarm",
+    permissions = {
+        @Permission(
+            alias = "location",
+            strings = {
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            }
+        )
+    }
+)
+public class NoorAlarmPlugin extends Plugin {
+    public static final String ALARM_STORE_PREFS = "noor_native_alarms_store_v1";
+
+    // متد مرکزی ثبت آلارم در سیستم‌عامل اندروید (هم از داخل اپ و هم پس از ریستارت گوشی)
+    public static void scheduleExactWithSystem(
+            Context ctx,
+            int alarmId,
+            long targetTime,
+            String title,
+            String body,
+            String soundType,
+            String adhanId,
+            int durationSeconds,
+            int volumePercent
+    ) {
+        AlarmManager am = (AlarmManager) ctx.getSystemService(Context.ALARM_SERVICE);
+        if (am == null) return;
+
+        Intent intent = new Intent(ctx, AdhanAlarmReceiver.class);
+        intent.setAction(AdhanAlarmReceiver.ACTION_TRIGGER);
+        intent.setData(Uri.parse("noor://alarm/" + alarmId));
+        intent.putExtra("id", alarmId);
+        intent.putExtra("title", title);
+        intent.putExtra("body", body);
+        intent.putExtra("soundType", soundType);
+        intent.putExtra("adhanId", adhanId);
+        intent.putExtra("durationSeconds", durationSeconds);
+        intent.putExtra("volumePercent", volumePercent);
+
+        PendingIntent pi = PendingIntent.getBroadcast(
+                ctx,
+                alarmId,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
+
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                Intent showIntent = new Intent(ctx, MainActivity.class);
+                PendingIntent showPi = PendingIntent.getActivity(
+                        ctx,
+                        alarmId,
+                        showIntent,
+                        PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+                );
+                AlarmManager.AlarmClockInfo clockInfo = new AlarmManager.AlarmClockInfo(targetTime, showPi);
+                am.setAlarmClock(clockInfo, pi);
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, targetTime, pi);
+            } else {
+                am.setExact(AlarmManager.RTC_WAKEUP, targetTime, pi);
+            }
+        } catch (SecurityException se) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, targetTime, pi);
+            } else {
+                am.set(AlarmManager.RTC_WAKEUP, targetTime, pi);
+            }
+        }
+    }
+
+    // بازیابی خودکار تمام آلارم‌های آینده از حافظه دائم نیتیو بلافاصله پس از روشن شدن یا ریستارت گوشی
+    public static void restorePersistedAlarms(Context ctx) {
+        try {
+            SharedPreferences prefs = ctx.getSharedPreferences(ALARM_STORE_PREFS, Context.MODE_PRIVATE);
+            Map<String, ?> all = prefs.getAll();
+            if (all == null || all.isEmpty()) return;
+            long now = System.currentTimeMillis();
+            SharedPreferences.Editor editor = prefs.edit();
+            for (Map.Entry<String, ?> entry : all.entrySet()) {
+                try {
+                    String rawJson = String.valueOf(entry.getValue());
+                    JSONObject obj = new JSONObject(rawJson);
+                    int id = obj.optInt("id", -1);
+                    long triggerAt = obj.optLong("triggerAtMillis", 0L);
+                    if (id == -1 || triggerAt <= now) {
+                        editor.remove(entry.getKey());
+                        continue;
+                    }
+                    scheduleExactWithSystem(
+                            ctx,
+                            id,
+                            triggerAt,
+                            obj.optString("title", "وقت اذان و نیایش"),
+                            obj.optString("body", "حَیَّ عَلَی الصَّلَاة"),
+                            obj.optString("soundType", "adhan"),
+                            obj.optString("adhanId", "mahur_saeed"),
+                            obj.optInt("durationSeconds", 0),
+                            obj.optInt("volumePercent", 100)
+                    );
+                } catch (Exception ignored) {}
+            }
+            editor.apply();
+        } catch (Exception ignored) {}
+    }
+
+    public static void removePersistedAlarm(Context ctx, int alarmId) {
+        try {
+            SharedPreferences prefs = ctx.getSharedPreferences(ALARM_STORE_PREFS, Context.MODE_PRIVATE);
+            prefs.edit().remove("alarm_" + alarmId).apply();
+        } catch (Exception ignored) {}
+    }
+
+    @PluginMethod
+    public void scheduleNativeAlarm(PluginCall call) {
+        Integer idObj = call.getInt("id", 1001);
+        int alarmId = idObj != null ? idObj : 1001;
+        Long triggerAtMillis = call.getLong("triggerAtMillis", System.currentTimeMillis() + 5000L);
+        long targetTime = triggerAtMillis != null ? triggerAtMillis : System.currentTimeMillis() + 5000L;
+        String title = call.getString("title", "وقت اذان و نیایش");
+        String body = call.getString("body", "حَیَّ عَلَی الصَّلَاة");
+        String soundType = call.getString("soundType", "adhan");
+        String adhanId = call.getString("adhanId", "mahur_saeed");
+        Integer durationObj = call.getInt("durationSeconds", 0);
+        int durationSeconds = durationObj != null ? durationObj : 0;
+        Integer volumeObj = call.getInt("volumePercent", 100);
+        int volumePercent = volumeObj != null ? volumeObj : 100;
+
+        Context ctx = getContext();
+
+        // ۱. ذخیره در حافظه دائم نیتیو برای بازیابی خودکار پس از ریستارت گوشی
+        try {
+            JSONObject record = new JSONObject();
+            record.put("id", alarmId);
+            record.put("triggerAtMillis", targetTime);
+            record.put("title", title);
+            record.put("body", body);
+            record.put("soundType", soundType);
+            record.put("adhanId", adhanId);
+            record.put("durationSeconds", durationSeconds);
+            record.put("volumePercent", volumePercent);
+            SharedPreferences prefs = ctx.getSharedPreferences(ALARM_STORE_PREFS, Context.MODE_PRIVATE);
+            prefs.edit().putString("alarm_" + alarmId, record.toString()).apply();
+        } catch (Exception ignored) {}
+
+        // ۲. ثبت در AlarmManager هسته اندروید با اکشن صریح ACTION_TRIGGER
+        scheduleExactWithSystem(ctx, alarmId, targetTime, title, body, soundType, adhanId, durationSeconds, volumePercent);
+
+        JSObject ret = new JSObject();
+        ret.put("scheduled", true);
+        call.resolve(ret);
+    }
+
+    @PluginMethod
+    public void cancelNativeAlarm(PluginCall call) {
+        Integer idObj = call.getInt("id", 1001);
+        int alarmId = idObj != null ? idObj : 1001;
+        Context ctx = getContext();
+        removePersistedAlarm(ctx, alarmId);
+
+        AlarmManager am = (AlarmManager) ctx.getSystemService(Context.ALARM_SERVICE);
+        Intent intent = new Intent(ctx, AdhanAlarmReceiver.class);
+        intent.setAction(AdhanAlarmReceiver.ACTION_TRIGGER);
+        intent.setData(Uri.parse("noor://alarm/" + alarmId));
+        PendingIntent pi = PendingIntent.getBroadcast(
+                ctx,
+                alarmId,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
+        if (am != null) {
+            am.cancel(pi);
+        }
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void stopActiveAlarm(PluginCall call) {
+        Context ctx = getContext();
+        AdhanForegroundService.killActivePlayer(ctx);
+        Intent stopIntent = new Intent(ctx, AdhanForegroundService.class);
+        stopIntent.setAction(AdhanForegroundService.ACTION_STOP);
+        ctx.startService(stopIntent);
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void openBatteryOptimizationSettings(PluginCall call) {
+        try {
+            Context ctx = getContext();
+            Intent intent = new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            ctx.startActivity(intent);
+        } catch (Exception ignored) {}
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void updatePrayerWidget(PluginCall call) {
+        String nextPrayerText = call.getString("nextPrayerText", "همراه معنوی نور");
+        String subtitleText = call.getString("subtitleText", "اوقات شرعی و ذکر روزانه");
+        String titleText = call.getString("titleText", "📍 افق شهر شما");
+        Context ctx = getContext();
+        SharedPreferences prefs = ctx.getSharedPreferences("noor_widget_prefs", Context.MODE_PRIVATE);
+        SharedPreferences.Editor ed = prefs.edit();
+        if (call.getString("fajr") != null) ed.putString("fajr", call.getString("fajr"));
+        if (call.getString("sunrise") != null) ed.putString("sunrise", call.getString("sunrise"));
+        if (call.getString("dhuhr") != null) ed.putString("dhuhr", call.getString("dhuhr"));
+        if (call.getString("maghrib") != null) ed.putString("maghrib", call.getString("maghrib"));
+        if (call.getString("midnight") != null) ed.putString("midnight", call.getString("midnight"));
+        ed.apply();
+        NoorPrayerWidgetProvider.pushWidgetUpdate(ctx, titleText, nextPrayerText, subtitleText);
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void requestAndGetLocation(PluginCall call) {
+        if (getPermissionState("location") != PermissionState.GRANTED) {
+            requestPermissionForAlias("location", call, "locationPermCallback");
+        } else {
+            fetchFusedHighAccuracyLocation(call);
+        }
+    }
+
+    @PermissionCallback
+    private void locationPermCallback(PluginCall call) {
+        if (getPermissionState("location") == PermissionState.GRANTED) {
+            fetchFusedHighAccuracyLocation(call);
+        } else {
+            JSObject ret = new JSObject();
+            ret.put("hasCoords", false);
+            call.resolve(ret);
+        }
+    }
+
+    private String getOfflineAndroidAddress(Context ctx, double lat, double lng) {
+        try {
+            Geocoder geocoder = new Geocoder(ctx, new Locale("fa", "IR"));
+            List<Address> addresses = geocoder.getFromLocation(lat, lng, 1);
+            if (addresses != null && !addresses.isEmpty()) {
+                Address a = addresses.get(0);
+                StringBuilder sb = new StringBuilder();
+                if (a.getLocality() != null) sb.append(a.getLocality());
+                if (a.getSubLocality() != null) {
+                    if (sb.length() > 0) sb.append("، ");
+                    sb.append(a.getSubLocality());
+                }
+                if (a.getThoroughfare() != null) {
+                    if (sb.length() > 0) sb.append("، ");
+                    sb.append(a.getThoroughfare());
+                }
+                if (sb.length() > 0) return sb.toString();
+                if (a.getAddressLine(0) != null) return a.getAddressLine(0);
+            }
+        } catch (Exception ignored) {}
+        return "";
+    }
+
+    private void resolveWithLocation(PluginCall call, Context ctx, Location loc, String providerName) {
+        JSObject ret = new JSObject();
+        ret.put("hasCoords", true);
+        ret.put("lat", loc.getLatitude());
+        ret.put("lng", loc.getLongitude());
+        ret.put("accuracy", loc.hasAccuracy() ? Math.round(loc.getAccuracy()) : 12);
+        ret.put("provider", providerName);
+        String nativeAddr = getOfflineAndroidAddress(ctx, loc.getLatitude(), loc.getLongitude());
+        if (nativeAddr != null && !nativeAddr.isEmpty()) {
+            ret.put("nativeAddress", nativeAddr);
+        }
+        call.resolve(ret);
+    }
+
+    private void fetchFusedHighAccuracyLocation(final PluginCall call) {
+        final Context ctx = getContext();
+        boolean fine = ContextCompat.checkSelfPermission(ctx, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+        boolean coarse = ContextCompat.checkSelfPermission(ctx, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+        if (!fine && !coarse) {
+            JSObject ret = new JSObject();
+            ret.put("hasCoords", false);
+            call.resolve(ret);
+            return;
+        }
+
+        try {
+            final FusedLocationProviderClient fusedClient = LocationServices.getFusedLocationProviderClient(ctx);
+            final boolean[] resolved = new boolean[]{false};
+
+            CurrentLocationRequest currentReq = new CurrentLocationRequest.Builder()
+                    .setPriority(Priority.PRIORITY_HIGH_ACCURACY)
+                    .setGranularity(Granularity.GRANULARITY_FINE)
+                    .setMaxUpdateAgeMillis(0)
+                    .setDurationMillis(4500)
+                    .build();
+
+            CancellationTokenSource cts = new CancellationTokenSource();
+            fusedClient.getCurrentLocation(currentReq, cts.getToken())
+                    .addOnSuccessListener(loc -> {
+                        if (!resolved[0] && loc != null) {
+                            resolved[0] = true;
+                            resolveWithLocation(call, ctx, loc, "gms_fused_current");
+                        }
+                    });
+
+            LocationRequest liveReq = new LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 500)
+                    .setMinUpdateIntervalMillis(250)
+                    .setWaitForAccurateLocation(false)
+                    .setMaxUpdates(3)
+                    .build();
+
+            final LocationCallback callback = new LocationCallback() {
+                @Override
+                public void onLocationResult(@NonNull LocationResult result) {
+                    Location best = result.getLastLocation();
+                    if (best == null) return;
+                    if (!resolved[0] && (!best.hasAccuracy() || best.getAccuracy() <= 65f)) {
+                        resolved[0] = true;
+                        fusedClient.removeLocationUpdates(this);
+                        resolveWithLocation(call, ctx, best, "gms_fused_stream");
+                    }
+                }
+            };
+
+            fusedClient.requestLocationUpdates(liveReq, callback, Looper.getMainLooper());
+
+            new android.os.Handler(Looper.getMainLooper()).postDelayed(() -> {
+                if (!resolved[0]) {
+                    try { fusedClient.removeLocationUpdates(callback); } catch (Exception ignored) {}
+                    fusedClient.getLastLocation().addOnSuccessListener(lastLoc -> {
+                        if (!resolved[0] && lastLoc != null) {
+                            resolved[0] = true;
+                            resolveWithLocation(call, ctx, lastLoc, "gms_fused_last");
+                        } else if (!resolved[0]) {
+                            fallbackToAndroidGpsManager(call, ctx);
+                        }
+                    }).addOnFailureListener(e -> {
+                        if (!resolved[0]) fallbackToAndroidGpsManager(call, ctx);
+                    });
+                }
+            }, 3800L);
+
+        } catch (Exception e) {
+            fallbackToAndroidGpsManager(call, ctx);
+        }
+    }
+
+    private void fallbackToAndroidGpsManager(PluginCall call, Context ctx) {
+        try {
+            LocationManager lm = (LocationManager) ctx.getSystemService(Context.LOCATION_SERVICE);
+            if (lm != null) {
+                Location gps = lm.isProviderEnabled(LocationManager.GPS_PROVIDER) ? lm.getLastKnownLocation(LocationManager.GPS_PROVIDER) : null;
+                if (gps != null) {
+                    resolveWithLocation(call, ctx, gps, "android_gps");
+                    return;
+                }
+            }
+        } catch (Exception ignored) {}
+        JSObject ret = new JSObject();
+        ret.put("hasCoords", false);
+        call.resolve(ret);
+    }
+
+    @PluginMethod
+    public void downloadAdhanAudio(PluginCall call) {
+        final String adhanId = call.getString("adhanId", "mahur_saeed");
+        final String audioUrl = call.getString("audioUrl", "");
+        final String fallbackUrl = call.getString("fallbackUrl", "");
+        if (audioUrl == null || audioUrl.isEmpty()) {
+            JSObject ret = new JSObject();
+            ret.put("downloaded", false);
+            call.resolve(ret);
+            return;
+        }
+        new Thread(() -> {
+            File dir = new File(getContext().getFilesDir(), "adhans");
+            if (!dir.exists()) dir.mkdirs();
+            String ext = audioUrl.endsWith(".ogg") ? ".ogg" : ".mp3";
+            File outFile = new File(dir, adhanId + ext);
+            boolean ok = downloadFileUrl(audioUrl, outFile);
+            if (!ok && fallbackUrl != null && !fallbackUrl.isEmpty()) {
+                ok = downloadFileUrl(fallbackUrl, outFile);
+            }
+            JSObject ret = new JSObject();
+            ret.put("downloaded", ok);
+            if (ok) ret.put("path", outFile.getAbsolutePath());
+            call.resolve(ret);
+        }).start();
+    }
+
+    private boolean downloadFileUrl(String urlStr, File dest) {
+        try {
+            URL url = new URL(urlStr);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setConnectTimeout(10000);
+            conn.setReadTimeout(15000);
+            conn.connect();
+            if (conn.getResponseCode() != HttpURLConnection.HTTP_OK) return false;
+            InputStream is = conn.getInputStream();
+            FileOutputStream fos = new FileOutputStream(dest);
+            byte[] buf = new byte[8192];
+            int len;
+            while ((len = is.read(buf)) > 0) {
+                fos.write(buf, 0, len);
+            }
+            fos.flush();
+            fos.close();
+            is.close();
+            return dest.length() > 1024;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    @PluginMethod
+    public void listDownloadedAdhans(PluginCall call) {
+        File dir = new File(getContext().getFilesDir(), "adhans");
+        JSArray arr = new JSArray();
+        if (dir.exists() && dir.isDirectory()) {
+            File[] files = dir.listFiles();
+            if (files != null) {
+                for (File f : files) {
+                    if (f.length() > 1024) {
+                        String name = f.getName().replace(".mp3", "").replace(".ogg", "");
+                        arr.put(name);
+                    }
+                }
+            }
+        }
+        JSObject ret = new JSObject();
+        ret.put("ids", arr);
+        call.resolve(ret);
+    }
+
+    @PluginMethod
+    public void previewAdhanAudio(PluginCall call) {
+        String adhanId = call.getString("adhanId", "mahur_saeed");
+        Integer durationSeconds = call.getInt("durationSeconds", 15);
+        Integer volumePercent = call.getInt("volumePercent", 95);
+        Context ctx = getContext();
+        Intent srv = new Intent(ctx, AdhanForegroundService.class);
+        srv.putExtra("title", "پیش‌نمایش صوتی نور");
+        srv.putExtra("body", "در حال پخش نمونه صوتی...");
+        srv.putExtra("soundType", "adhan");
+        srv.putExtra("adhanId", adhanId);
+        srv.putExtra("durationSeconds", durationSeconds != null ? durationSeconds : 15);
+        srv.putExtra("volumePercent", volumePercent != null ? volumePercent : 95);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            ctx.startForegroundService(srv);
+        } else {
+            ctx.startService(srv);
+        }
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void stopPreviewAudio(PluginCall call) {
+        Context ctx = getContext();
+        AdhanForegroundService.killActivePlayer(ctx);
+        Intent stopIntent = new Intent(ctx, AdhanForegroundService.class);
+        stopIntent.setAction(AdhanForegroundService.ACTION_STOP);
+        ctx.startService(stopIntent);
+        call.resolve();
+    }
+}
+
+
+--- FILE: android\app\src\main\java\com\noor\app\NoorPrayerWidgetProvider.java ---
+package com.noor.app;
+
+import android.app.PendingIntent;
+import android.appwidget.AppWidgetManager;
+import android.appwidget.AppWidgetProvider;
+import android.content.ComponentName;
+import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.widget.RemoteViews;
+import java.util.Calendar;
+
+public class NoorPrayerWidgetProvider extends AppWidgetProvider {
+    private static final String PREFS_NAME = "noor_widget_prefs";
+
+    // تولید هوشمند ذکر متناسب با روز هفته و ساعت شبانه‌روز به صورت خودکار
+    public static String getDynamicHourlyAndDailyDhikr() {
+        Calendar cal = Calendar.getInstance();
+        int dayOfWeek = cal.get(Calendar.DAY_OF_WEEK);
+        int hour = cal.get(Calendar.HOUR_OF_DAY);
+
+        String dayDhikr;
+        String dayName;
+        switch (dayOfWeek) {
+            case Calendar.SATURDAY:
+                dayName = "شنبه";
+                dayDhikr = "يَا رَبَّ الْعَالَمِينَ";
+                break;
+            case Calendar.SUNDAY:
+                dayName = "یکشنبه";
+                dayDhikr = "يَا ذَا الْجَلَالِ وَالْإِكْرَامِ";
+                break;
+            case Calendar.MONDAY:
+                dayName = "دوشنبه";
+                dayDhikr = "يَا قَاضِيَ الْحَاجَاتِ";
+                break;
+            case Calendar.TUESDAY:
+                dayName = "سه‌شنبه";
+                dayDhikr = "يَا أَرْحَمَ الرَّاحِمِينَ";
+                break;
+            case Calendar.WEDNESDAY:
+                dayName = "چهارشنبه";
+                dayDhikr = "يَا حَيُّ يَا قَيُّومُ";
+                break;
+            case Calendar.THURSDAY:
+                dayName = "پنجشنبه";
+                dayDhikr = "لَا إِلَهَ إِلَّا اللَّهُ الْمَلِكُ الْحَقُّ الْمُبِينُ";
+                break;
+            case Calendar.FRIDAY:
+            default:
+                dayName = "جمعه";
+                dayDhikr = "اللَّهُمَّ صَلِّ عَلَى مُحَمَّدٍ وَآلِ مُحَمَّدٍ وَعَجِّلْ فَرَجَهُمْ";
+                break;
+        }
+
+        String timeMoment;
+        if (hour >= 3 && hour < 6) {
+            timeMoment = "🌌 ذکر سحر و صبح: اللَّهُمَّ بَارِكْ لِمَوْلَانَا صَاحِبِ الزَّمَانِ";
+        } else if (hour >= 6 && hour < 11) {
+            timeMoment = "☀️ ذکر آغاز روز (" + dayName + "): " + dayDhikr + " (۱۰۰ مرتبه)";
+        } else if (hour >= 11 && hour < 15) {
+            timeMoment = "🕌 وقت فضیلت ظهر (" + dayName + "): " + dayDhikr;
+        } else if (hour >= 15 && hour < 18) {
+            timeMoment = "🌿 ذکر عصرگاهی: أَسْتَغْفِرُ اللَّهَ رَبِّي وَأَتُوبُ إِلَيْهِ";
+        } else if (hour >= 18 && hour < 21) {
+            timeMoment = "🌙 ذکر شامگاه (" + dayName + "): " + dayDhikr;
+        } else {
+            timeMoment = "✨ پیش از خواب: سوره مبارکه واقعه و تسبیحات حضرت زهرا (س)";
+        }
+        return timeMoment;
+    }
+
+    public static void pushWidgetUpdate(Context context, String title, String nextPrayer, String subtitle) {
+        try {
+            SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+            if (title != null && nextPrayer != null && subtitle != null) {
+                prefs.edit()
+                    .putString("title", title)
+                    .putString("nextPrayer", nextPrayer)
+                    .putString("subtitle", subtitle)
+                    .apply();
+            }
+            String savedTitle = prefs.getString("title", "📍 به افق شهر شما");
+            String savedNext = prefs.getString("nextPrayer", "اذان بعدی: در حال محاسبه");
+            String savedSub = prefs.getString("subtitle", "همراه معنوی نور");
+            String fajr = prefs.getString("fajr", "۰۴:۵۵");
+            String sunrise = prefs.getString("sunrise", "۰۶:۲۰");
+            String dhuhr = prefs.getString("dhuhr", "۱۱:۵۰");
+            String maghrib = prefs.getString("maghrib", "۱۷:۲۵");
+            String midnight = prefs.getString("midnight", "۲۳:۰۵");
+
+            AppWidgetManager gm = AppWidgetManager.getInstance(context);
+            ComponentName cn = new ComponentName(context, NoorPrayerWidgetProvider.class);
+            int[] ids = gm.getAppWidgetIds(cn);
+            if (ids != null && ids.length > 0) {
+                Intent intent = new Intent(context, MainActivity.class);
+                PendingIntent pendingIntent = PendingIntent.getActivity(
+                    context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+                );
+                String dynamicDhikr = getDynamicHourlyAndDailyDhikr();
+                for (int appWidgetId : ids) {
+                    RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.noor_prayer_widget);
+                    views.setTextViewText(R.id.widget_title, savedTitle);
+                    views.setTextViewText(R.id.widget_next_prayer, savedNext);
+                    views.setTextViewText(R.id.widget_subtitle, savedSub);
+                    views.setTextViewText(R.id.widget_time_fajr, fajr);
+                    views.setTextViewText(R.id.widget_time_sunrise, sunrise);
+                    views.setTextViewText(R.id.widget_time_dhuhr, dhuhr);
+                    views.setTextViewText(R.id.widget_time_maghrib, maghrib);
+                    views.setTextViewText(R.id.widget_time_midnight, midnight);
+                    views.setTextViewText(R.id.widget_dynamic_dhikr, dynamicDhikr);
+                    views.setOnClickPendingIntent(R.id.widget_root, pendingIntent);
+                    gm.updateAppWidget(appWidgetId, views);
+                }
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    @Override
+    public void onUpdate(Context context, AppWidgetManager appWidgetManager, int[] appWidgetIds) {
+        pushWidgetUpdate(context, null, null, null);
+    }
+}
+
+
+--- styles.xml ---
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="AppTheme" parent="Theme.AppCompat.NoActionBar">
+        <item name="colorPrimary">#071A16</item>
+        <item name="colorPrimaryDark">#071A16</item>
+        <item name="colorAccent">#F59E0B</item>
+        <item name="android:windowBackground">@drawable/launch_splash</item>
+        <item name="android:statusBarColor">#071A16</item>
+        <item name="android:navigationBarColor">#071A16</item>
+    </style>
+    <style name="AppTheme.NoActionBar" parent="AppTheme">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+    </style>
+    <style name="AppTheme.NoActionBarLaunch" parent="AppTheme.NoActionBar">
+        <item name="android:windowBackground">@drawable/launch_splash</item>
+    </style>
+</resources>
+
+
+--- capacitor.config.ts ---
+import type { CapacitorConfig } from '@capacitor/cli';
+
+const config: CapacitorConfig = {
+  appId: 'com.noor.app',
+  appName: 'نور',
+  webDir: 'dist',
+  plugins: {
+    SplashScreen: {
+      launchShowDuration: 0,
+      launchAutoHide: true,
+      backgroundColor: '#071A16',
+      showSpinner: false,
+    },
+  },
+};
+
+export default config;
+
+
+--- build-apk.yml ---
+name: Build & Release Noor Android APK
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-android:
+    name: Build Android APK & Publish Dynamic Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 10
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Java JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: TypeScript Strict Check & Unit Tests
+        run: |
+          npm run typecheck
+          npm test
+
+      - name: Build Production Web Bundle
+        run: npm run build
+
+      - name: Sync Capacitor Android
+        run: npx cap sync android
+
+      - name: Inject Dynamic Version into Gradle & Build APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Prepare Dynamic Version & Changelog
+        id: meta
+        run: |
+          VERSION_TAG="v3.0.${{ github.run_number }}"
+          echo "version_tag=$VERSION_TAG" >> $GITHUB_OUTPUT
+          RECENT_COMMITS=$(git log -n 5 --pretty=format:"- %s (`%h`)" || echo "- بهبود عملکرد و رابط کاربری")
+          EOF_MARKER="EOF_$$"
+          echo "changelog<<$EOF_MARKER" >> $GITHUB_OUTPUT
+          echo "$RECENT_COMMITS" >> $GITHUB_OUTPUT
+          echo "$EOF_MARKER" >> $GITHUB_OUTPUT
+          cp android/app/build/outputs/apk/debug/app-debug.apk "Noor-Companion-$VERSION_TAG.apk"
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Noor-Companion-${{ steps.meta.outputs.version_tag }}
+          path: Noor-Companion-${{ steps.meta.outputs.version_tag }}.apk
+
+      - name: Publish Official GitHub Release (Dynamic Version)
+        uses: softprops/action-gh-release@v2
+        if: github.ref == 'refs/heads/main'
+        with:
+          tag_name: ${{ steps.meta.outputs.version_tag }}
+          name: "🕌 نسخه ${{ steps.meta.outputs.version_tag }} اپلیکیشن همراه معنوی نور (Noor Official Release)"
+          body: |
+            ## ✨ انتشار رسمی نسخه `${{ steps.meta.outputs.version_tag }}` اپلیکیشن همراه معنوی نور
+            **طراحی، معماری و توسعه توسط: یاسین (Yasin)**
+
+            ### 🛠️ آخرین تغییرات و ارتقاهای این بیلد (Recent Commits)
+            ${{ steps.meta.outputs.changelog }}
+
+            ---
+            ### �� قابلیت‌های کلیدی این نسخه (v3.0 Architecture)
+            - 🎨 **رابط کاربری فیگما ۲۰۲۶:** افق پویا و تصویری شهر و حرم، قوس هلالی بزرگ اذان (Celestial Horizon Arc) و داک شیشه‌ای ۴ آیکونی.
+            - 🧭 **قبله‌نمای عمودی هوشمند (AI / AR Mode):** بدون نیاز به افقی کردن گوشی، مجهز به فیلتر ضدلرزش EMA، دوربین واقعیت افزوده و قفل سه‌بعدی کعبه.
+            - 🔔 **موتور آلارم سطح کرنل (`setAlarmClock`):** پخش خودکار تواشیح قبل اذان (ناد علی، اسماء الحسنی، عبدالباسط)، اذان‌های ماندگار و تلاوت کامل سوره پس از نماز با تنظیم سرعت (`0.85x` تا `2.0x`) و پایداری پس از ریستارت گوشی.
+            - 🗺️ **رادار مسجدیاب ۵ موتوره:** ترکیب Fused GPS، نقشه نشان، OpenStreetMap Nominatim/Overpass و نقشه زنده تعاملی.
+            - 📊 **داشبورد تحلیلی Power BI & VIP:** ماتریس حرارتی سالانه (Activity Heatmap)، نمودار موجی ماهانه، دفترچه شمارش معکوس قضا و تایمر خلوت خشوع.
+          files: Noor-Companion-${{ steps.meta.outputs.version_tag }}.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
