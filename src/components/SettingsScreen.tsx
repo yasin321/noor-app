@@ -64,6 +64,10 @@ const FONT_OPTIONS = [
 
 export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   const { theme, themeId, setThemeId } = useTheme();
+  const [showContactDeveloperModal, setShowContactDeveloperModal] = useState(false);
+  const [contactSubject, setContactSubject] = useState('پیشنهاد یا گزارش درباره اپلیکیشن همراه معنوی نور');
+  const [contactBody, setContactBody] = useState('');
+  const [copiedEmailToast, setCopiedEmailToast] = useState(false);
   const [showAdhanStudioInSettings, setShowAdhanStudioInSettings] = useState(false);
   const { profile, signOut, updateProfile, user } = useAuth();
   const [section, setSection] = useState<SettingsSection>('main');
@@ -1115,6 +1119,132 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
           }}
         />
       </div>
+
+        {/* دسته‌بندی ویژه: ارتباط با سازنده و پشتیبانی مستقیم */}
+        <p className="text-xs font-bold text-muted mb-2 mt-5 px-1">ارتباط با سازنده و پشتیبانی</p>
+        <div
+          onClick={() => setShowContactDeveloperModal(true)}
+          role="button"
+          tabIndex={0}
+          className="w-full p-4 rounded-3xl border flex items-center justify-between text-right mb-4 cursor-pointer transition-transform active:scale-[0.99] shadow-lg"
+          style={{
+            background: `linear-gradient(135deg, color-mix(in srgb, ${theme.primary} 18%, ${theme.surface}) 0%, ${theme.surface} 100%)`,
+            borderColor: theme.primary,
+          }}
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <div
+              className="w-11 h-11 rounded-2xl flex items-center justify-center text-lg shrink-0"
+              style={{ background: theme.primaryGlow, border: `1px solid ${theme.primary}` }}
+            >
+              ✉️
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs sm:text-sm font-black text-white">ارتباط مستقیم با سازنده برنامه</p>
+              <p className="text-[11px] text-emerald-200/90 mt-0.5 truncate" dir="ltr">
+                ycnakbari@gmail.com
+              </p>
+              <p className="text-[10px] text-muted mt-0.5">
+                ارسال نظر، پیشنهاد، انتقاد یا گزارش مشکل فنی
+              </p>
+            </div>
+          </div>
+          <span
+            className="px-3 py-1.5 rounded-xl text-xs font-black shrink-0"
+            style={{ background: theme.primary, color: theme.bg }}
+          >
+            ارسال پیام ←
+          </span>
+        </div>
+
+        {/* مودال اختصاصی ارسال پیام به ایمیل سازنده (ycnakbari@gmail.com) */}
+        {showContactDeveloperModal && (
+          <div
+            className="fixed inset-0 z-[999] flex items-center justify-center p-4"
+            style={{ background: 'rgba(2, 12, 9, 0.88)', backdropFilter: 'blur(8px)' }}
+            onClick={() => setShowContactDeveloperModal(false)}
+          >
+            <div
+              className="w-full max-w-md rounded-3xl p-5 border space-y-3.5 shadow-2xl"
+              style={{ background: theme.surface, borderColor: theme.primary }}
+              onClick={(e) => e.stopPropagation()}
+              dir="rtl"
+            >
+              <div className="flex items-center justify-between border-b pb-2.5" style={{ borderColor: theme.border }}>
+                <div>
+                  <h3 className="text-sm font-black text-white">✉️ ارسال پیام به سازنده «نور»</h3>
+                  <p className="text-[11px] text-emerald-200/85 mt-0.5">طراح و توسعه‌دهنده: یاسین اکبری</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowContactDeveloperModal(false)}
+                  className="px-2.5 py-1 rounded-xl text-xs bg-white/10 text-white"
+                >
+                  بستن ✕
+                </button>
+              </div>
+
+              {/* کادر نمایش و کپی سریع آدرس ایمیل */}
+              <div
+                className="p-3 rounded-2xl border flex items-center justify-between gap-2"
+                style={{ background: theme.bg, borderColor: theme.border }}
+              >
+                <div className="text-right">
+                  <span className="text-[10px] text-muted block">پست الکترونیک رسمی سازنده:</span>
+                  <strong className="text-xs font-black text-amber-300 select-all" dir="ltr">
+                    ycnakbari@gmail.com
+                  </strong>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    try {
+                      navigator.clipboard.writeText('ycnakbari@gmail.com');
+                      setCopiedEmailToast(true);
+                      setTimeout(() => setCopiedEmailToast(false), 2500);
+                    } catch {}
+                  }}
+                  className="px-3 py-1.5 rounded-xl text-[11px] font-black border transition-transform active:scale-95"
+                  style={{ borderColor: theme.primary, color: theme.primary, background: theme.primaryGlow }}
+                >
+                  {copiedEmailToast ? '✓ کپی شد' : 'کپی ایمیل'}
+                </button>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[11px] font-bold text-slate-200 block">موضوع پیام:</label>
+                <input
+                  type="text"
+                  value={contactSubject}
+                  onChange={(e) => setContactSubject(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-2xl border text-xs bg-black/25 text-white outline-none"
+                  style={{ borderColor: theme.border }}
+                />
+
+                <label className="text-[11px] font-bold text-slate-200 block pt-1">متن پیام، پیشنهاد یا گزارش شما:</label>
+                <textarea
+                  rows={4}
+                  value={contactBody}
+                  onChange={(e) => setContactBody(e.target.value)}
+                  placeholder="سلام؛ نظر، پیشنهاد یا مشکل فنی خود را اینجا بنویسید تا مستقیماً به ایمیل سازنده ارسال شود..."
+                  className="w-full px-3.5 py-2.5 rounded-2xl border text-xs bg-black/25 text-white outline-none resize-none leading-relaxed"
+                  style={{ borderColor: theme.border }}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 gap-2 pt-1">
+                <a
+                  href={`mailto:ycnakbari@gmail.com?subject=${encodeURIComponent(contactSubject)}&body=${encodeURIComponent(contactBody || 'سلام، با تشکر از برنامه همراه معنوی نور:')}`}
+                  className="w-full py-3 rounded-2xl text-xs font-black text-center block shadow-lg transition-transform active:scale-95"
+                  style={{ background: theme.primary, color: theme.bg }}
+                >
+                  🚀 ارسال مستقیم با برنامه ایمیل (Gmail)
+                </a>
+              </div>
+            </div>
+          </div>
+        )}
+
 
       {user ? (
         <button

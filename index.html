@@ -10,7 +10,7 @@
     <title>همراه معنوی نور</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Amiri+Quran&family=Gulzar&family=Noto+Naskh+Arabic:wght@400;600;700&family=Noto+Nastaliq+Urdu:wght@400;700&family=Vazirmatn:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Amiri+Quran&family=Gulzar&family=Noto+Naskh+Arabic:wght@400;600;700&family=Noto+Nastaliq+Urdu:wght@400;700&family=Vazirmatn:wght@400;600;700;800;900&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
     <style>
       body { margin: 0; padding: 0; background: #041511; color: #ECFDF5; font-family: 'Vazirmatn', sans-serif; overflow-x: hidden; }
       #noor-instant-boot-splash {
@@ -36,6 +36,8 @@
         0% { transform: translateX(100%); }
         100% { transform: translateX(-100%); }
       }
+      * { -webkit-tap-highlight-color: transparent; }
+      html, body { touch-action: pan-y; -webkit-overflow-scrolling: touch; overscroll-behavior-y: none; }
     </style>
   </head>
   <body>

@@ -1041,11 +1041,15 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
   const [city, setCity] = useState(() => resolveCurrentCity());
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setNow(new Date());
-      setCity(resolveCurrentCity());
-    }, 3000);
-    return () => clearInterval(timer);
+    const syncCity = () => setCity(resolveCurrentCity());
+    const timer = setInterval(() => setNow(new Date()), 30000);
+    window.addEventListener('storage', syncCity);
+    window.addEventListener('noor-city-changed', syncCity);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('storage', syncCity);
+      window.removeEventListener('noor-city-changed', syncCity);
+    };
   }, []);
 
   const applyCitySelection = (c: { id: string; name: string; nameFa: string; lat: number; lng: number; timezone?: string }) => {
@@ -1197,6 +1201,34 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
       });
     } catch {}
   };
+
+  // همگام‌سازی خودکار و تضمینی تمام زنگوله‌های روشن اذان با آلارم بیدارکننده قفل صفحه اندروید
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform() || !times) return;
+    const syncAllActivePrayerAlarms = async () => {
+      const prayerMap: { key: string; label: string; timeStr: string }[] = [
+        { key: 'fajr', label: 'صبح', timeStr: times.fajr },
+        { key: 'dhuhr', label: 'ظهر', timeStr: times.dhuhr },
+        { key: 'asr', label: 'عصر', timeStr: times.asr },
+        { key: 'maghrib', label: 'مغرب', timeStr: times.maghrib },
+        { key: 'isha', label: 'عشاء', timeStr: times.isha },
+      ];
+      for (const item of prayerMap) {
+        if (item.timeStr) {
+          await scheduleNativeLockscreenAdhanForPrayer(
+            item.key,
+            item.label,
+            item.timeStr,
+            Boolean(adhanBells[item.key])
+          );
+        }
+      }
+    };
+    const t = setTimeout(() => {
+      void syncAllActivePrayerAlarms();
+    }, 600);
+    return () => clearTimeout(t);
+  }, [city.lat, city.lng, adhanBells]);
 
   const togglePrayerBell = async (key: string, labelFa: string, timeStr: string) => {
     const currentVal = Boolean(adhanBells[key]);
