@@ -44,7 +44,7 @@ jobs:
         run: npm run build
 
       - name: Sync Capacitor Android
-        run: npx cap sync android
+        run: npx cap copy android && npx cap sync android
 
       - name: Inject Dynamic Version into Gradle & Build APK
         working-directory: android
