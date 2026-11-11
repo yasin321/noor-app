@@ -14,10 +14,11 @@ public class MainActivity extends BridgeActivity {
         super.onCreate(savedInstanceState);
 
         try {
-            getWindow().getDecorView().setBackgroundColor(Color.parseColor("#041511"));
             if (this.bridge != null && this.bridge.getWebView() != null) {
                 WebView webView = this.bridge.getWebView();
-                webView.setBackgroundColor(Color.parseColor("#041511"));
+                // شفاف کردن پس‌زمینه اولیه WebView تا طرح launch_splash.xml در ثانیه صفر دیده شود
+                // و به محض رندر شدن index.html («نور آپدیت») بدون حتی ۱ فریم سبز خالی روی آن بنشیند!
+                webView.setBackgroundColor(Color.TRANSPARENT);
                 webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
                 WebSettings ws = webView.getSettings();
                 ws.setCacheMode(WebSettings.LOAD_DEFAULT);

@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="240dp"
+    android:height="240dp"
+    android:viewportWidth="240"
+    android:viewportHeight="240">
+
+    <!-- هاله نور طلایی-زمردی پشت شمسه -->
+    <path android:pathData="M120,120m-105,0a105,105 0,1 1,210 0a105,105 0,1 1,-210 0">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="radial"
+                android:centerX="120"
+                android:centerY="120"
+                android:gradientRadius="105"
+                android:startColor="#44FBBF24"
+                android:centerColor="#2210B981"
+                android:endColor="#00041511" />
+        </aapt:attr>
+    </path>
+
+    <!-- گلبرگ‌های هندسی شمسه (هم‌تراز با نور آپدیت) -->
+    <path
+        android:pathData="M48,48 L192,48 A20,20 0 0,1 212,68 L212,172 A20,20 0 0,1 192,192 L48,192 A20,20 0 0,1 28,172 L28,68 A20,20 0 0,1 48,48 Z"
+        android:strokeWidth="1.2"
+        android:strokeColor="#55FBBF24"
+        android:fillColor="#08FBBF24" />
+
+    <group android:pivotX="120" android:pivotY="120" android:rotation="45">
+        <path
+            android:pathData="M48,48 L192,48 A20,20 0 0,1 212,68 L212,172 A20,20 0 0,1 192,192 L48,192 A20,20 0 0,1 28,172 L28,68 A20,20 0 0,1 48,48 Z"
+            android:strokeWidth="1.2"
+            android:strokeColor="#55FBBF24"
+            android:fillColor="#08FBBF24" />
+    </group>
+
+    <!-- قاب شیشه‌ای آیفونی در مرکز (Squircle) -->
+    <path
+        android:pathData="M74,46 L166,46 A28,28 0 0,1 194,74 L194,166 A28,28 0 0,1 166,194 L74,194 A28,28 0 0,1 46,166 L46,74 A28,28 0 0,1 74,46 Z"
+        android:strokeWidth="2.8"
+        android:strokeColor="#FBBF24">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="radial"
+                android:centerX="115"
+                android:centerY="95"
+                android:gradientRadius="85"
+                android:startColor="#186B55"
+                android:centerColor="#09382C"
+                android:endColor="#031712" />
+        </aapt:attr>
+    </path>
+
+    <!-- ستاره چهارپر طلایی -->
+    <path
+        android:fillColor="#FEF08A"
+        android:pathData="M88,78 L90,84 L96,86 L90,88 L88,94 L86,88 L80,86 L86,84 Z" />
+    <path
+        android:fillColor="#FEF08A"
+        android:pathData="M124,74m-2,0a2,2 0,1 1,4 0a2,2 0,1 1,-4 0" />
+
+    <!-- مناره طلایی راست -->
+    <path
+        android:fillColor="#F59E0B"
+        android:pathData="M138,88h10v54h-10z" />
+    <path
+        android:fillColor="#FEF08A"
+        android:pathData="M135,85h16v3.5h-16z" />
+    <path
+        android:fillColor="#FBBF24"
+        android:pathData="M138,85 C138,77 148,77 148,85 Z" />
+
+    <!-- گنبد طلایی سه‌بعدی در مرکز -->
+    <path android:pathData="M84,128 C84,94 134,94 134,128 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="86"
+                android:startY="96"
+                android:endX="132"
+                android:endY="128"
+                android:startColor="#FFFBEB"
+                android:centerColor="#FDE047"
+                android:endColor="#B45309" />
+        </aapt:attr>
+    </path>
+
+    <!-- علم بالای گنبد -->
+    <path
+        android:fillColor="#FEF08A"
+        android:pathData="M108,85h2.2v13h-2.2z" />
+
+    <!-- رواق و ایوان زیر گنبد -->
+    <path
+        android:fillColor="#D97706"
+        android:pathData="M80,127h68v23h-68z" />
+    <path
+        android:fillColor="#05241C"
+        android:pathData="M103,150 L103,137 C103,132 115,132 115,137 L115,150 Z" />
+    <path
+        android:fillColor="#05241C"
+        android:pathData="M87,150 L87,139 C87,135 95,135 95,139 L95,150 Z" />
+    <path
+        android:fillColor="#05241C"
+        android:pathData="M123,150 L123,139 C123,135 131,135 131,139 L131,150 Z" />
+
+    <!-- موج نوری طلایی دور گنبد -->
+    <path
+        android:pathData="M60,156 C88,150 128,134 178,104"
+        android:strokeWidth="5"
+        android:strokeColor="#FBBF24"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M66,162 C94,154 132,138 178,108"
+        android:strokeWidth="2"
+        android:strokeColor="#FFFBEB"
+        android:strokeLineCap="round" />
+</vector>

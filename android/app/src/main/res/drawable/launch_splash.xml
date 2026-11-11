@@ -1,8 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- گرادیان پس‌زمینه دقیقاً منطبق با عکس نور آپدیت -->
     <item>
         <shape android:shape="rectangle">
-            <solid android:color="#041511" />
+            <gradient
+                android:type="radial"
+                android:gradientRadius="85%p"
+                android:centerX="50%"
+                android:centerY="35%"
+                android:startColor="#134E3E"
+                android:centerColor="#07261E"
+                android:endColor="#020E0B" />
         </shape>
     </item>
+    <!-- نمایش فوری آیکون شیشه‌ای و شمسه نور آپدیت در مرکز از ثانیه صفر -->
+    <item
+        android:width="220dp"
+        android:height="220dp"
+        android:gravity="center"
+        android:drawable="@drawable/noor_native_splash_art" />
 </layer-list>
