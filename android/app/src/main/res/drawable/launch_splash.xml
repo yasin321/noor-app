@@ -12,7 +12,4 @@
                 android:endColor="#020E0B" />
         </shape>
     </item>
-    <item
-        android:gravity="fill"
-        android:drawable="@drawable/noor_native_splash_art" />
 </layer-list>
