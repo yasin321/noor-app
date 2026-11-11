@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="radial"
+                android:gradientRadius="85%p"
+                android:centerX="50%"
+                android:centerY="35%"
+                android:startColor="#134E3E"
+                android:centerColor="#07261E"
+                android:endColor="#020E0B" />
+        </shape>
+    </item>
+    <item
+        android:gravity="fill"
+        android:drawable="@drawable/noor_native_splash_art" />
+</layer-list>
