@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { createPortal } from 'react-dom';
 import { MapPin, Check, X, Palette } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
@@ -365,7 +365,7 @@ export function resolveActiveHeroDesign(cityName: string, themeId: string): Hero
 }
 
 // نمایش عکس واقعی سینمایی در بالای صفحه با محو شدن نرم لبه پایینی در پس‌زمینه برنامه
-export function RenderHeroArtworkScene({ design }: { design: HeroArtDesign }) {
+export const RenderHeroArtworkScene = memo(function RenderHeroArtworkScene({ design }: { design: HeroArtDesign }) {
   const { theme } = useTheme();
   return (
     <div className="relative w-full h-full overflow-hidden" style={{ background: design.fallbackGradient }}>

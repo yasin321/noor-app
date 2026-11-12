@@ -4,7 +4,7 @@ import { QiblaCompass } from '@/components/QiblaCompass';
 import { VipAnalyticsModal } from '@/components/VipAnalyticsModal';
 import { CompactHeaderWeatherPill } from '@/components/WeatherCuteCard';
 import { NastaliqMahdiCrown, CelestialPrayerArcGauge, ThemePatternWatermark, DynamicShrineHorizonArt, VerticalJalaliDayCounterCard } from '@/components/FigmaLuxuryElements';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { MapPin, Clock, Sunrise, Sunset, Moon, Sun, CloudSun, ArrowLeft, Hand, Bell, BellOff, Compass, Sparkles, LocateFixed, Navigation, BookOpen, Sliders, Calendar } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
@@ -1143,7 +1143,8 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
     }
   };
 
-  const times = calculatePrayerTimes(now, city.lat, city.lng);
+  const dayMinuteKey = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}-${now.getHours()}:${now.getMinutes()}`;
+  const times = useMemo(() => calculatePrayerTimes(now, city.lat, city.lng), [dayMinuteKey, city.lat, city.lng]);
   const nextPrayerInfo = times ? getNextPrayer(times) : null;
   const nextPrayer = {
     key: nextPrayerInfo?.key ?? 'fajr',
@@ -1202,9 +1203,14 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
     } catch {}
   };
 
-  // همگام‌سازی خودکار و تضمینی تمام زنگوله‌های روشن اذان با آلارم بیدارکننده قفل صفحه اندروید
+  // همگام‌سازی هوشمند آلارم‌ها فقط در صورت تغییر واقعی شهر یا زنگوله‌ها (بدون ایجاد لگ در صفحه خانه)
+  const lastAlarmSyncSignatureRef = useRef<string>('');
   useEffect(() => {
     if (!Capacitor.isNativePlatform() || !times) return;
+    const sig = `${city.lat.toFixed(3)}_${city.lng.toFixed(3)}_${JSON.stringify(adhanBells)}`;
+    if (lastAlarmSyncSignatureRef.current === sig) return;
+    lastAlarmSyncSignatureRef.current = sig;
+
     const syncAllActivePrayerAlarms = async () => {
       const prayerMap: { key: string; label: string; timeStr: string }[] = [
         { key: 'fajr', label: 'صبح', timeStr: times.fajr },
@@ -1226,9 +1232,9 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
     };
     const t = setTimeout(() => {
       void syncAllActivePrayerAlarms();
-    }, 600);
+    }, 1200);
     return () => clearTimeout(t);
-  }, [city.lat, city.lng, adhanBells]);
+  }, [city.lat, city.lng, adhanBells, times]);
 
   const togglePrayerBell = async (key: string, labelFa: string, timeStr: string) => {
     const currentVal = Boolean(adhanBells[key]);

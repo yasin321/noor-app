@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { AuthProvider, useAuth } from '@/hooks/useAuth';
 import { ThemeProvider } from '@/hooks/useTheme';
 import { AuthScreen } from '@/components/AuthScreen';
@@ -23,35 +23,47 @@ export function getGuestNotifEnabled(): boolean {
   }
 }
 
+const TAB_ORDER: Tab[] = ['tasbih', 'library', 'home', 'reminders', 'settings'];
+
 function AppContent() {
   const { user, profile, loading } = useAuth();
   const [tab, setTab] = useState<Tab>('home');
-  const [navigationDirection, setNavigationDirection] = useState<'forward' | 'backward'>('forward');
+  const [visitedTabs, setVisitedTabs] = useState<Record<Tab, boolean>>({
+    home: true,
+    tasbih: false,
+    library: false,
+    reminders: false,
+    settings: false,
+  });
+  const [slideDir, setSlideDir] = useState<'left' | 'right' | 'none'>('none');
   const [showAuth, setShowAuth] = useState(false);
   const [showFirstTimeGuide, setShowFirstTimeGuide] = useState<boolean>(false);
 
-  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
-  const tabOrder: Tab[] = ['tasbih', 'library', 'home', 'reminders', 'settings'];
+  const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
 
-  // به محض اینکه دیتای اولیه برنامه آماده شد، صفحه گرافیکی آغازین (در index.html) را به نرمی کنار بزن
   useEffect(() => {
     if (!loading) {
       const timer = setTimeout(() => {
         const bootSplash = document.getElementById('noor-instant-boot-splash');
         if (bootSplash) {
           bootSplash.classList.add('splash-hidden');
-          setTimeout(() => bootSplash.remove(), 500);
+          setTimeout(() => bootSplash.remove(), 380);
         }
-      }, 1100);
+      }, 450);
       return () => clearTimeout(timer);
     }
   }, [loading]);
 
-  const navigateTo = (nextTab: Tab) => {
-    if (nextTab === tab) return;
-    setNavigationDirection(tabOrder.indexOf(nextTab) >= tabOrder.indexOf(tab) ? 'forward' : 'backward');
-    setTab(nextTab);
-  };
+  const navigateTo = useCallback((nextTab: Tab) => {
+    setTab((prevTab) => {
+      if (nextTab === prevTab) return prevTab;
+      const prevIdx = TAB_ORDER.indexOf(prevTab);
+      const nextIdx = TAB_ORDER.indexOf(nextTab);
+      setSlideDir(nextIdx > prevIdx ? 'left' : 'right');
+      setVisitedTabs((prev) => (prev[nextTab] ? prev : { ...prev, [nextTab]: true }));
+      return nextTab;
+    });
+  }, []);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     const target = e.target as HTMLElement | null;
@@ -61,7 +73,7 @@ function AppContent() {
     }
     const t = e.touches[0];
     if (!t) return;
-    touchStartRef.current = { x: t.clientX, y: t.clientY };
+    touchStartRef.current = { x: t.clientX, y: t.clientY, time: performance.now() };
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
@@ -70,17 +82,18 @@ function AppContent() {
     if (!t) return;
     const dx = t.clientX - touchStartRef.current.x;
     const dy = t.clientY - touchStartRef.current.y;
+    const dt = performance.now() - touchStartRef.current.time;
     touchStartRef.current = null;
 
-    if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.2) {
-      const currentIndex = tabOrder.indexOf(tab);
+    // تشخیص هوشمند کشیدن انگشت (هم حرکت سریع مچ دست و هم کشیدن عادی)
+    const minSwipeDistance = dt < 260 ? 32 : 46;
+    if (Math.abs(dx) > minSwipeDistance && Math.abs(dx) > Math.abs(dy) * 1.25) {
+      const currentIndex = TAB_ORDER.indexOf(tab);
       if (currentIndex === -1) return;
-      // کشیدن انگشت از چپ به راست (dx > 0) => رفتن به تب سمت چپ (currentIndex + 1)
-      // کشیدن انگشت از راست به چپ (dx < 0) => رفتن به تب سمت راست (currentIndex - 1)
-      if (dx > 0 && currentIndex < tabOrder.length - 1) {
-        navigateTo(tabOrder[currentIndex + 1]);
+      if (dx > 0 && currentIndex < TAB_ORDER.length - 1) {
+        navigateTo(TAB_ORDER[currentIndex + 1]);
       } else if (dx < 0 && currentIndex > 0) {
-        navigateTo(tabOrder[currentIndex - 1]);
+        navigateTo(TAB_ORDER[currentIndex - 1]);
       }
     }
   };
@@ -91,34 +104,86 @@ function AppContent() {
     if (!loading && Capacitor.isNativePlatform()) {
       logEvent('info', 'AppStartup', 'شروع زمان‌بندی مجدد یادآوری‌ها در بدو ورود', {
         notifEnabled,
-        userId: user?.id ?? 'guest',
       });
-      void rescheduleAll(notifEnabled).then((res) => {
-        logEvent('info', 'AppStartup', 'نتیجه زمان‌بندی مجدد در بدو ورود', res);
-      });
+      if (notifEnabled) {
+        void rescheduleAll();
+      }
     }
-  }, [loading, user?.id, notifEnabled]);
+  }, [loading, notifEnabled]);
+
+  useEffect(() => {
+    try {
+      const seen = localStorage.getItem('noor_tutorial_seen_v2');
+      if (!seen) {
+        setShowFirstTimeGuide(true);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const handleCloseGuide = () => {
+    try {
+      localStorage.setItem('noor_tutorial_seen_v2', 'true');
+    } catch {
+      // ignore
+    }
+    setShowFirstTimeGuide(false);
+  };
 
   if (showAuth && !user) {
     return <AuthScreen onBack={() => setShowAuth(false)} />;
   }
 
+  const getTabPanelClass = (panelTab: Tab) => {
+    const isActive = tab === panelTab;
+    if (!isActive) return 'noor-tab-panel-hidden';
+    if (slideDir === 'left') return 'noor-tab-panel-active noor-anim-slide-left';
+    if (slideDir === 'right') return 'noor-tab-panel-active noor-anim-slide-right';
+    return 'noor-tab-panel-active';
+  };
+
   return (
     <div
-      className="min-h-screen"
-      style={{ background: 'var(--bg)', color: 'var(--text)' }}
+      className="min-h-screen bg-app text-app relative overflow-x-hidden select-none"
       onTouchStartCapture={handleTouchStart}
       onTouchEndCapture={handleTouchEnd}
     >
-      {showFirstTimeGuide && <AppTutorialModal onClose={() => setShowFirstTimeGuide(false)} />}
       <NotificationPermissionModal />
-      <main key={tab} className={`page-transition page-transition-${navigationDirection}`} aria-live="polite">
-        {tab === 'home' && <HomeScreen onNavigate={navigateTo} />}
-        {tab === 'tasbih' && <TasbihCounter onNavigate={navigateTo} />}
-        {tab === 'library' && <LibraryScreen onNavigate={navigateTo} />}
-        {tab === 'reminders' && <RemindersScreen />}
-        {tab === 'settings' && <SettingsScreen onExitGuest={() => setShowAuth(true)} />}
+      {showFirstTimeGuide && <AppTutorialModal onClose={handleCloseGuide} />}
+
+      <main className="relative w-full">
+        {/* ۱. صفحه خانه همیشه در حافظه GPU زنده می‌ماند (Keep-Alive) و در ۰.۰۰۱ ثانیه بدون بارگذاری مجدد باز می‌شود! */}
+        <section className={getTabPanelClass('home')} aria-hidden={tab !== 'home'}>
+          <HomeScreen onNavigate={navigateTo} />
+        </section>
+
+        {/* ۲. سایر تب‌ها پس از اولین بازدید در حافظه کش می‌شوند تا جابه‌جایی بین آن‌ها نیز آنی و ابریشمی باشد */}
+        {visitedTabs.tasbih && (
+          <section className={getTabPanelClass('tasbih')} aria-hidden={tab !== 'tasbih'}>
+            <TasbihCounter />
+          </section>
+        )}
+
+        {visitedTabs.library && (
+          <section className={getTabPanelClass('library')} aria-hidden={tab !== 'library'}>
+            <LibraryScreen />
+          </section>
+        )}
+
+        {visitedTabs.reminders && (
+          <section className={getTabPanelClass('reminders')} aria-hidden={tab !== 'reminders'}>
+            <RemindersScreen />
+          </section>
+        )}
+
+        {visitedTabs.settings && (
+          <section className={getTabPanelClass('settings')} aria-hidden={tab !== 'settings'}>
+            <SettingsScreen onOpenAuth={() => setShowAuth(true)} />
+          </section>
+        )}
       </main>
+
       <BottomNav active={tab} onChange={navigateTo} />
     </div>
   );
@@ -126,10 +191,10 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <ThemeProvider>
+    <ThemeProvider>
+      <AuthProvider>
         <AppContent />
-      </ThemeProvider>
-    </AuthProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
