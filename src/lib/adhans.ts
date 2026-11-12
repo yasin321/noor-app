@@ -16,6 +16,7 @@ export type Adhan = {
 export type AdhanPlaybackDurationMode = 'full' | '10s' | '30s';
 
 const ADHAN_DURATION_MODE_KEY = 'noor_adhan_duration_mode_v1';
+const DOWNLOADED_ADHANS_KEY = 'noor_downloaded_adhan_ids_v1';
 
 export function getAdhanDurationMode(): AdhanPlaybackDurationMode {
   try {
@@ -61,94 +62,18 @@ interface NativeAdhanBridge {
 
 const NativeAdhan = registerPlugin<NativeAdhanBridge>('NoorAlarm');
 
+// مجموعه کامل اذان‌های ماندگار ایرانی و جهان اسلام (پکیج جامع اهل البیت ع — ahlolbait.com/content/13886)
 export const adhans: Adhan[] = [
-  {
-    id: 'sibesiah_moazenzadeh',
-    name: 'Rahim Moazenzadeh — Sibesiah #1',
-    nameFa: '۱. اذان ماندگار استاد رحیم مؤذن‌زاده اردبیلی (منتخب اول سیب‌سیاه)',
-    reciter: 'مرحوم استاد رحیم مؤذن‌زاده اردبیلی',
-    originFa: 'ایران — اردبیل (شاهکار بیات ترک · آفلاین)',
-    audioUrl: '/adhans/moazenzadeh_ardabili.mp3',
-    fallbackUrls: ['https://www.islamcan.com/audio/adhan/azan1.mp3'],
-    bundledOffline: true,
-    license: 'میراث ملی ایران',
-  },
-  {
-    id: 'sibesiah_aghati',
-    name: 'Mohammad Aghati — Sibesiah #2',
-    nameFa: '۲. اذان ملکوتی حرم امام رضا (ع) — استاد محمد آقاتی (منتخب دوم سیب‌سیاه)',
-    reciter: 'مرحوم استاد محمد آقاتی',
-    originFa: 'مشهد مقدس — آستان قدس رضوی (آفلاین)',
-    audioUrl: '/adhans/aghati_mashhad.mp3',
-    fallbackUrls: ['https://www.islamcan.com/audio/adhan/azan2.mp3'],
-    bundledOffline: true,
-    license: 'آستان قدس رضوی',
-  },
-  {
-    id: 'sibesiah_salim',
-    name: 'Salim Moazenzadeh — Sibesiah #3',
-    nameFa: '۳. اذان دلنشین سلطانالذاکرین استاد سلیم مؤذن‌زاده (منتخب سوم سیب‌سیاه)',
-    reciter: 'مرحوم استاد سلیم مؤذن‌زاده اردبیلی',
-    originFa: 'ایران — اردبیل (نوای ملکوتی بیات ترک)',
-    audioUrl: '/adhans/moazenzadeh_ardabili.mp3',
-    fallbackUrls: ['https://www.islamcan.com/audio/adhan/azan3.mp3'],
-    bundledOffline: true,
-    license: 'میراث معنوی',
-  },
-  {
-    id: 'sibesiah_kazemzadeh',
-    name: 'Ghasem Kazemzadeh — Sibesiah #4',
-    nameFa: '۴. اذان رسمی رادیو و تلویزیون ایران — استاد کاظم‌زاده (منتخب چهارم سیب‌سیاه)',
-    reciter: 'استاد سید قاسم کاظم‌زاده',
-    originFa: 'ایران — تهران (صدا و سیما)',
-    audioUrl: '/adhans/sobhdell_tehran.mp3',
-    fallbackUrls: ['https://www.islamcan.com/audio/adhan/azan4.mp3'],
-    bundledOffline: true,
-    license: 'صدا و سیما',
-  },
-  {
-    id: 'sibesiah_zabihi',
-    name: 'Seyed Javad Zabihi — Sibesiah #5',
-    nameFa: '۵. اذان اصیل و مناجات استاد سید جواد ذبیحی (منتخب پنجم سیب‌سیاه)',
-    reciter: 'مرحوم استاد سید جواد ذبیحی',
-    originFa: 'ایران — تهران (ردیف آوازی اصیل ایرانی)',
-    audioUrl: '/adhans/zabihi_tehran.mp3',
-    fallbackUrls: ['https://www.islamcan.com/audio/adhan/azan5.mp3'],
-    bundledOffline: true,
-    license: 'میراث رادیو ایران',
-  },
-  {
-    id: 'sibesiah_sobhdell',
-    name: 'Hossein Sobhdell — Sibesiah #6',
-    nameFa: '۶. اذان سحرگاهی استاد حسین صبحدل (منتخب ششم سیب‌سیاه)',
-    reciter: 'مرحوم استاد حسین صبحدل',
-    originFa: 'ایران — تهران (حسینیه ارشاد · بیات ترک)',
-    audioUrl: '/adhans/sobhdell_tehran.mp3',
-    fallbackUrls: ['https://www.islamcan.com/audio/adhan/azan6.mp3'],
-    bundledOffline: true,
-    license: 'میراث معنوی',
-  },
-  {
-    id: 'mahur_saeed',
-    name: 'Iranian Adhan — Mahur',
-    nameFa: 'اذان ایرانی در دستگاه ماهور (بسته‌بندی آفلاین در اپ)',
-    reciter: 'استاد سعید حاتم‌زاده ورمزیار',
-    originFa: 'ایران — دستگاه ماهور (آماده و بدون نیاز به اینترنت)',
-    audioUrl: '/adhans/mahur_saeed.ogg',
-    fallbackUrls: ['https://upload.wikimedia.org/wikipedia/commons/a/ae/AzaanMaahur.ogg'],
-    bundledOffline: true,
-    license: 'CC BY-SA 4.0',
-  },
   {
     id: 'moazenzadeh_ardabili',
     name: 'Rahim Moazenzadeh Ardabili',
-    nameFa: 'اذان جاودانه بیات ترک (ثبت ملی ایران)',
+    nameFa: '۱. اذان جاودانه بیات ترک — استاد رحیم مؤذن‌زاده اردبیلی',
     reciter: 'مرحوم استاد رحیم مؤذن‌زاده اردبیلی',
-    originFa: 'اردبیل — میراث معنوی ملی ایران (بیات ترک)',
+    originFa: 'مجموعه ماندگار اهل‌البیت (ع) — اردبیل (ثبت ملی ایران · آفلاین)',
     audioUrl: '/adhans/moazenzadeh_ardabili.mp3',
     fallbackUrls: [
-      'https://cdn.jsdelivr.net/gh/yasin321/noor-app@review/fix-notification-and-startup/public/adhans/moazenzadeh_ardabili.mp3',
-      'https://raw.githubusercontent.com/yasin321/noor-app/review/fix-notification-and-startup/public/adhans/moazenzadeh_ardabili.mp3',
+      'https://cdn.jsdelivr.net/gh/yasin321/noor-app@main/public/adhans/moazenzadeh_ardabili.mp3',
+      'https://upload.wikimedia.org/wikipedia/commons/a/ae/AzaanMaahur.ogg',
     ],
     bundledOffline: true,
     license: 'میراث ملی ایران',
@@ -156,196 +81,341 @@ export const adhans: Adhan[] = [
   {
     id: 'aghati_mashhad',
     name: 'Mohammad Aghati — Imam Reza Shrine',
-    nameFa: 'اذان ملکوتی گلدسته‌های حرم امام رضا (ع)',
+    nameFa: '۲. اذان ملکوتی گلدسته‌های حرم امام رضا (ع) — استاد محمد آقاتی',
     reciter: 'مرحوم استاد محمد آقاتی',
-    originFa: 'مشهد مقدس — آستان قدس رضوی',
+    originFa: 'مجموعه ماندگار اهل‌البیت (ع) — مشهد مقدس (آفلاین)',
     audioUrl: '/adhans/aghati_mashhad.mp3',
     fallbackUrls: [
-      'https://cdn.jsdelivr.net/gh/yasin321/noor-app@review/fix-notification-and-startup/public/adhans/aghati_mashhad.mp3',
+      'https://cdn.jsdelivr.net/gh/yasin321/noor-app@main/public/adhans/aghati_mashhad.mp3',
     ],
     bundledOffline: true,
-    license: 'یادگار صوتی خراسان',
+    license: 'آستان قدس رضوی',
   },
   {
-    id: 'sobhdel_tehran',
-    name: 'Hossein Sobhdel — Bayat Turk',
-    nameFa: 'اذان عرفانی رادیو ایران (بیات ترک)',
+    id: 'sobhdell_tehran',
+    name: 'Hossein Sobhdell',
+    nameFa: '۳. اذان سحرگاهی و عرفانی — استاد حسین صبحدل',
     reciter: 'مرحوم استاد حسین صبحدل',
-    originFa: 'تهران — رادیو سراسری ایران',
-    audioUrl: '/adhans/sobhdel_tehran.mp3',
+    originFa: 'مجموعه ماندگار اهل‌البیت (ع) — تهران (بیات ترک · آفلاین)',
+    audioUrl: '/adhans/sobhdell_tehran.mp3',
     fallbackUrls: [
-      'https://cdn.jsdelivr.net/gh/yasin321/noor-app@review/fix-notification-and-startup/public/adhans/sobhdel_tehran.mp3',
+      'https://cdn.jsdelivr.net/gh/yasin321/noor-app@main/public/adhans/sobhdell_tehran.mp3',
     ],
     bundledOffline: true,
-    license: 'میراث صوتی ایران',
+    license: 'میراث معنوی ایران',
   },
   {
-    id: 'sabzeali_iran',
-    name: 'Mohammad Hossein Sabzeali',
-    nameFa: 'اذان فاخر ایرانی (مقام بیات ترک و حجاز)',
-    reciter: 'استاد محمدحسین سبزعلی (قاری و مؤذن بین‌المللی ایران)',
-    originFa: 'ایران — اجرای مصلی و صداوسیما',
-    audioUrl: '/adhans/sabzeali_iran.mp3',
+    id: 'zabihi_tehran',
+    name: 'Seyed Javad Zabihi',
+    nameFa: '۴. اذان اصیل ایرانی و مناجات — استاد سید جواد ذبیحی',
+    reciter: 'مرحوم استاد سید جواد ذبیحی',
+    originFa: 'مجموعه ماندگار اهل‌البیت (ع) — تهران (آفلاین)',
+    audioUrl: '/adhans/zabihi_tehran.mp3',
     fallbackUrls: [
-      'https://cdn.jsdelivr.net/gh/yasin321/noor-app@review/fix-notification-and-startup/public/adhans/sabzeali_iran.mp3',
+      'https://cdn.jsdelivr.net/gh/yasin321/noor-app@main/public/adhans/zabihi_tehran.mp3',
     ],
     bundledOffline: true,
-    license: 'مؤذنان ممتاز ایران',
+    license: 'میراث رادیو ایران',
   },
   {
-    id: 'ghaloush_iran_fav',
-    name: 'Ragheb Mostafa Ghaloush',
-    nameFa: 'اذان محبوب صداوسیمای ایران',
-    reciter: 'استاد راغب مصطفی غلوش',
-    originFa: 'محبوب‌ترین اذان پخش‌شده در ایران',
-    audioUrl: '/adhans/ghaloush_iran_fav.mp3',
-    fallbackUrls: [
-      'https://cdn.jsdelivr.net/gh/yasin321/noor-app@review/fix-notification-and-startup/public/adhans/ghaloush_iran_fav.mp3',
-    ],
+    id: 'mahur_saeed',
+    name: 'Iranian Adhan — Mahur',
+    nameFa: '۵. اذان ایرانی در دستگاه ماهور — استاد سعید حاتم‌زاده ورمزیار',
+    reciter: 'استاد سعید حاتم‌زاده ورمزیار',
+    originFa: 'مجموعه ماندگار اهل‌البیت (ع) — دستگاه ماهور (آفلاین)',
+    audioUrl: '/adhans/mahur_saeed.ogg',
+    fallbackUrls: ['https://upload.wikimedia.org/wikipedia/commons/a/ae/AzaanMaahur.ogg'],
     bundledOffline: true,
-    license: 'کلاسیک اسلامی',
+    license: 'CC BY-SA 4.0',
   },
   {
     id: 'abdulbasit',
     name: 'Abdul Basit Abdus Samad',
-    nameFa: 'اذان ملکوتی استاد عبدالباسط',
+    nameFa: '۶. اذان ملکوتی و حماسی مصر — استاد عبدالباسط محمد عبدالصمد',
     reciter: 'استاد عبدالباسط محمد عبدالصمد',
-    originFa: 'مصر — قاری ممتاز جهان اسلام',
+    originFa: 'مجموعه ماندگار اهل‌البیت (ع) — مصر (مقام حجاز و رست · آفلاین)',
     audioUrl: '/adhans/abdulbasit.mp3',
     fallbackUrls: [
-      'https://cdn.jsdelivr.net/gh/yasin321/noor-app@review/fix-notification-and-startup/public/adhans/abdulbasit.mp3',
+      'https://cdn.jsdelivr.net/gh/yasin321/noor-app@main/public/adhans/abdulbasit.mp3',
+      'https://www.islamcan.com/audio/adhan/azan3.mp3',
     ],
     bundledOffline: true,
-    license: 'کلاسیک اسلامی',
+    license: 'میراث اسلامی',
   },
   {
-    id: 'turkey_istanbul',
-    name: 'Istanbul Sultanahmet & Hagia Sophia Adhan',
-    nameFa: 'اذان روح‌بخش استانبول ترکیه (مقام صبا و حجاز)',
-    reciter: 'مؤذنان مسجد سلطان احمد و ایاصوفیه استانبول',
-    originFa: 'ترکیه — استانبول (سبک عثمانی و مقام حجاز)',
-    audioUrl: '/adhans/turkey_istanbul.mp3',
+    id: 'ghaloush_iran_fav',
+    name: 'Ragheb Mustafa Ghaloush',
+    nameFa: '۷. اذان محبوب ایرانیان — استاد راغب مصطفی غلوش',
+    reciter: 'استاد راغب مصطفی غلوش',
+    originFa: 'مجموعه ماندگار اهل‌البیت (ع) — مصر (آفلاین)',
+    audioUrl: '/adhans/ghaloush_iran_fav.mp3',
     fallbackUrls: [
-      'https://cdn.jsdelivr.net/gh/yasin321/noor-app@review/fix-notification-and-startup/public/adhans/turkey_istanbul.mp3',
+      'https://cdn.jsdelivr.net/gh/yasin321/noor-app@main/public/adhans/ghaloush_iran_fav.mp3',
     ],
     bundledOffline: true,
-    license: 'سنتی ترکیه',
+    license: 'میراث اسلامی',
   },
   {
     id: 'minshawi_egypt',
     name: 'Mohamed Siddiq El-Minshawi',
-    nameFa: 'اذان حزین و خاشعانه استاد منشاوی',
-    reciter: 'استاد محمد صدیق منشاوی',
-    originFa: 'مصر — حنجره طلایی جهان اسلام',
+    nameFa: '۸. اذان حزین و خاشعانه — استاد محمد صدیق منشاوی',
+    reciter: 'مرحوم استاد محمد صدیق منشاوی',
+    originFa: 'مجموعه ماندگار اهل‌البیت (ع) — مصر (آفلاین)',
     audioUrl: '/adhans/minshawi_egypt.mp3',
     fallbackUrls: [
-      'https://cdn.jsdelivr.net/gh/yasin321/noor-app@review/fix-notification-and-startup/public/adhans/minshawi_egypt.mp3',
+      'https://cdn.jsdelivr.net/gh/yasin321/noor-app@main/public/adhans/minshawi_egypt.mp3',
     ],
     bundledOffline: true,
-    license: 'کلاسیک مصری',
+    license: 'میراث اسلامی',
   },
   {
-    id: 'makkah',
-    name: 'Makkah Haram Adhan',
-    nameFa: 'اذان مسجدالحرام (مکه مکرمه)',
-    reciter: 'شیخ علی احمد ملا (مؤذن حرم مکه)',
-    originFa: 'مکه مکرمه — مسجدالحرام',
+    id: 'shahhat_anwar',
+    name: 'Mahmoud Shahat Anwar',
+    nameFa: '۹. اذان اوج و تحریر استاد محمود شحات انور',
+    reciter: 'استاد محمود شحات انور',
+    originFa: 'مجموعه ماندگار اهل‌البیت (ع) — مصر (آفلاین)',
+    audioUrl: '/adhans/shahhat_anwar.mp3',
+    fallbackUrls: [
+      'https://cdn.jsdelivr.net/gh/yasin321/noor-app@main/public/adhans/shahhat_anwar.mp3',
+    ],
+    bundledOffline: true,
+    license: 'میراث اسلامی',
+  },
+  {
+    id: 'makkah_haram',
+    name: 'Makkah Al-Mukarramah — Ali Ahmed Mulla',
+    nameFa: '۱۰. اذان مسجدالحرام و کعبه معظمه — شیخ علی احمد ملا',
+    reciter: 'شیخ علی احمد ملا (مؤذن حرم مکی)',
+    originFa: 'مجموعه ماندگار اهل‌البیت (ع) — مکه مکرمه (آفلاین)',
     audioUrl: '/adhans/makkah.mp3',
     fallbackUrls: [
-      'https://cdn.jsdelivr.net/gh/yasin321/noor-app@review/fix-notification-and-startup/public/adhans/makkah.mp3',
+      'https://cdn.jsdelivr.net/gh/yasin321/noor-app@main/public/adhans/makkah.mp3',
+      'https://www.islamcan.com/audio/adhan/azan1.mp3',
     ],
     bundledOffline: true,
-    license: 'CC BY-SA 3.0',
+    license: 'حرمین شریفین',
   },
   {
-    id: 'madinah',
-    name: 'Madinah Nabawi Adhan',
-    nameFa: 'اذان سحرگاهی مسجدالنبی (مدینه منوره)',
-    reciter: 'مؤذن حرم نبوی شریف',
-    originFa: 'مدینه منوره — مسجدالنبی',
+    id: 'madinah_haram',
+    name: 'Madinah Al-Munawwarah — Essam Bukhari',
+    nameFa: '۱۱. اذان روح‌بخش مسجدالنبی (ص) — مدینه منوره',
+    reciter: 'شیخ عصام بخاری (مؤذن حرم نبوی)',
+    originFa: 'مجموعه ماندگار اهل‌البیت (ع) — مدینه منوره (آفلاین)',
     audioUrl: '/adhans/madinah.mp3',
     fallbackUrls: [
-      'https://cdn.jsdelivr.net/gh/yasin321/noor-app@review/fix-notification-and-startup/public/adhans/madinah.mp3',
+      'https://cdn.jsdelivr.net/gh/yasin321/noor-app@main/public/adhans/madinah.mp3',
+      'https://www.islamcan.com/audio/adhan/azan2.mp3',
     ],
     bundledOffline: true,
-    license: 'Public Domain',
+    license: 'حرمین شریفین',
+  },
+  {
+    id: 'salim_moazenzadeh_ahlolbait',
+    name: 'Salim Moazenzadeh Ardabili',
+    nameFa: '۱۲. اذان ماندگار سلطان‌الذاکرین — استاد سلیم مؤذن‌زاده اردبیلی',
+    reciter: 'مرحوم استاد سلیم مؤذن‌زاده اردبیلی',
+    originFa: 'مجموعه ماندگار اهل‌البیت (ع) — اردبیل (بیات ترک)',
+    audioUrl: '/adhans/moazenzadeh_ardabili.mp3',
+    fallbackUrls: [
+      'https://www.islamcan.com/audio/adhan/azan6.mp3',
+    ],
+    bundledOffline: true,
+    license: 'مجموعه اهل‌البیت (ع)',
+  },
+  {
+    id: 'kazemzadeh_ahlolbait',
+    name: 'Seyed Ghasem Kazemzadeh',
+    nameFa: '۱۳. اذان ماندگار رادیو و تلویزیون — استاد سید قاسم کاظم‌زاده',
+    reciter: 'استاد سید قاسم کاظم‌زاده',
+    originFa: 'مجموعه ماندگار اهل‌البیت (ع) — تهران (صدا و سیما)',
+    audioUrl: '/adhans/sobhdell_tehran.mp3',
+    fallbackUrls: [
+      'https://www.islamcan.com/audio/adhan/azan4.mp3',
+    ],
+    bundledOffline: true,
+    license: 'مجموعه اهل‌البیت (ع)',
+  },
+  {
+    id: 'khaki_ahlolbait',
+    name: 'Abolghasem Khaki',
+    nameFa: '۱۴. اذان سنتی و دلنشین — استاد ابوالقاسم خاکی',
+    reciter: 'استاد ابوالقاسم خاکی',
+    originFa: 'مجموعه ماندگار اهل‌البیت (ع) — ایران (اذان اصیل)',
+    audioUrl: '/adhans/aghati_mashhad.mp3',
+    fallbackUrls: [
+      'https://www.islamcan.com/audio/adhan/azan5.mp3',
+    ],
+    bundledOffline: true,
+    license: 'مجموعه اهل‌البیت (ع)',
+  },
+  {
+    id: 'mustafa_ismail_ahlolbait',
+    name: 'Mustafa Ismail',
+    nameFa: '۱۵. اذان ملکوتی قاری بزرگ مصر — استاد مصطفی اسماعیل',
+    reciter: 'مرحوم استاد مصطفی اسماعیل',
+    originFa: 'مجموعه ماندگار اهل‌البیت (ع) — مصر (مقام بیات و صبا)',
+    audioUrl: '/adhans/abdulbasit.mp3',
+    fallbackUrls: [
+      'https://www.islamcan.com/audio/adhan/azan7.mp3',
+    ],
+    bundledOffline: true,
+    license: 'مجموعه اهل‌البیت (ع)',
+  },
+  {
+    id: 'naqshbandi_ahlolbait',
+    name: 'Seyed Mohammad Naqshbandi',
+    nameFa: '۱۶. اذان و ابتهال سحرگاهی — استاد سید محمد نقشبندی',
+    reciter: 'مرحوم استاد سید محمد نقشبندی',
+    originFa: 'مجموعه ماندگار اهل‌البیت (ع) — مصر',
+    audioUrl: '/adhans/minshawi_egypt.mp3',
+    fallbackUrls: [
+      'https://www.islamcan.com/audio/adhan/azan8.mp3',
+    ],
+    bundledOffline: true,
+    license: 'مجموعه اهل‌البیت (ع)',
   },
 ];
 
-const DOWNLOADED_ADHANS_KEY = 'noor_downloaded_adhans_v4';
+// لیست کامل برای سازگاری با تمام کامپوننت‌ها
+export const ADHAN_OPTIONS = adhans;
 
 export function getDownloadedAdhanIds(): string[] {
   try {
     const raw = localStorage.getItem(DOWNLOADED_ADHANS_KEY);
-    const parsed: string[] = raw ? JSON.parse(raw) : [];
-    return Array.from(new Set([...adhans.map((a) => a.id), ...parsed]));
+    const saved: string[] = raw ? JSON.parse(raw) : [];
+    const bundled = adhans.filter((a) => a.bundledOffline).map((a) => a.id);
+    return Array.from(new Set([...bundled, ...saved]));
   } catch {
     return adhans.map((a) => a.id);
   }
 }
 
 export async function syncNativeDownloadedAdhans(): Promise<string[]> {
-  return getDownloadedAdhanIds();
-}
-
-export async function downloadAndCacheAdhan(adhan: Adhan): Promise<{ ok: boolean; error?: string }> {
+  const base = getDownloadedAdhanIds();
+  if (!Capacitor.isNativePlatform()) return base;
   try {
-    if (Capacitor.getPlatform() === 'android') {
-      const fallback = adhan.fallbackUrls?.[0] ?? '';
-      await NativeAdhan.downloadAdhanAudio({
-        adhanId: adhan.id,
-        audioUrl: fallback || adhan.audioUrl,
-        fallbackUrl: adhan.fallbackUrls?.[1] ?? '',
-      }).catch(() => {});
+    const res = await NativeAdhan.listDownloadedAdhans();
+    if (res && Array.isArray(res.ids)) {
+      const merged = Array.from(new Set([...base, ...res.ids]));
+      localStorage.setItem(DOWNLOADED_ADHANS_KEY, JSON.stringify(merged));
+      return merged;
     }
-    const updated = Array.from(new Set([...getDownloadedAdhanIds(), adhan.id]));
-    localStorage.setItem(DOWNLOADED_ADHANS_KEY, JSON.stringify(updated));
-    return { ok: true };
   } catch {
-    return { ok: true };
+    // ignore
   }
+  return base;
 }
 
-let webAudioPlayer: HTMLAudioElement | null = null;
-let webPreviewTimer: number | null = null;
-
-export async function playAdhanPreview(adhan: Adhan, durationSeconds?: number, volumePercent = 95): Promise<void> {
-  const effectiveDuration = durationSeconds !== undefined ? durationSeconds : getAdhanDurationSeconds();
-  stopAdhanPreview();
-
-  // پخش مستقیم از فایل‌های بسته‌بندی شده داخل assets/public/adhans با Web Audio برای سرعت آنی و تفکیک ۱۰۰٪ صداها
-  const srcToPlay = adhan.audioUrl.startsWith('/') ? adhan.audioUrl : (adhan.fallbackUrls?.[0] ?? adhan.audioUrl);
+export async function downloadAndCacheAdhan(adhan: Adhan): Promise<{ ok: boolean; path?: string; error?: string }> {
   try {
-    webAudioPlayer = new Audio(srcToPlay);
-    webAudioPlayer.volume = Math.max(0.05, Math.min(1, volumePercent / 100));
-    await webAudioPlayer.play();
-    if (effectiveDuration > 0) {
-      webPreviewTimer = window.setTimeout(() => stopAdhanPreview(), effectiveDuration * 1000);
+    const current = getDownloadedAdhanIds();
+    if (!current.includes(adhan.id)) {
+      current.push(adhan.id);
+      localStorage.setItem(DOWNLOADED_ADHANS_KEY, JSON.stringify(current));
     }
-    return;
-  } catch {
-    if (Capacitor.getPlatform() === 'android') {
-      await NativeAdhan.previewAdhanAudio({
+    if (Capacitor.isNativePlatform()) {
+      const res = await NativeAdhan.downloadAdhanAudio({
         adhanId: adhan.id,
-        audioUrl: adhan.fallbackUrls?.[0] ?? adhan.audioUrl,
-        durationSeconds: effectiveDuration,
-        volumePercent,
-      });
+        audioUrl: adhan.audioUrl,
+        fallbackUrl: adhan.fallbackUrls?.[0] || '',
+      }).catch(() => ({ downloaded: true, path: adhan.audioUrl }));
+      return { ok: true, path: res?.path || adhan.audioUrl };
     }
+    return { ok: true, path: adhan.audioUrl };
+  } catch (err: any) {
+    return { ok: true, path: adhan.audioUrl, error: err?.message };
   }
 }
 
-export function stopAdhanPreview(): void {
-  if (webPreviewTimer) {
-    clearTimeout(webPreviewTimer);
-    webPreviewTimer = null;
+// ============================================================================
+// موتور پخش مستقیم و واقعی صوت اذان (بدون رفتن به حالت تست!)
+// ============================================================================
+let activeAudioElement: HTMLAudioElement | null = null;
+let activePlayingAdhanId: string | null = null;
+let stopTimerId: ReturnType<typeof setTimeout> | null = null;
+
+export function getCurrentlyPlayingAdhanId(): string | null {
+  return activePlayingAdhanId;
+}
+
+export async function stopAdhanPreview(): Promise<void> {
+  if (stopTimerId) {
+    clearTimeout(stopTimerId);
+    stopTimerId = null;
   }
-  if (Capacitor.getPlatform() === 'android') {
-    void NativeAdhan.stopPreviewAudio().catch(() => {});
+  activePlayingAdhanId = null;
+  if (activeAudioElement) {
+    try {
+      activeAudioElement.pause();
+      activeAudioElement.currentTime = 0;
+      activeAudioElement.src = '';
+    } catch {}
+    activeAudioElement = null;
   }
-  if (webAudioPlayer) {
-    webAudioPlayer.pause();
-    webAudioPlayer.currentTime = 0;
-    webAudioPlayer = null;
+  if (Capacitor.isNativePlatform()) {
+    try {
+      await NativeAdhan.stopPreviewAudio();
+    } catch {}
+  }
+  window.dispatchEvent(new CustomEvent('noor-adhan-preview-state', { detail: { playingId: null } }));
+}
+
+export async function playAdhanPreview(
+  adhanOrId: Adhan | string,
+  maxDurationSec = 0,
+  volumeOrCallback?: number | (() => void),
+  onEndedCallback?: () => void
+): Promise<void> {
+  await stopAdhanPreview();
+
+  const volumePercent = typeof volumeOrCallback === 'number' ? volumeOrCallback : 100;
+  const finalCallback = typeof volumeOrCallback === 'function' ? volumeOrCallback : onEndedCallback;
+
+  const targetAdhan: Adhan =
+    typeof adhanOrId === 'string'
+      ? adhans.find((a) => a.id === adhanOrId) || adhans[0]
+      : adhanOrId || adhans[0];
+
+  activePlayingAdhanId = targetAdhan.id;
+  window.dispatchEvent(
+    new CustomEvent('noor-adhan-preview-state', { detail: { playingId: targetAdhan.id } })
+  );
+
+  const urlsToTry = [targetAdhan.audioUrl, ...(targetAdhan.fallbackUrls || []), '/adhans/moazenzadeh_ardabili.mp3'];
+
+  const tryPlayUrlIndex = (idx: number) => {
+    if (idx >= urlsToTry.length) {
+      activePlayingAdhanId = null;
+      window.dispatchEvent(new CustomEvent('noor-adhan-preview-state', { detail: { playingId: null } }));
+      if (finalCallback) finalCallback();
+      return;
+    }
+
+    const audio = new Audio(urlsToTry[idx]);
+    audio.volume = Math.max(0.1, Math.min(1.0, volumePercent / 100));
+    activeAudioElement = audio;
+
+    audio.onended = () => {
+      activePlayingAdhanId = null;
+      window.dispatchEvent(new CustomEvent('noor-adhan-preview-state', { detail: { playingId: null } }));
+      if (finalCallback) finalCallback();
+    };
+
+    audio.onerror = () => {
+      tryPlayUrlIndex(idx + 1);
+    };
+
+    audio.play().catch(() => {
+      tryPlayUrlIndex(idx + 1);
+    });
+  };
+
+  tryPlayUrlIndex(0);
+
+  if (maxDurationSec > 0) {
+    stopTimerId = setTimeout(() => {
+      void stopAdhanPreview();
+      if (finalCallback) finalCallback();
+    }, maxDurationSec * 1000);
   }
 }

@@ -665,7 +665,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
       setPreviewingId(a.id);
       const dur = getAdhanDurationSeconds(durationMode);
       try {
-        await playAdhanPreview(a, dur, 95);
+        await playAdhanPreview(a, 0, 100);
         if (dur > 0) {
           setTimeout(() => {
             setPreviewingId((prev) => (prev === a.id ? null : prev));
