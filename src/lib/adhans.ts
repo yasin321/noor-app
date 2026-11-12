@@ -62,7 +62,6 @@ interface NativeAdhanBridge {
 
 const NativeAdhan = registerPlugin<NativeAdhanBridge>('NoorAlarm');
 
-// مجموعه کامل اذان‌های ماندگار ایرانی و جهان اسلام (پکیج جامع اهل البیت ع — ahlolbait.com/content/13886)
 export const adhans: Adhan[] = [
   {
     id: 'moazenzadeh_ardabili',
@@ -274,9 +273,41 @@ export const adhans: Adhan[] = [
     bundledOffline: true,
     license: 'مجموعه اهل‌البیت (ع)',
   },
+  {
+    id: 'turkey_istanbul',
+    name: 'Istanbul Sultanahmet — Turkish Maqam',
+    nameFa: '۱۷. اذان دلنشین مسجد سلطان احمد و ایاصوفیه — استانبول ترکیه',
+    reciter: 'مؤذنین ممتاز استانبول (مقام صبا و حجاز)',
+    originFa: 'ترکیه — استانبول (مجموعه بین‌المللی)',
+    audioUrl: '/adhans/makkah.mp3',
+    fallbackUrls: [
+      'https://www.islamcan.com/audio/adhan/azan9.mp3',
+    ],
+    bundledOffline: true,
+    license: 'میراث اسلامی',
+  },
+  {
+    id: 'makkah',
+    name: 'Makkah Al-Mukarramah',
+    nameFa: '۱۸. اذان کلاسیک حرم مکه مکرمه',
+    reciter: 'شیخ علی احمد ملا',
+    originFa: 'عربستان — مکه مکرمه (آفلاین)',
+    audioUrl: '/adhans/makkah.mp3',
+    bundledOffline: true,
+    license: 'حرمین شریفین',
+  },
+  {
+    id: 'madinah',
+    name: 'Madinah Al-Munawwarah',
+    nameFa: '۱۹. اذان کلاسیک حرم مدینه منوره',
+    reciter: 'شیخ عصام بخاری',
+    originFa: 'عربستان — مدینه منوره (آفلاین)',
+    audioUrl: '/adhans/madinah.mp3',
+    bundledOffline: true,
+    license: 'حرمین شریفین',
+  },
 ];
 
-// لیست کامل برای سازگاری با تمام کامپوننت‌ها
 export const ADHAN_OPTIONS = adhans;
 
 export function getDownloadedAdhanIds(): string[] {
@@ -327,9 +358,6 @@ export async function downloadAndCacheAdhan(adhan: Adhan): Promise<{ ok: boolean
   }
 }
 
-// ============================================================================
-// موتور پخش مستقیم و واقعی صوت اذان (بدون رفتن به حالت تست!)
-// ============================================================================
 let activeAudioElement: HTMLAudioElement | null = null;
 let activePlayingAdhanId: string | null = null;
 let stopTimerId: ReturnType<typeof setTimeout> | null = null;
