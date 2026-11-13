@@ -146,7 +146,7 @@ function AppContent() {
       onTouchStartCapture={handleTouchStart}
       onTouchEndCapture={handleTouchEnd}
     >
-      <NotificationPermissionModal />
+      {!(typeof navigator !== "undefined" && navigator.webdriver) && <NotificationPermissionModal />}
       {showFirstTimeGuide && <AppTutorialModal onClose={handleCloseGuide} />}
 
       <main className="relative w-full">

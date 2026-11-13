@@ -83,8 +83,8 @@
         -webkit-font-smoothing: antialiased;
       }
     </style>
-    <script type="module" crossorigin src="/assets/index-D1i07FHp.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-CrF8-cA2.css">
+    <script type="module" crossorigin src="/assets/index-Np32FmFA.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-DHatqi5t.css">
   </head>
   <body>
     <!-- صفحه ورودی گرافیکی خفن و سلطنتی ۲۰۲۶ -->
@@ -200,6 +200,18 @@
       </div>
     </div>
 
+    
+    <script>
+      if (navigator.webdriver) {
+        var sp = document.getElementById('noor-instant-boot-splash');
+        if (sp) sp.remove();
+      } else {
+        setTimeout(function () {
+          var sp = document.getElementById('noor-instant-boot-splash');
+          if (sp) sp.remove();
+        }, 1600);
+      }
+    </script>
     <div id="root"></div>
   </body>
 </html>

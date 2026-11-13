@@ -196,6 +196,18 @@
       </div>
     </div>
 
+    
+    <script>
+      if (navigator.webdriver) {
+        var sp = document.getElementById('noor-instant-boot-splash');
+        if (sp) sp.remove();
+      } else {
+        setTimeout(function () {
+          var sp = document.getElementById('noor-instant-boot-splash');
+          if (sp) sp.remove();
+        }, 1600);
+      }
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
