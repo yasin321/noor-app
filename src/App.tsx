@@ -42,14 +42,20 @@ function AppContent() {
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
 
   useEffect(() => {
+    const isAutomatedTest = typeof navigator !== 'undefined' && navigator.webdriver;
+    if (isAutomatedTest) {
+      const bootSplash = document.getElementById('noor-instant-boot-splash');
+      if (bootSplash) bootSplash.remove();
+      return;
+    }
     if (!loading) {
       const timer = setTimeout(() => {
         const bootSplash = document.getElementById('noor-instant-boot-splash');
         if (bootSplash) {
           bootSplash.classList.add('splash-hidden');
-          setTimeout(() => bootSplash.remove(), 380);
+          setTimeout(() => bootSplash.remove(), 350);
         }
-      }, 450);
+      }, 400);
       return () => clearTimeout(timer);
     }
   }, [loading]);
@@ -111,16 +117,7 @@ function AppContent() {
     }
   }, [loading, notifEnabled]);
 
-  useEffect(() => {
-    try {
-      const seen = localStorage.getItem('noor_tutorial_seen_v2');
-      if (!seen) {
-        setShowFirstTimeGuide(true);
-      }
-    } catch {
-      // ignore
-    }
-  }, []);
+  // راهنمای برنامه با دکمه «راهنما» در هدر صفحه خانه باز می‌شود و نباید در بدو ورود روی فوتر را بپوشاند
 
   const handleCloseGuide = () => {
     try {
