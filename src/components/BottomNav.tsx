@@ -22,13 +22,13 @@ export function BottomNav({ active, onChange }: Props) {
   return (
     <nav
       aria-label="ناوبری اصلی"
-      className="fixed bottom-0 inset-x-0 z-40 px-3 pb-2.5 pt-1 pointer-events-none"
+      className="fixed bottom-0 inset-x-0 z-40 px-3 pb-2.5 pt-1"
       dir="rtl"
     >
       <div
-        className="max-w-lg mx-auto rounded-[28px] px-2 py-1.5 border shadow-2xl grid grid-cols-5 items-end pointer-events-auto"
+        className="max-w-lg mx-auto rounded-[28px] px-2 py-1.5 border shadow-2xl grid grid-cols-5 items-end"
         style={{
-          background: 'rgba(6, 26, 20, 0.94)',
+          background: 'rgba(6, 26, 20, 0.95)',
           borderColor: theme.border,
           backdropFilter: 'blur(16px)',
           boxShadow: '0 -6px 28px rgba(0, 0, 0, 0.45)',
@@ -42,11 +42,11 @@ export function BottomNav({ active, onChange }: Props) {
               <button
                 key={id}
                 type="button"
-                aria-label={label}
                 onClick={() => onChange(id)}
                 className="flex flex-col items-center justify-center -mt-5 focus:outline-none group"
               >
                 <div
+                  aria-hidden="true"
                   className="w-14 h-14 rounded-2xl flex items-center justify-center border-2 transition-transform shadow-xl"
                   style={{
                     background: isActive
@@ -67,13 +67,6 @@ export function BottomNav({ active, onChange }: Props) {
                 >
                   {label}
                 </span>
-                {isActive && (
-                  <span
-                    aria-hidden="true"
-                    className="w-4 h-1 rounded-full mt-0.5"
-                    style={{ background: '#FBBF24' }}
-                  />
-                )}
               </button>
             );
           }
@@ -82,7 +75,6 @@ export function BottomNav({ active, onChange }: Props) {
             <button
               key={id}
               type="button"
-              aria-label={label}
               onClick={() => onChange(id)}
               className="py-1.5 flex flex-col items-center justify-center gap-1 rounded-2xl transition-colors focus:outline-none"
               style={{

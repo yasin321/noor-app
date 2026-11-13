@@ -4,7 +4,7 @@ import { QiblaCompass } from '@/components/QiblaCompass';
 import { VipAnalyticsModal } from '@/components/VipAnalyticsModal';
 import { CompactHeaderWeatherPill } from '@/components/WeatherCuteCard';
 import { NastaliqMahdiCrown, CelestialPrayerArcGauge, ThemePatternWatermark, DynamicShrineHorizonArt, VerticalJalaliDayCounterCard } from '@/components/FigmaLuxuryElements';
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { MapPin, Clock, Sunrise, Sunset, Moon, Sun, CloudSun, ArrowLeft, Hand, Bell, BellOff, Compass, Sparkles, LocateFixed, Navigation, BookOpen, Sliders, Calendar } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
@@ -1143,8 +1143,7 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
     }
   };
 
-  const dayMinuteKey = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}-${now.getHours()}:${now.getMinutes()}`;
-  const times = useMemo(() => calculatePrayerTimes(now, city.lat, city.lng), [dayMinuteKey, city.lat, city.lng]);
+  const times = calculatePrayerTimes(now, city.lat, city.lng);
   const nextPrayerInfo = times ? getNextPrayer(times) : null;
   const nextPrayer = {
     key: nextPrayerInfo?.key ?? 'fajr',
@@ -1207,7 +1206,7 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
   const lastAlarmSyncSignatureRef = useRef<string>('');
   useEffect(() => {
     if (!Capacitor.isNativePlatform() || !times) return;
-    const sig = `${city.lat.toFixed(3)}_${city.lng.toFixed(3)}_${JSON.stringify(adhanBells)}`;
+    const sig = `${Number(city?.lat || 36.297).toFixed(3)}_${Number(city?.lng || 59.606).toFixed(3)}_${JSON.stringify(adhanBells || {})}`;
     if (lastAlarmSyncSignatureRef.current === sig) return;
     lastAlarmSyncSignatureRef.current = sig;
 

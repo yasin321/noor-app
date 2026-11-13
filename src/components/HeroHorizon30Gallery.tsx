@@ -365,7 +365,7 @@ export function resolveActiveHeroDesign(cityName: string, themeId: string): Hero
 }
 
 // نمایش عکس واقعی سینمایی در بالای صفحه با محو شدن نرم لبه پایینی در پس‌زمینه برنامه
-export const RenderHeroArtworkScene = memo(function RenderHeroArtworkScene({ design }: { design: HeroArtDesign }) {
+export function RenderHeroArtworkScene({ design }: { design: HeroArtDesign }) {
   const { theme } = useTheme();
   return (
     <div className="relative w-full h-full overflow-hidden" style={{ background: design.fallbackGradient }}>
@@ -387,7 +387,7 @@ export const RenderHeroArtworkScene = memo(function RenderHeroArtworkScene({ des
       />
     </div>
   );
-});
+}
 
 export function Hero30SelectorModal({
   cityName,

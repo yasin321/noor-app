@@ -9,7 +9,6 @@ import { LibraryScreen } from '@/components/LibraryScreen';
 import { RemindersScreen } from '@/components/RemindersScreen';
 import { SettingsScreen } from '@/components/SettingsScreen';
 import { NotificationPermissionModal } from '@/components/NotificationPermissionModal';
-import { AppTutorialModal } from '@/components/AppTutorialModal';
 import { rescheduleAll } from '@/lib/reminderService';
 import { logEvent } from '@/lib/logger';
 import { Capacitor } from '@capacitor/core';
@@ -28,34 +27,23 @@ const TAB_ORDER: Tab[] = ['tasbih', 'library', 'home', 'reminders', 'settings'];
 function AppContent() {
   const { user, profile, loading } = useAuth();
   const [tab, setTab] = useState<Tab>('home');
-  const [visitedTabs, setVisitedTabs] = useState<Record<string, boolean>>({
-    home: true,
-    tasbih: false,
-    library: false,
-    reminders: false,
-    settings: false,
-  });
   const [slideDir, setSlideDir] = useState<'left' | 'right' | 'none'>('none');
   const [showAuth, setShowAuth] = useState(false);
-  const [showFirstTimeGuide, setShowFirstTimeGuide] = useState<boolean>(false);
 
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
 
   useEffect(() => {
-    const isAutomatedTest = typeof navigator !== 'undefined' && navigator.webdriver;
-    if (isAutomatedTest) {
-      const bootSplash = document.getElementById('noor-instant-boot-splash');
-      if (bootSplash) bootSplash.remove();
+    const bootSplash = document.getElementById('noor-instant-boot-splash');
+    if (!bootSplash) return;
+    if (typeof navigator !== 'undefined' && navigator.webdriver) {
+      bootSplash.remove();
       return;
     }
     if (!loading) {
       const timer = setTimeout(() => {
-        const bootSplash = document.getElementById('noor-instant-boot-splash');
-        if (bootSplash) {
-          bootSplash.classList.add('splash-hidden');
-          setTimeout(() => bootSplash.remove(), 350);
-        }
-      }, 400);
+        bootSplash.classList.add('splash-hidden');
+        setTimeout(() => bootSplash.remove(), 300);
+      }, 350);
       return () => clearTimeout(timer);
     }
   }, [loading]);
@@ -66,7 +54,6 @@ function AppContent() {
       const prevIdx = TAB_ORDER.indexOf(prevTab);
       const nextIdx = TAB_ORDER.indexOf(nextTab);
       setSlideDir(nextIdx > prevIdx ? 'left' : 'right');
-      setVisitedTabs((prev) => (prev[nextTab] ? prev : { ...prev, [nextTab]: true }));
       return nextTab;
     });
   }, []);
@@ -91,7 +78,6 @@ function AppContent() {
     const dt = performance.now() - touchStartRef.current.time;
     touchStartRef.current = null;
 
-    // تشخیص هوشمند کشیدن انگشت (هم حرکت سریع مچ دست و هم کشیدن عادی)
     const minSwipeDistance = dt < 260 ? 32 : 46;
     if (Math.abs(dx) > minSwipeDistance && Math.abs(dx) > Math.abs(dy) * 1.25) {
       const currentIndex = TAB_ORDER.indexOf(tab);
@@ -117,28 +103,16 @@ function AppContent() {
     }
   }, [loading, notifEnabled]);
 
-  // راهنمای برنامه با دکمه «راهنما» در هدر صفحه خانه باز می‌شود و نباید در بدو ورود روی فوتر را بپوشاند
-
-  const handleCloseGuide = () => {
-    try {
-      localStorage.setItem('noor_tutorial_seen_v2', 'true');
-    } catch {
-      // ignore
-    }
-    setShowFirstTimeGuide(false);
-  };
-
   if (showAuth && !user) {
     return <AuthScreen onBack={() => setShowAuth(false)} />;
   }
 
-  const getTabPanelClass = (panelTab: Tab) => {
-    const isActive = tab === panelTab;
-    if (!isActive) return 'noor-tab-panel-hidden';
-    if (slideDir === 'left') return 'noor-tab-panel-active noor-anim-slide-left';
-    if (slideDir === 'right') return 'noor-tab-panel-active noor-anim-slide-right';
-    return 'noor-tab-panel-active';
-  };
+  const animClass =
+    slideDir === 'left'
+      ? 'noor-anim-slide-left'
+      : slideDir === 'right'
+        ? 'noor-anim-slide-right'
+        : '';
 
   return (
     <div
@@ -146,39 +120,14 @@ function AppContent() {
       onTouchStartCapture={handleTouchStart}
       onTouchEndCapture={handleTouchEnd}
     >
-      {!(typeof navigator !== "undefined" && navigator.webdriver) && <NotificationPermissionModal />}
-      {showFirstTimeGuide && <AppTutorialModal onClose={handleCloseGuide} />}
+      {!(typeof navigator !== 'undefined' && navigator.webdriver) && <NotificationPermissionModal />}
 
-      <main className="relative w-full">
-        {/* ۱. صفحه خانه همیشه در حافظه GPU زنده می‌ماند (Keep-Alive) و در ۰.۰۰۱ ثانیه بدون بارگذاری مجدد باز می‌شود! */}
-        <section className={getTabPanelClass('home')} aria-hidden={tab !== 'home'}>
-          <HomeScreen onNavigate={navigateTo} />
-        </section>
-
-        {/* ۲. سایر تب‌ها پس از اولین بازدید در حافظه کش می‌شوند تا جابه‌جایی بین آن‌ها نیز آنی و ابریشمی باشد */}
-        {visitedTabs.tasbih && (
-          <section className={getTabPanelClass('tasbih')} aria-hidden={tab !== 'tasbih'}>
-            <TasbihCounter />
-          </section>
-        )}
-
-        {visitedTabs.library && (
-          <section className={getTabPanelClass('library')} aria-hidden={tab !== 'library'}>
-            <LibraryScreen />
-          </section>
-        )}
-
-        {visitedTabs.reminders && (
-          <section className={getTabPanelClass('reminders')} aria-hidden={tab !== 'reminders'}>
-            <RemindersScreen />
-          </section>
-        )}
-
-        {visitedTabs.settings && (
-          <section className={getTabPanelClass('settings')} aria-hidden={tab !== 'settings'}>
-            <SettingsScreen onExitGuest={() => setShowAuth(true)} />
-          </section>
-        )}
+      <main key={tab} className={`relative w-full ${animClass}`}>
+        {tab === 'home' && <HomeScreen onNavigate={navigateTo} />}
+        {tab === 'tasbih' && <TasbihCounter />}
+        {tab === 'library' && <LibraryScreen />}
+        {tab === 'reminders' && <RemindersScreen />}
+        {tab === 'settings' && <SettingsScreen onExitGuest={() => setShowAuth(true)} />}
       </main>
 
       <BottomNav active={tab} onChange={navigateTo} />
