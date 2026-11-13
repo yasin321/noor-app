@@ -62,154 +62,449 @@ interface NativeAdhanBridge {
 
 const NativeAdhan = registerPlugin<NativeAdhanBridge>('NoorAlarm');
 
-// ============================================================================
-// فهرست مرتب، شماره‌گذاری‌شده و ۱۰۰٪ متمایز اذان‌های ماندگار
-// (هر ردیف فایل صوتی منحصربه‌فرد خودش را دارد و هیچ دو اذانی صدای یکسان ندارند!)
-// ============================================================================
 export const adhans: Adhan[] = [
   {
-    id: 'moazenzadeh_ardabili',
-    name: 'Rahim Moazenzadeh Ardabili',
-    nameFa: '۱. اذان جاودانه بیات ترک — استاد رحیم مؤذن‌زاده اردبیلی',
-    reciter: 'مرحوم استاد رحیم مؤذن‌زاده اردبیلی',
-    originFa: 'ایران — اردبیل (ثبت میراث ملی · آفلاین و آماده پخش)',
-    audioUrl: '/adhans/moazenzadeh_ardabili.mp3',
-    bundledOffline: true,
-    license: 'میراث ملی ایران',
+    "id": "moazenzadeh_ardabili",
+    "name": "Ahlolbait Adhan 1",
+    "nameFa": "۱. اذان ماندگار — <a href=\"",
+    "reciter": "<a href=\"",
+    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۱ (آفلاین)",
+    "audioUrl": "/adhans/ahlolbait_01.mp3",
+    "fallbackUrls": [
+      "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/rahim_moazenzadeh.mp3"
+    ],
+    "bundledOffline": true,
+    "license": "مؤسسه تحقیقات و نشر معارف اهل‌البیت (ع)"
   },
   {
-    id: 'aghati_mashhad',
-    name: 'Mohammad Aghati — Imam Reza Shrine',
-    nameFa: '۲. اذان ملکوتی گلدسته‌های حرم امام رضا (ع) — استاد محمد آقاتی',
-    reciter: 'مرحوم استاد محمد آقاتی',
-    originFa: 'ایران — مشهد مقدس (آستان قدس رضوی · آفلاین و آماده پخش)',
-    audioUrl: '/adhans/aghati_mashhad.mp3',
-    bundledOffline: true,
-    license: 'آستان قدس رضوی',
+    "id": "ahlolbait_2",
+    "name": "Ahlolbait Adhan 2",
+    "nameFa": "۲. اذان ماندگار — <a href=\"",
+    "reciter": "<a href=\"",
+    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۲ (آفلاین)",
+    "audioUrl": "/adhans/ahlolbait_02.mp3",
+    "fallbackUrls": [
+      "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/salim_moazenzadeh.mp3"
+    ],
+    "bundledOffline": true,
+    "license": "مؤسسه تحقیقات و نشر معارف اهل‌البیت (ع)"
   },
   {
-    id: 'sobhdell_tehran',
-    name: 'Hossein Sobhdell',
-    nameFa: '۳. اذان سحرگاهی و عرفانی — استاد حسین صبحدل',
-    reciter: 'مرحوم استاد حسین صبحدل',
-    originFa: 'ایران — تهران (حسینیه ارشاد · آفلاین و آماده پخش)',
-    audioUrl: '/adhans/sobhdell_tehran.mp3',
-    bundledOffline: true,
-    license: 'میراث معنوی ایران',
+    "id": "ahlolbait_3",
+    "name": "Ahlolbait Adhan 3",
+    "nameFa": "۳. اذان ماندگار — <audio controls=\"\" preload=\"none\" src=\"",
+    "reciter": "<audio controls=\"\" preload=\"none\" src=\"",
+    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۳ (آفلاین)",
+    "audioUrl": "/adhans/ahlolbait_03.mp3",
+    "fallbackUrls": [
+      "https://static.ahlolbait.com/files/ahlolbait/old/u12/01/A0030.mp3"
+    ],
+    "bundledOffline": true,
+    "license": "مؤسسه تحقیقات و نشر معارف اهل‌البیت (ع)"
   },
   {
-    id: 'zabihi_tehran',
-    name: 'Seyed Javad Zabihi',
-    nameFa: '۴. اذان اصیل ایرانی — استاد سید جواد ذبیحی',
-    reciter: 'مرحوم استاد سید جواد ذبیحی',
-    originFa: 'ایران — تهران (ردیف آوازی اصیل · آفلاین و آماده پخش)',
-    audioUrl: '/adhans/zabihi_tehran.mp3',
-    bundledOffline: true,
-    license: 'میراث رادیو ایران',
+    "id": "ahlolbait_4",
+    "name": "Ahlolbait Adhan 4",
+    "nameFa": "۴. اذان ماندگار — <a href=\"",
+    "reciter": "<a href=\"",
+    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۴ (آفلاین)",
+    "audioUrl": "/adhans/ahlolbait_04.mp3",
+    "fallbackUrls": [
+      "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920230000576.mp3"
+    ],
+    "bundledOffline": true,
+    "license": "مؤسسه تحقیقات و نشر معارف اهل‌البیت (ع)"
   },
   {
-    id: 'mahur_saeed',
-    name: 'Iranian Adhan — Mahur',
-    nameFa: '۵. اذان ایرانی در دستگاه ماهور — استاد سعید حاتم‌زاده ورمزیار',
-    reciter: 'استاد سعید حاتم‌زاده ورمزیار',
-    originFa: 'ایران — دستگاه ماهور (آفلاین و آماده پخش)',
-    audioUrl: '/adhans/mahur_saeed.ogg',
-    bundledOffline: true,
-    license: 'CC BY-SA 4.0',
+    "id": "ahlolbait_5",
+    "name": "Ahlolbait Adhan 5",
+    "nameFa": "۵. اذان ماندگار — <a href=\"",
+    "reciter": "<a href=\"",
+    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۵ (آفلاین)",
+    "audioUrl": "/adhans/ahlolbait_05.mp3",
+    "fallbackUrls": [
+      "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000907.mp3"
+    ],
+    "bundledOffline": true,
+    "license": "مؤسسه تحقیقات و نشر معارف اهل‌البیت (ع)"
   },
   {
-    id: 'abdulbasit',
-    name: 'Abdul Basit Abdus Samad',
-    nameFa: '۶. اذان ملکوتی و حماسی مصر — استاد عبدالباسط محمد عبدالصمد',
-    reciter: 'مرحوم استاد عبدالباسط محمد عبدالصمد',
-    originFa: 'مصر — قاهره (مقام حجاز و رست · آفلاین و آماده پخش)',
-    audioUrl: '/adhans/abdulbasit.mp3',
-    bundledOffline: true,
-    license: 'میراث اسلامی',
+    "id": "ahlolbait_6",
+    "name": "Ahlolbait Adhan 6",
+    "nameFa": "۶. اذان ماندگار — <a href=\"",
+    "reciter": "<a href=\"",
+    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۶ (آفلاین)",
+    "audioUrl": "/adhans/ahlolbait_06.mp3",
+    "fallbackUrls": [
+      "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000909.mp3"
+    ],
+    "bundledOffline": true,
+    "license": "مؤسسه تحقیقات و نشر معارف اهل‌البیت (ع)"
   },
   {
-    id: 'ghaloush_iran_fav',
-    name: 'Ragheb Mustafa Ghaloush',
-    nameFa: '۷. اذان محبوب ایرانیان — استاد راغب مصطفی غلوش',
-    reciter: 'مرحوم استاد راغب مصطفی غلوش',
-    originFa: 'مصر — طنطا (نوای خاطره‌انگیز · آفلاین و آماده پخش)',
-    audioUrl: '/adhans/ghaloush_iran_fav.mp3',
-    bundledOffline: true,
-    license: 'میراث اسلامی',
+    "id": "ahlolbait_7",
+    "name": "Ahlolbait Adhan 7",
+    "nameFa": "۷. اذان ماندگار — <a href=\"",
+    "reciter": "<a href=\"",
+    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۷ (آفلاین)",
+    "audioUrl": "/adhans/ahlolbait_07.mp3",
+    "fallbackUrls": [
+      "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000910.mp3"
+    ],
+    "bundledOffline": true,
+    "license": "مؤسسه تحقیقات و نشر معارف اهل‌البیت (ع)"
   },
   {
-    id: 'minshawi_egypt',
-    name: 'Mohamed Siddiq El-Minshawi',
-    nameFa: '۸. اذان حزین و خاشعانه — استاد محمد صدیق منشاوی',
-    reciter: 'مرحوم استاد محمد صدیق منشاوی',
-    originFa: 'مصر — سوهاج (حنجره بهشتی · آفلاین و آماده پخش)',
-    audioUrl: '/adhans/minshawi_egypt.mp3',
-    bundledOffline: true,
-    license: 'میراث اسلامی',
+    "id": "ahlolbait_8",
+    "name": "Ahlolbait Adhan 8",
+    "nameFa": "۸. اذان ماندگار — <a href=\"",
+    "reciter": "<a href=\"",
+    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۸ (پخش آنلاین)",
+    "audioUrl": "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000915.mp3",
+    "fallbackUrls": [
+      "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000915.mp3"
+    ],
+    "bundledOffline": false,
+    "license": "مؤسسه تحقیقات و نشر معارف اهل‌البیت (ع)"
   },
   {
-    id: 'shahhat_anwar',
-    name: 'Mahmoud Shahat Anwar',
-    nameFa: '۹. اذان اوج و تحریر — استاد محمود شحات انور',
-    reciter: 'استاد شیخ محمود شحات انور',
-    originFa: 'مصر — دقهلیه (مقام صبا و بیات · آفلاین و آماده پخش)',
-    audioUrl: '/adhans/shahhat_anwar.mp3',
-    bundledOffline: true,
-    license: 'میراث اسلامی',
+    "id": "ahlolbait_9",
+    "name": "Ahlolbait Adhan 9",
+    "nameFa": "۹. اذان ماندگار — <a href=\"",
+    "reciter": "<a href=\"",
+    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۹ (پخش آنلاین)",
+    "audioUrl": "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000918.mp3",
+    "fallbackUrls": [
+      "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000918.mp3"
+    ],
+    "bundledOffline": false,
+    "license": "مؤسسه تحقیقات و نشر معارف اهل‌البیت (ع)"
   },
   {
-    id: 'makkah',
-    name: 'Makkah Al-Mukarramah — Ali Ahmed Mulla',
-    nameFa: '۱۰. اذان مسجدالحرام و کعبه معظمه — شیخ علی احمد ملا',
-    reciter: 'شیخ علی احمد ملا (مؤذن ارشد حرم مکی)',
-    originFa: 'عربستان — مکه مکرمه (آفلاین و آماده پخش)',
-    audioUrl: '/adhans/makkah.mp3',
-    bundledOffline: true,
-    license: 'حرمین شریفین',
+    "id": "ahlolbait_10",
+    "name": "Ahlolbait Adhan 10",
+    "nameFa": "۱۰. اذان ماندگار — <a href=\"",
+    "reciter": "<a href=\"",
+    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۱۰ (پخش آنلاین)",
+    "audioUrl": "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000921.mp3",
+    "fallbackUrls": [
+      "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000921.mp3"
+    ],
+    "bundledOffline": false,
+    "license": "مؤسسه تحقیقات و نشر معارف اهل‌البیت (ع)"
   },
   {
-    id: 'madinah',
-    name: 'Madinah Al-Munawwarah — Essam Bukhari',
-    nameFa: '۱۱. اذان روح‌بخش مسجدالنبی (ص) — شیخ عصام بخاری',
-    reciter: 'شیخ عصام بخاری (مؤذن حرم نبوی)',
-    originFa: 'عربستان — مدینه منوره (آفلاین و آماده پخش)',
-    audioUrl: '/adhans/madinah.mp3',
-    bundledOffline: true,
-    license: 'حرمین شریفین',
+    "id": "ahlolbait_11",
+    "name": "Ahlolbait Adhan 11",
+    "nameFa": "۱۱. اذان ماندگار — <a href=\"",
+    "reciter": "<a href=\"",
+    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۱۱ (پخش آنلاین)",
+    "audioUrl": "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000925.mp3",
+    "fallbackUrls": [
+      "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000925.mp3"
+    ],
+    "bundledOffline": false,
+    "license": "مؤسسه تحقیقات و نشر معارف اهل‌البیت (ع)"
   },
   {
-    id: 'turkey_istanbul',
-    name: 'Istanbul Sultanahmet — Turkish Maqam',
-    nameFa: '۱۲. اذان مقام حجاز و صبا — مسجد سلطان احمد استانبول',
-    reciter: 'مؤذنین ممتاز استانبول ترکیه',
-    originFa: 'ترکیه — استانبول (پخش آنلاین از سرور بین‌المللی)',
-    audioUrl: 'https://www.islamcan.com/audio/adhan/azan3.mp3',
-    fallbackUrls: ['https://www.islamcan.com/audio/adhan/azan4.mp3'],
-    bundledOffline: false,
-    license: 'مجموعه بین‌المللی',
+    "id": "ahlolbait_12",
+    "name": "Ahlolbait Adhan 12",
+    "nameFa": "۱۲. اذان ماندگار — <a href=\"",
+    "reciter": "<a href=\"",
+    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۱۲ (پخش آنلاین)",
+    "audioUrl": "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000927.mp3",
+    "fallbackUrls": [
+      "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000927.mp3"
+    ],
+    "bundledOffline": false,
+    "license": "مؤسسه تحقیقات و نشر معارف اهل‌البیت (ع)"
   },
   {
-    id: 'alafasy_kuwait',
-    name: 'Mishary Rashid Alafasy',
-    nameFa: '۱۳. اذان آرامش‌بخش — شیخ مشاری راشد العفاسی',
-    reciter: 'شیخ مشاری راشد العفاسی',
-    originFa: 'کویت — مسجد کبیر (پخش آنلاین از سرور بین‌المللی)',
-    audioUrl: 'https://www.islamcan.com/audio/adhan/azan6.mp3',
-    fallbackUrls: ['https://www.islamcan.com/audio/adhan/azan7.mp3'],
-    bundledOffline: false,
-    license: 'مجموعه بین‌المللی',
+    "id": "ahlolbait_13",
+    "name": "Ahlolbait Adhan 13",
+    "nameFa": "۱۳. اذان ماندگار — <a href=\"",
+    "reciter": "<a href=\"",
+    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۱۳ (پخش آنلاین)",
+    "audioUrl": "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000932.mp3",
+    "fallbackUrls": [
+      "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000932.mp3"
+    ],
+    "bundledOffline": false,
+    "license": "مؤسسه تحقیقات و نشر معارف اهل‌البیت (ع)"
   },
   {
-    id: 'aqsa_quds',
-    name: 'Al-Aqsa Mosque — Jerusalem',
-    nameFa: '۱۴. اذان قدس شریف — مسجدالاقصی',
-    reciter: 'شیخ ناجی قزاز (مؤذن مسجدالاقصی)',
-    originFa: 'فلسطین — بیت‌المقدس (پخش آنلاین از سرور بین‌المللی)',
-    audioUrl: 'https://www.islamcan.com/audio/adhan/azan5.mp3',
-    fallbackUrls: ['https://www.islamcan.com/audio/adhan/azan8.mp3'],
-    bundledOffline: false,
-    license: 'مجموعه بین‌المللی',
+    "id": "ahlolbait_14",
+    "name": "Ahlolbait Adhan 14",
+    "nameFa": "۱۴. اذان ماندگار — <a href=\"",
+    "reciter": "<a href=\"",
+    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۱۴ (پخش آنلاین)",
+    "audioUrl": "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000938.mp3",
+    "fallbackUrls": [
+      "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000938.mp3"
+    ],
+    "bundledOffline": false,
+    "license": "مؤسسه تحقیقات و نشر معارف اهل‌البیت (ع)"
   },
+  {
+    "id": "ahlolbait_15",
+    "name": "Ahlolbait Adhan 15",
+    "nameFa": "۱۵. اذان ماندگار — <a href=\"",
+    "reciter": "<a href=\"",
+    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۱۵ (پخش آنلاین)",
+    "audioUrl": "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000946.mp3",
+    "fallbackUrls": [
+      "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000946.mp3"
+    ],
+    "bundledOffline": false,
+    "license": "مؤسسه تحقیقات و نشر معارف اهل‌البیت (ع)"
+  },
+  {
+    "id": "ahlolbait_16",
+    "name": "Ahlolbait Adhan 16",
+    "nameFa": "۱۶. اذان ماندگار — <a href=\"",
+    "reciter": "<a href=\"",
+    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۱۶ (پخش آنلاین)",
+    "audioUrl": "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000948.mp3",
+    "fallbackUrls": [
+      "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000948.mp3"
+    ],
+    "bundledOffline": false,
+    "license": "مؤسسه تحقیقات و نشر معارف اهل‌البیت (ع)"
+  },
+  {
+    "id": "ahlolbait_17",
+    "name": "Ahlolbait Adhan 17",
+    "nameFa": "۱۷. اذان ماندگار — <a href=\"",
+    "reciter": "<a href=\"",
+    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۱۷ (پخش آنلاین)",
+    "audioUrl": "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000950.mp3",
+    "fallbackUrls": [
+      "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000950.mp3"
+    ],
+    "bundledOffline": false,
+    "license": "مؤسسه تحقیقات و نشر معارف اهل‌البیت (ع)"
+  },
+  {
+    "id": "ahlolbait_18",
+    "name": "Ahlolbait Adhan 18",
+    "nameFa": "۱۸. اذان ماندگار — <a href=\"",
+    "reciter": "<a href=\"",
+    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۱۸ (پخش آنلاین)",
+    "audioUrl": "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000951.mp3",
+    "fallbackUrls": [
+      "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000951.mp3"
+    ],
+    "bundledOffline": false,
+    "license": "مؤسسه تحقیقات و نشر معارف اهل‌البیت (ع)"
+  },
+  {
+    "id": "ahlolbait_19",
+    "name": "Ahlolbait Adhan 19",
+    "nameFa": "۱۹. اذان ماندگار — <a href=\"",
+    "reciter": "<a href=\"",
+    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۱۹ (پخش آنلاین)",
+    "audioUrl": "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000953.mp3",
+    "fallbackUrls": [
+      "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000953.mp3"
+    ],
+    "bundledOffline": false,
+    "license": "مؤسسه تحقیقات و نشر معارف اهل‌البیت (ع)"
+  },
+  {
+    "id": "ahlolbait_20",
+    "name": "Ahlolbait Adhan 20",
+    "nameFa": "۲۰. اذان ماندگار — <a href=\"",
+    "reciter": "<a href=\"",
+    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۲۰ (پخش آنلاین)",
+    "audioUrl": "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000954.mp3",
+    "fallbackUrls": [
+      "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000954.mp3"
+    ],
+    "bundledOffline": false,
+    "license": "مؤسسه تحقیقات و نشر معارف اهل‌البیت (ع)"
+  },
+  {
+    "id": "ahlolbait_21",
+    "name": "Ahlolbait Adhan 21",
+    "nameFa": "۲۱. اذان ماندگار — <a href=\"",
+    "reciter": "<a href=\"",
+    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۲۱ (پخش آنلاین)",
+    "audioUrl": "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000955.mp3",
+    "fallbackUrls": [
+      "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000955.mp3"
+    ],
+    "bundledOffline": false,
+    "license": "مؤسسه تحقیقات و نشر معارف اهل‌البیت (ع)"
+  },
+  {
+    "id": "ahlolbait_22",
+    "name": "Ahlolbait Adhan 22",
+    "nameFa": "۲۲. اذان ماندگار — <a href=\"",
+    "reciter": "<a href=\"",
+    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۲۲ (پخش آنلاین)",
+    "audioUrl": "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000956.mp3",
+    "fallbackUrls": [
+      "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000956.mp3"
+    ],
+    "bundledOffline": false,
+    "license": "مؤسسه تحقیقات و نشر معارف اهل‌البیت (ع)"
+  },
+  {
+    "id": "ahlolbait_23",
+    "name": "Ahlolbait Adhan 23",
+    "nameFa": "۲۳. اذان ماندگار — <a href=\"",
+    "reciter": "<a href=\"",
+    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۲۳ (پخش آنلاین)",
+    "audioUrl": "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/entezar_2.mp3",
+    "fallbackUrls": [
+      "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/entezar_2.mp3"
+    ],
+    "bundledOffline": false,
+    "license": "مؤسسه تحقیقات و نشر معارف اهل‌البیت (ع)"
+  },
+  {
+    "id": "ahlolbait_24",
+    "name": "Ahlolbait Adhan 24",
+    "nameFa": "۲۴. اذان ماندگار — <a href=\"",
+    "reciter": "<a href=\"",
+    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۲۴ (آفلاین)",
+    "audioUrl": "/adhans/ahlolbait_24.mp3",
+    "fallbackUrls": [
+      "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/mohammad_hossein_aborieh.mp3"
+    ],
+    "bundledOffline": true,
+    "license": "مؤسسه تحقیقات و نشر معارف اهل‌البیت (ع)"
+  },
+  {
+    "id": "ahlolbait_25",
+    "name": "Ahlolbait Adhan 25",
+    "nameFa": "۲۵. اذان ماندگار — <a href=\"",
+    "reciter": "<a href=\"",
+    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۲۵ (پخش آنلاین)",
+    "audioUrl": "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/Rowhani%20Nejad.mp3",
+    "fallbackUrls": [
+      "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/Rowhani%20Nejad.mp3"
+    ],
+    "bundledOffline": false,
+    "license": "مؤسسه تحقیقات و نشر معارف اهل‌البیت (ع)"
+  },
+  {
+    "id": "ahlolbait_26",
+    "name": "Ahlolbait Adhan 26",
+    "nameFa": "۲۶. اذان ماندگار — <a href=\"",
+    "reciter": "<a href=\"",
+    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۲۶ (پخش آنلاین)",
+    "audioUrl": "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/azan-Mohsen-Haji-Hasani.mp3",
+    "fallbackUrls": [
+      "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/azan-Mohsen-Haji-Hasani.mp3"
+    ],
+    "bundledOffline": false,
+    "license": "مؤسسه تحقیقات و نشر معارف اهل‌البیت (ع)"
+  },
+  {
+    "id": "ahlolbait_27",
+    "name": "Ahlolbait Adhan 27",
+    "nameFa": "۲۷. اذان ماندگار — <a href=\"",
+    "reciter": "<a href=\"",
+    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۲۷ (پخش آنلاین)",
+    "audioUrl": "https://static.ahlolbait.com/files/ahlolbait/old/u12/13950331000621.mp3",
+    "fallbackUrls": [
+      "https://static.ahlolbait.com/files/ahlolbait/old/u12/13950331000621.mp3"
+    ],
+    "bundledOffline": false,
+    "license": "مؤسسه تحقیقات و نشر معارف اهل‌البیت (ع)"
+  },
+  {
+    "id": "ahlolbait_28",
+    "name": "Ahlolbait Adhan 28",
+    "nameFa": "۲۸. اذان ماندگار — <a href=\"",
+    "reciter": "<a href=\"",
+    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۲۸ (پخش آنلاین)",
+    "audioUrl": "https://static.ahlolbait.com/files/ahlolbait/old/u12/13950331000620.mp3",
+    "fallbackUrls": [
+      "https://static.ahlolbait.com/files/ahlolbait/old/u12/13950331000620.mp3"
+    ],
+    "bundledOffline": false,
+    "license": "مؤسسه تحقیقات و نشر معارف اهل‌البیت (ع)"
+  },
+  {
+    "id": "ahlolbait_29",
+    "name": "Ahlolbait Adhan 29",
+    "nameFa": "۲۹. اذان ماندگار — <a href=\"",
+    "reciter": "<a href=\"",
+    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۲۹ (پخش آنلاین)",
+    "audioUrl": "https://static.ahlolbait.com/files/ahlolbait/old/u12/13950331000615.mp3",
+    "fallbackUrls": [
+      "https://static.ahlolbait.com/files/ahlolbait/old/u12/13950331000615.mp3"
+    ],
+    "bundledOffline": false,
+    "license": "مؤسسه تحقیقات و نشر معارف اهل‌البیت (ع)"
+  },
+  {
+    "id": "ahlolbait_30",
+    "name": "Ahlolbait Adhan 30",
+    "nameFa": "۳۰. اذان ماندگار — <a href=\"",
+    "reciter": "<a href=\"",
+    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۳۰ (پخش آنلاین)",
+    "audioUrl": "https://static.ahlolbait.com/files/ahlolbait/old/u12/13950331000618.mp3",
+    "fallbackUrls": [
+      "https://static.ahlolbait.com/files/ahlolbait/old/u12/13950331000618.mp3"
+    ],
+    "bundledOffline": false,
+    "license": "مؤسسه تحقیقات و نشر معارف اهل‌البیت (ع)"
+  },
+  {
+    "id": "ahlolbait_31",
+    "name": "Ahlolbait Adhan 31",
+    "nameFa": "۳۱. اذان ماندگار — <a href=\"",
+    "reciter": "<a href=\"",
+    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۳۱ (آفلاین)",
+    "audioUrl": "/adhans/ahlolbait_31.mp3",
+    "fallbackUrls": [
+      "https://static.ahlolbait.com/files/ahlolbait/old/u12/13950331000617.mp3"
+    ],
+    "bundledOffline": true,
+    "license": "مؤسسه تحقیقات و نشر معارف اهل‌البیت (ع)"
+  },
+  {
+    "id": "ahlolbait_32",
+    "name": "Ahlolbait Adhan 32",
+    "nameFa": "۳۲. اذان ماندگار — <audio controls=\"\" preload=\"none\" src=\"",
+    "reciter": "<audio controls=\"\" preload=\"none\" src=\"",
+    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۳۲ (پخش آنلاین)",
+    "audioUrl": "https://static.ahlolbait.com/files/ahlolbait/old/u12/22q.mp3",
+    "fallbackUrls": [
+      "https://static.ahlolbait.com/files/ahlolbait/old/u12/22q.mp3"
+    ],
+    "bundledOffline": false,
+    "license": "مؤسسه تحقیقات و نشر معارف اهل‌البیت (ع)"
+  },
+  {
+    "id": "ahlolbait_33",
+    "name": "Ahlolbait Adhan 33",
+    "nameFa": "۳۳. اذان ماندگار — <a href=\"",
+    "reciter": "<a href=\"",
+    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۳۳ (پخش آنلاین)",
+    "audioUrl": "https://static.ahlolbait.com/files/ahlolbait/old/download/12/1%20%20%20Muqadameh%20%20Barname%20%20Mukaberi.mp3",
+    "fallbackUrls": [
+      "https://static.ahlolbait.com/files/ahlolbait/old/download/12/1%20%20%20Muqadameh%20%20Barname%20%20Mukaberi.mp3"
+    ],
+    "bundledOffline": false,
+    "license": "مؤسسه تحقیقات و نشر معارف اهل‌البیت (ع)"
+  },
+  {
+    "id": "turkey_istanbul",
+    "name": "Ahlolbait Adhan 34",
+    "nameFa": "۳۴. اذان ماندگار — <a href=\"",
+    "reciter": "<a href=\"",
+    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۳۴ (پخش آنلاین)",
+    "audioUrl": "https://static.ahlolbait.com/files/ahlolbait/old/download/12/2%20%20%20Amozeshe%20%20Mukaberi.mp3",
+    "fallbackUrls": [
+      "https://static.ahlolbait.com/files/ahlolbait/old/download/12/2%20%20%20Amozeshe%20%20Mukaberi.mp3"
+    ],
+    "bundledOffline": false,
+    "license": "مؤسسه تحقیقات و نشر معارف اهل‌البیت (ع)"
+  }
 ];
 
 export const ADHAN_OPTIONS = adhans;
@@ -262,10 +557,6 @@ export async function downloadAndCacheAdhan(adhan: Adhan): Promise<{ ok: boolean
   }
 }
 
-// ============================================================================
-// موتور صوتی تک‌کاناله (Strict Single-Instance Audio Engine)
-// تضمین ۱۰۰٪ عدم پخش هم‌زمان دو اذان حتی در صورت کلیک‌های سریع و پیاپی!
-// ============================================================================
 let singletonAudio: HTMLAudioElement | null = null;
 let activePlayingAdhanId: string | null = null;
 let stopTimerId: ReturnType<typeof setTimeout> | null = null;
@@ -283,14 +574,11 @@ function broadcastPlaybackState(playingId: string | null) {
 }
 
 export async function stopAdhanPreview(): Promise<void> {
-  // باطل کردن فوری هر جلسه پخش قبلی
   currentSessionToken += 1;
-
   if (stopTimerId) {
     clearTimeout(stopTimerId);
     stopTimerId = null;
   }
-
   if (singletonAudio) {
     try {
       singletonAudio.onended = null;
@@ -302,9 +590,7 @@ export async function stopAdhanPreview(): Promise<void> {
     } catch {}
     singletonAudio = null;
   }
-
   broadcastPlaybackState(null);
-
   if (Capacitor.isNativePlatform()) {
     try {
       await NativeAdhan.stopPreviewAudio();
@@ -318,10 +604,7 @@ export async function playAdhanPreview(
   volumeOrCallback?: number | (() => void),
   onEndedCallback?: () => void
 ): Promise<void> {
-  // ۱. ابتدا هر صدای در حال پخشی را به طور کامل متوقف و نابود کن
   await stopAdhanPreview();
-
-  // ۲. ثبت توکن منحصربه‌فرد برای این جلسه پخش
   const myToken = ++currentSessionToken;
 
   const volumePercent = typeof volumeOrCallback === 'number' ? volumeOrCallback : 100;
@@ -332,16 +615,12 @@ export async function playAdhanPreview(
       ? adhans.find((a) => a.id === adhanOrId) || adhans[0]
       : adhanOrId || adhans[0];
 
-  // اگر کاربر روی اذانی کلیک کرده که همین الان در حال پخش بود، فقط متوقفش کن
   broadcastPlaybackState(targetAdhan.id);
 
-  // فقط URLهای واقعی مربوط به همین مؤذن را امتحان کن (بدون افتادن روی صدای مؤذن دیگر!)
-  const urlsToTry = [targetAdhan.audioUrl, ...(targetAdhan.fallbackUrls || [])];
+  const urlsToTry = Array.from(new Set([targetAdhan.audioUrl, ...(targetAdhan.fallbackUrls || [])]));
 
   const tryPlayUrlIndex = (idx: number) => {
-    // اگر در این فاصله کاربر دکمه دیگری زده یا توقف را زده، بلافاصله خارج شو!
     if (myToken !== currentSessionToken) return;
-
     if (idx >= urlsToTry.length) {
       broadcastPlaybackState(null);
       if (finalCallback) finalCallback();
