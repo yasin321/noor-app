@@ -303,3 +303,93 @@ export function getNextPrayer(
   const mins = diff % 60;
   return { name: 'Fajr', nameFa: 'صبح', time: times.fajr, key: 'fajr', remaining: `${hours.toLocaleString('fa-IR')}س ${mins.toLocaleString('fa-IR')}د` };
 }
+
+export interface NightPrayerConfig {
+  enabled: boolean;
+  alarmEnabled: boolean;
+  timingMode: 'last_third_start' | 'before_fajr_45' | 'before_fajr_30' | 'custom';
+  customTime: string;
+  soundMode: 'adhan' | 'chant' | 'silent';
+}
+
+const NIGHT_PRAYER_CONFIG_KEY = 'noor_night_prayer_config_v1';
+
+export function getNightPrayerConfig(): NightPrayerConfig {
+  try {
+    const raw = localStorage.getItem(NIGHT_PRAYER_CONFIG_KEY);
+    if (!raw) {
+      return {
+        enabled: false, // به صورت پیش‌فرض غیرفعال طبق دستورالعمل
+        alarmEnabled: false,
+        timingMode: 'last_third_start',
+        customTime: '03:45',
+        soundMode: 'chant',
+      };
+    }
+    return {
+      enabled: false,
+      alarmEnabled: false,
+      timingMode: 'last_third_start',
+      customTime: '03:45',
+      soundMode: 'chant',
+      ...JSON.parse(raw),
+    };
+  } catch {
+    return {
+      enabled: false,
+      alarmEnabled: false,
+      timingMode: 'last_third_start',
+      customTime: '03:45',
+      soundMode: 'chant',
+    };
+  }
+}
+
+export function saveNightPrayerConfig(cfg: NightPrayerConfig): void {
+  try {
+    localStorage.setItem(NIGHT_PRAYER_CONFIG_KEY, JSON.stringify(cfg));
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('noor-night-prayer-changed', { detail: cfg }));
+    }
+  } catch {}
+}
+
+// محاسبه دقیق وقت فضیلت نماز شب (ثلث آخر شب: از نیمه‌شب شرعی تا اذان صبح) بر اساس موقعیت جغرافیایی و تاریخ
+export function calculateNightPrayerWindow(times: PrayerTimes, cfg: NightPrayerConfig = getNightPrayerConfig()): {
+  startTime: string;
+  endTime: string;
+  recommendedAlarmTime: string;
+  descriptionFa: string;
+} {
+  const maghribMin = timeToMinutes(times.maghrib);
+  let fajrMin = timeToMinutes(times.fajr);
+  if (fajrMin <= maghribMin) fajrMin += 1440;
+
+  const nightDuration = fajrMin - maghribMin;
+  const lastThirdStartMin = (maghribMin + Math.round((nightDuration * 2) / 3)) % 1440;
+  const fmt = (totalM: number) => {
+    const m = ((totalM % 1440) + 1440) % 1440;
+    const hh = Math.floor(m / 60);
+    const mm = m % 60;
+    return String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0');
+  };
+
+  const startTime = fmt(lastThirdStartMin);
+  const endTime = times.fajr;
+
+  let recommendedAlarmTime = startTime;
+  if (cfg.timingMode === 'before_fajr_45') {
+    recommendedAlarmTime = fmt(fajrMin - 45);
+  } else if (cfg.timingMode === 'before_fajr_30') {
+    recommendedAlarmTime = fmt(fajrMin - 30);
+  } else if (cfg.timingMode === 'custom' && cfg.customTime) {
+    recommendedAlarmTime = cfg.customTime;
+  }
+
+  return {
+    startTime,
+    endTime,
+    recommendedAlarmTime,
+    descriptionFa: 'ثلث آخر شب (' + startTime + ' تا اذان صبح ' + endTime + ')',
+  };
+}

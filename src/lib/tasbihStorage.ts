@@ -124,16 +124,11 @@ export function saveRecord(dhikrId: string, count: number, completed: number, us
   const date = getLocalDateString();
   const now = new Date().toISOString();
 
+  // Always save locally first (Offline-First) so BI Dashboard & Streaks work seamlessly
+  saveGuestRecord(dhikrId, count, completed, date, now);
   if (userId) {
-    supabase.from('tasbih_counts')
-      .insert({ dhikr_id: dhikrId, count, completed, date, user_id: userId })
-      .then(({ error }) => {
-        if (error) {
-          saveGuestRecord(dhikrId, count, completed, date, now);
-        }
-      });
-  } else {
-    saveGuestRecord(dhikrId, count, completed, date, now);
+    void supabase.from('tasbih_counts')
+      .insert({ dhikr_id: dhikrId, count, completed, date, user_id: userId });
   }
 }
 
@@ -185,4 +180,68 @@ export async function fetchTodayStats(userId: string): Promise<{ total: number; 
   const total = data.reduce((sum, r) => sum + r.count * r.completed, 0);
   const rounds = data.reduce((sum, r) => sum + r.completed, 0);
   return { total, rounds };
+}
+
+
+export type PeriodRange = 7 | 30 | 90 | 365;
+
+export function getSpiritualDashboardStats(days: PeriodRange = 30): {
+  totalCount: number;
+  totalRounds: number;
+  activeDays: number;
+  streakDays: number;
+  topDhikrId: string | null;
+  levelTitle: string;
+} {
+  const store = loadGuestStore();
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  const cutoffStr = getLocalDateString(cutoff);
+
+  const filtered = store.records.filter((r) => r.date >= cutoffStr);
+  const totalCount = filtered.reduce((sum, r) => sum + r.count * r.completed, 0);
+  const totalRounds = filtered.reduce((sum, r) => sum + r.completed, 0);
+  const uniqueDates = new Set(filtered.map((r) => r.date));
+
+  const byDhikr: Record<string, number> = {};
+  for (const r of filtered) {
+    byDhikr[r.dhikrId] = (byDhikr[r.dhikrId] ?? 0) + r.count * r.completed;
+  }
+  let topDhikrId: string | null = null;
+  let maxVal = 0;
+  for (const [id, val] of Object.entries(byDhikr)) {
+    if (val > maxVal) {
+      maxVal = val;
+      topDhikrId = id;
+    }
+  }
+
+  let streakDays = 0;
+  const cursor = new Date();
+  for (let i = 0; i < 365; i++) {
+    const dStr = getLocalDateString(cursor);
+    if (store.records.some((r) => r.date === dStr)) {
+      streakDays++;
+      cursor.setDate(cursor.getDate() - 1);
+    } else if (i === 0) {
+      cursor.setDate(cursor.getDate() - 1);
+    } else {
+      break;
+    }
+  }
+
+  const allTimeCount = store.records.reduce((s, r) => s + r.count * r.completed, 0);
+  let levelTitle = "رهجوی آغازگر 🌱";
+  if (allTimeCount >= 10000) levelTitle = "سفره‌دار نور و ذکر 👑";
+  else if (allTimeCount >= 3000) levelTitle = "ذاکر مداوم 💎";
+  else if (allTimeCount >= 500) levelTitle = "همراه روشنایی ✨";
+
+  return {
+    totalCount,
+    totalRounds,
+    activeDays: uniqueDates.size,
+    streakDays,
+    topDhikrId,
+    levelTitle,
+  };
 }

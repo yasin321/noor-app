@@ -1,83 +1,97 @@
-
-name: Build Noor Android APK
+name: Build & Release Noor Android APK
 
 on:
-  workflow_dispatch:
   push:
-    branches: [main]
+    branches:
+      - main
+  workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  build:
+  build-android:
+    name: Build Android APK & Publish Dynamic Release
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout project
+      - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 10
 
-      - name: Setup Node.js
+      - name: Setup Node.js 22
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
 
-      - name: Setup Java
+      - name: Setup Java JDK 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '21'
+          java-version: 21
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Install Dependencies
+        run: npm install
 
-      - name: Build web app
-        run: npm run build
-        env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-
-      - name: Sync Capacitor
-        run: npx cap sync android
-
-      - name: Configure Maven mirrors
-        shell: bash
+      - name: TypeScript Strict Check & Unit Tests
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
+          npm run typecheck
+          npm test
 
-          roots = [Path("node_modules"), Path("android")]
-          mirror = 'maven { url "https://maven.aliyun.com/repository/google" }'
+      - name: Build Production Web Bundle
+        run: npm run build
 
-          for root in roots:
-              if not root.exists():
-                  continue
-              for file in root.rglob("build.gradle"):
-                  text = file.read_text(encoding="utf-8-sig")
-                  if "com.android.tools.build:gradle:8.13.0" not in text:
-                      continue
-                  if mirror in text:
-                      continue
-                  text = re.sub(
-                      r"repositories\s*\{",
-                      lambda m: m.group(0) + "\n        " + mirror,
-                      text
-                  )
-                  file.write_text(text, encoding="utf-8")
-                  print(f"Configured: {file}")
-          PY
+      - name: Sync Capacitor Android
+        run: npx cap copy android && npx cap sync android
 
-      - name: Build debug APK
+      - name: Inject Dynamic Version into Gradle & Build APK
         working-directory: android
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug --no-daemon
 
-      - name: Upload APK
+      - name: Prepare Dynamic Version & Changelog
+        id: meta
+        run: |
+          VERSION_TAG="v3.0.${{ github.run_number }}"
+          echo "version_tag=$VERSION_TAG" >> $GITHUB_OUTPUT
+          RECENT_COMMITS=$(git log -n 5 --pretty=format:"- %s (`%h`)" || echo "- بهبود عملکرد و رابط کاربری")
+          EOF_MARKER="EOF_$$"
+          echo "changelog<<$EOF_MARKER" >> $GITHUB_OUTPUT
+          echo "$RECENT_COMMITS" >> $GITHUB_OUTPUT
+          echo "$EOF_MARKER" >> $GITHUB_OUTPUT
+          cp android/app/build/outputs/apk/debug/app-debug.apk "Noor-Companion-$VERSION_TAG.apk"
+
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Noor-App-Debug-APK
-          path: android/app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
+          name: Noor-Companion-${{ steps.meta.outputs.version_tag }}
+          path: Noor-Companion-${{ steps.meta.outputs.version_tag }}.apk
+
+      - name: Publish Official GitHub Release (Dynamic Version)
+        uses: softprops/action-gh-release@v2
+        if: github.ref == 'refs/heads/main'
+        with:
+          tag_name: ${{ steps.meta.outputs.version_tag }}
+          name: "🕌 نسخه ${{ steps.meta.outputs.version_tag }} اپلیکیشن همراه معنوی نور (Noor Official Release)"
+          body: |
+            ## ✨ انتشار رسمی نسخه `${{ steps.meta.outputs.version_tag }}` اپلیکیشن همراه معنوی نور
+            **طراحی، معماری و توسعه توسط: یاسین (Yasin)**
+
+            ### 🛠️ آخرین تغییرات و ارتقاهای این بیلد (Recent Commits)
+            ${{ steps.meta.outputs.changelog }}
+
+            ---
+            ### �� قابلیت‌های کلیدی این نسخه (v3.0 Architecture)
+            - 🎨 **رابط کاربری فیگما ۲۰۲۶:** افق پویا و تصویری شهر و حرم، قوس هلالی بزرگ اذان (Celestial Horizon Arc) و داک شیشه‌ای ۴ آیکونی.
+            - 🧭 **قبله‌نمای عمودی هوشمند (AI / AR Mode):** بدون نیاز به افقی کردن گوشی، مجهز به فیلتر ضدلرزش EMA، دوربین واقعیت افزوده و قفل سه‌بعدی کعبه.
+            - 🔔 **موتور آلارم سطح کرنل (`setAlarmClock`):** پخش خودکار تواشیح قبل اذان (ناد علی، اسماء الحسنی، عبدالباسط)، اذان‌های ماندگار و تلاوت کامل سوره پس از نماز با تنظیم سرعت (`0.85x` تا `2.0x`) و پایداری پس از ریستارت گوشی.
+            - 🗺️ **رادار مسجدیاب ۵ موتوره:** ترکیب Fused GPS، نقشه نشان، OpenStreetMap Nominatim/Overpass و نقشه زنده تعاملی.
+            - 📊 **داشبورد تحلیلی Power BI & VIP:** ماتریس حرارتی سالانه (Activity Heatmap)، نمودار موجی ماهانه، دفترچه شمارش معکوس قضا و تایمر خلوت خشوع.
+          files: Noor-Companion-${{ steps.meta.outputs.version_tag }}.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

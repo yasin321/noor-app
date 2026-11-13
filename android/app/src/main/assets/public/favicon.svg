@@ -1,8 +1,109 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <rect width="512" height="512" rx="128" fill="#0a1f1a"/>
-  <circle cx="256" cy="220" r="80" fill="#10b981"/>
-  <path d="M256 300 L256 380 M196 340 L316 340" stroke="#10b981" stroke-width="12" stroke-linecap="round"/>
-  <path d="M206 140 Q256 100 306 140" stroke="#34d399" stroke-width="8" stroke-linecap="round" fill="none"/>
-  <circle cx="160" cy="380" r="6" fill="#34d399"/>
-  <circle cx="352" cy="380" r="6" fill="#34d399"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <!-- پس‌زمینه شیشه‌ای زمردی عمیق iOS 2026 -->
+    <radialGradient id="glassEmeraldBg" cx="48%" cy="32%" r="72%">
+      <stop offset="0%" stop-color="#155E4B" />
+      <stop offset="48%" stop-color="#09352B" />
+      <stop offset="100%" stop-color="#031712" />
+    </radialGradient>
+
+    <!-- درخشش طلایی پشت گنبد -->
+    <radialGradient id="domeBackGlow" cx="46%" cy="46%" r="44%">
+      <stop offset="0%" stop-color="#FDE047" stop-opacity="0.55" />
+      <stop offset="55%" stop-color="#F59E0B" stop-opacity="0.18" />
+      <stop offset="100%" stop-color="#031712" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- فلز طلای سه‌بعدی گنبد و مناره -->
+    <linearGradient id="gold3DGrad" x1="18%" y1="10%" x2="84%" y2="90%">
+      <stop offset="0%" stop-color="#FFFBEB" />
+      <stop offset="28%" stop-color="#FDE047" />
+      <stop offset="65%" stop-color="#D97706" />
+      <stop offset="100%" stop-color="#78350F" />
+    </linearGradient>
+
+    <!-- موج نوری طلایی-شیشه‌ای پیچیده دور گنبد -->
+    <linearGradient id="goldenLightWave" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FEF08A" stop-opacity="0.95" />
+      <stop offset="45%" stop-color="#F59E0B" stop-opacity="0.85" />
+      <stop offset="80%" stop-color="#34D399" stop-opacity="0.45" />
+      <stop offset="100%" stop-color="#ECFDF5" stop-opacity="0.15" />
+    </linearGradient>
+
+    <!-- حاشیه شیشه‌ای کریستالی (Squircle Rim Specular Highlight) -->
+    <linearGradient id="glassRimBorder" x1="15%" y1="0%" x2="85%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.75" />
+      <stop offset="30%" stop-color="#FDE047" stop-opacity="0.65" />
+      <stop offset="70%" stop-color="#34D399" stop-opacity="0.35" />
+      <stop offset="100%" stop-color="#FDE047" stop-opacity="0.85" />
+    </linearGradient>
+
+    <!-- انعکاس شیشه‌ای بالای آیکون -->
+    <linearGradient id="topGlassSheen" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.32" />
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0" />
+    </linearGradient>
+  </defs>
+
+  <!-- بدنه اصلی آیکون با انحنای استاندارد Squircle آیفون -->
+  <rect x="24" y="24" width="464" height="464" rx="112" fill="url(#glassEmeraldBg)" />
+  <circle cx="240" cy="245" r="195" fill="url(#domeBackGlow)" />
+
+  <!-- انعکاس شیشه‌ای کپسول بالا -->
+  <path d="M 64 136 C 64 76, 112 44, 256 44 C 400 44, 448 76, 448 136 C 360 102, 152 102, 64 136 Z" fill="url(#topGlassSheen)" />
+
+  <!-- ستاره‌های چهارپر طلایی درخشان در آسمان آیکون -->
+  <path d="M 168 124 L 174 140 L 190 146 L 174 152 L 168 168 L 162 152 L 146 146 L 162 140 Z" fill="#FEF08A" />
+  <path d="M 272 108 L 275 117 L 284 120 L 275 123 L 272 132 L 269 123 L 260 120 L 269 117 Z" fill="#FDE047" opacity="0.9" />
+  <circle cx="136" cy="196" r="3" fill="#FEF08A" opacity="0.75" />
+
+  <!-- مناره طلایی بلند سمت راست گنبد -->
+  <rect x="312" y="162" width="28" height="165" rx="6" fill="url(#gold3DGrad)" />
+  <rect x="305" y="154" width="42" height="10" rx="4" fill="#FEF08A" />
+  <rect x="316" y="130" width="20" height="24" rx="3" fill="url(#gold3DGrad)" />
+  <path d="M 312 130 C 312 106, 340 106, 340 130 Z" fill="url(#gold3DGrad)" />
+  <line x1="326" y1="92" x2="326" y2="110" stroke="#FEF08A" stroke-width="4" stroke-linecap="round" />
+
+  <!-- گنبد طلایی سه‌بعدی باشکوه در مرکز -->
+  <path d="M 152 276 C 152 178, 296 178, 296 276 Z" fill="url(#gold3DGrad)" />
+  <!-- هایلایت براق روی گنبد -->
+  <path d="M 176 264 C 176 202, 232 192, 248 192 C 216 204, 194 230, 190 264 Z" fill="#FFFBEB" opacity="0.55" />
+  <!-- علم بالای گنبد -->
+  <line x1="224" y1="162" x2="224" y2="196" stroke="#FEF08A" stroke-width="5" stroke-linecap="round" />
+  <circle cx="224" cy="174" r="6" fill="#FEF08A" />
+
+  <!-- رواق‌ها و طاق‌های طلایی زیر گنبد -->
+  <rect x="138" y="274" width="184" height="68" rx="8" fill="url(#gold3DGrad)" opacity="0.92" />
+  <path d="M 206 342 L 206 304 C 206 288, 242 288, 242 304 L 242 342 Z" fill="#06281F" />
+  <path d="M 160 342 L 160 312 C 160 300, 184 300, 184 312 L 184 342 Z" fill="#06281F" />
+  <path d="M 264 342 L 264 312 C 264 300, 288 300, 288 312 L 288 342 Z" fill="#06281F" />
+
+  <!-- موج نوری شیشه‌ای و طلایی پیچیده دور گنبد (Liquid Light Ribbon مطابق عکس شما) -->
+  <path
+    d="M 62 348 C 38 292, 135 288, 255 256 C 365 226, 442 168, 468 232 C 482 276, 368 338, 238 392 C 142 432, 95 462, 128 484"
+    stroke="url(#goldenLightWave)"
+    stroke-width="28"
+    stroke-linecap="round"
+    fill="none"
+    opacity="0.42"
+  />
+  <path
+    d="M 88 378 C 145 362, 268 318, 378 242 C 425 210, 458 182, 466 218 C 472 252, 345 332, 212 406 C 146 442, 118 468, 134 484"
+    stroke="url(#goldenLightWave)"
+    stroke-width="10"
+    stroke-linecap="round"
+    fill="none"
+  />
+  <path
+    d="M 122 478 C 145 426, 256 368, 452 224"
+    stroke="#FFFBEB"
+    stroke-width="3.5"
+    stroke-linecap="round"
+    fill="none"
+    opacity="0.9"
+  />
+
+  <!-- قاب کریستالی براق دور آیکون با درخشش طلایی بالا و پایین -->
+  <rect x="24" y="24" width="464" height="464" rx="112" stroke="url(#glassRimBorder)" stroke-width="7" />
+  <rect x="31" y="31" width="450" height="450" rx="106" stroke="#FFFFFF" stroke-opacity="0.22" stroke-width="2" />
 </svg>
