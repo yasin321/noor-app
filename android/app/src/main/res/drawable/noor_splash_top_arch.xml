@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="340dp"
+    android:height="180dp"
+    android:viewportWidth="340"
+    android:viewportHeight="180">
+
+    <!-- قوس محراب طلایی بالا -->
+    <path
+        android:pathData="M10,175 C10,62 108,20 170,10 C232,20 330,62 330,175"
+        android:strokeWidth="1.5"
+        android:strokeColor="#99F59E0B"
+        android:fillColor="#00000000" />
+
+    <!-- فانوس آویزان چپ -->
+    <path android:pathData="M54,10 L54,66" android:strokeWidth="1.4" android:strokeColor="#FBBF24" />
+    <path
+        android:pathData="M54,66 L66,86 L54,108 L42,86 Z"
+        android:fillColor="#B3F59E0B"
+        android:strokeColor="#FEF08A"
+        android:strokeWidth="1.2" />
+    <path android:fillColor="#FFFBEB" android:pathData="M54,87m-3.8,0a3.8,3.8 0,1 1,7.6 0a3.8,3.8 0,1 1,-7.6 0" />
+
+    <!-- فانوس آویزان راست -->
+    <path android:pathData="M286,10 L286,66" android:strokeWidth="1.4" android:strokeColor="#FBBF24" />
+    <path
+        android:pathData="M286,66 L298,86 L286,108 L274,86 Z"
+        android:fillColor="#B3F59E0B"
+        android:strokeColor="#FEF08A"
+        android:strokeWidth="1.2" />
+    <path android:fillColor="#FFFBEB" android:pathData="M286,87m-3.8,0a3.8,3.8 0,1 1,7.6 0a3.8,3.8 0,1 1,-7.6 0" />
+
+    <!-- کپسول بسم‌الله در بالا -->
+    <path
+        android:pathData="M106,38 L234,38 A18,18 0 0,1 252,56 L252,56 A18,18 0 0,1 234,74 L106,74 A18,18 0 0,1 88,56 L88,56 A18,18 0 0,1 106,38 Z"
+        android:fillColor="#D9083026"
+        android:strokeColor="#8CFBBF24"
+        android:strokeWidth="1.1" />
+</vector>

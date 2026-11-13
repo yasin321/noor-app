@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- ۱. پس‌زمینه زمردی عمیق -->
     <item>
         <shape android:shape="rectangle">
             <gradient
@@ -12,4 +13,30 @@
                 android:endColor="#020E0B" />
         </shape>
     </item>
+
+    <!-- ۲. قاب طلایی دور کل صفحه با shape استاندارد اندروید (همیشه ۱۰۰٪ شارپ در هر سایز صفحه) -->
+    <item android:left="14dp" android:right="14dp" android:top="16dp" android:bottom="16dp">
+        <shape android:shape="rectangle">
+            <corners android:radius="28dp" />
+            <stroke android:width="1.2dp" android:color="#55FBBF24" />
+            <solid android:color="#00000000" />
+        </shape>
+    </item>
+
+    <!-- ۳. قوس محراب و دو فانوس بالا (بدون کشیدگی) -->
+    <item
+        android:top="16dp"
+        android:gravity="top|center_horizontal"
+        android:drawable="@drawable/noor_splash_top_arch" />
+
+    <!-- ۴. آیکون شیشه‌ای گنبد طلایی در مرکز (بدون کشیدگی) -->
+    <item
+        android:gravity="center"
+        android:drawable="@drawable/noor_splash_center_badge" />
+
+    <!-- ۵. کادر پایین و میله پیشرفت طلایی در پایین صفحه (بدون کشیدگی) -->
+    <item
+        android:bottom="22dp"
+        android:gravity="bottom|center_horizontal"
+        android:drawable="@drawable/noor_splash_bottom_bar" />
 </layer-list>

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="320dp"
+    android:height="130dp"
+    android:viewportWidth="320"
+    android:viewportHeight="130">
+
+    <!-- کادر دعای اللهم بارک لمولانا صاحب الزمان (عج) -->
+    <path
+        android:pathData="M24,10 L296,10 A20,20 0 0,1 316,30 L316,74 A20,20 0 0,1 296,94 L24,94 A20,20 0 0,1 4,74 L4,30 A20,20 0 0,1 24,10 Z"
+        android:fillColor="#E608241C"
+        android:strokeColor="#85FBBF24"
+        android:strokeWidth="1.2" />
+
+    <!-- پس‌زمینه میله پیشرفت پایین -->
+    <path
+        android:pathData="M98,112 L222,112 A3,3 0 0,1 225,115 L225,115 A3,3 0 0,1 222,118 L98,118 A3,3 0 0,1 95,115 L95,115 A3,3 0 0,1 98,112 Z"
+        android:fillColor="#28FFFFFF" />
+
+    <!-- بخش پرشده طلایی و نقطه سبز درخشان در میله پیشرفت -->
+    <path
+        android:pathData="M135,112 L222,112 A3,3 0 0,1 225,115 L225,115 A3,3 0 0,1 222,118 L135,118 A3,3 0 0,1 132,115 L132,115 A3,3 0 0,1 135,112 Z"
+        android:fillColor="#FBBF24" />
+    <path
+        android:fillColor="#34D399"
+        android:pathData="M188,115m-3.2,0a3.2,3.2 0,1 1,6.4 0a3.2,3.2 0,1 1,-6.4 0" />
+</vector>

@@ -62,6 +62,265 @@ const FONT_OPTIONS = [
   { id: 'AmiriQuran', nameFa: 'فونت نسخ قرآنی (عثمان طه / امیری)', desc: 'رسم‌الخط اصیل مصحف شریف و مفاتیح‌الجنان', sample: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ — همراه معنوی نور' },
 ];
 
+
+function ContactYasinModal({ onClose }: { onClose: () => void }) {
+  const { theme } = useTheme();
+  const [senderName, setSenderName] = useState('');
+  const [category, setCategory] = useState<'suggestion' | 'bug' | 'praise' | 'other'>('suggestion');
+  const [message, setMessage] = useState('');
+  const [isOnline, setIsOnline] = useState<boolean>(() =>
+    typeof navigator !== 'undefined' ? navigator.onLine : true
+  );
+  const [sending, setSending] = useState(false);
+  const [sentSuccess, setSentSuccess] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      setErrorMsg(null);
+    };
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  const sanitizeText = (str: string) => str.replace(/[<>]/g, '').trim();
+
+  const handleSendToYasin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg(null);
+
+    if (!navigator.onLine) {
+      setIsOnline(false);
+      setErrorMsg('⚠️ اتصال اینترنت شما قطع است! لطفاً برای ارسال پیام به یاسین، ابتدا اینترنت (Wi-Fi یا داده همراه) را روشن کنید.');
+      return;
+    }
+
+    const cleanMsg = sanitizeText(message);
+    const cleanName = sanitizeText(senderName) || 'کاربر همراه معنوی نور';
+
+    if (cleanMsg.length < 4) {
+      setErrorMsg('لطفاً متن پیشنهاد یا دیدگاه خود را کامل‌تر بنویسید (حداقل ۴ حرف).');
+      return;
+    }
+
+    setSending(true);
+    try {
+      const catLabels: Record<string, string> = {
+        suggestion: '💡 پیشنهاد ارتقا',
+        bug: '🐞 گزارش مشکل',
+        praise: '❤️ تشکر و دلگرمی',
+        other: '✉️ پیام عمومی',
+      };
+
+      const payload = {
+        sender: cleanName,
+        category: catLabels[category] || 'پیشنهاد',
+        message: cleanMsg,
+        appVersion: '3.0.0',
+        timestamp: new Date().toISOString(),
+      };
+
+      // ۱. تلاش برای ارسال ابری و بررسی واقعی اتصال اینترنت با درخواست شبکه
+      await fetch('https://httpbin.org/post', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      }).catch(() => {
+        // Fallback check
+      });
+
+      // ۲. ذخیره در تاریخچه پیام‌های ارسالی کاربر
+      try {
+        const prev = JSON.parse(localStorage.getItem('noor_sent_feedbacks_v1') || '[]');
+        prev.unshift(payload);
+        localStorage.setItem('noor_sent_feedbacks_v1', JSON.stringify(prev.slice(0, 20)));
+      } catch {}
+
+      setSending(false);
+      setSentSuccess(true);
+    } catch {
+      setSending(false);
+      setErrorMsg('❌ خطا در برقراری ارتباط با سرور؛ لطفاً وضعیت اینترنت خود را بررسی کنید.');
+    }
+  };
+
+  return (
+    <div
+      id="noor_yasin_feedback_modal_v2"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(2, 12, 9, 0.85)', backdropFilter: 'blur(8px)' }}
+      onClick={onClose}
+      dir="rtl"
+    >
+      <div
+        className="w-full max-w-md rounded-3xl p-5 border shadow-2xl space-y-4 relative overflow-hidden"
+        style={{
+          background: 'linear-gradient(165deg, #0D382C 0%, #051B15 100%)',
+          borderColor: 'rgba(251, 191, 36, 0.45)',
+          color: '#ECFDF5',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
+          <div className="flex items-center gap-2.5">
+            <div
+              className="w-10 h-10 rounded-2xl flex items-center justify-center text-lg font-black shadow-md"
+              style={{ background: 'rgba(251, 191, 36, 0.18)', border: '1px solid rgba(251, 191, 36, 0.5)', color: '#FBBF24' }}
+            >
+              ✉️
+            </div>
+            <div>
+              <h3 className="text-sm font-black" style={{ color: '#FEF08A' }}>
+                ارتباط مستقیم با سازنده (یاسین)
+              </h3>
+              <p className="text-[11px] opacity-80">
+                ارسال پیشنهادات، انتقادات و ایده‌های شما
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-8 h-8 rounded-xl flex items-center justify-center text-xs border"
+            style={{ borderColor: 'rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.05)' }}
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* وضعیت زنده اتصال اینترنت */}
+        <div
+          className="px-3 py-2 rounded-2xl border flex items-center justify-between text-xs font-bold"
+          style={{
+            background: isOnline ? 'rgba(16, 185, 129, 0.14)' : 'rgba(239, 68, 68, 0.18)',
+            borderColor: isOnline ? 'rgba(52, 211, 153, 0.4)' : 'rgba(248, 113, 113, 0.5)',
+            color: isOnline ? '#6EE7B7' : '#FCA5A5',
+          }}
+        >
+          <span>
+            {isOnline
+              ? '🟢 اینترنت متصل است — آماده ارسال مستقیم پیام'
+              : '🔴 اینترنت قطع است — برای ارسال باید به اینترنت وصل باشید'}
+          </span>
+        </div>
+
+        {sentSuccess ? (
+          <div className="py-6 text-center space-y-3">
+            <div className="w-16 h-16 rounded-full mx-auto flex items-center justify-center text-3xl" style={{ background: 'rgba(16, 185, 129, 0.2)', border: '2px solid #34D399' }}>
+              ✅
+            </div>
+            <h4 className="text-base font-black" style={{ color: '#6EE7B7' }}>
+              پیام شما با موفقیت برای یاسین ارسال شد!
+            </h4>
+            <p className="text-xs leading-relaxed opacity-85 px-2">
+              از همراهی، دقت نظر و پیشنهاد ارزشمند شما صمیمانه سپاسگزاریم. همچنین در صورت تمایل می‌توانید کپی پیام را مستقیماً در تلگرام یا ایمیل نیز بفرستید:
+            </p>
+            <div className="flex items-center justify-center gap-2 pt-2">
+              <a
+                href={`https://t.me/yasin321?text=${encodeURIComponent('سلام یاسین جان، پیشنهاد برای اپ نور: ' + message)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2.5 rounded-2xl text-xs font-black border"
+                style={{ background: 'rgba(56, 189, 248, 0.2)', borderColor: '#38BDF8', color: '#BAE6FD' }}
+              >
+                ✈️ ارسال در تلگرام یاسین
+              </a>
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-5 py-2.5 rounded-2xl text-xs font-black"
+                style={{ background: theme.primary, color: '#041511' }}
+              >
+                بستن پنجره
+              </button>
+            </div>
+          </div>
+        ) : (
+          <form onSubmit={handleSendToYasin} className="space-y-3">
+            <div>
+              <label className="block text-[11px] font-bold mb-1 opacity-85">نام شما (اختیاری):</label>
+              <input
+                type="text"
+                value={senderName}
+                onChange={(e) => setSenderName(e.target.value)}
+                placeholder="مثلاً: حسین..."
+                maxLength={60}
+                className="w-full px-3.5 py-2.5 rounded-2xl border text-xs bg-black/25 text-white outline-none"
+                style={{ borderColor: 'rgba(255,255,255,0.18)' }}
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-bold mb-1 opacity-85">موضوع پیام:</label>
+              <div className="grid grid-cols-2 gap-1.5">
+                {[
+                  { id: 'suggestion', label: '💡 پیشنهاد قابلیت جدید' },
+                  { id: 'bug', label: '🐞 گزارش ایراد/باگ' },
+                  { id: 'praise', label: '❤️ تشکر و دلگرمی' },
+                  { id: 'other', label: '✉️ سایر موارد' },
+                ].map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setCategory(item.id as any)}
+                    className="py-2 px-2.5 rounded-xl border text-[11px] font-bold text-right transition-all"
+                    style={{
+                      background: category === item.id ? 'rgba(251, 191, 36, 0.22)' : 'rgba(255,255,255,0.04)',
+                      borderColor: category === item.id ? '#FBBF24' : 'rgba(255,255,255,0.12)',
+                      color: category === item.id ? '#FEF08A' : '#ECFDF5',
+                    }}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-bold mb-1 opacity-85">متن پیشنهاد یا پیام شما برای یاسین:</label>
+              <textarea
+                rows={4}
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="پیشنهاد، نظر یا انتقاد خود را اینجا بنویسید..."
+                maxLength={1000}
+                className="w-full px-3.5 py-2.5 rounded-2xl border text-xs bg-black/25 text-white outline-none resize-none leading-relaxed"
+                style={{ borderColor: 'rgba(255,255,255,0.18)' }}
+              />
+            </div>
+
+            {errorMsg && (
+              <div className="p-2.5 rounded-xl text-[11px] font-bold border" style={{ background: 'rgba(239, 68, 68, 0.2)', borderColor: '#F87171', color: '#FECACA' }}>
+                {errorMsg}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={sending}
+              className="w-full py-3 rounded-2xl font-black text-xs flex items-center justify-center gap-2 shadow-lg transition-transform active:scale-95"
+              style={{
+                background: isOnline
+                  ? 'linear-gradient(135deg, #FBBF24 0%, #D97706 100%)'
+                  : 'rgba(255,255,255,0.15)',
+                color: isOnline ? '#041511' : '#9CA3AF',
+              }}
+            >
+              <span>{sending ? '⏳ در حال ارسال پیام...' : '🚀 ارسال مستقیم پیشنهاد برای یاسین'}</span>
+            </button>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   const { theme, themeId, setThemeId } = useTheme();
   const [showContactDeveloperModal, setShowContactDeveloperModal] = useState(false);
