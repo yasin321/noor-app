@@ -387,9 +387,8 @@ export const RenderHeroArtworkScene = memo(function RenderHeroArtworkScene({ des
       />
     </div>
   );
-}
+});
 
-// پنجره گالری ۳۰ طرح با کارت‌های بزرگ و عکس‌دار (بدون هیچ‌گونه فشردگی یا بریده شدن متن!)
 export function Hero30SelectorModal({
   cityName,
   onClose,

@@ -28,7 +28,7 @@ const TAB_ORDER: Tab[] = ['tasbih', 'library', 'home', 'reminders', 'settings'];
 function AppContent() {
   const { user, profile, loading } = useAuth();
   const [tab, setTab] = useState<Tab>('home');
-  const [visitedTabs, setVisitedTabs] = useState<Record<Tab, boolean>>({
+  const [visitedTabs, setVisitedTabs] = useState<Record<string, boolean>>({
     home: true,
     tasbih: false,
     library: false,
@@ -179,7 +179,7 @@ function AppContent() {
 
         {visitedTabs.settings && (
           <section className={getTabPanelClass('settings')} aria-hidden={tab !== 'settings'}>
-            <SettingsScreen onOpenAuth={() => setShowAuth(true)} />
+            <SettingsScreen onExitGuest={() => setShowAuth(true)} />
           </section>
         )}
       </main>

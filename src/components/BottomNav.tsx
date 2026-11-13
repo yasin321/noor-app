@@ -1,7 +1,7 @@
 import { Home, Heart, BookOpen, Bell, Settings } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 
-export type Tab = 'home' | 'tasbih' | 'library' | 'dhikr' | 'reminders' | 'settings';
+export type Tab = 'home' | 'tasbih' | 'library' | 'reminders' | 'settings';
 
 interface Props {
   active: Tab;
