@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { AuthProvider, useAuth } from '@/hooks/useAuth';
 import { ThemeProvider } from '@/hooks/useTheme';
 import { AuthScreen } from '@/components/AuthScreen';
@@ -9,6 +9,7 @@ import { LibraryScreen } from '@/components/LibraryScreen';
 import { RemindersScreen } from '@/components/RemindersScreen';
 import { SettingsScreen } from '@/components/SettingsScreen';
 import { NotificationPermissionModal } from '@/components/NotificationPermissionModal';
+import { AppTutorialModal } from '@/components/AppTutorialModal';
 import { rescheduleAll } from '@/lib/reminderService';
 import { logEvent } from '@/lib/logger';
 import { Capacitor } from '@capacitor/core';
@@ -22,41 +23,35 @@ export function getGuestNotifEnabled(): boolean {
   }
 }
 
-const TAB_ORDER: Tab[] = ['tasbih', 'library', 'home', 'reminders', 'settings'];
-
 function AppContent() {
   const { user, profile, loading } = useAuth();
   const [tab, setTab] = useState<Tab>('home');
-  const [slideDir, setSlideDir] = useState<'left' | 'right' | 'none'>('none');
+  const [navigationDirection, setNavigationDirection] = useState<'forward' | 'backward'>('forward');
   const [showAuth, setShowAuth] = useState(false);
+  const [showFirstTimeGuide, setShowFirstTimeGuide] = useState<boolean>(false);
 
-  const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const tabOrder: Tab[] = ['tasbih', 'library', 'home', 'reminders', 'settings'];
 
+  // به محض اینکه دیتای اولیه برنامه آماده شد، صفحه گرافیکی آغازین (در index.html) را به نرمی کنار بزن
   useEffect(() => {
-    const bootSplash = document.getElementById('noor-instant-boot-splash');
-    if (!bootSplash) return;
-    if (typeof navigator !== 'undefined' && navigator.webdriver) {
-      bootSplash.remove();
-      return;
-    }
     if (!loading) {
       const timer = setTimeout(() => {
-        bootSplash.classList.add('splash-hidden');
-        setTimeout(() => bootSplash.remove(), 300);
+        const bootSplash = document.getElementById('noor-instant-boot-splash');
+        if (bootSplash) {
+          bootSplash.classList.add('splash-hidden');
+          setTimeout(() => bootSplash.remove(), 500);
+        }
       }, 350);
       return () => clearTimeout(timer);
     }
   }, [loading]);
 
-  const navigateTo = useCallback((nextTab: Tab) => {
-    setTab((prevTab) => {
-      if (nextTab === prevTab) return prevTab;
-      const prevIdx = TAB_ORDER.indexOf(prevTab);
-      const nextIdx = TAB_ORDER.indexOf(nextTab);
-      setSlideDir(nextIdx > prevIdx ? 'left' : 'right');
-      return nextTab;
-    });
-  }, []);
+  const navigateTo = (nextTab: Tab) => {
+    if (nextTab === tab) return;
+    setNavigationDirection(tabOrder.indexOf(nextTab) >= tabOrder.indexOf(tab) ? 'forward' : 'backward');
+    setTab(nextTab);
+  };
 
   const handleTouchStart = (e: React.TouchEvent) => {
     const target = e.target as HTMLElement | null;
@@ -66,7 +61,7 @@ function AppContent() {
     }
     const t = e.touches[0];
     if (!t) return;
-    touchStartRef.current = { x: t.clientX, y: t.clientY, time: performance.now() };
+    touchStartRef.current = { x: t.clientX, y: t.clientY };
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
@@ -75,17 +70,17 @@ function AppContent() {
     if (!t) return;
     const dx = t.clientX - touchStartRef.current.x;
     const dy = t.clientY - touchStartRef.current.y;
-    const dt = performance.now() - touchStartRef.current.time;
     touchStartRef.current = null;
 
-    const minSwipeDistance = dt < 260 ? 32 : 46;
-    if (Math.abs(dx) > minSwipeDistance && Math.abs(dx) > Math.abs(dy) * 1.25) {
-      const currentIndex = TAB_ORDER.indexOf(tab);
+    if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+      const currentIndex = tabOrder.indexOf(tab);
       if (currentIndex === -1) return;
-      if (dx > 0 && currentIndex < TAB_ORDER.length - 1) {
-        navigateTo(TAB_ORDER[currentIndex + 1]);
+      // کشیدن انگشت از چپ به راست (dx > 0) => رفتن به تب سمت چپ (currentIndex + 1)
+      // کشیدن انگشت از راست به چپ (dx < 0) => رفتن به تب سمت راست (currentIndex - 1)
+      if (dx > 0 && currentIndex < tabOrder.length - 1) {
+        navigateTo(tabOrder[currentIndex + 1]);
       } else if (dx < 0 && currentIndex > 0) {
-        navigateTo(TAB_ORDER[currentIndex - 1]);
+        navigateTo(tabOrder[currentIndex - 1]);
       }
     }
   };
@@ -96,40 +91,34 @@ function AppContent() {
     if (!loading && Capacitor.isNativePlatform()) {
       logEvent('info', 'AppStartup', 'شروع زمان‌بندی مجدد یادآوری‌ها در بدو ورود', {
         notifEnabled,
+        userId: user?.id ?? 'guest',
       });
-      if (notifEnabled) {
-        void rescheduleAll();
-      }
+      void rescheduleAll(notifEnabled).then((res) => {
+        logEvent('info', 'AppStartup', 'نتیجه زمان‌بندی مجدد در بدو ورود', res);
+      });
     }
-  }, [loading, notifEnabled]);
+  }, [loading, user?.id, notifEnabled]);
 
   if (showAuth && !user) {
     return <AuthScreen onBack={() => setShowAuth(false)} />;
   }
 
-  const animClass =
-    slideDir === 'left'
-      ? 'noor-anim-slide-left'
-      : slideDir === 'right'
-        ? 'noor-anim-slide-right'
-        : '';
-
   return (
     <div
-      className="min-h-screen bg-app text-app relative overflow-x-hidden select-none"
+      className="min-h-screen"
+      style={{ background: 'var(--bg)', color: 'var(--text)' }}
       onTouchStartCapture={handleTouchStart}
       onTouchEndCapture={handleTouchEnd}
     >
-      {!(typeof navigator !== 'undefined' && navigator.webdriver) && <NotificationPermissionModal />}
-
-      <main key={tab} className={`relative w-full ${animClass}`}>
+      {showFirstTimeGuide && <AppTutorialModal onClose={() => setShowFirstTimeGuide(false)} />}
+      <NotificationPermissionModal />
+      <main key={tab} className={`page-transition page-transition-${navigationDirection}`} aria-live="polite">
         {tab === 'home' && <HomeScreen onNavigate={navigateTo} />}
-        {tab === 'tasbih' && <TasbihCounter />}
-        {tab === 'library' && <LibraryScreen />}
+        {tab === 'tasbih' && <TasbihCounter onNavigate={navigateTo} />}
+        {tab === 'library' && <LibraryScreen onNavigate={navigateTo} />}
         {tab === 'reminders' && <RemindersScreen />}
         {tab === 'settings' && <SettingsScreen onExitGuest={() => setShowAuth(true)} />}
       </main>
-
       <BottomNav active={tab} onChange={navigateTo} />
     </div>
   );
@@ -137,10 +126,10 @@ function AppContent() {
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <AuthProvider>
+    <AuthProvider>
+      <ThemeProvider>
         <AppContent />
-      </AuthProvider>
-    </ThemeProvider>
+      </ThemeProvider>
+    </AuthProvider>
   );
 }

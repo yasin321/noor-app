@@ -1,4 +1,4 @@
-import { useState, useEffect, memo } from 'react';
+import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { MapPin, Check, X, Palette } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
@@ -389,6 +389,7 @@ export function RenderHeroArtworkScene({ design }: { design: HeroArtDesign }) {
   );
 }
 
+// پنجره گالری ۳۰ طرح با کارت‌های بزرگ و عکس‌دار (بدون هیچ‌گونه فشردگی یا بریده شدن متن!)
 export function Hero30SelectorModal({
   cityName,
   onClose,

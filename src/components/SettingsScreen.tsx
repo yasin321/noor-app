@@ -2,7 +2,7 @@ import { ThemePatternWatermark } from '@/components/FigmaLuxuryElements';
 import { getTemperatureUnit, setTemperatureUnit, type TempUnit } from '@/lib/weatherService';
 
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   Palette, Volume2, Bell, LogOut, User, Check, LogIn, MapPin,
   AlertCircle, Type, LayoutGrid, Crown, HelpCircle, ChevronLeft,
