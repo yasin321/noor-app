@@ -192,7 +192,7 @@ export function DynamicShrineHorizonArt({
   return (
     <div
       className="relative w-full h-[222px] overflow-hidden select-none transition-all duration-500"
-      style={{ background: design.fallbackGradient }}
+      style={{ background: design.fallbackGradient || `linear-gradient(180deg, ${design.skyTop} 0%, ${design.skyMid} 55%, ${design.skyBottom} 100%)` }}
     >
       <RenderHeroArtworkScene design={design} />
 
@@ -249,7 +249,7 @@ export function NastaliqMahdiCrown({ onOpenGuide }: { onOpenGuide?: () => void }
           lineHeight: '2.0',
         }}
       >
-        {design.crownTextFa}
+        {design.crownTextFa || design.dhikrFa}
       </p>
       {onOpenGuide ? (
         <button

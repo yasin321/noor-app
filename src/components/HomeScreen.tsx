@@ -1046,6 +1046,7 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
     const timer = setInterval(() => setNow(new Date()), 30000);
     window.addEventListener('storage', syncCity);
     window.addEventListener('noor-city-changed', syncCity);
+    window.addEventListener('noor-hero-config-changed', syncCity);
     return () => {
       clearInterval(timer);
       window.removeEventListener('storage', syncCity);

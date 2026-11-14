@@ -1,3 +1,4 @@
+import { Hero30SelectorModal, loadHeroConfig, resolveActiveHeroDesign, RenderHeroArtworkScene } from '@/components/HeroHorizon30Gallery';
 import { ThemePatternWatermark } from '@/components/FigmaLuxuryElements';
 import { getTemperatureUnit, setTemperatureUnit, type TempUnit } from '@/lib/weatherService';
 
