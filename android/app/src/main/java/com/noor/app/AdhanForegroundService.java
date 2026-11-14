@@ -158,7 +158,9 @@ public class AdhanForegroundService extends Service {
         if ("silent".equals(soundType) || volumePercent <= 0) {
             return;
         }
-        if (adhanId == null) adhanId = "mahur_saeed";
+        if (adhanId == null || adhanId.trim().isEmpty()) {
+            adhanId = "mahur_saeed";
+        }
         adhanId = adhanId.replace("/adhans/", "").replace("public/adhans/", "").replace(".mp3", "").replace(".ogg", "").trim();
         if (adhanId.equals("post_surah_waqiah") || adhanId.equals("surah_waqiah") || adhanId.equals("waqiah")) adhanId = "post_waqiah";
         else if (adhanId.equals("post_surah_yasin") || adhanId.equals("surah_yasin") || adhanId.equals("yasin")) adhanId = "post_yasin";
@@ -167,12 +169,13 @@ public class AdhanForegroundService extends Service {
         else if (adhanId.equals("post_surah_rahman") || adhanId.equals("surah_rahman") || adhanId.equals("rahman")) adhanId = "post_rahman";
         else if (adhanId.equals("post_surah_saffat") || adhanId.equals("surah_saffat") || adhanId.equals("saffat")) adhanId = "post_saffat";
         else if (adhanId.equals("post_ayat_kursi") || adhanId.equals("ayatul_kursi") || adhanId.equals("kursi")) adhanId = "post_kursi";
-        else if (adhanId.equals("post_dhuhr_bahjat_rizq") || adhanId.equals("furqan")) adhanId = "post_furqan";
-        else if (adhanId.equals("post_all_tasbihat_zahra") || adhanId.equals("tasbihat")) adhanId = "chant_tasbihat";
-        else if (adhanId.equals("post_fajr_ya_fatima") || adhanId.equals("salawat")) adhanId = "chant_salawat";
-        else if (adhanId.equals("post_asr_istighfar_qadi") || adhanId.equals("istighfar")) adhanId = "chant_istighfar";
-        else if (adhanId.equals("chant_fatiha") || adhanId.equals("fatiha")) adhanId = "chant_rabbanaghfir";
-        boolean isPreOrPostChantOrSurah = adhanId.startsWith("post_") || adhanId.startsWith("chant_");
+        else if (adhanId.equals("post_dhuhr_bahjat_rizq") || adhanId.equals("dua_after_adhan") || adhanId.equals("furqan")) adhanId = "post_furqan";
+        else if (adhanId.equals("post_all_tasbihat_zahra") || adhanId.equals("tasbihat_pre") || adhanId.equals("tasbihat")) adhanId = "chant_tasbihat";
+        else if (adhanId.equals("post_fajr_ya_fatima") || adhanId.equals("salawat_reza") || adhanId.equals("salawat")) adhanId = "chant_salawat";
+        else if (adhanId.equals("post_asr_istighfar_qadi") || adhanId.equals("istighfar_pre") || adhanId.equals("istighfar")) adhanId = "chant_istighfar";
+        else if (adhanId.equals("munajat_sahar") || adhanId.equals("aqim")) adhanId = "chant_aqim";
+        else if (adhanId.equals("chant_fatiha") || adhanId.equals("rabbanaghfir")) adhanId = "chant_rabbanaghfir";
+        boolean isPreOrPostChantOrSurah = adhanId.startsWith("post_") || adhanId.startsWith("chant_") || "surah_chant".equals(soundType);
         synchronized (PLAYER_LOCK) {
             try {
                 MediaPlayer mp = new MediaPlayer();

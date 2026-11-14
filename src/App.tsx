@@ -42,7 +42,7 @@ function AppContent() {
           bootSplash.classList.add('splash-hidden');
           setTimeout(() => bootSplash.remove(), 500);
         }
-      }, 850);
+      }, 150);
       return () => clearTimeout(timer);
     }
   }, [loading]);

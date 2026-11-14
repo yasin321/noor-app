@@ -384,6 +384,13 @@ export function TawashihAndAdhanReminderSection({ times, cityNameFa, onToast }: 
     }
   };
 
+  // AUTO_SYNC_NATIVE_PRE_POST_ALARMS
+  useEffect(() => {
+    if (times && Capacitor.isNativePlatform()) {
+      void syncNativeAlarms(config);
+    }
+  }, [times?.fajr, times?.dhuhr, times?.asr, times?.maghrib, times?.isha]);
+
   const updateAndSave = (nextCfg: AllPrayersTawashihMap, toastMessage?: string) => {
     setConfig(nextCfg);
     saveTawashihConfig(nextCfg);
@@ -419,6 +426,17 @@ export function TawashihAndAdhanReminderSection({ times, cityNameFa, onToast }: 
     if (!editingSlot) return;
     stopLocalAudio();
     setAlarmPlaybackSpeed(draftSpeed);
+    try {
+      const list = editingSlot === 'after' ? POST_ADHAN_TRACKS : PRE_ADHAN_TRACKS;
+      const foundTrack = list.find((t) => t.id === draftTrackId);
+      if (foundTrack) {
+        if (editingSlot === 'after') {
+          localStorage.setItem('noor_after_adhan_reminder_track_v1', foundTrack.audioAdhanId);
+        } else {
+          localStorage.setItem('noor_pre_adhan_chant_id_v1', foundTrack.audioAdhanId);
+        }
+      }
+    } catch {}
     const nextCfg: AllPrayersTawashihMap = {
       ...config,
       [activePrayer]: {
