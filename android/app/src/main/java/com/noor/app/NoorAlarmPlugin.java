@@ -85,7 +85,8 @@ public class NoorAlarmPlugin extends Plugin {
         intent.putExtra("adhanId", adhanId);
         intent.putExtra("durationSeconds", durationSeconds);
         intent.putExtra("volumePercent", volumePercent);
-        intent.putExtra("playbackRate", playbackRate);
+        float savedRate = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getFloat("rate_" + alarmId, 1.0f);
+        intent.putExtra("playbackRate", savedRate);
 
         PendingIntent pi = PendingIntent.getBroadcast(
                 ctx,
@@ -146,9 +147,8 @@ public class NoorAlarmPlugin extends Plugin {
                             obj.optString("soundType", "adhan"),
                             obj.optString("adhanId", "mahur_saeed"),
                             obj.optInt("durationSeconds", 0),
-                            obj.optInt("volumePercent", 100),
-                    (float) obj.optDouble("playbackRate", 1.0)
-                );
+                            obj.optInt("volumePercent", 100)
+                    );
                 } catch (Exception ignored) {}
             }
             editor.apply();
@@ -174,10 +174,15 @@ public class NoorAlarmPlugin extends Plugin {
         String adhanId = call.getString("adhanId", "mahur_saeed");
         Integer durationObj = call.getInt("durationSeconds", 0);
         int durationSeconds = durationObj != null ? durationObj : 0;
+        Float rateObj = call.getFloat("playbackRate", 1.0f);
+        float reqRate = rateObj != null ? rateObj : 1.0f;
+        ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putFloat("rate_" + alarmId, reqRate)
+            .putFloat("last_playback_rate", reqRate)
+            .apply();
         Integer volumeObj = call.getInt("volumePercent", 100);
         int volumePercent = volumeObj != null ? volumeObj : 100;
-        Float rateObj = call.getFloat("playbackRate", 1.0f);
-        float playbackRate = rateObj != null ? rateObj : 1.0f;
 
         Context ctx = getContext();
 
@@ -192,13 +197,12 @@ public class NoorAlarmPlugin extends Plugin {
             record.put("adhanId", adhanId);
             record.put("durationSeconds", durationSeconds);
             record.put("volumePercent", volumePercent);
-            record.put("playbackRate", (double) playbackRate);
             SharedPreferences prefs = ctx.getSharedPreferences(ALARM_STORE_PREFS, Context.MODE_PRIVATE);
             prefs.edit().putString("alarm_" + alarmId, record.toString()).apply();
         } catch (Exception ignored) {}
 
         // ۲. ثبت در AlarmManager هسته اندروید با اکشن صریح ACTION_TRIGGER
-        scheduleExactWithSystem(ctx, alarmId, targetTime, title, body, soundType, adhanId, durationSeconds, volumePercent, playbackRate);
+        scheduleExactWithSystem(ctx, alarmId, targetTime, title, body, soundType, adhanId, durationSeconds, volumePercent);
 
         JSObject ret = new JSObject();
         ret.put("scheduled", true);
