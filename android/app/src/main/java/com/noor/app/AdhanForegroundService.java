@@ -11,6 +11,7 @@ import android.content.pm.ServiceInfo;
 import android.content.res.AssetFileDescriptor;
 import android.media.AudioAttributes;
 import android.media.MediaPlayer;
+import android.media.PlaybackParams;
 import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Build;
@@ -103,6 +104,7 @@ public class AdhanForegroundService extends Service {
                 ? intent.getStringExtra("adhanId")
                 : "mahur_saeed";
         int durationSeconds = intent != null ? intent.getIntExtra("durationSeconds", 0) : 0;
+        float playbackRate = intent != null ? intent.getFloatExtra("playbackRate", 1.0f) : 1.0f;
         int volumePercent = intent != null ? intent.getIntExtra("volumePercent", 100) : 100;
 
         Intent fullScreenIntent = new Intent(this, AdhanAlarmActivity.class);
@@ -147,15 +149,30 @@ public class AdhanForegroundService extends Service {
         } catch (Exception ignored) {}
 
         triggerShortVibration();
-        startAudioPlayback(soundType, adhanId, durationSeconds, volumePercent);
+        startAudioPlayback(soundType, adhanId, durationSeconds, volumePercent, playbackRate);
 
         return START_NOT_STICKY;
     }
 
-    private void startAudioPlayback(String soundType, String adhanId, int durationSeconds, int volumePercent) {
+    private void startAudioPlayback(String soundType, String adhanId, int durationSeconds, int volumePercent, float playbackRate) {
         if ("silent".equals(soundType) || volumePercent <= 0) {
             return;
         }
+        if (adhanId == null) adhanId = "mahur_saeed";
+        adhanId = adhanId.replace("/adhans/", "").replace("public/adhans/", "").replace(".mp3", "").replace(".ogg", "").trim();
+        if (adhanId.equals("post_surah_waqiah") || adhanId.equals("surah_waqiah") || adhanId.equals("waqiah")) adhanId = "post_waqiah";
+        else if (adhanId.equals("post_surah_yasin") || adhanId.equals("surah_yasin") || adhanId.equals("yasin")) adhanId = "post_yasin";
+        else if (adhanId.equals("post_surah_mulk") || adhanId.equals("surah_mulk") || adhanId.equals("mulk")) adhanId = "post_mulk";
+        else if (adhanId.equals("post_surah_dhariyat") || adhanId.equals("surah_dhariyat") || adhanId.equals("dhariyat")) adhanId = "post_dhariyat";
+        else if (adhanId.equals("post_surah_rahman") || adhanId.equals("surah_rahman") || adhanId.equals("rahman")) adhanId = "post_rahman";
+        else if (adhanId.equals("post_surah_saffat") || adhanId.equals("surah_saffat") || adhanId.equals("saffat")) adhanId = "post_saffat";
+        else if (adhanId.equals("post_ayat_kursi") || adhanId.equals("ayatul_kursi") || adhanId.equals("kursi")) adhanId = "post_kursi";
+        else if (adhanId.equals("post_dhuhr_bahjat_rizq") || adhanId.equals("furqan")) adhanId = "post_furqan";
+        else if (adhanId.equals("post_all_tasbihat_zahra") || adhanId.equals("tasbihat")) adhanId = "chant_tasbihat";
+        else if (adhanId.equals("post_fajr_ya_fatima") || adhanId.equals("salawat")) adhanId = "chant_salawat";
+        else if (adhanId.equals("post_asr_istighfar_qadi") || adhanId.equals("istighfar")) adhanId = "chant_istighfar";
+        else if (adhanId.equals("chant_fatiha") || adhanId.equals("fatiha")) adhanId = "chant_rabbanaghfir";
+        boolean isPreOrPostChantOrSurah = adhanId.startsWith("post_") || adhanId.startsWith("chant_");
         synchronized (PLAYER_LOCK) {
             try {
                 MediaPlayer mp = new MediaPlayer();
@@ -225,10 +242,18 @@ public class AdhanForegroundService extends Service {
                 });
                 mp.prepare();
                 mp.start();
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && playbackRate >= 0.5f && playbackRate <= 3.0f && Math.abs(playbackRate - 1.0f) > 0.04f) {
+                try {
+                    PlaybackParams params = new PlaybackParams();
+                    params.setSpeed(playbackRate);
+                    params.setPitch(1.0f);
+                    mp.setPlaybackParams(params);
+                } catch (Exception ignored) {}
+            }
 
                 // اگر کاربر حالت پخش کامل (durationSeconds <= 0) را انتخاب کرده یا اعلان قبل/بعد از اذان کامل است،
                 // اجازه بده تا انتهای فایل صوتی (OnCompletionListener) به طور کامل پخش شود و زود قطع نشود!
-                if (durationSeconds > 0 && "short_10s".equals(soundType)) {
+                if (!isPreOrPostChantOrSurah && durationSeconds > 0 && "short_10s".equals(soundType)) {
                     stopRunnable = () -> {
                         killActivePlayer(AdhanForegroundService.this);
                         sendBroadcast(new Intent(AdhanAlarmActivity.ACTION_CLOSE_UI));

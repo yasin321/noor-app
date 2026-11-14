@@ -62,6 +62,20 @@ public class NoorAlarmPlugin extends Plugin {
 
     // متد مرکزی ثبت آلارم در سیستم‌عامل اندروید (هم از داخل اپ و هم پس از ریستارت گوشی)
     public static void scheduleExactWithSystem(
+        Context ctx,
+        int alarmId,
+        long triggerAtMillis,
+        String title,
+        String body,
+        String soundType,
+        String adhanId,
+        int durationSeconds,
+        int volumePercent
+    ) {
+        scheduleExactWithSystem(ctx, alarmId, triggerAtMillis, title, body, soundType, adhanId, durationSeconds, volumePercent, 1.0f);
+    }
+
+    public static void scheduleExactWithSystem(
             Context ctx,
             int alarmId,
             long targetTime,
@@ -85,6 +99,8 @@ public class NoorAlarmPlugin extends Plugin {
         intent.putExtra("adhanId", adhanId);
         intent.putExtra("durationSeconds", durationSeconds);
         intent.putExtra("volumePercent", volumePercent);
+        intent.putExtra("playbackRate", playbackRate);
+        intent.putExtra("audioUrl", customAudioUrl);
 
         PendingIntent pi = PendingIntent.getBroadcast(
                 ctx,
@@ -145,8 +161,9 @@ public class NoorAlarmPlugin extends Plugin {
                             obj.optString("soundType", "adhan"),
                             obj.optString("adhanId", "mahur_saeed"),
                             obj.optInt("durationSeconds", 0),
-                            obj.optInt("volumePercent", 100)
-                    );
+                            obj.optInt("volumePercent", 100),
+                    (float) obj.optDouble("playbackRate", 1.0)
+                );
                 } catch (Exception ignored) {}
             }
             editor.apply();
@@ -174,6 +191,8 @@ public class NoorAlarmPlugin extends Plugin {
         int durationSeconds = durationObj != null ? durationObj : 0;
         Integer volumeObj = call.getInt("volumePercent", 100);
         int volumePercent = volumeObj != null ? volumeObj : 100;
+        Float rateObj = call.getFloat("playbackRate", 1.0f);
+        float playbackRate = rateObj != null ? rateObj : 1.0f;
 
         Context ctx = getContext();
 
@@ -188,12 +207,13 @@ public class NoorAlarmPlugin extends Plugin {
             record.put("adhanId", adhanId);
             record.put("durationSeconds", durationSeconds);
             record.put("volumePercent", volumePercent);
+            record.put("playbackRate", (double) playbackRate);
             SharedPreferences prefs = ctx.getSharedPreferences(ALARM_STORE_PREFS, Context.MODE_PRIVATE);
             prefs.edit().putString("alarm_" + alarmId, record.toString()).apply();
         } catch (Exception ignored) {}
 
         // ۲. ثبت در AlarmManager هسته اندروید با اکشن صریح ACTION_TRIGGER
-        scheduleExactWithSystem(ctx, alarmId, targetTime, title, body, soundType, adhanId, durationSeconds, volumePercent);
+        scheduleExactWithSystem(ctx, alarmId, targetTime, title, body, soundType, adhanId, durationSeconds, volumePercent, playbackRate);
 
         JSObject ret = new JSObject();
         ret.put("scheduled", true);
@@ -482,7 +502,8 @@ public class NoorAlarmPlugin extends Plugin {
     @PluginMethod
     public void previewAdhanAudio(PluginCall call) {
         String adhanId = call.getString("adhanId", "mahur_saeed");
-        Integer durationSeconds = call.getInt("durationSeconds", 15);
+        Integer durationSeconds = call.getInt("durationSeconds", 0);
+        Float previewRate = call.getFloat("playbackRate", 1.0f);
         Integer volumePercent = call.getInt("volumePercent", 95);
         Context ctx = getContext();
         Intent srv = new Intent(ctx, AdhanForegroundService.class);
@@ -490,7 +511,8 @@ public class NoorAlarmPlugin extends Plugin {
         srv.putExtra("body", "در حال پخش نمونه صوتی...");
         srv.putExtra("soundType", "adhan");
         srv.putExtra("adhanId", adhanId);
-        srv.putExtra("durationSeconds", durationSeconds != null ? durationSeconds : 15);
+        srv.putExtra("durationSeconds", durationSeconds != null ? durationSeconds : 0);
+        srv.putExtra("playbackRate", previewRate != null ? previewRate : 1.0f);
         srv.putExtra("volumePercent", volumePercent != null ? volumePercent : 95);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             ctx.startForegroundService(srv);

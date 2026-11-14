@@ -1,3 +1,4 @@
+import { TawashihAndAdhanReminderSection, loadTawashihConfig } from '@/components/TawashihAndAdhanReminderSection';
 import { rescheduleAll } from '@/lib/reminderService';
 import { adhans, playAdhanPreview, stopAdhanPreview, getAdhanDurationMode, getAdhanDurationSeconds } from '@/lib/adhans';
 import { QiblaCompass } from '@/components/QiblaCompass';
@@ -1357,12 +1358,7 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
       {/* ۲. بدنه اصلی صفحه خانه */}
       <div className="max-w-lg mx-auto px-4 -mt-4 relative z-10 space-y-3.5">
         <div className="flex items-stretch gap-2.5">
-          <VerticalJalaliDayCounterCard
-            now={now}
-            weekdayFa={getJalaliWeekday(now)}
-            onClick={() => setShowCalendar(true)}
-          />
-
+          {/* کارت بزرگ نماز بعدی در سمت راست */}
           <div
             className="flex-1 rounded-[28px] p-3.5 relative overflow-hidden border shadow-2xl flex flex-col justify-center"
             style={{
@@ -1381,6 +1377,13 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
               primaryColor={theme.primary}
             />
           </div>
+
+          {/* کارت تقویم و روزشمار سال در سمت چپ */}
+          <VerticalJalaliDayCounterCard
+            now={now}
+            weekdayFa={getJalaliWeekday(now)}
+            onClick={() => setShowCalendar(true)}
+          />
         </div>
 
         {/* ۳. داک ۴ آیکونی شیشه‌ای ۲۰۲۶ */}
@@ -1452,35 +1455,18 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
           style={{ background: theme.card, borderColor: theme.border }}
         >
           <div className="flex items-center justify-between gap-1 mb-3 flex-wrap">
-            <span className="text-xs font-black flex items-center gap-1" style={{ color: theme.text }}>
-              <span>🕌</span>
-              <span>اوقات شرعی ({city.nameFa})</span>
+            <span className="text-xs font-black flex items-center gap-1.5" style={{ color: theme.text }}>
+              <span>اوقات شرعی · {city.nameFa}</span>
             </span>
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => void trigger5SecondLockScreenTest()}
-                className="px-2.5 py-1 rounded-xl text-[10px] font-black border flex items-center gap-1 transition-transform active:scale-95"
-                style={{
-                  background: 'rgba(16, 185, 129, 0.2)',
-                  borderColor: '#34D399',
-                  color: '#6EE7B7',
-                }}
-              >
-                <span>⏱️ تست ۵ ثانیه اذان</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowStudioAndTravel(true)}
-                className="px-2.5 py-1 rounded-xl text-[10px] font-black border flex items-center gap-1 transition-transform active:scale-95"
-                style={{
-                  background: `color-mix(in srgb, ${theme.accent} 18%, transparent)`,
-                  borderColor: theme.accent,
-                  color: theme.accent,
-                }}
-              >
-                <span>🔔 تواشیح قبل/پس از اذان</span>
-              </button>
+            <div className="flex items-center gap-2 text-[10px] font-bold">
+              <span className="flex items-center gap-1" style={{ color: '#FBBF24' }}>
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />
+                <span>قبل</span>
+              </span>
+              <span className="flex items-center gap-1" style={{ color: '#34D399' }}>
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
+                <span>بعد</span>
+              </span>
             </div>
           </div>
 
@@ -1536,6 +1522,12 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
         </div>
 
         {/* ۵. کارت گرافیکی «پیشنهاد امروز: ذکر و نیایش» */}
+        <TawashihAndAdhanReminderSection
+          times={times}
+          cityNameFa={city.nameFa}
+          onToast={showQuickToast}
+        />
+
         <div
           onClick={() => onNavigate('tasbih')}
           role="button"

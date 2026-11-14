@@ -610,10 +610,25 @@ export async function playAdhanPreview(
   const volumePercent = typeof volumeOrCallback === 'number' ? volumeOrCallback : 100;
   const finalCallback = typeof volumeOrCallback === 'function' ? volumeOrCallback : onEndedCallback;
 
-  const targetAdhan: Adhan =
-    typeof adhanOrId === 'string'
-      ? adhans.find((a) => a.id === adhanOrId) || adhans[0]
-      : adhanOrId || adhans[0];
+  let targetAdhan: Adhan;
+  if (typeof adhanOrId === 'string') {
+    const cleanKey = adhanOrId.replace(/^\/adhans\//, '').replace(/\.mp3$/, '');
+    if (cleanKey.startsWith('post_') || cleanKey.startsWith('chant_')) {
+      targetAdhan = {
+        id: cleanKey,
+        name: cleanKey,
+        nameFa: cleanKey,
+        reciter: 'تلاوت و نیایش',
+        originFa: 'همراه معنوی نور',
+        audioUrl: `/adhans/${cleanKey}.mp3`,
+        bundledOffline: true,
+      };
+    } else {
+      targetAdhan = adhans.find((a) => a.id === adhanOrId) || adhans[0];
+    }
+  } else {
+    targetAdhan = adhanOrId || adhans[0];
+  }
 
   broadcastPlaybackState(targetAdhan.id);
 
@@ -630,6 +645,16 @@ export async function playAdhanPreview(
     const audio = new Audio();
     audio.preload = 'auto';
     audio.volume = Math.max(0.1, Math.min(1.0, volumePercent / 100));
+    try {
+      const isPreOrPost = targetAdhan.id.startsWith('post_') || targetAdhan.id.startsWith('chant_') || targetAdhan.audioUrl.includes('post_') || targetAdhan.audioUrl.includes('chant_');
+      if (isPreOrPost) {
+        const savedSpeed = parseFloat(localStorage.getItem('noor_pre_post_playback_speed') || '1');
+        if (Number.isFinite(savedSpeed) && savedSpeed >= 0.5 && savedSpeed <= 3.0) {
+          audio.playbackRate = savedSpeed;
+          audio.defaultPlaybackRate = savedSpeed;
+        }
+      }
+    } catch {}
     audio.src = urlsToTry[idx];
     singletonAudio = audio;
 

@@ -61,6 +61,7 @@ public class AdhanAlarmReceiver extends BroadcastReceiver {
             serviceIntent.putExtra("soundType", intent.getStringExtra("soundType"));
             serviceIntent.putExtra("adhanId", intent.getStringExtra("adhanId"));
             serviceIntent.putExtra("durationSeconds", intent.getIntExtra("durationSeconds", 0));
+        serviceIntent.putExtra("playbackRate", intent.getFloatExtra("playbackRate", 1.0f));
             serviceIntent.putExtra("volumePercent", intent.getIntExtra("volumePercent", 100));
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

@@ -1,3 +1,4 @@
+import { loadAdhanStudio } from '@/lib/deenIntelligenceStore';
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import {
@@ -51,63 +52,102 @@ export function getDayLabel(day: number): string {
   return DAY_LABELS_FA[day] ?? '';
 }
 
-function resolvePrayerAlarmParams(reminderId: string, reminderTitle = ''): {
-  soundType: string;
-  adhanId: string;
-  durationSeconds: number;
-  volumePercent: number;
-} {
-  const selectedAdhan = (() => {
-    try {
-      return localStorage.getItem('noor_guest_adhan_id') || 'mahur_saeed';
-    } catch {
-      return 'mahur_saeed';
-    }
-  })();
+function resolvePrayerAlarmParams(
+  reminderId: string,
+  reminderTitle: string
+): { soundType: string; adhanId: string; durationSeconds: number; volumePercent: number; playbackRate?: number } {
+  const studio = loadAdhanStudio();
+  const prof = studio.profiles[studio.activeProfile];
+  const selectedAdhan = localStorage.getItem('noor_guest_adhan_id') || 'moazenzadeh_ardabili';
+  const globalDurSec = getAdhanDurationSeconds(getAdhanDurationMode());
+  const userSpeed = typeof getAlarmPlaybackSpeed === 'function' ? getAlarmPlaybackSpeed() : 1.0;
 
-  if (
-    reminderId.startsWith('pre_adhan_') ||
+  const lowerTitle = (reminderTitle || '').toLowerCase();
+  const lowerId = (reminderId || '').toLowerCase();
+
+  const isPreAdhan =
+    lowerId.startsWith('pre_adhan_') ||
+    lowerId.includes('before') ||
     reminderTitle.includes('مانده تا اذان') ||
-    reminderTitle.includes('دقیقه تا اذان')
-  ) {
-    const matchedChant =
-      PRE_ADHAN_CHANT_OPTIONS.find((c) => reminderId.includes(c.id) || reminderTitle.includes(c.titleFa)) ??
-      PRE_ADHAN_CHANT_OPTIONS[0];
+    reminderTitle.includes('دقیقه تا اذان') ||
+    reminderTitle.includes('قبل از اذان') ||
+    reminderTitle.includes('پیش از اذان');
+
+  const isPostAdhan =
+    lowerId.startsWith('post_adhan_') ||
+    lowerId.includes('after') ||
+    reminderTitle.includes('پس از اذان') ||
+    reminderTitle.includes('بعد از اذان') ||
+    reminderTitle.includes('تعقیبات') ||
+    reminderTitle.includes('سوره');
+
+  if (isPreAdhan || isPostAdhan) {
+    let trackKey = isPreAdhan ? 'chant_salawat' : 'post_waqiah';
+
+    if (lowerTitle.includes('واقعه') || lowerId.includes('waqiah')) trackKey = 'post_waqiah';
+    else if (lowerTitle.includes('یس') || lowerTitle.includes('یاسین') || lowerId.includes('yasin')) trackKey = 'post_yasin';
+    else if (lowerTitle.includes('رحمن') || lowerId.includes('rahman')) trackKey = 'post_rahman';
+    else if (lowerTitle.includes('ملک') || lowerId.includes('mulk')) trackKey = 'post_mulk';
+    else if (lowerTitle.includes('صافات') || lowerId.includes('saffat')) trackKey = 'post_saffat';
+    else if (lowerTitle.includes('فرقان') || lowerTitle.includes('عبادالرحمن') || lowerId.includes('furqan')) trackKey = 'post_furqan';
+    else if (lowerTitle.includes('ذاریات') || lowerId.includes('dhariyat')) trackKey = 'post_dhariyat';
+    else if (lowerTitle.includes('کرسی') || lowerId.includes('kursi')) trackKey = 'post_kursi';
+    else if (lowerTitle.includes('صلوات') || lowerId.includes('salawat')) trackKey = 'chant_salawat';
+    else if (lowerTitle.includes('استغفار') || lowerId.includes('istighfar')) trackKey = 'chant_istighfar';
+    else if (lowerTitle.includes('اقم') || lowerTitle.includes('مناجات') || lowerId.includes('aqim')) trackKey = 'chant_aqim';
+    else if (lowerTitle.includes('تسبیح') || lowerId.includes('tasbihat')) trackKey = 'chant_tasbihat';
+    else if (lowerTitle.includes('ربنا') || lowerId.includes('rabbanaghfir')) trackKey = 'chant_rabbanaghfir';
+
     return {
-      soundType: 'full_chant',
-      adhanId: matchedChant.audioAdhanId,
+      soundType: 'surah_chant',
+      adhanId: trackKey,
       durationSeconds: 0,
       volumePercent: 100,
+      playbackRate: userSpeed,
     };
   }
-
-  const globalMode = getAdhanDurationMode();
-  const globalDurSec = getAdhanDurationSeconds(globalMode);
 
   if (reminderId === 'prayer_auto_tahajjud') {
-      const npCfg = getNightPrayerConfig();
-      if (npCfg.soundMode === 'silent') {
-        return { soundType: 'silent', adhanId: 'chant_rabbanaghfir', durationSeconds: 0, volumePercent: 0 };
-      }
-      if (npCfg.soundMode === 'chant') {
-        return { soundType: 'short_10s', adhanId: 'chant_rabbanaghfir', durationSeconds: 15, volumePercent: 95 };
-      }
-      return { soundType: 'adhan', adhanId: selectedAdhan, durationSeconds: globalDurSec, volumePercent: 95 };
+    const mode = (prof?.prayers as any)?.tahajjud?.mode ?? 'short_10s';
+    if (mode === 'silent') {
+      return { soundType: 'silent', adhanId: 'chant_rabbanaghfir', durationSeconds: 0, volumePercent: 0 };
     }
-    if (!reminderId.startsWith('prayer_auto_')) {
     return {
-      soundType: 'alarm',
-      adhanId: selectedAdhan,
-      durationSeconds: 15,
+      soundType: 'surah_chant',
+      adhanId: 'chant_rabbanaghfir',
+      durationSeconds: 0,
       volumePercent: 100,
+      playbackRate: userSpeed,
     };
   }
 
+  if (!reminderId.startsWith('prayer_auto_')) {
+    return {
+      soundType: 'surah_chant',
+      adhanId: 'chant_rabbanaghfir',
+      durationSeconds: 0,
+      volumePercent: 95,
+      playbackRate: userSpeed,
+    };
+  }
+
+  const key = reminderId.replace('prayer_auto_', '') as 'fajr' | 'dhuhr' | 'asr' | 'maghrib' | 'isha';
+  const cfg = prof?.prayers[key];
+  const mode = cfg?.mode ?? (getAdhanDurationMode() === '10s' ? 'short_10s' : 'full_adhan');
+  const vol = cfg?.volumePercent ?? 95;
+
+  if (mode === 'silent') {
+    return { soundType: 'silent', adhanId: selectedAdhan, durationSeconds: 0, volumePercent: 0 };
+  }
+  if (mode === 'short_10s') {
+    return { soundType: 'short_10s', adhanId: selectedAdhan, durationSeconds: 10, volumePercent: vol };
+  }
   return {
-    soundType: globalMode === '10s' ? 'short_10s' : 'adhan',
+    soundType: 'adhan',
     adhanId: selectedAdhan,
     durationSeconds: globalDurSec,
-    volumePercent: 100,
+    volumePercent: vol,
+    playbackRate: 1.0,
   };
 }
 
