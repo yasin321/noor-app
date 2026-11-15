@@ -448,128 +448,66 @@ export function resolveActiveHeroDesign(cityName: string = 'مشهد', nextPraye
 }
 
 // رندرکننده گرافیکی برداری و سه‌بعدی (۱۰۰٪ آفلاین، بدون هیچ عکس شکسته و بسیار سریع)
+const PHOTO_URLS: Record<string, string> = {
+  "shrine_mashhad_reza": "https://images.unsplash.com/photo-1564769625905-50e93615e769?auto=format&fit=crop&w=900&q=80",
+  "shrine_karbala_hussein": "https://images.unsplash.com/photo-1584551246679-0daf3d275d0f?auto=format&fit=crop&w=900&q=80",
+  "shrine_najaf_ali": "https://images.unsplash.com/photo-1542816417-0983c9c9ad53?auto=format&fit=crop&w=900&q=80",
+  "shrine_makkah_kaaba": "https://images.unsplash.com/photo-1565552645632-d725f8bfc19a?auto=format&fit=crop&w=900&q=80",
+  "shrine_madinah_prophet": "https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?auto=format&fit=crop&w=900&q=80",
+  "shrine_qom_jamkaran": "https://images.unsplash.com/photo-1519817650390-64a93db51149?auto=format&fit=crop&w=900&q=80",
+  "prayer_tahajjud_sahar": "https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=900&q=80",
+  "prayer_fajr_horizon": "https://images.unsplash.com/photo-1470252649378-9c29740c9fa8?auto=format&fit=crop&w=900&q=80",
+  "prayer_dhuhr_emerald": "https://images.unsplash.com/photo-1584551246679-0daf3d275d0f?auto=format&fit=crop&w=900&q=80",
+  "prayer_maghrib_golden": "https://images.unsplash.com/photo-1519817650390-64a93db51149?auto=format&fit=crop&w=900&q=80",
+  "occ_friday_mahdi": "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=900&q=80",
+  "occ_ramadan_lanterns": "https://images.unsplash.com/photo-1564769625905-50e93615e769?auto=format&fit=crop&w=900&q=80",
+  "occ_laylat_al_qadr": "https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=900&q=80",
+  "occ_eid_ghadir_shaban": "https://images.unsplash.com/photo-1542816417-0983c9c9ad53?auto=format&fit=crop&w=900&q=80",
+  "muharram_golden_dome_flag": "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=900&q=80",
+  "muharram_ashura_candles": "https://images.unsplash.com/photo-1508615039623-a25605d2b022?auto=format&fit=crop&w=900&q=80",
+  "safar_arbaeen_walk": "https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?auto=format&fit=crop&w=900&q=80",
+  "arch_goharshad_mashhad": "https://images.unsplash.com/photo-1564769625905-50e93615e769?auto=format&fit=crop&w=900&q=80",
+  "arch_isfahan_lotfollah": "https://images.unsplash.com/photo-1584551246679-0daf3d275d0f?auto=format&fit=crop&w=900&q=80",
+  "arch_shiraz_nasir_al_mulk": "https://images.unsplash.com/photo-1542816417-0983c9c9ad53?auto=format&fit=crop&w=900&q=80"
+};
+
 export function RenderHeroArtworkScene({ design }: { design: HeroArtDesign }) {
-  const isTurquoise = design.archType === 'mosque_turquoise' || design.archType === 'persian_mihrab';
-  const domeColorStart = isTurquoise ? '#67E8F9' : '#FEF08A';
-  const domeColorMid = isTurquoise ? '#06B6D4' : '#F59E0B';
-  const domeColorEnd = isTurquoise ? '#0E7490' : '#92400E';
+  const remotePhoto = design.imageUrl || PHOTO_URLS[design.id] || '/hero-default.jpg';
+  const [imgSrc, setImgSrc] = useState<string>(() =>
+    typeof navigator !== 'undefined' && !navigator.onLine ? '/hero-default.jpg' : remotePhoto
+  );
+
+  useEffect(() => {
+    const nextUrl = design.imageUrl || PHOTO_URLS[design.id] || '/hero-default.jpg';
+    setImgSrc(typeof navigator !== 'undefined' && !navigator.onLine ? '/hero-default.jpg' : nextUrl);
+  }, [design.id, design.imageUrl]);
 
   return (
-    <svg
-      viewBox="0 0 400 190"
-      className="w-full h-full object-cover select-none pointer-events-none"
-      preserveAspectRatio="xMidYMid slice"
+    <div
+      className="w-full h-full relative overflow-hidden select-none pointer-events-none"
+      style={{
+        background: `linear-gradient(165deg, ${design.skyTop} 0%, ${design.skyMid} 52%, ${design.skyBottom} 100%)`,
+      }}
     >
-      <defs>
-        <linearGradient id={`sky_${design.id}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={design.skyTop} />
-          <stop offset="55%" stopColor={design.skyMid} />
-          <stop offset="100%" stopColor={design.skyBottom} />
-        </linearGradient>
-        <linearGradient id={`dome_${design.id}`} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor={domeColorStart} />
-          <stop offset="50%" stopColor={domeColorMid} />
-          <stop offset="100%" stopColor={domeColorEnd} />
-        </linearGradient>
-        <radialGradient id={`glow_${design.id}`} cx="50%" cy="68%" r="50%">
-          <stop offset="0%" stopColor={design.accent} stopOpacity="0.42" />
-          <stop offset="100%" stopColor={design.accent} stopOpacity="0" />
-        </radialGradient>
-      </defs>
-
-      {/* آسمان */}
-      <rect width="400" height="190" fill={`url(#sky_${design.id})`} />
-
-      {/* هاله نورانی افق */}
-      <circle cx="200" cy="135" r="115" fill={`url(#glow_${design.id})`} />
-
-      {/* ستارگان */}
-      {design.hasStars && (
-        <g fill="#FEF08A" opacity="0.75">
-          <circle cx="45" cy="28" r="1.3" />
-          <circle cx="95" cy="18" r="1.8" />
-          <circle cx="155" cy="32" r="1.2" />
-          <circle cx="260" cy="22" r="1.6" />
-          <circle cx="320" cy="35" r="1.4" />
-          <circle cx="365" cy="19" r="1.7" />
-        </g>
-      )}
-
-      {/* هلال ماه */}
-      {design.hasMoon && (
-        <path
-          d="M330 26 A16 16 0 1 0 348 48 A13 13 0 1 1 330 26 Z"
-          fill="#FEF08A"
-          opacity="0.92"
-        />
-      )}
-
-      {/* فانوس‌های آویزان */}
-      {design.hasLanterns && (
-        <g stroke="#FBBF24" strokeWidth="1" fill="rgba(245, 158, 11, 0.7)">
-          <line x1="65" y1="0" x2="65" y2="38" />
-          <polygon points="65,38 73,50 65,64 57,50" />
-          <line x1="335" y1="0" x2="335" y2="34" />
-          <polygon points="335,34 343,46 335,60 327,46" />
-        </g>
-      )}
-
-      {/* معماری کعبه معظمه */}
-      {design.archType === 'kaaba' ? (
-        <g>
-          <rect x="162" y="88" width="76" height="72" rx="4" fill="#0B0F17" stroke="#FBBF24" strokeWidth="1.5" />
-          <rect x="162" y="104" width="76" height="9" fill="#FBBF24" />
-          <rect x="206" y="118" width="16" height="26" rx="2" fill="#D97706" />
-        </g>
-      ) : design.archType === 'karbala_twin' ? (
-        /* بین‌الحرمین با دو گنبد نورانی */
-        <g>
-          <path d="M95 148 C95 112 155 112 155 148 Z" fill={`url(#dome_${design.id})`} />
-          <rect x="82" y="96" width="6" height="52" fill="#D97706" />
-          <rect x="162" y="96" width="6" height="52" fill="#D97706" />
-          <path d="M245 148 C245 115 300 115 300 148 Z" fill={`url(#dome_${design.id})`} />
-          <rect x="233" y="100" width="6" height="48" fill="#D97706" />
-          <rect x="306" y="100" width="6" height="48" fill="#D97706" />
-          <rect x="60" y="146" width="280" height="24" fill="#1F090E" />
-        </g>
-      ) : (
-        /* گنبد و مناره باشکوه حرم و مسجد */
-        <g>
-          {/* گلدسته‌های طرفین */}
-          <rect x="128" y="76" width="8.5" height="74" fill="#D97706" opacity="0.9" />
-          <path d="M128 76 C128 67 136.5 67 136.5 76 Z" fill="#FEF08A" />
-          <rect x="263.5" y="76" width="8.5" height="74" fill="#D97706" opacity="0.9" />
-          <path d="M263.5 76 C263.5 67 272 67 272 76 Z" fill="#FEF08A" />
-
-          {/* گنبد مرکزی */}
-          <path d="M154 136 C154 84 246 84 246 136 Z" fill={`url(#dome_${design.id})`} />
-          <rect x="198.5" y="72" width="3" height="16" fill="#FEF08A" />
-
-          {/* بیرق سرخ یا سبز برای طرح‌های محرم یا مهدوی */}
-          {design.archType === 'muharram_flag' && (
-            <path d="M201 72 L228 78 L201 85 Z" fill="#EF4444" />
-          )}
-          {design.archType === 'mahdi_dawn' && (
-            <path d="M201 72 L228 78 L201 85 Z" fill="#10B981" />
-          )}
-
-          {/* ایوان و رواق‌ها */}
-          <rect x="115" y="135" width="170" height="32" rx="4" fill="#0B2E25" stroke={design.accent} strokeWidth="1" />
-          <path d="M184 167 L184 146 C184 138 216 138 216 146 L216 167 Z" fill="#041511" stroke={design.accent} strokeWidth="1" />
-        </g>
-      )}
-
-      {/* کبوتران حرم */}
-      {design.hasBirds && (
-        <g stroke="#FEF08A" strokeWidth="1.4" fill="none" opacity="0.8">
-          <path d="M110 62 Q114 57 118 62 Q122 57 126 62" />
-          <path d="M280 54 Q284 49 288 54 Q292 49 296 54" />
-        </g>
-      )}
-
-      {/* افق محو شونده پایین برای ترکیب نرم با کارت‌های صفحه خانه */}
-      <rect x="0" y="152" width="400" height="40" fill={design.skyBottom} opacity="0.65" />
-    </svg>
+      <img
+        src={imgSrc}
+        alt=""
+        loading="eager"
+        onError={() => {
+          if (imgSrc !== '/hero-default.jpg') {
+            setImgSrc('/hero-default.jpg');
+          }
+        }}
+        className="w-full h-full object-cover object-center transition-opacity duration-500"
+        style={{ filter: 'brightness(0.88) contrast(1.08)' }}
+      />
+      <div
+        className="absolute inset-0"
+        style={{
+          background: `linear-gradient(180deg, rgba(3, 16, 13, 0.55) 0%, rgba(5, 24, 19, 0.25) 48%, ${design.skyBottom} 100%)`,
+        }}
+      />
+    </div>
   );
 }
 

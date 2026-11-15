@@ -923,15 +923,47 @@ export function TawashihAndAdhanReminderSection({ times, cityNameFa, onToast }: 
         </div>
       </div>
 
-      {/* ۴. پنل کشویی انتخاب تواشیح / سوره و نوع اعلان (دقیقاً مطابق عکس دوم هنگام زدن روی «تغییر») */}
+      {/* ۴. پاپ‌آپ (Modal) شیک انتخاب تواشیح / سوره و نوع اعلان در وسط صفحه */}
       {editingSlot && (
         <div
-          className="rounded-3xl p-4 border space-y-3.5 mt-2 shadow-2xl"
-          style={{
-            background: 'rgba(5, 19, 16, 0.96)',
-            borderColor: 'rgba(251, 191, 36, 0.4)',
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(2, 12, 10, 0.84)', backdropFilter: 'blur(8px)' }}
+          onClick={() => {
+            stopLocalAudio();
+            setEditingSlot(null);
           }}
         >
+          <div
+            className="w-full max-w-md rounded-3xl p-4 border space-y-3.5 shadow-2xl max-h-[86vh] flex flex-col"
+            style={{
+              background: 'linear-gradient(165deg, #0A2922 0%, #051612 100%)',
+              borderColor: 'rgba(251, 191, 36, 0.45)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b pb-2.5" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
+              <div>
+                <h4 className="text-xs font-black text-amber-300">
+                  {editingSlot === 'before'
+                    ? `تنظیم تواشیح قبل از ${currentMeta.adhanTitleFa}`
+                    : `تنظیم سوره و تعقیبات بعد از ${currentMeta.adhanTitleFa}`}
+                </h4>
+                <p className="text-[10px] text-emerald-100/65 mt-0.5">
+                  انتخاب نوای معنوی، سرعت پخش یا حالت فقط اعلان
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  stopLocalAudio();
+                  setEditingSlot(null);
+                }}
+                className="w-7 h-7 rounded-xl border flex items-center justify-center text-xs text-white/80"
+                style={{ borderColor: 'rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.05)' }}
+              >
+                ✕
+              </button>
+            </div>
           {/* دو کارت انتخاب حالت: پخش تواشیح (صدای کامل نوا) یا فقط اعلان (بدون صدا) */}
           <div className="grid grid-cols-2 gap-2.5">
             <button
@@ -1102,6 +1134,7 @@ export function TawashihAndAdhanReminderSection({ times, cityNameFa, onToast }: 
             >
               خاموش کن
             </button>
+          </div>
           </div>
         </div>
       )}

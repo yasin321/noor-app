@@ -991,6 +991,100 @@ export const NOOR_UI_BUILD_STAMP = '2026-v3-1794029488910';
 
 
 
+
+function getDynamicDailyHourlySuggestion(now: Date) {
+  const day = now.getDay();
+  const hour = now.getHours();
+
+  const dayNamesFa: Record<number, { dayFa: string; masoomFa: string; dayDhikrAr: string; dayDhikrTitle: string }> = {
+    6: {
+      dayFa: 'شنبه',
+      masoomFa: 'متعلق به پیامبر رحمت حضرت محمد مصطفی (ص)',
+      dayDhikrAr: 'يَا رَبَّ الْعَالَمِينَ',
+      dayDhikrTitle: 'ذکر روز شنبه (۱۰۰ مرتبه یا رب العالمین) و صلوات',
+    },
+    0: {
+      dayFa: 'یکشنبه',
+      masoomFa: 'متعلق به امیرالمؤمنین علی (ع) و حضرت زهرا (س)',
+      dayDhikrAr: 'يَا ذَا الْجَلَالِ وَ الْإِكْرَامِ',
+      dayDhikrTitle: 'ذکر روز یکشنبه (یا ذالجلال و الاکرام) و تسبیحات حضرت زهرا (س)',
+    },
+    1: {
+      dayFa: 'دوشنبه',
+      masoomFa: 'متعلق به امام حسن مجتبی (ع) و امام حسین (ع)',
+      dayDhikrAr: 'يَا قَاضِيَ الْحَاجَاتِ',
+      dayDhikrTitle: 'ذکر روز دوشنبه (یا قاضی الحاجات) و زیارت عاشورا',
+    },
+    2: {
+      dayFa: 'سه‌شنبه',
+      masoomFa: 'متعلق به امام سجاد (ع)، امام باقر (ع) و امام صادق (ع)',
+      dayDhikrAr: 'يَا أَرْحَمَ الرَّاحِمِينَ',
+      dayDhikrTitle: 'ذکر روز سه‌شنبه (یا ارحم الراحمین) و دعای توسل',
+    },
+    3: {
+      dayFa: 'چهارشنبه',
+      masoomFa: 'متعلق به امام موسی کاظم (ع) و امام علی بن موسی الرضا (ع)',
+      dayDhikrAr: 'يَا حَيُّ يَا قَيُّومُ',
+      dayDhikrTitle: 'ذکر روز چهارشنبه (یا حی یا قیوم) و صلوات خاصه امام رضا (ع)',
+    },
+    4: {
+      dayFa: 'پنجشنبه',
+      masoomFa: 'متعلق به امام حسن عسکری (ع) و یاد درگذشتگان و شهدا',
+      dayDhikrAr: 'لَا إِلَهَ إِلَّا اللَّهُ الْمَلِكُ الْحَقُّ الْمُبِينُ',
+      dayDhikrTitle: 'ذکر روز پنجشنبه، استغفار و هدیه صلوات و فاتحه',
+    },
+    5: {
+      dayFa: 'جمعه',
+      masoomFa: 'متعلق به قطب عالم امکان حضرت بقیةالله الاعظم (عج)',
+      dayDhikrAr: 'اللَّهُمَّ صَلِّ عَلَى مُحَمَّدٍ وَ آلِ مُحَمَّدٍ وَ عَجِّلْ فَرَجَهُمْ',
+      dayDhikrTitle: 'ذکر روز جمعه (صلوات مهدوی)، دعای ندبه و زیارت آل‌یاسین',
+    },
+  };
+
+  const dInfo = dayNamesFa[day] || dayNamesFa[0];
+
+  if (hour >= 3 && hour < 6) {
+    return {
+      badgeFa: `پیشنهاد سحرگاه ${dInfo.dayFa} · ${dInfo.masoomFa}`,
+      titleFa: `مناجات سحرگاهی و ${dInfo.dayDhikrTitle}`,
+      arabicFa: `أَسْتَغْفِرُ اللَّهَ رَبِّي وَ أَتُوبُ إِلَيْهِ · ${dInfo.dayDhikrAr}`,
+    };
+  }
+  if (hour >= 6 && hour < 11) {
+    return {
+      badgeFa: `پیشنهاد صبح ${dInfo.dayFa} · ${dInfo.masoomFa}`,
+      titleFa: `عهد صبحگاهی و ${dInfo.dayDhikrTitle}`,
+      arabicFa: `${dInfo.dayDhikrAr} — اللَّهُمَّ عَجِّلْ لِوَلِيِّكَ الْفَرَجَ`,
+    };
+  }
+  if (hour >= 11 && hour < 15) {
+    return {
+      badgeFa: `پیشنهاد ظهر ${dInfo.dayFa} · ${dInfo.masoomFa}`,
+      titleFa: `تعقیبات ظهر و ${dInfo.dayDhikrTitle}`,
+      arabicFa: `${dInfo.dayDhikrAr} — أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ`,
+    };
+  }
+  if (hour >= 15 && hour < 18) {
+    return {
+      badgeFa: `پیشنهاد عصر ${dInfo.dayFa} · ${dInfo.masoomFa}`,
+      titleFa: `استغفار عصرگاهی (۷۰ مرتبه) و ${dInfo.dayDhikrTitle}`,
+      arabicFa: `${dInfo.dayDhikrAr} — أَسْتَغْفِرُ اللَّهَ وَ أَسْأَلُهُ التَّوْبَةَ`,
+    };
+  }
+  if (hour >= 18 && hour < 21) {
+    return {
+      badgeFa: `پیشنهاد شامگاه ${dInfo.dayFa} · ${dInfo.masoomFa}`,
+      titleFa: `تلاوت سوره واقعه و ${dInfo.dayDhikrTitle}`,
+      arabicFa: `${dInfo.dayDhikrAr} — وَمَنْ يَتَّقِ اللَّهَ يَجْعَلْ لَهُ مَخْرَجًا`,
+    };
+  }
+  return {
+    badgeFa: `پیشنهاد شبانگاه ${dInfo.dayFa} · ${dInfo.masoomFa}`,
+    titleFa: `تلاوت سوره ملک، محاسبه نفس و ${dInfo.dayDhikrTitle}`,
+    arabicFa: `${dInfo.dayDhikrAr} — بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ`,
+  };
+}
+
 // === START_2026_MASTER_HOMESCREEN ===
 export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
   const { theme } = useTheme();
@@ -1546,13 +1640,13 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5 mb-1">
                 <Sparkles size={14} color={theme.accent} />
-                <span className="text-xs font-black" style={{ color: theme.accent }}>پیشنهاد امروز</span>
+                <span className="text-[11px] font-black" style={{ color: theme.accent }}>{getDynamicDailyHourlySuggestion(now).badgeFa}</span>
               </div>
-              <h3 className="text-sm font-black leading-snug" style={{ color: theme.text }}>
-                ذکر و نیایش برای آرامش دل و وسعت رزق
+              <h3 className="text-xs sm:text-sm font-black leading-snug" style={{ color: theme.text }}>
+                {getDynamicDailyHourlySuggestion(now).titleFa}
               </h3>
-              <p className="text-[11px] truncate mt-1" style={{ color: theme.textMuted }}>
-                أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ
+              <p className="text-[11px] truncate mt-1 font-bold" style={{ color: theme.textMuted }}>
+                {getDynamicDailyHourlySuggestion(now).arabicFa}
               </p>
             </div>
             <span

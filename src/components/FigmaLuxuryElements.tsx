@@ -208,7 +208,7 @@ export function DynamicShrineHorizonArt({
         }}
         title="تغییر طرح معماری بالای صفحه (۳۰ طرح مناسبتی و شهرهای ایران)"
       >
-        <span>🎨 طرح افق (۳۰)</span>
+        <span>🎨 </span>
       </button>
 
       {showGalleryModal && (
