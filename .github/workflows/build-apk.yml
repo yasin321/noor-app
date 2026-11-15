@@ -49,6 +49,18 @@ jobs:
           curl -L -s --connect-timeout 10 --max-time 45 "https://server8.mp3quran.net/afs/051.mp3" -o public/adhans/post_dhariyat.mp3 || true
           ls -lh public/adhans/post_*.mp3
 
+      - name: Compress Bundled Speech Audio to 32kbps Mono (Reduce APK Size ~60MB)
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          for f in public/adhans/*.mp3; do
+            [ -f "$f" ] || continue
+            size=$(stat -c%s "$f")
+            if [ "$size" -gt 400000 ]; then
+              ffmpeg -y -i "$f" -ac 1 -ar 22050 -b:a 32k "${f}.tmp.mp3" -loglevel error && mv "${f}.tmp.mp3" "$f"
+            fi
+          done
+          du -sh public/adhans
+
       - name: Build Production Web Bundle
         run: npm run build
 
