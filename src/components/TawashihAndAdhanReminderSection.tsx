@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { useState, useEffect, useRef } from 'react';
 import { Bell, Volume2, Play, Square, Clock, Check, Copy } from 'lucide-react';
 import { Capacitor, registerPlugin } from '@capacitor/core';
@@ -161,23 +162,23 @@ const STORAGE_KEY = 'noor_tawashih_redesign_config_v2';
 
 const DEFAULT_CONFIG: AllPrayersTawashihMap = {
   fajr: {
-    before: { enabled: true, minutesOffset: 10, mode: 'audio', trackId: 'munajat_sahar', speed: 1.0 },
-    after: { enabled: true, minutesOffset: 5, mode: 'audio', trackId: 'dua_after_adhan', speed: 1.0 },
+    before: { enabled: true, minutesOffset: 15, mode: 'audio', trackId: 'munajat_sahar', speed: 1.0 },
+    after: { enabled: true, minutesOffset: 15, mode: 'audio', trackId: 'dua_after_adhan', speed: 1.0 },
   },
   dhuhr: {
-    before: { enabled: false, minutesOffset: 10, mode: 'audio', trackId: 'salawat_reza', speed: 1.0 },
-    after: { enabled: false, minutesOffset: 5, mode: 'audio', trackId: 'ayat_kursi', speed: 1.0 },
+    before: { enabled: false, minutesOffset: 15, mode: 'audio', trackId: 'salawat_reza', speed: 1.0 },
+    after: { enabled: false, minutesOffset: 15, mode: 'audio', trackId: 'ayat_kursi', speed: 1.0 },
   },
   asr: {
-    before: { enabled: false, minutesOffset: 10, mode: 'audio', trackId: 'tasbihat_pre', speed: 1.0 },
-    after: { enabled: false, minutesOffset: 5, mode: 'audio', trackId: 'istighfar_pre', speed: 1.0 },
+    before: { enabled: false, minutesOffset: 15, mode: 'audio', trackId: 'tasbihat_pre', speed: 1.0 },
+    after: { enabled: false, minutesOffset: 15, mode: 'audio', trackId: 'istighfar_pre', speed: 1.0 },
   },
   maghrib: {
-    before: { enabled: true, minutesOffset: 10, mode: 'audio', trackId: 'rabbanaghfir', speed: 1.0 },
+    before: { enabled: true, minutesOffset: 15, mode: 'audio', trackId: 'rabbanaghfir', speed: 1.0 },
     after: { enabled: true, minutesOffset: 30, mode: 'audio', trackId: 'surah_waqiah', speed: 1.0 },
   },
   isha: {
-    before: { enabled: false, minutesOffset: 10, mode: 'audio', trackId: 'salawat_reza', speed: 1.0 },
+    before: { enabled: false, minutesOffset: 15, mode: 'audio', trackId: 'salawat_reza', speed: 1.0 },
     after: { enabled: false, minutesOffset: 15, mode: 'audio', trackId: 'surah_mulk', speed: 1.0 },
   },
 };
@@ -223,7 +224,13 @@ const PRAYER_META: { key: PrayerTabKey; labelFa: string; adhanTitleFa: string }[
   { key: 'isha', labelFa: 'عشاء', adhanTitleFa: 'اذان عشاء' },
 ];
 
-const OFFSET_OPTIONS = [5, 10, 15, 20, 30, 45];
+const OFFSET_OPTIONS = [15, 30, 60, 120];
+
+function formatOffsetLabelFa(mins: number, suffix: 'قبل' | 'بعد'): string {
+  if (mins === 60) return `۱ ساعت ${suffix}`;
+  if (mins === 120) return `۲ ساعت ${suffix}`;
+  return `${toFaDigits(mins)} دقیقه ${suffix}`;
+}
 const SPEED_OPTIONS = [1, 1.25, 1.5, 2];
 
 interface Props {
@@ -284,6 +291,18 @@ export function TawashihAndAdhanReminderSection({ times, cityNameFa, onToast }: 
     audioRef.current = audio;
     setPlayingTrackId(track.id);
 
+    audio.onloadedmetadata = () => {
+      audio.playbackRate = validSpeed;
+    };
+    audio.oncanplay = () => {
+      audio.playbackRate = validSpeed;
+    };
+    audio.onloadedmetadata = () => {
+      audio.playbackRate = validSpeed;
+    };
+    audio.oncanplay = () => {
+      audio.playbackRate = validSpeed;
+    };
     audio.onplay = () => {
       audio.playbackRate = validSpeed;
     };
@@ -410,8 +429,10 @@ export function TawashihAndAdhanReminderSection({ times, cityNameFa, onToast }: 
     POST_ADHAN_TRACKS.find((t) => t.id === currentPrayerCfg.after.trackId) || POST_ADHAN_TRACKS[0];
 
   // شمارش تعداد فعال برای نماز انتخابی و کل نمازها
-  const activeCountForCurrent =
-    (currentPrayerCfg.before.enabled ? 1 : 0) + (currentPrayerCfg.after.enabled ? 1 : 0);
+  const activeCountForCurrent = PRAYER_META.reduce((sum, pm) => {
+    const item = config[pm.key];
+    return sum + (item?.before?.enabled ? 1 : 0) + (item?.after?.enabled ? 1 : 0);
+  }, 0);
 
   const openEditorForSlot = (slot: 'before' | 'after') => {
     stopLocalAudio();
@@ -668,7 +689,7 @@ export function TawashihAndAdhanReminderSection({ times, cityNameFa, onToast }: 
                   >
                     {OFFSET_OPTIONS.map((m) => (
                       <option key={m} value={m} className="bg-slate-900 text-white">
-                        {toFaDigits(m)} دقیقه قبل
+                        {formatOffsetLabelFa(m, 'قبل')}
                       </option>
                     ))}
                   </select>
@@ -723,7 +744,7 @@ export function TawashihAndAdhanReminderSection({ times, cityNameFa, onToast }: 
                     <div className="text-[10px] text-emerald-100/60 truncate">
                       {currentPrayerCfg.before.mode === 'notification_only'
                         ? 'نوتیفیکیشن بی‌صدا'
-                        : `${selectedBeforeTrack.subtitleFa} · ${selectedBeforeTrack.durationFa}`}
+                        : `${selectedBeforeTrack.subtitleFa} · ${selectedBeforeTrack.durationFa} (سرعت ${toFaDigits(currentPrayerCfg.before.speed || 1)}x)`}
                     </div>
                   </div>
                 </div>
@@ -844,7 +865,7 @@ export function TawashihAndAdhanReminderSection({ times, cityNameFa, onToast }: 
                   >
                     {OFFSET_OPTIONS.map((m) => (
                       <option key={m} value={m} className="bg-slate-900 text-white">
-                        {toFaDigits(m)} دقیقه بعد
+                        {formatOffsetLabelFa(m, 'بعد')}
                       </option>
                     ))}
                   </select>
@@ -924,9 +945,9 @@ export function TawashihAndAdhanReminderSection({ times, cityNameFa, onToast }: 
       </div>
 
       {/* ۴. پاپ‌آپ (Modal) شیک انتخاب تواشیح / سوره و نوع اعلان در وسط صفحه */}
-      {editingSlot && (
+      {editingSlot && typeof document !== 'undefined' && createPortal(
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
           style={{ background: 'rgba(2, 12, 10, 0.84)', backdropFilter: 'blur(8px)' }}
           onClick={() => {
             stopLocalAudio();
@@ -1035,7 +1056,13 @@ export function TawashihAndAdhanReminderSection({ times, cityNameFa, onToast }: 
                     <button
                       key={sp}
                       type="button"
-                      onClick={() => setDraftSpeed(sp)}
+                      onClick={() => {
+                        setDraftSpeed(sp);
+                        if (audioRef.current) {
+                          audioRef.current.defaultPlaybackRate = sp;
+                          audioRef.current.playbackRate = sp;
+                        }
+                      }}
                       className="px-2 py-0.5 rounded-lg text-[10px] font-black border"
                       style={{
                         background: draftSpeed === sp ? '#FBBF24' : 'rgba(255,255,255,0.05)',
@@ -1136,7 +1163,8 @@ export function TawashihAndAdhanReminderSection({ times, cityNameFa, onToast }: 
             </button>
           </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ۵. دکمه «اعمال همین تنظیم برای همه نمازها» در پایین سکشن */}

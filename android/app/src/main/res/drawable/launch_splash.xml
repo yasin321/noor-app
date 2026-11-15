@@ -5,10 +5,4 @@
             <solid android:color="#06211A" />
         </shape>
     </item>
-    <item>
-        <bitmap
-            android:src="@drawable/noor_unified_splash"
-            android:gravity="fill"
-            android:filter="true" />
-    </item>
 </layer-list>

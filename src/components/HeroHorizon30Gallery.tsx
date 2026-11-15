@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Check, Sparkles, MapPin, Compass } from 'lucide-react';
 
 export type HeroCategoryKey =
@@ -534,9 +535,9 @@ export function Hero30SelectorModal({
     onClose();
   };
 
-  return (
+  const modalContent = (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4"
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
       style={{ background: 'rgba(2, 10, 18, 0.88)', backdropFilter: 'blur(10px)' }}
       onClick={onClose}
       dir="rtl"
@@ -625,7 +626,7 @@ export function Hero30SelectorModal({
         </div>
 
         {/* تب‌های دسته‌بندی کارشناسی مذهبی */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-2 shrink-0">
+        <div className="flex flex-nowrap items-center gap-2 overflow-x-auto pb-2.5 pt-0.5 shrink-0 no-scrollbar">
           {HERO_RELIGIOUS_CATEGORIES.map((cat) => {
             const isActive = activeCategory === cat.id;
             return (
@@ -633,7 +634,7 @@ export function Hero30SelectorModal({
                 key={cat.id}
                 type="button"
                 onClick={() => setActiveCategory(cat.id)}
-                className="px-3 py-1.5 rounded-full text-[11px] font-black whitespace-nowrap border flex items-center gap-1 transition-all"
+                className="shrink-0 px-3 py-1.5 rounded-full text-[11px] font-black whitespace-nowrap border flex items-center gap-1.5 transition-all"
                 style={{
                   background: isActive ? '#FBBF24' : 'rgba(255,255,255,0.05)',
                   borderColor: isActive ? '#FBBF24' : 'rgba(255,255,255,0.12)',
@@ -715,4 +716,6 @@ export function Hero30SelectorModal({
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : modalContent;
 }

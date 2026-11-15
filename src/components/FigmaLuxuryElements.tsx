@@ -199,9 +199,8 @@ export function DynamicShrineHorizonArt({
       {/* دکمه ظریف انتخاب دستی/خودکار از بین ۳۰ طرح افق روی گوشه پایین چپ تصویر */}
       <button
         type="button"
-        onClick={() => setShowGalleryModal(true)}
-        className="absolute bottom-5 left-4 z-30 px-2.5 py-1 rounded-full border text-[10px] font-black flex items-center gap-1 backdrop-blur-md transition-transform active:scale-95 shadow-lg"
-        style={{
+        onClick={() => setShowGalleryModal(true)} className="absolute bottom-5 left-4 z-30 px-2.5 py-1 rounded-full border text-[10px] font-black flex items-center gap-1 backdrop-blur-md transition-transform active:scale-95 shadow-lg"
+        style={{ display: "none", 
           background: 'rgba(7, 26, 22, 0.78)',
           borderColor: 'rgba(251, 191, 36, 0.5)',
           color: '#FEF08A',

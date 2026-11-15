@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { Hero30SelectorModal, loadHeroConfig, resolveActiveHeroDesign, RenderHeroArtworkScene } from '@/components/HeroHorizon30Gallery';
 import { ThemePatternWatermark } from '@/components/FigmaLuxuryElements';
 import { getTemperatureUnit, setTemperatureUnit, type TempUnit } from '@/lib/weatherService';
@@ -151,7 +152,7 @@ function ContactYasinModal({ onClose }: { onClose: () => void }) {
     }
   };
 
-  return (
+  return createPortal(
     <div
       id="noor_yasin_feedback_modal_v2"
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -318,7 +319,8 @@ function ContactYasinModal({ onClose }: { onClose: () => void }) {
           </form>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
