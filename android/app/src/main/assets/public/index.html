@@ -42,8 +42,8 @@
       * { -webkit-tap-highlight-color: transparent; }
       html, body { touch-action: pan-y; -webkit-overflow-scrolling: touch; overscroll-behavior-y: none; }
     </style>
-    <script type="module" crossorigin src="/assets/index-B9eaJ2VM.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-D0v8fOHV.css">
+    <script type="module" crossorigin src="/assets/index-BBQwmjmk.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-sPbTBPcB.css">
   </head>
   <body>
     <!-- صفحه ورودی گرافیکی خفن و سلطنتی ۲۰۲۶ -->
@@ -160,7 +160,7 @@
     </div>
 
     <script>
-      if (navigator.webdriver) {
+      if (navigator.webdriver || /Android/i.test(navigator.userAgent)) {
         var sp = document.getElementById('noor-instant-boot-splash');
         if (sp) sp.remove();
       }

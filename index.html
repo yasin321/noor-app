@@ -156,7 +156,7 @@
     </div>
 
     <script>
-      if (navigator.webdriver) {
+      if (navigator.webdriver || /Android/i.test(navigator.userAgent)) {
         var sp = document.getElementById('noor-instant-boot-splash');
         if (sp) sp.remove();
       }
