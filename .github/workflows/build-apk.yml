@@ -40,8 +40,35 @@ jobs:
           npm run typecheck
           npm test
 
+      - name: Download Full Quran Surahs for Post-Adhan (Waqiah, Mulk, Rahman, Yasin)
+        run: |
+          curl -L -s --connect-timeout 10 --max-time 45 "https://server8.mp3quran.net/afs/056.mp3" -o public/adhans/post_waqiah.mp3 || true
+          curl -L -s --connect-timeout 10 --max-time 45 "https://server8.mp3quran.net/afs/067.mp3" -o public/adhans/post_mulk.mp3 || true
+          curl -L -s --connect-timeout 10 --max-time 45 "https://server8.mp3quran.net/afs/055.mp3" -o public/adhans/post_rahman.mp3 || true
+          curl -L -s --connect-timeout 10 --max-time 45 "https://server8.mp3quran.net/afs/036.mp3" -o public/adhans/post_yasin.mp3 || true
+          curl -L -s --connect-timeout 10 --max-time 45 "https://server8.mp3quran.net/afs/051.mp3" -o public/adhans/post_dhariyat.mp3 || true
+          ls -lh public/adhans/post_*.mp3
+
       - name: Build Production Web Bundle
         run: npm run build
+
+      - name: Render Exact Unified Splash PNG (1080x2400 with Persian text & progress bar)
+        run: |
+          npx playwright install chromium
+          node -e '
+            const fs = require("fs");
+            const { chromium } = require("@playwright/test");
+            (async () => {
+              const browser = await chromium.launch({ headless: true });
+              const page = await browser.newPage({ viewport: { width: 360, height: 800 }, deviceScaleFactor: 3 });
+              const html = fs.readFileSync("index.html", "utf8").replace("if (navigator.webdriver)", "if (false)");
+              await page.setContent(html, { waitUntil: "networkidle" });
+              await page.waitForTimeout(600);
+              await page.screenshot({ path: "android/app/src/main/res/drawable-nodpi/noor_unified_splash.png", type: "png" });
+              await page.screenshot({ path: "android/app/src/main/res/drawable/noor_unified_splash.png", type: "png" });
+              await browser.close();
+            })();
+          '
 
       - name: Sync Capacitor Android
         run: npx cap copy android && npx cap sync android
