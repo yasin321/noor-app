@@ -56,7 +56,7 @@ export function NastaliqMahdiCrown({
 export function VerticalJalaliDayCounterCard({
   className = '',
   now = new Date(),
-  weekdayFa = 'یکشنبه',
+  weekdayFa = 'دوشنبه',
   onClick,
 }: {
   className?: string;
@@ -67,21 +67,22 @@ export function VerticalJalaliDayCounterCard({
   return (
     <div
       onClick={onClick}
-      className={`flex flex-col items-center justify-between p-3.5 rounded-3xl border select-none text-center shadow-lg ${onClick ? 'cursor-pointer active:scale-95 transition-transform' : ''} ${className}`}
+      className={`flex flex-col items-center justify-between p-3.5 rounded-3xl border select-none text-center shadow-xl ${onClick ? 'cursor-pointer active:scale-95 transition-transform' : ''} ${className}`}
       style={{
-        background: 'linear-gradient(165deg, rgba(8, 35, 28, 0.94) 0%, rgba(4, 18, 14, 0.98) 100%)',
-        borderColor: 'rgba(251, 191, 36, 0.38)',
-        minWidth: '110px',
+        background: 'linear-gradient(165deg, rgba(8, 35, 28, 0.96) 0%, rgba(4, 18, 14, 0.99) 100%)',
+        borderColor: 'rgba(251, 191, 36, 0.4)',
+        minWidth: '115px',
+        minHeight: '165px',
       }}
     >
-      <div className="w-8 h-8 rounded-2xl flex items-center justify-center border mb-1" style={{ background: 'rgba(251, 191, 36, 0.15)', borderColor: 'rgba(251, 191, 36, 0.3)' }}>
-        <span className="text-amber-300 text-xs">📅</span>
+      <div className="w-9 h-9 rounded-2xl flex items-center justify-center border shadow-inner mb-1" style={{ background: 'rgba(251, 191, 36, 0.18)', borderColor: 'rgba(251, 191, 36, 0.35)' }}>
+        <span className="text-amber-300 text-sm">📅</span>
       </div>
       <span className="text-xs text-amber-200 font-black">{weekdayFa}</span>
-      <span className="text-3xl font-black text-amber-300 my-0.5 tracking-tight">۲۴</span>
-      <span className="text-[11px] text-emerald-100/80 font-bold">آبان ۱۴۰۵</span>
-      <div className="w-full border-t my-1.5" style={{ borderColor: 'rgba(255,255,255,0.1)' }} />
-      <div className="text-[10px] text-emerald-300 font-bold">روز ۲۴۰ سال</div>
+      <span className="text-2xl font-black text-amber-300 my-0.5 tracking-tight">۲۵</span>
+      <span className="text-[11px] text-emerald-100/90 font-bold">آبان ۱۴۰۵</span>
+      <div className="w-full border-t my-1.5" style={{ borderColor: 'rgba(255,255,255,0.12)' }} />
+      <div className="text-[10px] text-emerald-300 font-bold">روز ۲۴۱ سال</div>
     </div>
   );
 }
