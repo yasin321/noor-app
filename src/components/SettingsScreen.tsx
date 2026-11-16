@@ -1344,7 +1344,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
 
         <RowItem
           icon={Shield}
-          title="گزارش فنی آلارم‌ها"
+          title=""
           value="بررسی وضعیت"
           onClick={() => {
             setLogs(getDiagnosticLogs());
