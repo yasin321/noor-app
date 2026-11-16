@@ -55,8 +55,8 @@ export function NastaliqMahdiCrown({
 
 export function VerticalJalaliDayCounterCard({
   className = '',
-  now,
-  weekdayFa,
+  now = new Date(),
+  weekdayFa = 'یکشنبه',
   onClick,
 }: {
   className?: string;
@@ -67,11 +67,21 @@ export function VerticalJalaliDayCounterCard({
   return (
     <div
       onClick={onClick}
-      className={`flex flex-col items-center justify-center p-3 rounded-3xl border select-none ${onClick ? 'cursor-pointer active:scale-95 transition-transform' : ''} ${className}`}
-      style={{ background: 'rgba(5, 24, 19, 0.8)', borderColor: 'rgba(251, 191, 36, 0.35)' }}
+      className={`flex flex-col items-center justify-between p-3.5 rounded-3xl border select-none text-center shadow-lg ${onClick ? 'cursor-pointer active:scale-95 transition-transform' : ''} ${className}`}
+      style={{
+        background: 'linear-gradient(165deg, rgba(8, 35, 28, 0.94) 0%, rgba(4, 18, 14, 0.98) 100%)',
+        borderColor: 'rgba(251, 191, 36, 0.38)',
+        minWidth: '110px',
+      }}
     >
-      <span className="text-[10px] text-amber-200/80 font-bold">{weekdayFa || 'روز'}</span>
-      <span className="text-xl font-black text-amber-300 mt-1">۲۴۰</span>
+      <div className="w-8 h-8 rounded-2xl flex items-center justify-center border mb-1" style={{ background: 'rgba(251, 191, 36, 0.15)', borderColor: 'rgba(251, 191, 36, 0.3)' }}>
+        <span className="text-amber-300 text-xs">📅</span>
+      </div>
+      <span className="text-xs text-amber-200 font-black">{weekdayFa}</span>
+      <span className="text-3xl font-black text-amber-300 my-0.5 tracking-tight">۲۴</span>
+      <span className="text-[11px] text-emerald-100/80 font-bold">آبان ۱۴۰۵</span>
+      <div className="w-full border-t my-1.5" style={{ borderColor: 'rgba(255,255,255,0.1)' }} />
+      <div className="text-[10px] text-emerald-300 font-bold">روز ۲۴۰ سال</div>
     </div>
   );
 }
