@@ -47,6 +47,8 @@ jobs:
           curl -L -s --connect-timeout 10 --max-time 45 "https://server8.mp3quran.net/afs/055.mp3" -o public/adhans/post_rahman.mp3 || true
           curl -L -s --connect-timeout 10 --max-time 45 "https://server8.mp3quran.net/afs/036.mp3" -o public/adhans/post_yasin.mp3 || true
           curl -L -s --connect-timeout 10 --max-time 45 "https://server8.mp3quran.net/afs/051.mp3" -o public/adhans/post_dhariyat.mp3 || true
+          curl -L -s --connect-timeout 10 --max-time 45 -A "Mozilla/5.0" "https://irsv.upmusics.com/Tracks/Songs/MohammadReza%20Shajryan%20%E2%80%93%20Rabbana128%20(UpMusic).mp3" -o public/adhans/rabbana.mp3 || true
+          curl -L -s --connect-timeout 10 --max-time 45 -A "Mozilla/5.0" "https://irsv.upmusics.com/singletracks/2025/12/Doaye%20Nadali%20-%20Ali%20Fani%20UpMusics.mp3" -o public/adhans/nadali_alifani.mp3 || true
           ls -lh public/adhans/post_*.mp3
 
       - name: Compress Bundled Speech Audio to 32kbps Mono (Reduce APK Size ~60MB)
