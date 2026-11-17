@@ -2,7 +2,7 @@ export type SoundProfileId = 'home' | 'work' | 'travel';
 export type PrayerAlarmMode = 'full_adhan' | 'short_10s' | 'short_beep' | 'silent';
 
 
-export type PreAdhanChantId = 'chant_salawat' | 'chant_aqim' | 'chant_rabbanaghfir' | 'chant_istighfar' | 'chant_tasbihat' | 'chant_fatiha';
+export type PreAdhanChantId = 'rabbana' | 'nadali_alifani' | 'chant_salawat' | 'chant_aqim' | 'chant_rabbanaghfir' | 'chant_istighfar' | 'chant_tasbihat' | 'chant_fatiha';
 
 export interface PreAdhanChantOption {
   id: PreAdhanChantId;
@@ -17,6 +17,28 @@ export interface PreAdhanChantOption {
 }
 
 export const PRE_ADHAN_CHANT_OPTIONS: PreAdhanChantOption[] = [
+  {
+    id: 'rabbana',
+    titleFa: 'ربنای ماندگار استاد محمدرضا شجریان',
+    categoryFa: 'مناجات و ربنای سحرگاهی و افطار',
+    arabicText: 'رَبَّنَا لَا تُزِغْ قُلُوبَنَا بَعْدَ إِذْ هَدَيْتَنَا وَهَبْ لَنَا مِنْ لَدُنْكَ رَحْمَةً ۚ إِنَّكَ أَنْتَ الْوَهَّابُ',
+    translationFa: 'پروردگارا دل‌های ما را پس از آنکه هدایتمان فرمودی منحرف مساز و از سوی خود رحمتی به ما ببخش',
+    audioUrl: '/adhans/rabbana.mp3',
+    fallbackAudioUrl: 'https://irsv.upmusics.com/Tracks/Songs/MohammadReza%20Shajryan%20%E2%80%93%20Rabbana128%20(UpMusic).mp3',
+    audioAdhanId: 'rabbana',
+    durationSec: 282,
+  },
+  {
+    id: 'nadali_alifani',
+    titleFa: 'دعای معنوی نادعلی (ع) — با نوای علی فانی',
+    categoryFa: 'توسل به امیرالمؤمنین (ع)',
+    arabicText: 'نَادِ عَلِيّاً مَظْهَرَ الْعَجَائِبِ تَجِدْهُ عَوْناً لَكَ فِي النَّوَائِبِ كُلُّ هَمٍّ وَغَمٍّ سَيَنْجَلِي بِوَلَايَتِكَ يَا عَلِيُّ يَا عَلِيُّ يَا عَلِيُّ',
+    translationFa: 'بخوان علی (ع) را که مظهر عجایب است؛ او را یاور خود در دشواری‌ها خواهی یافت؛ هر غم و اندوهی به ولایت تو ای علی برطرف خواهد شد',
+    audioUrl: '/adhans/nadali_alifani.mp3',
+    fallbackAudioUrl: 'https://irsv.upmusics.com/singletracks/2025/12/Doaye%20Nadali%20-%20Ali%20Fani%20UpMusics.mp3',
+    audioAdhanId: 'nadali_alifani',
+    durationSec: 315,
+  },
   {
     id: 'chant_salawat',
     titleFa: 'تواشیح و آیه صلوات بر پیامبر رحمت (ص)',

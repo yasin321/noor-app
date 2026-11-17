@@ -472,24 +472,20 @@ const PHOTO_URLS: Record<string, string> = {
   "arch_shiraz_nasir_al_mulk": "https://images.unsplash.com/photo-1542816417-0983c9c9ad53?auto=format&fit=crop&w=900&q=80"
 };
 
-export function RenderHeroArtworkScene({ design }: { design: HeroArtDesign }) {
-  const remoteUrl = design.imageUrl || (typeof PHOTO_URLS !== 'undefined' ? PHOTO_URLS[design.id] : '') || '/hero-default.jpg';
-  const [imgSrc, setImgSrc] = useState<string>(() => {
-    if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      return '/hero-default.jpg';
-    }
-    return remoteUrl || '/hero-default.jpg';
-  });
-  const [imgFailed, setImgFailed] = useState(false);
 
-  useEffect(() => {
-    setImgFailed(false);
-    if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      setImgSrc('/hero-default.jpg');
-    } else {
-      setImgSrc(remoteUrl || '/hero-default.jpg');
-    }
-  }, [design.id, remoteUrl]);
+function getOfflineIranSafeImage(designId: string | number): string {
+  const s = String(designId).toLowerCase();
+  const n = parseInt(s.replace(/\D/g, ''), 10) || 0;
+  if (s.includes('karbala') || s.includes('hossein') || s.includes('muharram') || [2, 15, 16, 17].includes(n)) return '/shrines/karbala.jpg';
+  if (s.includes('najaf') || s.includes('ali') || s.includes('ghadir') || [3, 14].includes(n)) return '/shrines/najaf.jpg';
+  if (s.includes('makkah') || s.includes('kaaba') || s.includes('madinah') || s.includes('nabawi') || [4, 5].includes(n)) return '/shrines/makkah.jpg';
+  if (s.includes('fajr') || s.includes('sahar') || s.includes('friday') || [7, 8, 11].includes(n)) return '/shrines/fajr.jpg';
+  if (s.includes('qadr') || s.includes('ramadan') || s.includes('isfahan') || s.includes('shiraz') || [12, 13, 19, 20].includes(n)) return '/shrines/qadr.jpg';
+  return '/shrines/mashhad.jpg';
+}
+
+export function RenderHeroArtworkScene({ design }: { design: HeroArtDesign }) {
+  const localSafeImg = getOfflineIranSafeImage(design.id);
 
   return (
     <div
@@ -498,26 +494,20 @@ export function RenderHeroArtworkScene({ design }: { design: HeroArtDesign }) {
         background: `linear-gradient(165deg, ${design.skyTop} 0%, ${design.skyMid} 52%, ${design.skyBottom} 100%)`,
       }}
     >
-      {!imgFailed && (
-        <img
-          src={imgSrc}
-          alt=""
-          className="absolute inset-0 w-full h-full object-cover object-center transition-opacity duration-500"
-          style={{ filter: 'brightness(0.84) contrast(1.08) saturate(1.12)' }}
-          onError={() => {
-            if (imgSrc !== '/hero-default.jpg') {
-              setImgSrc('/hero-default.jpg');
-            } else {
-              setImgFailed(true);
-            }
-          }}
-        />
-      )}
+      <img
+        src={localSafeImg}
+        alt=""
+        className="absolute inset-0 w-full h-full object-cover object-center transition-opacity duration-300"
+        style={{ filter: 'brightness(0.92) contrast(1.08) saturate(1.12)' }}
+        onError={(e) => {
+          (e.target as HTMLImageElement).src = '/hero-default.jpg';
+        }}
+      />
 
       <div
         className="absolute inset-0"
         style={{
-          background: `radial-gradient(circle at 50% 35%, ${design.accent}28 0%, transparent 65%), linear-gradient(180deg, rgba(3, 16, 13, 0.52) 0%, rgba(5, 24, 19, 0.22) 52%, ${design.skyBottom} 100%)`,
+          background: `radial-gradient(circle at 50% 35%, ${design.accent}28 0%, transparent 65%), linear-gradient(180deg, rgba(3, 16, 13, 0.38) 0%, rgba(5, 24, 19, 0.18) 52%, ${design.skyBottom}E6 100%)`,
         }}
       />
     </div>

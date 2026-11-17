@@ -21,6 +21,10 @@ const NoorAlarm = registerPlugin<NoorNativeAlarmPlugin>('NoorAlarm');
 // نگاشت ۱۰۰٪ دقیق تمام اذکار قبل از اذان و سوره‌ها/تعقیبات پس از اذان به فایل‌های واقعی داخل public/adhans
 export const PRE_POST_AUDIO_MAP: Record<string, { file: string; titleFa: string }> = {
   // اذکار و تواشیح قبل از اذان
+  rabbana: { file: 'rabbana.mp3', titleFa: 'ربنای دلنشین استاد محمدرضا شجریان' },
+  rabbana_shajarian: { file: 'rabbana.mp3', titleFa: 'ربنای دلنشین استاد محمدرضا شجریان' },
+  nadali_alifani: { file: 'nadali_alifani.mp3', titleFa: 'دعای معنوی نادعلی (ع) با نوای علی فانی' },
+  nadali: { file: 'nadali_alifani.mp3', titleFa: 'دعای معنوی نادعلی (ع) با نوای علی فانی' },
   chant_salawat: { file: 'chant_salawat.mp3', titleFa: 'صلوات و درود ملکوتی بر محمد و آل محمد (ص)' },
   salawat: { file: 'chant_salawat.mp3', titleFa: 'صلوات و درود ملکوتی بر محمد و آل محمد (ص)' },
   chant_istighfar: { file: 'chant_istighfar.mp3', titleFa: 'استغفار و نیایش سحرگاهی (أستغفر الله ربی و أتوب إلیه)' },
@@ -75,7 +79,8 @@ export function resolvePrePostAudioFile(trackIdOrUrl: string): string {
   if (clean.includes('ist')) return 'chant_istighfar.mp3';
   if (clean.includes('aqi')) return 'chant_aqim.mp3';
   if (clean.includes('tas')) return 'chant_tasbihat.mp3';
-  if (clean.includes('rab')) return 'chant_rabbanaghfir.mp3';
+  if (clean.includes('nad')) return 'nadali_alifani.mp3';
+  if (clean.includes('rab')) return 'rabbana.mp3';
   return trackIdOrUrl.endsWith('.mp3') ? clean + '.mp3' : clean + '.mp3';
 }
 

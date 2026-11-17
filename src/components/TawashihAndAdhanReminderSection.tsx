@@ -1,9 +1,9 @@
 import { createPortal } from 'react-dom';
 import { useState, useEffect, useRef } from 'react';
-import { Bell, Volume2, Play, Square, Clock, Check, Copy } from 'lucide-react';
+import { Bell, Volume2, Square, Clock, Check, Copy } from 'lucide-react';
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { adhans, playAdhanPreview, stopAdhanPreview } from '@/lib/adhans';
-import { setAlarmPlaybackSpeed, getAlarmPlaybackSpeed } from '@/lib/reminderService';
+import { setAlarmPlaybackSpeed } from '@/lib/reminderService';
 
 interface NativeAlarmBridge {
   scheduleNativeAlarm(opts: {
@@ -35,60 +35,52 @@ export interface TrackOption {
 
 export const PRE_ADHAN_TRACKS: TrackOption[] = [
   {
-    id: 'rabbanaghfir',
-    titleFa: 'ربنا',
-    subtitleFa: 'استاد شجریان',
-    durationFa: '۲:۴۲',
-    audioFile: '/adhans/chant_rabbanaghfir.mp3',
-    audioAdhanId: 'chant_rabbanaghfir',
+    id: 'rabbana_shajarian',
+    titleFa: 'ربنای دلنشین استاد شجریان',
+    subtitleFa: 'مناجات ماندگار سحرگاهی و افطار',
+    durationFa: '۴:۴۲',
+    audioFile: '/adhans/rabbana.mp3',
+    audioAdhanId: 'rabbana',
+  },
+  {
+    id: 'nadali_alifani',
+    titleFa: 'دعای معنوی نادعلی (ع)',
+    subtitleFa: 'با نوای دلنشین علی فانی',
+    durationFa: '۵:۱۵',
+    audioFile: '/adhans/nadali_alifani.mp3',
+    audioAdhanId: 'nadali_alifani',
   },
   {
     id: 'munajat_sahar',
-    titleFa: 'مناجات سحر',
-    subtitleFa: 'گروه تواشیح',
+    titleFa: 'مناجات و تواشیح سحرگاهی',
+    subtitleFa: 'گروه بین‌المللی تواشیح',
     durationFa: '۳:۱۰',
     audioFile: '/adhans/chant_aqim.mp3',
     audioAdhanId: 'chant_aqim',
   },
   {
     id: 'salawat_reza',
-    titleFa: 'صلوات خاصه امام رضا (ع)',
-    subtitleFa: 'گروه همخوانی',
+    titleFa: 'صلوات خاصه حضرت امام رضا (ع)',
+    subtitleFa: 'گروه همخوانی آستان قدس رضوی',
     durationFa: '۲:۱۵',
     audioFile: '/adhans/chant_salawat.mp3',
     audioAdhanId: 'chant_salawat',
   },
   {
     id: 'tasbihat_pre',
-    titleFa: 'تسبیحات قبل از اذان',
-    subtitleFa: 'گروه تواشیح',
+    titleFa: 'تسبیحات و ذکر آرامش دل‌ها',
+    subtitleFa: 'مناجات پیش از اذان',
     durationFa: '۱:۵۸',
     audioFile: '/adhans/chant_tasbihat.mp3',
     audioAdhanId: 'chant_tasbihat',
-  },
-  {
-    id: 'istighfar_pre',
-    titleFa: 'استغفار و نیایش ملکوتی',
-    subtitleFa: 'ابتهال و مناجات',
-    durationFa: '۲:۲۰',
-    audioFile: '/adhans/chant_istighfar.mp3',
-    audioAdhanId: 'chant_istighfar',
   },
 ];
 
 export const POST_ADHAN_TRACKS: TrackOption[] = [
   {
-    id: 'dua_after_adhan',
-    titleFa: 'دعای بعد از اذان',
-    subtitleFa: 'قاری مهمان',
-    durationFa: '۱:۴۸',
-    audioFile: '/adhans/post_furqan.mp3',
-    audioAdhanId: 'post_furqan',
-  },
-  {
     id: 'surah_waqiah',
     titleFa: 'تلاوت سوره مبارکه واقعه',
-    subtitleFa: 'ترتیل مجلسی — وسعت رزق',
+    subtitleFa: 'ترتیل مجلسی — برکت و وسعت رزق',
     durationFa: '۹:۴۵',
     audioFile: '/adhans/post_waqiah.mp3',
     audioAdhanId: 'post_waqiah',
@@ -96,7 +88,7 @@ export const POST_ADHAN_TRACKS: TrackOption[] = [
   {
     id: 'surah_yasin',
     titleFa: 'تلاوت سوره مبارکه یس',
-    subtitleFa: 'ترتیل مجلسی — قلب قرآن',
+    subtitleFa: 'ترتیل مجلسی — قلب قرآن کریم',
     durationFa: '۱۲:۳۰',
     audioFile: '/adhans/post_yasin.mp3',
     audioAdhanId: 'post_yasin',
@@ -125,22 +117,6 @@ export const POST_ADHAN_TRACKS: TrackOption[] = [
     audioFile: '/adhans/post_kursi.mp3',
     audioAdhanId: 'post_kursi',
   },
-  {
-    id: 'surah_saffat',
-    titleFa: 'تلاوت آیات سوره مبارکه صافات',
-    subtitleFa: 'ترتیل منتخب',
-    durationFa: '۴:۱۰',
-    audioFile: '/adhans/post_saffat.mp3',
-    audioAdhanId: 'post_saffat',
-  },
-  {
-    id: 'surah_dhariyat',
-    titleFa: 'تلاوت آیات سوره مبارکه ذاریات',
-    subtitleFa: 'ترتیل منتخب',
-    durationFa: '۳:۴۰',
-    audioFile: '/adhans/post_dhariyat.mp3',
-    audioAdhanId: 'post_dhariyat',
-  },
 ];
 
 export interface SlotConfig {
@@ -162,58 +138,46 @@ const STORAGE_KEY = 'noor_tawashih_redesign_config_v2';
 
 const DEFAULT_CONFIG: AllPrayersTawashihMap = {
   fajr: {
-    before: { enabled: true, minutesOffset: 15, mode: 'audio', trackId: 'munajat_sahar', speed: 1.0 },
-    after: { enabled: true, minutesOffset: 15, mode: 'audio', trackId: 'dua_after_adhan', speed: 1.0 },
+    before: { enabled: true, minutesOffset: 15, mode: 'audio', trackId: 'rabbana_shajarian', speed: 1.0 },
+    after: { enabled: true, minutesOffset: 10, mode: 'audio', trackId: 'surah_waqiah', speed: 1.0 },
   },
   dhuhr: {
-    before: { enabled: false, minutesOffset: 15, mode: 'audio', trackId: 'salawat_reza', speed: 1.0 },
-    after: { enabled: false, minutesOffset: 15, mode: 'audio', trackId: 'ayat_kursi', speed: 1.0 },
+    before: { enabled: true, minutesOffset: 10, mode: 'audio', trackId: 'nadali_alifani', speed: 1.0 },
+    after: { enabled: true, minutesOffset: 10, mode: 'audio', trackId: 'surah_yasin', speed: 1.0 },
   },
   asr: {
-    before: { enabled: false, minutesOffset: 15, mode: 'audio', trackId: 'tasbihat_pre', speed: 1.0 },
-    after: { enabled: false, minutesOffset: 15, mode: 'audio', trackId: 'istighfar_pre', speed: 1.0 },
+    before: { enabled: false, minutesOffset: 10, mode: 'audio', trackId: 'salawat_reza', speed: 1.0 },
+    after: { enabled: false, minutesOffset: 10, mode: 'audio', trackId: 'ayat_kursi', speed: 1.0 },
   },
   maghrib: {
-    before: { enabled: true, minutesOffset: 15, mode: 'audio', trackId: 'rabbanaghfir', speed: 1.0 },
-    after: { enabled: true, minutesOffset: 30, mode: 'audio', trackId: 'surah_waqiah', speed: 1.0 },
+    before: { enabled: true, minutesOffset: 15, mode: 'audio', trackId: 'rabbana_shajarian', speed: 1.0 },
+    after: { enabled: true, minutesOffset: 10, mode: 'audio', trackId: 'surah_rahman', speed: 1.0 },
   },
   isha: {
-    before: { enabled: false, minutesOffset: 15, mode: 'audio', trackId: 'salawat_reza', speed: 1.0 },
-    after: { enabled: false, minutesOffset: 15, mode: 'audio', trackId: 'surah_mulk', speed: 1.0 },
+    before: { enabled: false, minutesOffset: 10, mode: 'audio', trackId: 'munajat_sahar', speed: 1.0 },
+    after: { enabled: true, minutesOffset: 15, mode: 'audio', trackId: 'surah_mulk', speed: 1.0 },
   },
 };
 
 export function loadTawashihConfig(): AllPrayersTawashihMap {
+  return loadSavedTawashihConfig();
+}
+
+function loadSavedTawashihConfig(): AllPrayersTawashihMap {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      return { ...DEFAULT_CONFIG, ...parsed };
+      if (parsed && typeof parsed === 'object') return parsed;
     }
   } catch {}
   return DEFAULT_CONFIG;
 }
 
-export function saveTawashihConfig(cfg: AllPrayersTawashihMap): void {
+function saveTawashihConfig(cfg: AllPrayersTawashihMap) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
-    window.dispatchEvent(new Event('noor-tawashih-config-changed'));
   } catch {}
-}
-
-function toFaDigits(input: string | number): string {
-  return String(input).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[Number(d)]);
-}
-
-function addMinutesToTimeStr(timeStr: string, deltaMinutes: number): string {
-  const parts = (timeStr || '04:49').split(':').map((n) => parseInt(n, 10));
-  if (parts.length < 2 || isNaN(parts[0]) || isNaN(parts[1])) return timeStr;
-  let total = parts[0] * 60 + parts[1] + deltaMinutes;
-  while (total < 0) total += 1440;
-  total = total % 1440;
-  const hh = String(Math.floor(total / 60)).padStart(2, '0');
-  const mm = String(total % 60).padStart(2, '0');
-  return `${hh}:${mm}`;
 }
 
 const PRAYER_META: { key: PrayerTabKey; labelFa: string; adhanTitleFa: string }[] = [
@@ -224,38 +188,51 @@ const PRAYER_META: { key: PrayerTabKey; labelFa: string; adhanTitleFa: string }[
   { key: 'isha', labelFa: 'عشاء', adhanTitleFa: 'اذان عشاء' },
 ];
 
-const OFFSET_OPTIONS = [15, 30, 60, 120];
+const OFFSET_OPTIONS = [5, 10, 15, 20, 30];
+const SPEED_OPTIONS = [1.0, 1.25, 1.5, 2.0];
 
-function formatOffsetLabelFa(mins: number, suffix: 'قبل' | 'بعد'): string {
-  if (mins === 60) return `۱ ساعت ${suffix}`;
-  if (mins === 120) return `۲ ساعت ${suffix}`;
+function toFaDigits(n: number | string): string {
+  if (n === undefined || n === null) return '';
+  const map: Record<string, string> = { '0': '۰', '1': '۱', '2': '۲', '3': '۳', '4': '۴', '5': '۵', '6': '۶', '7': '۷', '8': '۸', '9': '۹' };
+  return String(n).replace(/[0-9]/g, (d) => map[d] || d);
+}
+
+function formatOffsetLabelFa(mins: number, suffix: string): string {
   return `${toFaDigits(mins)} دقیقه ${suffix}`;
 }
-const SPEED_OPTIONS = [1, 1.25, 1.5, 2];
 
-interface Props {
-  times: {
-    fajr?: string;
-    dhuhr?: string;
-    asr?: string;
-    maghrib?: string;
-    isha?: string;
-  } | null;
-  cityNameFa: string;
-  onToast?: (msg: string) => void;
+function addMinutesToTimeStr(timeStr: string, minutes: number): string {
+  if (!timeStr || !timeStr.includes(':')) return '12:00';
+  const [hStr, mStr] = timeStr.split(':');
+  let h = parseInt(hStr, 10) || 0;
+  let m = parseInt(mStr, 10) || 0;
+  m += minutes;
+  while (m < 0) { m += 60; h = (h - 1 + 24) % 24; }
+  while (m >= 60) { m -= 60; h = (h + 1) % 24; }
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
-export function TawashihAndAdhanReminderSection({ times, cityNameFa, onToast }: Props) {
-  const [config, setConfig] = useState<AllPrayersTawashihMap>(() => loadTawashihConfig());
+export function TawashihAndAdhanReminderSection({
+  times,
+  cityName,
+  cityNameFa,
+  onToast,
+}: {
+  times?: any;
+  cityName?: string;
+  cityNameFa?: string;
+  onToast?: (msg: string) => void;
+}) {
+  const resolvedCityName = cityNameFa || cityName || 'مشهد';
+  const [config, setConfig] = useState<AllPrayersTawashihMap>(() => loadSavedTawashihConfig());
   const [activePrayer, setActivePrayer] = useState<PrayerTabKey>('fajr');
   const [editingSlot, setEditingSlot] = useState<'before' | 'after' | null>(null);
 
-  // حالت‌های موقت داخل کشوی ویرایش («تغییر»)
   const [draftMode, setDraftMode] = useState<'audio' | 'notification_only'>('audio');
-  const [draftTrackId, setDraftTrackId] = useState<string>('munajat_sahar');
-  const [draftSpeed, setDraftSpeed] = useState<number>(() => getAlarmPlaybackSpeed());
-  const [playingTrackId, setPlayingTrackId] = useState<string | null>(null);
+  const [draftTrackId, setDraftTrackId] = useState<string>('rabbana_shajarian');
+  const [draftSpeed, setDraftSpeed] = useState<number>(1.0);
 
+  const [playingTrackId, setPlayingTrackId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const stopLocalAudio = () => {
@@ -272,9 +249,7 @@ export function TawashihAndAdhanReminderSection({ times, cityNameFa, onToast }: 
   };
 
   useEffect(() => {
-    return () => {
-      stopLocalAudio();
-    };
+    return () => { stopLocalAudio(); };
   }, []);
 
   const togglePlayTrack = (track: TrackOption, speedToUse = 1.0) => {
@@ -291,30 +266,9 @@ export function TawashihAndAdhanReminderSection({ times, cityNameFa, onToast }: 
     audioRef.current = audio;
     setPlayingTrackId(track.id);
 
-    audio.onloadedmetadata = () => {
-      audio.playbackRate = validSpeed;
-    };
-    audio.oncanplay = () => {
-      audio.playbackRate = validSpeed;
-    };
-    audio.onloadedmetadata = () => {
-      audio.playbackRate = validSpeed;
-    };
-    audio.oncanplay = () => {
-      audio.playbackRate = validSpeed;
-    };
-    audio.onplay = () => {
-      audio.playbackRate = validSpeed;
-    };
-    audio.onended = () => {
-      setPlayingTrackId(null);
-    };
-    audio.onerror = () => {
-      setPlayingTrackId(null);
-    };
-    audio.play().catch(() => {
-      setPlayingTrackId(null);
-    });
+    audio.onended = () => { setPlayingTrackId(null); };
+    audio.onerror = () => { setPlayingTrackId(null); };
+    audio.play().catch(() => { setPlayingTrackId(null); });
   };
 
   const togglePlayMainAdhan = () => {
@@ -331,7 +285,6 @@ export function TawashihAndAdhanReminderSection({ times, cityNameFa, onToast }: 
     });
   };
 
-  // همگام‌سازی آلارم‌های نیتیو اندروید برای قبل و بعد از اذان
   const syncNativeAlarms = async (nextCfg: AllPrayersTawashihMap) => {
     if (!Capacitor.isNativePlatform() || !times) return;
     const baseIds: Record<PrayerTabKey, { before: number; after: number }> = {
@@ -347,7 +300,6 @@ export function TawashihAndAdhanReminderSection({ times, cityNameFa, onToast }: 
       const baseTime = (times as any)[pKey] || '04:49';
       const pCfg = nextCfg[pKey];
 
-      // ۱. قبل از اذان
       const beforeId = baseIds[pKey].before;
       if (!pCfg.before.enabled) {
         await NoorAlarm.cancelNativeAlarm({ id: beforeId }).catch(() => {});
@@ -363,7 +315,7 @@ export function TawashihAndAdhanReminderSection({ times, cityNameFa, onToast }: 
           await NoorAlarm.scheduleNativeAlarm({
             id: beforeId,
             triggerAtMillis: targetDate.getTime(),
-            title: `🌙 ${toFaDigits(pCfg.before.minutesOffset)} دقیقه تا ${pMeta.adhanTitleFa} (${cityNameFa})`,
+            title: `🌙 ${toFaDigits(pCfg.before.minutesOffset)} دقیقه تا ${pMeta.adhanTitleFa} (${resolvedCityName})`,
             body: `پخش ${track.titleFa} — ${track.subtitleFa}`,
             soundType: pCfg.before.mode === 'notification_only' ? 'silent' : 'surah_chant',
             adhanId: track.audioAdhanId,
@@ -374,7 +326,6 @@ export function TawashihAndAdhanReminderSection({ times, cityNameFa, onToast }: 
         }
       }
 
-      // ۲. بعد از اذان
       const afterId = baseIds[pKey].after;
       if (!pCfg.after.enabled) {
         await NoorAlarm.cancelNativeAlarm({ id: afterId }).catch(() => {});
@@ -403,7 +354,6 @@ export function TawashihAndAdhanReminderSection({ times, cityNameFa, onToast }: 
     }
   };
 
-  // AUTO_SYNC_NATIVE_PRE_POST_ALARMS
   useEffect(() => {
     if (times && Capacitor.isNativePlatform()) {
       void syncNativeAlarms(config);
@@ -423,12 +373,9 @@ export function TawashihAndAdhanReminderSection({ times, cityNameFa, onToast }: 
   const beforeClock = addMinutesToTimeStr(rawPrayerTime, -currentPrayerCfg.before.minutesOffset);
   const afterClock = addMinutesToTimeStr(rawPrayerTime, currentPrayerCfg.after.minutesOffset);
 
-  const selectedBeforeTrack =
-    PRE_ADHAN_TRACKS.find((t) => t.id === currentPrayerCfg.before.trackId) || PRE_ADHAN_TRACKS[1];
-  const selectedAfterTrack =
-    POST_ADHAN_TRACKS.find((t) => t.id === currentPrayerCfg.after.trackId) || POST_ADHAN_TRACKS[0];
+  const selectedBeforeTrack = PRE_ADHAN_TRACKS.find((t) => t.id === currentPrayerCfg.before.trackId) || PRE_ADHAN_TRACKS[0];
+  const selectedAfterTrack = POST_ADHAN_TRACKS.find((t) => t.id === currentPrayerCfg.after.trackId) || POST_ADHAN_TRACKS[0];
 
-  // شمارش تعداد فعال برای نماز انتخابی و کل نمازها
   const activeCountForCurrent = PRAYER_META.reduce((sum, pm) => {
     const item = config[pm.key];
     return sum + (item?.before?.enabled ? 1 : 0) + (item?.after?.enabled ? 1 : 0);
@@ -447,17 +394,6 @@ export function TawashihAndAdhanReminderSection({ times, cityNameFa, onToast }: 
     if (!editingSlot) return;
     stopLocalAudio();
     setAlarmPlaybackSpeed(draftSpeed);
-    try {
-      const list = editingSlot === 'after' ? POST_ADHAN_TRACKS : PRE_ADHAN_TRACKS;
-      const foundTrack = list.find((t) => t.id === draftTrackId);
-      if (foundTrack) {
-        if (editingSlot === 'after') {
-          localStorage.setItem('noor_after_adhan_reminder_track_v1', foundTrack.audioAdhanId);
-        } else {
-          localStorage.setItem('noor_pre_adhan_chant_id_v1', foundTrack.audioAdhanId);
-        }
-      }
-    } catch {}
     const nextCfg: AllPrayersTawashihMap = {
       ...config,
       [activePrayer]: {
@@ -472,7 +408,7 @@ export function TawashihAndAdhanReminderSection({ times, cityNameFa, onToast }: 
       },
     };
     const slotLabel = editingSlot === 'before' ? 'قبل از اذان' : 'بعد از اذان';
-    updateAndSave(nextCfg, `✅ تنظیمات ${slotLabel} برای ${currentMeta.adhanTitleFa} ذخیره و فعال شد`);
+    updateAndSave(nextCfg, `✅ تنظیمات slotLabel} برای ${currentMeta.adhanTitleFa} ذخیره شد`);
     setEditingSlot(null);
   };
 
@@ -483,10 +419,7 @@ export function TawashihAndAdhanReminderSection({ times, cityNameFa, onToast }: 
       ...config,
       [activePrayer]: {
         ...currentPrayerCfg,
-        [editingSlot]: {
-          ...currentPrayerCfg[editingSlot],
-          enabled: false,
-        },
+        [editingSlot]: { ...currentPrayerCfg[editingSlot], enabled: false },
       },
     };
     updateAndSave(nextCfg, '🔕 این یادآور غیرفعال شد');
@@ -499,17 +432,11 @@ export function TawashihAndAdhanReminderSection({ times, cityNameFa, onToast }: 
       ...config,
       [activePrayer]: {
         ...currentPrayerCfg,
-        [slot]: {
-          ...currentPrayerCfg[slot],
-          enabled: nextEnabled,
-        },
+        [slot]: { ...currentPrayerCfg[slot], enabled: nextEnabled },
       },
     };
     const label = slot === 'before' ? 'تواشیح قبل از اذان' : 'یادآور بعد از اذان';
-    updateAndSave(
-      nextCfg,
-      nextEnabled ? `🔔 ${label} (${currentMeta.labelFa}) فعال شد` : `🔕 ${label} (${currentMeta.labelFa}) خاموش شد`
-    );
+    updateAndSave(nextCfg, nextEnabled ? `🔔 ${label} فعال شد` : `🔕 ${label} خاموش شد`);
   };
 
   const updateOffsetMinutes = (slot: 'before' | 'after', mins: number) => {
@@ -517,10 +444,7 @@ export function TawashihAndAdhanReminderSection({ times, cityNameFa, onToast }: 
       ...config,
       [activePrayer]: {
         ...currentPrayerCfg,
-        [slot]: {
-          ...currentPrayerCfg[slot],
-          minutesOffset: mins,
-        },
+        [slot]: { ...currentPrayerCfg[slot], minutesOffset: mins },
       },
     };
     updateAndSave(nextCfg);
@@ -535,7 +459,7 @@ export function TawashihAndAdhanReminderSection({ times, cityNameFa, onToast }: 
       maghrib: { before: { ...template.before }, after: { ...template.after } },
       isha: { before: { ...template.before }, after: { ...template.after } },
     };
-    updateAndSave(nextCfg, '✨ تنظیمات تواشیح و یادآور برای تمام ۵ نماز اعمال شد!');
+    updateAndSave(nextCfg, '✨ تنظیمات برای تمام ۵ نماز اعمال شد!');
   };
 
   const editorTracks = editingSlot === 'after' ? POST_ADHAN_TRACKS : PRE_ADHAN_TRACKS;
@@ -549,7 +473,6 @@ export function TawashihAndAdhanReminderSection({ times, cityNameFa, onToast }: 
       }}
       dir="rtl"
     >
-      {/* ۱. هدر سکشن: آیکون موج در راست + عنوان و توضیح + بج تعداد فعال در چپ */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2.5">
           <div
@@ -560,19 +483,12 @@ export function TawashihAndAdhanReminderSection({ times, cityNameFa, onToast }: 
               color: '#34D399',
             }}
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-              <path d="M2 10v3" />
-              <path d="M6 6v11" />
-              <path d="M10 3v18" />
-              <path d="M14 8v7" />
-              <path d="M18 5v13" />
-              <path d="M22 10v3" />
-            </svg>
+            <Volume2 size={20} />
           </div>
           <div>
             <h3 className="text-sm font-black text-white">تواشیح و یادآور اذان</h3>
             <p className="text-[10px] text-emerald-100/60 mt-0.5">
-              نوای معنوی یا اعلان، چند دقیقه قبل و بعد از هر اذان
+              ربنای شجریان، نادعلی علی فانی و نوای معنوی پیش و پس از اذان
             </p>
           </div>
         </div>
@@ -589,13 +505,9 @@ export function TawashihAndAdhanReminderSection({ times, cityNameFa, onToast }: 
         </span>
       </div>
 
-      {/* ۲. نوار تب‌های ۵ نماز (صبح، ظهر، عصر، مغرب، عشاء) با نقطه‌های نشانگر قبل و بعد */}
       <div
         className="grid grid-cols-5 gap-1 p-1 rounded-2xl border"
-        style={{
-          background: 'rgba(4, 16, 14, 0.65)',
-          borderColor: 'rgba(255, 255, 255, 0.07)',
-        }}
+        style={{ background: 'rgba(4, 16, 14, 0.65)', borderColor: 'rgba(255, 255, 255, 0.07)' }}
       >
         {PRAYER_META.map((pm) => {
           const isSelected = activePrayer === pm.key;
@@ -618,29 +530,17 @@ export function TawashihAndAdhanReminderSection({ times, cityNameFa, onToast }: 
             >
               <span className="text-[11px] font-black">{pm.labelFa}</span>
               <div className="flex items-center gap-1 h-1.5">
-                <span
-                  className="w-1.5 h-1.5 rounded-full"
-                  style={{
-                    background: pState.before.enabled ? '#FBBF24' : 'rgba(255,255,255,0.15)',
-                  }}
-                />
-                <span
-                  className="w-1.5 h-1.5 rounded-full"
-                  style={{
-                    background: pState.after.enabled ? '#34D399' : 'rgba(255,255,255,0.15)',
-                  }}
-                />
+                <span className="w-1.5 h-1.5 rounded-full" style={{ background: pState.before.enabled ? '#FBBF24' : 'rgba(255,255,255,0.15)' }} />
+                <span className="w-1.5 h-1.5 rounded-full" style={{ background: pState.after.enabled ? '#34D399' : 'rgba(255,255,255,0.15)' }} />
               </div>
             </button>
           );
         })}
       </div>
 
-      {/* ۳. تایم‌لاین ۳ مرحله‌ای (قبل از اذان -> اذان اصلی -> بعد از اذان) */}
       <div className="relative space-y-2.5">
-        {/* ردیف اول: قبل از اذان */}
+        {/* قبل از اذان */}
         <div className="flex items-stretch gap-2.5">
-          {/* ستون آیکون تایم‌لاین در سمت راست */}
           <div className="flex flex-col items-center pt-2 shrink-0">
             <div
               className="w-8 h-8 rounded-full flex items-center justify-center border"
@@ -650,17 +550,11 @@ export function TawashihAndAdhanReminderSection({ times, cityNameFa, onToast }: 
                 color: currentPrayerCfg.before.enabled ? '#FBBF24' : 'rgba(255,255,255,0.4)',
               }}
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-                <path d="M6 8v8" />
-                <path d="M10 5v14" />
-                <path d="M14 9v6" />
-                <path d="M18 7v10" />
-              </svg>
+              <Clock size={14} />
             </div>
             <div className="w-0.5 flex-1 my-1" style={{ background: 'rgba(52, 211, 153, 0.25)' }} />
           </div>
 
-          {/* کارت قبل از اذان */}
           <div
             className="flex-1 rounded-2xl p-3 border space-y-2.5 transition-all"
             style={{
@@ -670,37 +564,23 @@ export function TawashihAndAdhanReminderSection({ times, cityNameFa, onToast }: 
           >
             <div className="flex items-center justify-between gap-1 flex-wrap">
               <div className="flex items-center gap-1.5">
-                <span
-                  className="px-2 py-0.5 rounded-lg text-[10px] font-black"
-                  style={{ background: 'rgba(251, 191, 36, 0.18)', color: '#FBBF24' }}
-                >
+                <span className="px-2 py-0.5 rounded-lg text-[10px] font-black" style={{ background: 'rgba(251, 191, 36, 0.18)', color: '#FBBF24' }}>
                   قبل از اذان
                 </span>
-                <div
-                  className="flex items-center gap-1 px-2 py-0.5 rounded-lg border text-[10px] font-bold"
-                  style={{ background: 'rgba(255,255,255,0.04)', borderColor: 'rgba(255,255,255,0.1)', color: '#D1FAE5' }}
+                <select
+                  aria-label="دقیقه قبل از اذان"
+                  value={currentPrayerCfg.before.minutesOffset}
+                  onChange={(e) => updateOffsetMinutes('before', Number(e.target.value))}
+                  className="bg-black/30 text-emerald-100 px-2 py-0.5 rounded-lg border text-[10px] font-bold outline-none cursor-pointer border-white/10"
                 >
-                  <Clock size={11} className=" opacity-75" />
-                  <select
-                    aria-label="دقیقه قبل از اذان"
-                    value={currentPrayerCfg.before.minutesOffset}
-                    onChange={(e) => updateOffsetMinutes('before', Number(e.target.value))}
-                    className="bg-transparent text-[10px] font-bold outline-none cursor-pointer"
-                  >
-                    {OFFSET_OPTIONS.map((m) => (
-                      <option key={m} value={m} className="bg-slate-900 text-white">
-                        {formatOffsetLabelFa(m, 'قبل')}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                  {OFFSET_OPTIONS.map((m) => (
+                    <option key={m} value={m} className="bg-slate-900 text-white">{formatOffsetLabelFa(m, 'قبل')}</option>
+                  ))}
+                </select>
               </div>
 
               <div className="flex items-center gap-2">
-                <strong className="text-xs font-black tracking-wider text-white">
-                  {toFaDigits(beforeClock)}
-                </strong>
-                {/* سوییچ طلایی */}
+                <strong className="text-xs font-black tracking-wider text-white">{toFaDigits(beforeClock)}</strong>
                 <button
                   type="button"
                   role="switch"
@@ -729,22 +609,15 @@ export function TawashihAndAdhanReminderSection({ times, cityNameFa, onToast }: 
                 }}
               >
                 <div className="flex items-center gap-2 min-w-0">
-                  <div
-                    className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-                    style={{ background: 'rgba(251, 191, 36, 0.2)', color: '#FBBF24' }}
-                  >
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(251, 191, 36, 0.2)', color: '#FBBF24' }}>
                     {playingTrackId === selectedBeforeTrack.id ? <Square size={12} /> : <Volume2 size={14} />}
                   </div>
                   <div className="min-w-0">
                     <div className="text-xs font-black text-white truncate">
-                      {currentPrayerCfg.before.mode === 'notification_only'
-                        ? 'فقط اعلان (بدون صدا)'
-                        : selectedBeforeTrack.titleFa}
+                      {currentPrayerCfg.before.mode === 'notification_only' ? 'فقط اعلان (بدون صدا)' : selectedBeforeTrack.titleFa}
                     </div>
                     <div className="text-[10px] text-emerald-100/60 truncate">
-                      {currentPrayerCfg.before.mode === 'notification_only'
-                        ? 'نوتیفیکیشن بی‌صدا'
-                        : `${selectedBeforeTrack.subtitleFa} · ${selectedBeforeTrack.durationFa} (سرعت ${toFaDigits(currentPrayerCfg.before.speed || 1)}x)`}
+                      {currentPrayerCfg.before.mode === 'notification_only' ? 'نوتیفیکیشن بی‌صدا' : `${selectedBeforeTrack.subtitleFa} · ${selectedBeforeTrack.durationFa}`}
                     </div>
                   </div>
                 </div>
@@ -752,14 +625,9 @@ export function TawashihAndAdhanReminderSection({ times, cityNameFa, onToast }: 
 
               <button
                 type="button"
-                onClick={() =>
-                  editingSlot === 'before' ? setEditingSlot(null) : openEditorForSlot('before')
-                }
+                onClick={() => editingSlot === 'before' ? setEditingSlot(null) : openEditorForSlot('before')}
                 className="px-2.5 py-1.5 rounded-xl text-[11px] font-black transition-colors shrink-0"
-                style={{
-                  color: editingSlot === 'before' ? '#FBBF24' : 'rgba(236, 253, 245, 0.7)',
-                  background: editingSlot === 'before' ? 'rgba(251, 191, 36, 0.15)' : 'transparent',
-                }}
+                style={{ color: editingSlot === 'before' ? '#FBBF24' : 'rgba(236, 253, 245, 0.7)' }}
               >
                 تغییر ‹
               </button>
@@ -767,18 +635,14 @@ export function TawashihAndAdhanReminderSection({ times, cityNameFa, onToast }: 
           </div>
         </div>
 
-        {/* ردیف دوم: اذان اصلی در مرکز تایم‌لاین */}
+        {/* اذان اصلی */}
         <div className="flex items-center gap-2.5">
           <div className="flex flex-col items-center shrink-0">
             <div
               className="w-8 h-8 rounded-full flex items-center justify-center shadow-lg"
-              style={{
-                background: 'linear-gradient(135deg, #34D399 0%, #10B981 100%)',
-                color: '#041511',
-                boxShadow: '0 0 14px rgba(52, 211, 153, 0.45)',
-              }}
+              style={{ background: 'linear-gradient(135deg, #34D399 0%, #10B981 100%)', color: '#041511' }}
             >
-              <Bell size={15} strokeWidth={2.5} />
+              <Bell size={15} />
             </div>
           </div>
 
@@ -795,19 +659,11 @@ export function TawashihAndAdhanReminderSection({ times, cityNameFa, onToast }: 
             </div>
 
             <div className="flex items-center gap-2">
-              <strong className="text-sm font-black tracking-wider" style={{ color: '#38BDF8' }}>
-                {toFaDigits(rawPrayerTime)}
-              </strong>
+              <strong className="text-sm font-black tracking-wider text-sky-400">{toFaDigits(rawPrayerTime)}</strong>
               <button
                 type="button"
                 onClick={togglePlayMainAdhan}
-                title="پخش پیش‌نمایش اذان"
-                className="w-7 h-7 rounded-full border flex items-center justify-center transition-transform active:scale-90"
-                style={{
-                  background: 'rgba(255,255,255,0.06)',
-                  borderColor: 'rgba(255,255,255,0.18)',
-                  color: '#ECFDF5',
-                }}
+                className="w-7 h-7 rounded-full border flex items-center justify-center bg-white/5 border-white/20 text-white"
               >
                 {playingTrackId === 'main_adhan_preview' ? <Square size={11} /> : <Volume2 size={13} />}
               </button>
@@ -815,7 +671,7 @@ export function TawashihAndAdhanReminderSection({ times, cityNameFa, onToast }: 
           </div>
         </div>
 
-        {/* ردیف سوم: بعد از اذان */}
+        {/* بعد از اذان */}
         <div className="flex items-stretch gap-2.5">
           <div className="flex flex-col items-center pt-1 shrink-0">
             <div className="w-0.5 h-2 mb-1" style={{ background: 'rgba(52, 211, 153, 0.25)' }} />
@@ -827,16 +683,10 @@ export function TawashihAndAdhanReminderSection({ times, cityNameFa, onToast }: 
                 color: currentPrayerCfg.after.enabled ? '#34D399' : 'rgba(255,255,255,0.4)',
               }}
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-                <path d="M6 8v8" />
-                <path d="M10 5v14" />
-                <path d="M14 9v6" />
-                <path d="M18 7v10" />
-              </svg>
+              <Clock size={14} />
             </div>
           </div>
 
-          {/* کارت بعد از اذان */}
           <div
             className="flex-1 rounded-2xl p-3 border space-y-2.5 transition-all"
             style={{
@@ -846,37 +696,23 @@ export function TawashihAndAdhanReminderSection({ times, cityNameFa, onToast }: 
           >
             <div className="flex items-center justify-between gap-1 flex-wrap">
               <div className="flex items-center gap-1.5">
-                <span
-                  className="px-2 py-0.5 rounded-lg text-[10px] font-black"
-                  style={{ background: 'rgba(52, 211, 153, 0.18)', color: '#34D399' }}
-                >
+                <span className="px-2 py-0.5 rounded-lg text-[10px] font-black" style={{ background: 'rgba(52, 211, 153, 0.18)', color: '#34D399' }}>
                   بعد از اذان
                 </span>
-                <div
-                  className="flex items-center gap-1 px-2 py-0.5 rounded-lg border text-[10px] font-bold"
-                  style={{ background: 'rgba(255,255,255,0.04)', borderColor: 'rgba(255,255,255,0.1)', color: '#D1FAE5' }}
+                <select
+                  aria-label="دقیقه بعد از اذان"
+                  value={currentPrayerCfg.after.minutesOffset}
+                  onChange={(e) => updateOffsetMinutes('after', Number(e.target.value))}
+                  className="bg-black/30 text-emerald-100 px-2 py-0.5 rounded-lg border text-[10px] font-bold outline-none cursor-pointer border-white/10"
                 >
-                  <Clock size={11} className="opacity-75" />
-                  <select
-                    aria-label="دقیقه بعد از اذان"
-                    value={currentPrayerCfg.after.minutesOffset}
-                    onChange={(e) => updateOffsetMinutes('after', Number(e.target.value))}
-                    className="bg-transparent text-[10px] font-bold outline-none cursor-pointer"
-                  >
-                    {OFFSET_OPTIONS.map((m) => (
-                      <option key={m} value={m} className="bg-slate-900 text-white">
-                        {formatOffsetLabelFa(m, 'بعد')}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                  {OFFSET_OPTIONS.map((m) => (
+                    <option key={m} value={m} className="bg-slate-900 text-white">{formatOffsetLabelFa(m, 'بعد')}</option>
+                  ))}
+                </select>
               </div>
 
               <div className="flex items-center gap-2">
-                <strong className="text-xs font-black tracking-wider text-white">
-                  {toFaDigits(afterClock)}
-                </strong>
-                {/* سوییچ سبز */}
+                <strong className="text-xs font-black tracking-wider text-white">{toFaDigits(afterClock)}</strong>
                 <button
                   type="button"
                   role="switch"
@@ -905,22 +741,15 @@ export function TawashihAndAdhanReminderSection({ times, cityNameFa, onToast }: 
                 }}
               >
                 <div className="flex items-center gap-2 min-w-0">
-                  <div
-                    className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-                    style={{ background: 'rgba(52, 211, 153, 0.2)', color: '#34D399' }}
-                  >
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(52, 211, 153, 0.2)', color: '#34D399' }}>
                     {playingTrackId === selectedAfterTrack.id ? <Square size={12} /> : <Volume2 size={14} />}
                   </div>
                   <div className="min-w-0">
                     <div className="text-xs font-black text-white truncate">
-                      {currentPrayerCfg.after.mode === 'notification_only'
-                        ? 'فقط اعلان (بدون صدا)'
-                        : selectedAfterTrack.titleFa}
+                      {currentPrayerCfg.after.mode === 'notification_only' ? 'فقط اعلان (بدون صدا)' : selectedAfterTrack.titleFa}
                     </div>
                     <div className="text-[10px] text-emerald-100/60 truncate">
-                      {currentPrayerCfg.after.mode === 'notification_only'
-                        ? 'نوتیفیکیشن بی‌صدا'
-                        : `${selectedAfterTrack.subtitleFa} · ${selectedAfterTrack.durationFa} (سرعت ${toFaDigits(currentPrayerCfg.after.speed || 1)}x)`}
+                      {currentPrayerCfg.after.mode === 'notification_only' ? 'نوتیفیکیشن بی‌صدا' : `${selectedAfterTrack.subtitleFa} · ${selectedAfterTrack.durationFa}`}
                     </div>
                   </div>
                 </div>
@@ -928,14 +757,9 @@ export function TawashihAndAdhanReminderSection({ times, cityNameFa, onToast }: 
 
               <button
                 type="button"
-                onClick={() =>
-                  editingSlot === 'after' ? setEditingSlot(null) : openEditorForSlot('after')
-                }
+                onClick={() => editingSlot === 'after' ? setEditingSlot(null) : openEditorForSlot('after')}
                 className="px-2.5 py-1.5 rounded-xl text-[11px] font-black transition-colors shrink-0"
-                style={{
-                  color: editingSlot === 'after' ? '#FBBF24' : 'rgba(236, 253, 245, 0.7)',
-                  background: editingSlot === 'after' ? 'rgba(251, 191, 36, 0.15)' : 'transparent',
-                }}
+                style={{ color: editingSlot === 'after' ? '#34D399' : 'rgba(236, 253, 245, 0.7)' }}
               >
                 تغییر ‹
               </button>
@@ -944,243 +768,171 @@ export function TawashihAndAdhanReminderSection({ times, cityNameFa, onToast }: 
         </div>
       </div>
 
-      {/* ۴. پاپ‌آپ (Modal) شیک انتخاب تواشیح / سوره و نوع اعلان در وسط صفحه */}
+      {/* مودال انتخاب */}
       {editingSlot && typeof document !== 'undefined' && createPortal(
         <div
           className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
           style={{ background: 'rgba(2, 12, 10, 0.84)', backdropFilter: 'blur(8px)' }}
-          onClick={() => {
-            stopLocalAudio();
-            setEditingSlot(null);
-          }}
+          onClick={() => { stopLocalAudio(); setEditingSlot(null); }}
         >
           <div
             className="w-full max-w-md rounded-3xl p-4 border space-y-3.5 shadow-2xl max-h-[86vh] flex flex-col"
-            style={{
-              background: 'linear-gradient(165deg, #0A2922 0%, #051612 100%)',
-              borderColor: 'rgba(251, 191, 36, 0.45)',
-            }}
+            style={{ background: 'linear-gradient(165deg, #0A2922 0%, #051612 100%)', borderColor: 'rgba(251, 191, 36, 0.45)' }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b pb-2.5" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
               <div>
                 <h4 className="text-xs font-black text-amber-300">
-                  {editingSlot === 'before'
-                    ? `تنظیم تواشیح قبل از ${currentMeta.adhanTitleFa}`
-                    : `تنظیم سوره و تعقیبات بعد از ${currentMeta.adhanTitleFa}`}
+                  {editingSlot === 'before' ? `تنظیم تواشیح قبل از ${currentMeta.adhanTitleFa}` : `تنظیم سوره و تعقیبات بعد از ${currentMeta.adhanTitleFa}`}
                 </h4>
-                <p className="text-[10px] text-emerald-100/65 mt-0.5">
-                  انتخاب نوای معنوی، سرعت پخش یا حالت فقط اعلان
-                </p>
+                <p className="text-[10px] text-emerald-100/65 mt-0.5">انتخاب نوای معنوی، سرعت پخش یا حالت فقط اعلان</p>
               </div>
               <button
                 type="button"
-                onClick={() => {
-                  stopLocalAudio();
-                  setEditingSlot(null);
-                }}
-                className="w-7 h-7 rounded-xl border flex items-center justify-center text-xs text-white/80"
-                style={{ borderColor: 'rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.05)' }}
+                onClick={() => { stopLocalAudio(); setEditingSlot(null); }}
+                className="w-7 h-7 rounded-xl border flex items-center justify-center text-xs text-white/80 border-white/20 bg-white/5"
               >
                 ✕
               </button>
             </div>
-          {/* دو کارت انتخاب حالت: پخش تواشیح (صدای کامل نوا) یا فقط اعلان (بدون صدا) */}
-          <div className="grid grid-cols-2 gap-2.5">
-            <button
-              type="button"
-              onClick={() => setDraftMode('audio')}
-              className="p-3 rounded-2xl border flex items-center justify-between transition-all text-right"
-              style={{
-                background: draftMode === 'audio' ? 'rgba(42, 39, 18, 0.75)' : 'rgba(255,255,255,0.03)',
-                borderColor: draftMode === 'audio' ? '#FBBF24' : 'rgba(255,255,255,0.1)',
-              }}
-            >
-              <div>
-                <div className="text-xs font-black" style={{ color: draftMode === 'audio' ? '#FBBF24' : '#FFFFFF' }}>
-                  پخش تواشیح
-                </div>
-                <div className="text-[10px] opacity-65 text-white mt-0.5">صدای کامل نوا</div>
-              </div>
-              <div
-                className="w-8 h-8 rounded-xl flex items-center justify-center"
+
+            <div className="grid grid-cols-2 gap-2.5">
+              <button
+                type="button"
+                onClick={() => setDraftMode('audio')}
+                className="p-3 rounded-2xl border flex items-center justify-between transition-all text-right"
                 style={{
-                  background: draftMode === 'audio' ? 'rgba(251, 191, 36, 0.2)' : 'rgba(255,255,255,0.06)',
-                  color: draftMode === 'audio' ? '#FBBF24' : '#9CA3AF',
+                  background: draftMode === 'audio' ? 'rgba(42, 39, 18, 0.75)' : 'rgba(255,255,255,0.03)',
+                  borderColor: draftMode === 'audio' ? '#FBBF24' : 'rgba(255,255,255,0.1)',
                 }}
               >
-                <Volume2 size={16} />
-              </div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                stopLocalAudio();
-                setDraftMode('notification_only');
-              }}
-              className="p-3 rounded-2xl border flex items-center justify-between transition-all text-right"
-              style={{
-                background: draftMode === 'notification_only' ? 'rgba(42, 39, 18, 0.75)' : 'rgba(255,255,255,0.03)',
-                borderColor: draftMode === 'notification_only' ? '#FBBF24' : 'rgba(255,255,255,0.1)',
-              }}
-            >
-              <div>
-                <div className="text-xs font-black" style={{ color: draftMode === 'notification_only' ? '#FBBF24' : '#FFFFFF' }}>
-                  فقط اعلان
+                <div>
+                  <div className="text-xs font-black" style={{ color: draftMode === 'audio' ? '#FBBF24' : '#FFFFFF' }}>پخش تواشیح</div>
+                  <div className="text-[10px] opacity-65 text-white mt-0.5">صدای کامل نوا</div>
                 </div>
-                <div className="text-[10px] opacity-65 text-white mt-0.5">بدون صدا</div>
-              </div>
-              <div
-                className="w-8 h-8 rounded-xl flex items-center justify-center"
+                <Volume2 size={16} className={draftMode === 'audio' ? 'text-amber-300' : 'text-gray-400'} />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { stopLocalAudio(); setDraftMode('notification_only'); }}
+                className="p-3 rounded-2xl border flex items-center justify-between transition-all text-right"
                 style={{
-                  background: draftMode === 'notification_only' ? 'rgba(251, 191, 36, 0.2)' : 'rgba(255,255,255,0.06)',
-                  color: draftMode === 'notification_only' ? '#FBBF24' : '#9CA3AF',
+                  background: draftMode === 'notification_only' ? 'rgba(42, 39, 18, 0.75)' : 'rgba(255,255,255,0.03)',
+                  borderColor: draftMode === 'notification_only' ? '#FBBF24' : 'rgba(255,255,255,0.1)',
                 }}
               >
-                <Bell size={16} />
-              </div>
-            </button>
-          </div>
-
-          {draftMode === 'audio' && (
-            <>
-              <div className="flex items-center justify-between pt-1">
-                <span className="text-xs font-black text-white">
-                  {editingSlot === 'before' ? 'انتخاب تواشیح و مناجات' : 'انتخاب سوره، دعا یا تواشیح'}
-                </span>
-                {/* انتخابگر سرعت پخش */}
-                <div className="flex items-center gap-1">
-                  <span className="text-[10px] text-emerald-200/70 ml-1">سرعت:</span>
-                  {SPEED_OPTIONS.map((sp) => (
-                    <button
-                      key={sp}
-                      type="button"
-                      onClick={() => {
-                        setDraftSpeed(sp);
-                        if (audioRef.current) {
-                          audioRef.current.defaultPlaybackRate = sp;
-                          audioRef.current.playbackRate = sp;
-                        }
-                      }}
-                      className="px-2 py-0.5 rounded-lg text-[10px] font-black border"
-                      style={{
-                        background: draftSpeed === sp ? '#FBBF24' : 'rgba(255,255,255,0.05)',
-                        borderColor: draftSpeed === sp ? '#FBBF24' : 'rgba(255,255,255,0.12)',
-                        color: draftSpeed === sp ? '#041511' : '#D1FAE5',
-                      }}
-                    >
-                      {toFaDigits(sp)}x
-                    </button>
-                  ))}
+                <div>
+                  <div className="text-xs font-black" style={{ color: draftMode === 'notification_only' ? '#FBBF24' : '#FFFFFF' }}>فقط اعلان</div>
+                  <div className="text-[10px] opacity-65 text-white mt-0.5">بدون صدا</div>
                 </div>
-              </div>
+                <Bell size={16} className={draftMode === 'notification_only' ? 'text-amber-300' : 'text-gray-400'} />
+              </button>
+            </div>
 
-              {/* فهرست کارت‌های تواشیح / سوره با دکمه پخش تست و رادیوباتن طلایی */}
-              <div className="space-y-2 max-h-64 overflow-y-auto pr-0.5">
-                {editorTracks.map((tr) => {
-                  const isSelected = draftTrackId === tr.id;
-                  const isPlaying = playingTrackId === tr.id;
-                  return (
-                    <div
-                      key={tr.id}
-                      onClick={() => setDraftTrackId(tr.id)}
-                      role="button"
-                      tabIndex={0}
-                      className="rounded-2xl p-3 border flex items-center justify-between gap-3 cursor-pointer transition-all"
-                      style={{
-                        background: isSelected ? 'rgba(42, 39, 18, 0.55)' : 'rgba(13, 36, 31, 0.65)',
-                        borderColor: isSelected ? '#FBBF24' : 'rgba(255, 255, 255, 0.08)',
-                      }}
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            togglePlayTrack(tr, draftSpeed);
-                          }}
-                          aria-label={`پخش ${tr.titleFa}`}
-                          className="w-8 h-8 rounded-full border flex items-center justify-center shrink-0 transition-transform active:scale-90"
-                          style={{
-                            background: isPlaying ? '#FBBF24' : 'rgba(255,255,255,0.06)',
-                            borderColor: isPlaying ? '#FBBF24' : 'rgba(255,255,255,0.16)',
-                            color: isPlaying ? '#041511' : '#D1FAE5',
-                          }}
-                        >
-                          {isPlaying ? <Square size={12} /> : <Volume2 size={14} />}
-                        </button>
-                        <div className="min-w-0 text-right">
-                          <div className="text-xs font-black text-white truncate">{tr.titleFa}</div>
-                          <div className="text-[10px] text-emerald-100/60 truncate mt-0.5">
-                            {tr.subtitleFa} · {tr.durationFa}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* دایره چک‌مارک طلایی در سمت چپ مطابق طرح */}
-                      <div
-                        className="w-5 h-5 rounded-full border flex items-center justify-center shrink-0"
+            {draftMode === 'audio' && (
+              <>
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-xs font-black text-white">انتخاب نوا یا سوره مبارکه</span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] text-emerald-200/70 ml-1">سرعت:</span>
+                    {SPEED_OPTIONS.map((sp) => (
+                      <button
+                        key={sp}
+                        type="button"
+                        onClick={() => {
+                          setDraftSpeed(sp);
+                          if (audioRef.current) { audioRef.current.playbackRate = sp; }
+                        }}
+                        className="px-2 py-0.5 rounded-lg text-[10px] font-black border"
                         style={{
-                          background: isSelected ? '#FBBF24' : 'transparent',
-                          borderColor: isSelected ? '#FBBF24' : 'rgba(255,255,255,0.25)',
-                          color: '#041511',
+                          background: draftSpeed === sp ? '#FBBF24' : 'rgba(255,255,255,0.05)',
+                          borderColor: draftSpeed === sp ? '#FBBF24' : 'rgba(255,255,255,0.12)',
+                          color: draftSpeed === sp ? '#041511' : '#D1FAE5',
                         }}
                       >
-                        {isSelected && <Check size={12} strokeWidth={3} />}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </>
-          )}
+                        {toFaDigits(sp)}x
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-          {/* دکمه‌های پایین کشو: ذخیره و فعال‌سازی (زرد بزرگ) + خاموش کن */}
-          <div className="flex items-center gap-2.5 pt-1">
-            <button
-              type="button"
-              onClick={handleSaveEditor}
-              className="flex-1 py-3 rounded-2xl font-black text-xs shadow-lg transition-transform active:scale-95"
-              style={{
-                background: 'linear-gradient(135deg, #FBBF24 0%, #D97706 100%)',
-                color: '#041511',
-              }}
-            >
-              ذخیره و فعال‌سازی
-            </button>
-            <button
-              type="button"
-              onClick={handleTurnOffSlot}
-              className="px-4 py-3 rounded-2xl font-black text-xs border transition-transform active:scale-95"
-              style={{
-                background: 'rgba(255,255,255,0.04)',
-                borderColor: 'rgba(255,255,255,0.14)',
-                color: '#E5E7EB',
-              }}
-            >
-              خاموش کن
-            </button>
-          </div>
+                <div className="space-y-2 max-h-64 overflow-y-auto pr-0.5">
+                  {editorTracks.map((tr) => {
+                    const isSelected = draftTrackId === tr.id;
+                    const isPlaying = playingTrackId === tr.id;
+                    return (
+                      <div
+                        key={tr.id}
+                        onClick={() => setDraftTrackId(tr.id)}
+                        role="button"
+                        tabIndex={0}
+                        className="rounded-2xl p-3 border flex items-center justify-between gap-3 cursor-pointer transition-all"
+                        style={{
+                          background: isSelected ? 'rgba(42, 39, 18, 0.55)' : 'rgba(13, 36, 31, 0.65)',
+                          borderColor: isSelected ? '#FBBF24' : 'rgba(255, 255, 255, 0.08)',
+                        }}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); togglePlayTrack(tr, draftSpeed); }}
+                            className="w-8 h-8 rounded-full border flex items-center justify-center shrink-0"
+                            style={{
+                              background: isPlaying ? '#FBBF24' : 'rgba(255,255,255,0.06)',
+                              borderColor: isPlaying ? '#FBBF24' : 'rgba(255,255,255,0.16)',
+                              color: isPlaying ? '#041511' : '#D1FAE5',
+                            }}
+                          >
+                            {isPlaying ? <Square size={12} /> : <Volume2 size={14} />}
+                          </button>
+                          <div className="min-w-0 text-right">
+                            <div className="text-xs font-black text-white truncate">{tr.titleFa}</div>
+                            <div className="text-[10px] text-emerald-100/60 truncate mt-0.5">{tr.subtitleFa} · {tr.durationFa}</div>
+                          </div>
+                        </div>
+
+                        <div className="w-5 h-5 rounded-full border flex items-center justify-center shrink-0" style={{ background: isSelected ? '#FBBF24' : 'transparent', borderColor: isSelected ? '#FBBF24' : 'rgba(255,255,255,0.25)' }}>
+                          {isSelected && <Check size={12} strokeWidth={3} className="text-black" />}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+
+            <div className="flex items-center gap-2.5 pt-1">
+              <button
+                type="button"
+                onClick={handleSaveEditor}
+                className="flex-1 py-3 rounded-2xl font-black text-xs shadow-lg"
+                style={{ background: 'linear-gradient(135deg, #FBBF24 0%, #D97706 100%)', color: '#041511' }}
+              >
+                ذخیره و فعال‌سازی
+              </button>
+              <button
+                type="button"
+                onClick={handleTurnOffSlot}
+                className="px-4 py-3 rounded-2xl font-black text-xs border text-gray-200 bg-white/5 border-white/20"
+              >
+                خاموش کن
+              </button>
+            </div>
           </div>
         </div>,
         document.body
       )}
 
-      {/* ۵. دکمه «اعمال همین تنظیم برای همه نمازها» در پایین سکشن */}
       <button
         type="button"
         onClick={applyCurrentToAllPrayers}
         className="w-full py-2.5 rounded-2xl border text-[11px] font-black flex items-center justify-center gap-2 transition-transform active:scale-[0.99]"
-        style={{
-          background: 'rgba(255, 255, 255, 0.03)',
-          borderColor: 'rgba(255, 255, 255, 0.08)',
-          color: 'rgba(236, 253, 245, 0.78)',
-        }}
+        style={{ background: 'rgba(255, 255, 255, 0.03)', borderColor: 'rgba(255, 255, 255, 0.08)', color: 'rgba(236, 253, 245, 0.78)' }}
       >
         <Copy size={13} />
         <span>اعمال همین تنظیم برای همه نمازها</span>
       </button>
     </div>
   );
-}
+};
