@@ -473,32 +473,23 @@ const PHOTO_URLS: Record<string, string> = {
 };
 
 export function RenderHeroArtworkScene({ design }: { design: HeroArtDesign }) {
-  const remotePhoto = design.imageUrl || (typeof PHOTO_URLS !== 'undefined' ? PHOTO_URLS[design.id] : '') || '';
-  const [loadedPhotoUrl, setLoadedPhotoUrl] = useState<string | null>(null);
+  const remoteUrl = design.imageUrl || (typeof PHOTO_URLS !== 'undefined' ? PHOTO_URLS[design.id] : '') || '/hero-default.jpg';
+  const [imgSrc, setImgSrc] = useState<string>(() => {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      return '/hero-default.jpg';
+    }
+    return remoteUrl || '/hero-default.jpg';
+  });
+  const [imgFailed, setImgFailed] = useState(false);
 
   useEffect(() => {
-    let active = true;
-    setLoadedPhotoUrl(null);
-    if (!remotePhoto || (typeof navigator !== 'undefined' && !navigator.onLine)) {
-      return;
+    setImgFailed(false);
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      setImgSrc('/hero-default.jpg');
+    } else {
+      setImgSrc(remoteUrl || '/hero-default.jpg');
     }
-    const img = new Image();
-    img.onload = () => {
-      if (active) setLoadedPhotoUrl(remotePhoto);
-    };
-    img.onerror = () => {
-      if (active) setLoadedPhotoUrl(null);
-    };
-    img.src = remotePhoto;
-    return () => {
-      active = false;
-    };
-  }, [design.id, remotePhoto]);
-
-  const isTurquoise = design.archType === 'mosque_turquoise' || design.archType === 'persian_mihrab';
-  const domeStart = isTurquoise ? '#67E8F9' : '#FEF08A';
-  const domeMid = isTurquoise ? '#06B6D4' : '#F59E0B';
-  const domeEnd = isTurquoise ? '#0E7490' : '#92400E';
+  }, [design.id, remoteUrl]);
 
   return (
     <div
@@ -507,66 +498,26 @@ export function RenderHeroArtworkScene({ design }: { design: HeroArtDesign }) {
         background: `linear-gradient(165deg, ${design.skyTop} 0%, ${design.skyMid} 52%, ${design.skyBottom} 100%)`,
       }}
     >
-      {/* منظره معماری پایه (۱۰۰٪ آفلاین و بدون هیچ آیکون تصویر شکسته در حالت پرواز!) */}
-      <svg
-        viewBox="0 0 400 185"
-        className="absolute inset-0 w-full h-full object-cover"
-        preserveAspectRatio="xMidYMid slice"
-      >
-        <defs>
-          <radialGradient id={` aura_${design.id}`} cx="50%" cy="62%" r="52%">
-            <stop offset="0%" stopColor={design.accent} stopOpacity="0.45" />
-            <stop offset="100%" stopColor={design.accent} stopOpacity="0" />
-          </radialGradient>
-          <linearGradient id={`dome_grad_${design.id}`} x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor={domeStart} />
-            <stop offset="50%" stopColor={domeMid} />
-            <stop offset="100%" stopColor={domeEnd} />
-          </linearGradient>
-        </defs>
-
-        <circle cx="200" cy="120" r="110" fill={`url(#aura_${design.id})`} />
-
-        {/* ستارگان و هلال ماه */}
-        <g fill="#FEF08A" opacity="0.75">
-          <circle cx="48" cy="34" r="1.3" />
-          <circle cx="105" cy="22" r="1.6" />
-          <circle cx="295" cy="26" r="1.5" />
-          <circle cx="350" cy="40" r="1.2" />
-        </g>
-        {design.hasMoon && (
-          <path d="M325 24 A14 14 0 1 0 342 44 A11 11 0 1 1 325 24 Z" fill="#FEF08A" opacity="0.9" />
-        )}
-
-        {/* افق گنبد و گلدسته‌های حرم مطهر */}
-        <g opacity="0.92">
-          <rect x="122" y="70" width="7" height="75" rx="2" fill="#D97706" />
-          <path d="M122 70 C122 62 129 62 129 70 Z" fill="#FEF08A" />
-          <rect x="271" y="70" width="7" height="75" rx="2" fill="#D97706" />
-          <path d="M271 70 C271 62 278 62 278 70 Z" fill="#FEF08A" />
-          <path d="M152 138 C152 84 248 84 248 138 Z" fill={`url(#dome_grad_${design.id})`} />
-          <rect x="198.5" y="70" width="3" height="16" fill="#FEF08A" />
-          <rect x="105" y="136" width="190" height="32" rx="4" fill="#06231C" stroke={design.accent} strokeWidth="0.9" strokeOpacity="0.5" />
-          <path d="M182 168 L182 146 C182 138 218 138 218 146 L218 168 Z" fill="#03120E" stroke={design.accent} strokeWidth="0.9" strokeOpacity="0.6" />
-        </g>
-      </svg>
-
-      {/* اگر اینترنت وصل باشد و عکس واقعی کامل دانلود شده باشد، به نرمی روی منظره قرار می‌گیرد (بدون تگ img شکسته!) */}
-      {loadedPhotoUrl && (
-        <div
-          className="absolute inset-0 bg-cover bg-center transition-opacity duration-500"
-          style={{
-            backgroundImage: `url("${loadedPhotoUrl}")`,
-            filter: 'brightness(0.86) contrast(1.08)',
+      {!imgFailed && (
+        <img
+          src={imgSrc}
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover object-center transition-opacity duration-500"
+          style={{ filter: 'brightness(0.84) contrast(1.08) saturate(1.12)' }}
+          onError={() => {
+            if (imgSrc !== '/hero-default.jpg') {
+              setImgSrc('/hero-default.jpg');
+            } else {
+              setImgFailed(true);
+            }
           }}
         />
       )}
 
-      {/* گرادیان محوشونده پایین برای ترکیب با کارت‌های صفحه خانه */}
       <div
         className="absolute inset-0"
         style={{
-          background: `linear-gradient(180deg, rgba(3, 16, 13, 0.45) 0%, rgba(5, 24, 19, 0.18) 52%, ${design.skyBottom} 100%)`,
+          background: `radial-gradient(circle at 50% 35%, ${design.accent}28 0%, transparent 65%), linear-gradient(180deg, rgba(3, 16, 13, 0.52) 0%, rgba(5, 24, 19, 0.22) 52%, ${design.skyBottom} 100%)`,
         }}
       />
     </div>
