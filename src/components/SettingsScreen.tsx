@@ -65,6 +65,68 @@ const FONT_OPTIONS = [
 ];
 
 
+
+function ThemeHeroSelectorCard({ theme }: { theme: { surface: string; primary: string; bg: string; border: string } }) {
+  const [showHeroGalleryModal, setShowHeroGalleryModal] = useState(false);
+  const [heroCfg, setHeroCfg] = useState(() => loadHeroConfig());
+  const currentHeroDesign = resolveActiveHeroDesign('مشهد', 'fajr');
+
+  return (
+    <>
+      {showHeroGalleryModal && (
+        <Hero30SelectorModal
+          cityName="مشهد"
+          onClose={() => setShowHeroGalleryModal(false)}
+          onSelectConfig={(next) => setHeroCfg(next)}
+        />
+      )}
+
+      <div
+        className="rounded-3xl p-4 border shadow-xl space-y-3 mb-4"
+        style={{ background: theme.surface, borderColor: theme.primary }}
+      >
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <h3 className="text-sm font-black text-app">
+              🕌 منظره و عکس بالای صفحه خانه (Hero)
+            </h3>
+            <p className="text-[11px] text-muted mt-0.5">
+              انتخاب از بین ۲۰ منظره حرم‌های مطهر، اوقات نماز، رمضان و محرم
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowHeroGalleryModal(true)}
+            className="px-3.5 py-2 rounded-2xl text-xs font-black shadow-md transition-transform active:scale-95 shrink-0"
+            style={{ background: theme.primary, color: theme.bg }}
+          >
+            🖼️ تغییر منظره ({heroCfg.mode === 'manual' ? 'دستی' : 'هوشمند'})
+          </button>
+        </div>
+
+        <div
+          onClick={() => setShowHeroGalleryModal(true)}
+          role="button"
+          tabIndex={0}
+          className="rounded-2xl overflow-hidden border relative h-28 cursor-pointer"
+          style={{ borderColor: theme.border }}
+        >
+          <RenderHeroArtworkScene design={currentHeroDesign} />
+          <div
+            className="absolute inset-x-0 bottom-0 px-3 py-1.5 flex items-center justify-between text-[11px] font-black"
+            style={{ background: 'rgba(2, 12, 9, 0.84)', color: '#FEF08A' }}
+          >
+            <span className="truncate">{currentHeroDesign.titleFa}</span>
+            <span className="text-[10px] text-emerald-300 shrink-0 mr-2">مشاهده و انتخاب از بین ۲۰ منظره ←</span>
+          </div>
+        </div>
+      </div>
+
+      <p className="text-xs font-bold text-muted mb-2.5 px-1">🎨 انتخاب رنگ‌بندی و پوسته برنامه</p>
+    </>
+  );
+}
+
 function ContactYasinModal({ onClose }: { onClose: () => void }) {
   const [senderName, setSenderName] = useState('');
   const [subject, setSubject] = useState('پیشنهاد یا گزارش درباره اپلیکیشن همراه معنوی نور');
@@ -770,6 +832,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
     return (
       <div className="w-full max-w-xl mx-auto px-3.5 pt-4 pb-28 animate-fade-in" dir="rtl">
         <SubHeader title="پوسته و رنگ‌بندی برنامه" />
+          <ThemeHeroSelectorCard theme={theme} />
         <div className="grid grid-cols-2 gap-3">
           {themes.map((t) => (
             <button
@@ -1342,15 +1405,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
           )}
         </div>
 
-        <RowItem
-          icon={Shield}
-          title="گزارش فنی آلارم‌ها"
-          value="بررسی وضعیت"
-          onClick={() => {
-            setLogs(getDiagnosticLogs());
-            setSection('logs');
-          }}
-        />
+        
       </div>
 
         {/* دسته‌بندی ویژه: ارتباط با سازنده و پشتیبانی مستقیم */}
@@ -1391,92 +1446,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
         </div>
 
         {/* مودال اختصاصی ارسال پیام به ایمیل سازنده (ycnakbari@gmail.com) */}
-        {showContactDeveloperModal && (
-          <div
-            className="fixed inset-0 z-[999] flex items-center justify-center p-4"
-            style={{ background: 'rgba(2, 12, 9, 0.88)', backdropFilter: 'blur(8px)' }}
-            onClick={() => setShowContactDeveloperModal(false)}
-          >
-            <div
-              className="w-full max-w-md rounded-3xl p-5 border space-y-3.5 shadow-2xl"
-              style={{ background: theme.surface, borderColor: theme.primary }}
-              onClick={(e) => e.stopPropagation()}
-              dir="rtl"
-            >
-              <div className="flex items-center justify-between border-b pb-2.5" style={{ borderColor: theme.border }}>
-                <div>
-                  <h3 className="text-sm font-black text-white">✉️ ارسال پیام به سازنده «نور»</h3>
-                  <p className="text-[11px] text-emerald-200/85 mt-0.5">طراح و توسعه‌دهنده: یاسین اکبری</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowContactDeveloperModal(false)}
-                  className="px-2.5 py-1 rounded-xl text-xs bg-white/10 text-white"
-                >
-                  بستن ✕
-                </button>
-              </div>
-
-              {/* کادر نمایش و کپی سریع آدرس ایمیل */}
-              <div
-                className="p-3 rounded-2xl border flex items-center justify-between gap-2"
-                style={{ background: theme.bg, borderColor: theme.border }}
-              >
-                <div className="text-right">
-                  <span className="text-[10px] text-muted block">پست الکترونیک رسمی سازنده:</span>
-                  <strong className="text-xs font-black text-amber-300 select-all" dir="ltr">
-                    ycnakbari@gmail.com
-                  </strong>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    try {
-                      navigator.clipboard.writeText('ycnakbari@gmail.com');
-                      setCopiedEmailToast(true);
-                      setTimeout(() => setCopiedEmailToast(false), 2500);
-                    } catch {}
-                  }}
-                  className="px-3 py-1.5 rounded-xl text-[11px] font-black border transition-transform active:scale-95"
-                  style={{ borderColor: theme.primary, color: theme.primary, background: theme.primaryGlow }}
-                >
-                  {copiedEmailToast ? '✓ کپی شد' : 'کپی ایمیل'}
-                </button>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[11px] font-bold text-slate-200 block">موضوع پیام:</label>
-                <input
-                  type="text"
-                  value={contactSubject}
-                  onChange={(e) => setContactSubject(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-2xl border text-xs bg-black/25 text-white outline-none"
-                  style={{ borderColor: theme.border }}
-                />
-
-                <label className="text-[11px] font-bold text-slate-200 block pt-1">متن پیام، پیشنهاد یا گزارش شما:</label>
-                <textarea
-                  rows={4}
-                  value={contactBody}
-                  onChange={(e) => setContactBody(e.target.value)}
-                  placeholder="سلام؛ نظر، پیشنهاد یا مشکل فنی خود را اینجا بنویسید تا مستقیماً به ایمیل سازنده ارسال شود..."
-                  className="w-full px-3.5 py-2.5 rounded-2xl border text-xs bg-black/25 text-white outline-none resize-none leading-relaxed"
-                  style={{ borderColor: theme.border }}
-                />
-              </div>
-
-              <div className="grid grid-cols-1 gap-2 pt-1">
-                <a
-                  href={`mailto:ycnakbari@gmail.com?subject=${encodeURIComponent(contactSubject)}&body=${encodeURIComponent(contactBody || 'سلام، با تشکر از برنامه همراه معنوی نور:')}`}
-                  className="w-full py-3 rounded-2xl text-xs font-black text-center block shadow-lg transition-transform active:scale-95"
-                  style={{ background: theme.primary, color: theme.bg }}
-                >
-                  🚀 ارسال مستقیم با برنامه ایمیل (Gmail)
-                </a>
-              </div>
-            </div>
-          </div>
-        )}
+        {showContactDeveloperModal && <ContactYasinModal onClose={() => setShowContactDeveloperModal(false)} />}
 
 
       {user ? (
