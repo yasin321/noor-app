@@ -476,11 +476,15 @@ const PHOTO_URLS: Record<string, string> = {
 function getOfflineIranSafeImage(designId: string | number): string {
   const s = String(designId).toLowerCase();
   const n = parseInt(s.replace(/\D/g, ''), 10) || 0;
+  if (n === 6 || s.includes('qom') || s.includes('masoumeh')) return '/shrines/qom.jpg';
+  if (n === 5 || s.includes('madinah') || s.includes('nabawi')) return '/shrines/madinah.jpg';
+  if (n === 19 || s.includes('lotfollah') || s.includes('isfahan')) return '/shrines/isfahan.jpg';
+  if (n === 20 || s.includes('nasir') || s.includes('shiraz')) return '/shrines/shiraz.jpg';
   if (s.includes('karbala') || s.includes('hossein') || s.includes('muharram') || [2, 15, 16, 17].includes(n)) return '/shrines/karbala.jpg';
   if (s.includes('najaf') || s.includes('ali') || s.includes('ghadir') || [3, 14].includes(n)) return '/shrines/najaf.jpg';
-  if (s.includes('makkah') || s.includes('kaaba') || s.includes('madinah') || s.includes('nabawi') || [4, 5].includes(n)) return '/shrines/makkah.jpg';
-  if (s.includes('fajr') || s.includes('sahar') || s.includes('friday') || [7, 8, 11].includes(n)) return '/shrines/fajr.jpg';
-  if (s.includes('qadr') || s.includes('ramadan') || s.includes('isfahan') || s.includes('shiraz') || [12, 13, 19, 20].includes(n)) return '/shrines/qadr.jpg';
+  if (s.includes('makkah') || s.includes('kaaba') || [4].includes(n)) return '/shrines/makkah.jpg';
+  if (s.includes('fajr') || s.includes('sahar') || s.includes('friday') || [7, 8, 9, 10, 11].includes(n)) return '/shrines/fajr.jpg';
+  if (s.includes('qadr') || s.includes('ramadan') || [12, 13].includes(n)) return '/shrines/qadr.jpg';
   return '/shrines/mashhad.jpg';
 }
 
@@ -650,7 +654,7 @@ export function Hero30SelectorModal({
         </div>
 
         {/* شبکه کارت‌های پیش‌نمایش زنده (بدون هیچ عکس شکسته!) + نمایش توضیح کاربرد مذهبی هر طرح */}
-        <div className="grid grid-cols-2 gap-2.5 overflow-y-auto py-2 pr-0.5 flex-1">
+        <div className="grid grid-cols-2 auto-rows-max gap-2.5 overflow-y-auto py-2 pr-0.5 flex-1">
           {filteredDesigns.map((d) => {
             const isSelected = cfg.selectedId === d.id && cfg.mode === 'manual';
             return (
@@ -679,7 +683,7 @@ export function Hero30SelectorModal({
                 </div>
 
                 {/* مشخصات و راهنمای مناسبت هر طرح */}
-                <div className="p-2.5 space-y-1 flex-1 flex flex-col justify-between">
+                <div className="p-2.5 space-y-1 flex-1 flex flex-col justify-between h-[184px] min-h-[184px] shrink-0">
                   <div>
                     <div className="text-[11px] font-black text-white leading-snug line-clamp-1">
                       {d.titleFa}

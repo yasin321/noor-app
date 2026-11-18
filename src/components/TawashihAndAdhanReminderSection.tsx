@@ -2,8 +2,11 @@ import { createPortal } from 'react-dom';
 import { useState, useEffect, useRef } from 'react';
 import { Bell, Volume2, Square, Clock, Check, Copy } from 'lucide-react';
 import { Capacitor, registerPlugin } from '@capacitor/core';
+import { LocalNotifications } from '@capacitor/local-notifications';
 import { adhans, playAdhanPreview, stopAdhanPreview } from '@/lib/adhans';
 import { setAlarmPlaybackSpeed } from '@/lib/reminderService';
+import { calculatePrayerTimes } from '@/lib/prayerTimes';
+import { CITIES } from '@/lib/cities';
 
 interface NativeAlarmBridge {
   scheduleNativeAlarm(opts: {
@@ -160,6 +163,15 @@ const DEFAULT_CONFIG: AllPrayersTawashihMap = {
   },
 };
 
+function normalizeTrackId(id: string, isAfter: boolean): string {
+  if (!id) return isAfter ? 'surah_waqiah' : 'rabbana_shajarian';
+  if (id === 'rabbanaghfir' || id === 'rabbana') return 'rabbana_shajarian';
+  if (id === 'nadali') return 'nadali_alifani';
+  const list = isAfter ? POST_ADHAN_TRACKS : PRE_ADHAN_TRACKS;
+  if (list.some((t) => t.id === id)) return id;
+  return list[0].id;
+}
+
 export function loadTawashihConfig(): AllPrayersTawashihMap {
   return loadSavedTawashihConfig();
 }
@@ -169,7 +181,15 @@ function loadSavedTawashihConfig(): AllPrayersTawashihMap {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (parsed && typeof parsed === 'object') return parsed;
+      if (parsed && typeof parsed === 'object') {
+        const keys: PrayerTabKey[] = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'];
+        for (const k of keys) {
+          if (!parsed[k]) parsed[k] = DEFAULT_CONFIG[k];
+          parsed[k].before.trackId = normalizeTrackId(parsed[k].before?.trackId, false);
+          parsed[k].after.trackId = normalizeTrackId(parsed[k].after?.trackId, true);
+        }
+        return parsed;
+      }
     }
   } catch {}
   return DEFAULT_CONFIG;
@@ -189,8 +209,15 @@ const PRAYER_META: { key: PrayerTabKey; labelFa: string; adhanTitleFa: string }[
   { key: 'isha', labelFa: 'عشاء', adhanTitleFa: 'اذان عشاء' },
 ];
 
-const OFFSET_OPTIONS = [5, 10, 15, 20, 30];
+const OFFSET_OPTIONS = [1, 2, 3, 5, 10, 15, 20, 30];
 const SPEED_OPTIONS = [1.0, 1.25, 1.5, 2.0];
+
+function toEnDigits(str: string): string {
+  if (!str) return '';
+  return String(str)
+    .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 1776))
+    .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 1632));
+}
 
 function toFaDigits(n: number | string): string {
   if (n === undefined || n === null) return '';
@@ -203,14 +230,119 @@ function formatOffsetLabelFa(mins: number, suffix: string): string {
 }
 
 function addMinutesToTimeStr(timeStr: string, minutes: number): string {
-  if (!timeStr || !timeStr.includes(':')) return '12:00';
-  const [hStr, mStr] = timeStr.split(':');
-  let h = parseInt(hStr, 10) || 0;
-  let m = parseInt(mStr, 10) || 0;
+  const clean = toEnDigits(timeStr).trim();
+  if (!clean || !clean.includes(':')) return '12:00';
+  const [hStr, mStr] = clean.split(':');
+  let h = parseInt(hStr, 10);
+  let m = parseInt(mStr, 10);
+  if (isNaN(h)) h = 12;
+  if (isNaN(m)) m = 0;
   m += minutes;
   while (m < 0) { m += 60; h = (h - 1 + 24) % 24; }
   while (m >= 60) { m -= 60; h = (h + 1) % 24; }
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+function resolveEffectivePrayerTimes(passedTimes?: any): Record<string, string> {
+  if (passedTimes && passedTimes.fajr && passedTimes.dhuhr) {
+    return passedTimes;
+  }
+  try {
+    const savedCityId = localStorage.getItem('noor_guest_city') || 'mashhad';
+    const foundCity: any = CITIES.find((c: any) => c.id === savedCityId || c.name === savedCityId) || CITIES[0] || { lat: 36.2605, lng: 59.6168 };
+    return calculatePrayerTimes(new Date(), foundCity.lat, foundCity.lng) as any;
+  } catch {
+    return { fajr: '04:52', dhuhr: '11:19', asr: '14:03', maghrib: '16:40', isha: '17:32' };
+  }
+}
+
+export async function syncAllTawashihNativeAlarms(
+  nextCfg: AllPrayersTawashihMap,
+  passedTimes?: any,
+  cityNameFa: string = 'مشهد'
+): Promise<void> {
+  if (!Capacitor.isNativePlatform()) return;
+  try {
+    await LocalNotifications.requestPermissions();
+  } catch {}
+
+  const effectiveTimes = resolveEffectivePrayerTimes(passedTimes);
+  const baseIds: Record<PrayerTabKey, { before: number; after: number }> = {
+    fajr: { before: 72101, after: 72201 },
+    dhuhr: { before: 72102, after: 72202 },
+    asr: { before: 72103, after: 72203 },
+    maghrib: { before: 72104, after: 72204 },
+    isha: { before: 72105, after: 72205 },
+  };
+
+  for (const pMeta of PRAYER_META) {
+    const pKey = pMeta.key;
+    const baseTime = toEnDigits(effectiveTimes[pKey] || '04:52');
+    const pCfg = nextCfg[pKey];
+    if (!pCfg) continue;
+
+    // ۱. آلارم قبل از اذان
+    const beforeId = baseIds[pKey].before;
+    await NoorAlarm.cancelNativeAlarm({ id: beforeId }).catch(() => {});
+    if (pCfg.before.enabled) {
+      const targetClock = addMinutesToTimeStr(baseTime, -pCfg.before.minutesOffset);
+      const [hh, mm] = targetClock.split(':').map((n) => parseInt(n, 10));
+      if (!isNaN(hh) && !isNaN(mm)) {
+        const targetDate = new Date();
+        targetDate.setHours(hh, mm, 0, 0);
+        if (targetDate.getTime() <= Date.now()) {
+          targetDate.setDate(targetDate.getDate() + 1);
+        }
+        const track = PRE_ADHAN_TRACKS.find((t) => t.id === pCfg.before.trackId) || PRE_ADHAN_TRACKS[0];
+
+        await NoorAlarm.scheduleNativeAlarm({
+          id: beforeId,
+          triggerAtMillis: targetDate.getTime(),
+          title: `🌙 ${toFaDigits(pCfg.before.minutesOffset)} دقیقه تا ${pMeta.adhanTitleFa} (${cityNameFa})`,
+          body: pCfg.before.mode === 'notification_only'
+            ? `یادآور پیش از ${pMeta.adhanTitleFa}`
+            : `پخش ${track.titleFa} — ${track.subtitleFa}`,
+          soundType: pCfg.before.mode === 'notification_only' ? 'silent' : 'surah_chant',
+          adhanId: track.audioAdhanId,
+          audioUrl: track.audioFile,
+          durationSeconds: 0,
+          volumePercent: pCfg.before.mode === 'notification_only' ? 0 : 100,
+          playbackRate: pCfg.before.speed || 1.0,
+        }).catch(() => {});
+      }
+    }
+
+    // ۲. آلارم بعد از اذان
+    const afterId = baseIds[pKey].after;
+    await NoorAlarm.cancelNativeAlarm({ id: afterId }).catch(() => {});
+    if (pCfg.after.enabled) {
+      const targetClock = addMinutesToTimeStr(baseTime, pCfg.after.minutesOffset);
+      const [hh, mm] = targetClock.split(':').map((n) => parseInt(n, 10));
+      if (!isNaN(hh) && !isNaN(mm)) {
+        const targetDate = new Date();
+        targetDate.setHours(hh, mm, 0, 0);
+        if (targetDate.getTime() <= Date.now()) {
+          targetDate.setDate(targetDate.getDate() + 1);
+        }
+        const track = POST_ADHAN_TRACKS.find((t) => t.id === pCfg.after.trackId) || POST_ADHAN_TRACKS[0];
+
+        await NoorAlarm.scheduleNativeAlarm({
+          id: afterId,
+          triggerAtMillis: targetDate.getTime(),
+          title: `📖 یادآور پس از ${pMeta.adhanTitleFa} — ${track.titleFa}`,
+          body: pCfg.after.mode === 'notification_only'
+            ? `یادآور تعقیبات ${pMeta.adhanTitleFa}`
+            : `${track.subtitleFa} (سرعت ${toFaDigits(pCfg.after.speed || 1)}x)`,
+          soundType: pCfg.after.mode === 'notification_only' ? 'silent' : 'surah_chant',
+          adhanId: track.audioAdhanId,
+          audioUrl: track.audioFile,
+          durationSeconds: 0,
+          volumePercent: pCfg.after.mode === 'notification_only' ? 0 : 100,
+          playbackRate: pCfg.after.speed || 1.0,
+        }).catch(() => {});
+      }
+    }
+  }
 }
 
 export function TawashihAndAdhanReminderSection({
@@ -225,6 +357,8 @@ export function TawashihAndAdhanReminderSection({
   onToast?: (msg: string) => void;
 }) {
   const resolvedCityName = cityNameFa || cityName || 'مشهد';
+  const effectiveTimes = resolveEffectivePrayerTimes(times);
+
   const [config, setConfig] = useState<AllPrayersTawashihMap>(() => loadSavedTawashihConfig());
   const [activePrayer, setActivePrayer] = useState<PrayerTabKey>('fajr');
   const [editingSlot, setEditingSlot] = useState<'before' | 'after' | null>(null);
@@ -264,12 +398,12 @@ export function TawashihAndAdhanReminderSection({
     audio.playbackRate = validSpeed;
     audio.defaultPlaybackRate = validSpeed;
     (audio as any).preservesPitch = true;
-    audio.onloadedmetadata = () => { audio.playbackRate = validSpeed; };
-    audio.onplay = () => { audio.playbackRate = validSpeed; };
     audio.volume = 1.0;
     audioRef.current = audio;
     setPlayingTrackId(track.id);
 
+    audio.onloadedmetadata = () => { audio.playbackRate = validSpeed; };
+    audio.onplay = () => { audio.playbackRate = validSpeed; };
     audio.onended = () => { setPlayingTrackId(null); };
     audio.onerror = () => { setPlayingTrackId(null); };
     audio.play().catch(() => { setPlayingTrackId(null); });
@@ -289,93 +423,31 @@ export function TawashihAndAdhanReminderSection({
     });
   };
 
-  const syncNativeAlarms = async (nextCfg: AllPrayersTawashihMap) => {
-    if (!Capacitor.isNativePlatform() || !times) return;
-    const baseIds: Record<PrayerTabKey, { before: number; after: number }> = {
-      fajr: { before: 72101, after: 72201 },
-      dhuhr: { before: 72102, after: 72202 },
-      asr: { before: 72103, after: 72203 },
-      maghrib: { before: 72104, after: 72204 },
-      isha: { before: 72105, after: 72205 },
-    };
-
-    for (const pMeta of PRAYER_META) {
-      const pKey = pMeta.key;
-      const baseTime = (times as any)[pKey] || '04:49';
-      const pCfg = nextCfg[pKey];
-
-      const beforeId = baseIds[pKey].before;
-      if (!pCfg.before.enabled) {
-        await NoorAlarm.cancelNativeAlarm({ id: beforeId }).catch(() => {});
-      } else {
-        const targetClock = addMinutesToTimeStr(baseTime, -pCfg.before.minutesOffset);
-        const [hh, mm] = targetClock.split(':').map((n) => parseInt(n, 10));
-        if (!isNaN(hh) && !isNaN(mm)) {
-          const targetDate = new Date();
-          targetDate.setHours(hh, mm, 0, 0);
-          if (targetDate.getTime() <= Date.now()) targetDate.setDate(targetDate.getDate() + 1);
-          const track = PRE_ADHAN_TRACKS.find((t) => t.id === pCfg.before.trackId) || PRE_ADHAN_TRACKS[0];
-
-          await NoorAlarm.scheduleNativeAlarm({
-            id: beforeId,
-            triggerAtMillis: targetDate.getTime(),
-            title: `🌙 ${toFaDigits(pCfg.before.minutesOffset)} دقیقه تا ${pMeta.adhanTitleFa} (${resolvedCityName})`,
-            body: `پخش ${track.titleFa} — ${track.subtitleFa}`,
-            soundType: pCfg.before.mode === 'notification_only' ? 'silent' : 'surah_chant',
-            adhanId: track.audioAdhanId,
-            audioUrl: track.audioFile,
-            durationSeconds: 0,
-            volumePercent: pCfg.before.mode === 'notification_only' ? 0 : 100,
-            playbackRate: pCfg.before.speed || 1.0,
-          }).catch(() => {});
-        }
-      }
-
-      const afterId = baseIds[pKey].after;
-      if (!pCfg.after.enabled) {
-        await NoorAlarm.cancelNativeAlarm({ id: afterId }).catch(() => {});
-      } else {
-        const targetClock = addMinutesToTimeStr(baseTime, pCfg.after.minutesOffset);
-        const [hh, mm] = targetClock.split(':').map((n) => parseInt(n, 10));
-        if (!isNaN(hh) && !isNaN(mm)) {
-          const targetDate = new Date();
-          targetDate.setHours(hh, mm, 0, 0);
-          if (targetDate.getTime() <= Date.now()) targetDate.setDate(targetDate.getDate() + 1);
-          const track = POST_ADHAN_TRACKS.find((t) => t.id === pCfg.after.trackId) || POST_ADHAN_TRACKS[0];
-
-          await NoorAlarm.scheduleNativeAlarm({
-            id: afterId,
-            triggerAtMillis: targetDate.getTime(),
-            title: `📖 یادآور پس از ${pMeta.adhanTitleFa} — ${track.titleFa}`,
-            body: `${track.subtitleFa} (سرعت ${toFaDigits(pCfg.after.speed || 1)}x)`,
-            soundType: pCfg.after.mode === 'notification_only' ? 'silent' : 'surah_chant',
-            adhanId: track.audioAdhanId,
-            audioUrl: track.audioFile,
-            durationSeconds: 0,
-            volumePercent: pCfg.after.mode === 'notification_only' ? 0 : 100,
-            playbackRate: pCfg.after.speed || 1.0,
-          }).catch(() => {});
-        }
-      }
-    }
-  };
-
   useEffect(() => {
-    if (times && Capacitor.isNativePlatform()) {
-      void syncNativeAlarms(config);
-    }
-  }, [times?.fajr, times?.dhuhr, times?.asr, times?.maghrib, times?.isha]);
+    void syncAllTawashihNativeAlarms(config, effectiveTimes, resolvedCityName);
+  }, [effectiveTimes.fajr, effectiveTimes.dhuhr, effectiveTimes.asr, effectiveTimes.maghrib, effectiveTimes.isha, resolvedCityName]);
 
-  const updateAndSave = (nextCfg: AllPrayersTawashihMap, toastMessage?: string) => {
+  // ذخیره و زمان‌بندی فوری پشت دست کاربر در هر تغییر
+  const updateAndSaveInstantly = (nextCfg: AllPrayersTawashihMap, toastMessage?: string) => {
     setConfig(nextCfg);
     saveTawashihConfig(nextCfg);
-    void syncNativeAlarms(nextCfg);
+    try {
+      const cur = nextCfg[activePrayer];
+      const bTrack = PRE_ADHAN_TRACKS.find((t) => t.id === cur.before.trackId);
+      const aTrack = POST_ADHAN_TRACKS.find((t) => t.id === cur.after.trackId);
+      if (bTrack) localStorage.setItem('noor_pre_adhan_chant_id_v1', bTrack.audioAdhanId);
+      if (aTrack) localStorage.setItem('noor_after_adhan_reminder_track_v1', aTrack.audioAdhanId);
+    } catch {}
+    void syncAllTawashihNativeAlarms(nextCfg, effectiveTimes, resolvedCityName);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('noor-alarms-updated'));
+    }
     if (toastMessage && onToast) onToast(toastMessage);
   };
 
-  const currentPrayerCfg = config[activePrayer];
+  const currentPrayerCfg = config[activePrayer] || DEFAULT_CONFIG[activePrayer];
   const currentMeta = PRAYER_META.find((m) => m.key === activePrayer) || PRAYER_META[0];
-  const rawPrayerTime = (times && (times as any)[activePrayer]) || '04:49';
+  const rawPrayerTime = toEnDigits(effectiveTimes[activePrayer] || '04:52');
   const beforeClock = addMinutesToTimeStr(rawPrayerTime, -currentPrayerCfg.before.minutesOffset);
   const afterClock = addMinutesToTimeStr(rawPrayerTime, currentPrayerCfg.after.minutesOffset);
 
@@ -396,64 +468,65 @@ export function TawashihAndAdhanReminderSection({
     setEditingSlot(slot);
   };
 
-  const handleSaveEditor = () => {
-    if (!editingSlot) return;
-    stopLocalAudio();
-    setAlarmPlaybackSpeed(draftSpeed);
+  // هر تغییری در داخل پاپ‌آپ انجام شود، همان لحظه پشت دست کاربر ذخیره و کوک می‌شود
+  const applySlotPatchInstantly = (
+    slot: 'before' | 'after',
+    patch: Partial<SlotConfig>,
+    toastMsg?: string
+  ) => {
+    const nextSlot: SlotConfig = {
+      ...currentPrayerCfg[slot],
+      ...patch,
+    };
     const nextCfg: AllPrayersTawashihMap = {
       ...config,
       [activePrayer]: {
         ...currentPrayerCfg,
-        [editingSlot]: {
-          ...currentPrayerCfg[editingSlot],
-          enabled: true,
-          mode: draftMode,
-          trackId: draftTrackId,
-          speed: draftSpeed,
-        },
+        [slot]: nextSlot,
       },
     };
+    updateAndSaveInstantly(nextCfg, toastMsg);
+  };
+
+  const handleSaveEditor = () => {
+    if (!editingSlot) return;
+    stopLocalAudio();
+    setAlarmPlaybackSpeed(draftSpeed);
     const slotLabel = editingSlot === 'before' ? 'قبل از اذان' : 'بعد از اذان';
-    updateAndSave(nextCfg, `✅ تنظیمات slotLabel} برای ${currentMeta.adhanTitleFa} ذخیره شد`);
+    applySlotPatchInstantly(
+      editingSlot,
+      { enabled: true, mode: draftMode, trackId: draftTrackId, speed: draftSpeed },
+      `✅ تنظیمات ${slotLabel} برای ${currentMeta.adhanTitleFa} به صورت خودکار کوک شد`
+    );
     setEditingSlot(null);
   };
 
   const handleTurnOffSlot = () => {
     if (!editingSlot) return;
     stopLocalAudio();
-    const nextCfg: AllPrayersTawashihMap = {
-      ...config,
-      [activePrayer]: {
-        ...currentPrayerCfg,
-        [editingSlot]: { ...currentPrayerCfg[editingSlot], enabled: false },
-      },
-    };
-    updateAndSave(nextCfg, '🔕 این یادآور غیرفعال شد');
+    applySlotPatchInstantly(editingSlot, { enabled: false }, '🔕 این یادآور غیرفعال شد');
     setEditingSlot(null);
   };
 
   const toggleSlotDirectly = (slot: 'before' | 'after') => {
     const nextEnabled = !currentPrayerCfg[slot].enabled;
-    const nextCfg: AllPrayersTawashihMap = {
-      ...config,
-      [activePrayer]: {
-        ...currentPrayerCfg,
-        [slot]: { ...currentPrayerCfg[slot], enabled: nextEnabled },
-      },
-    };
     const label = slot === 'before' ? 'تواشیح قبل از اذان' : 'یادآور بعد از اذان';
-    updateAndSave(nextCfg, nextEnabled ? `🔔 ${label} فعال شد` : `🔕 ${label} خاموش شد`);
+    applySlotPatchInstantly(
+      slot,
+      { enabled: nextEnabled },
+      nextEnabled ? `🔔 ${label} (${currentMeta.labelFa}) خودکار کوک شد` : `🔕 ${label} (${currentMeta.labelFa}) خاموش شد`
+    );
   };
 
   const updateOffsetMinutes = (slot: 'before' | 'after', mins: number) => {
-    const nextCfg: AllPrayersTawashihMap = {
-      ...config,
-      [activePrayer]: {
-        ...currentPrayerCfg,
-        [slot]: { ...currentPrayerCfg[slot], minutesOffset: mins },
-      },
-    };
-    updateAndSave(nextCfg);
+    const targetClock = slot === 'before'
+      ? addMinutesToTimeStr(rawPrayerTime, -mins)
+      : addMinutesToTimeStr(rawPrayerTime, mins);
+    applySlotPatchInstantly(
+      slot,
+      { minutesOffset: mins, enabled: true },
+      `⏰ یادآور روی ساعت ${toFaDigits(targetClock)} خودکار کوک شد`
+    );
   };
 
   const applyCurrentToAllPrayers = () => {
@@ -465,7 +538,7 @@ export function TawashihAndAdhanReminderSection({
       maghrib: { before: { ...template.before }, after: { ...template.after } },
       isha: { before: { ...template.before }, after: { ...template.after } },
     };
-    updateAndSave(nextCfg, '✨ تنظیمات برای تمام ۵ نماز اعمال شد!');
+    updateAndSaveInstantly(nextCfg, '✨ تنظیمات برای تمام ۵ نماز به صورت خودکار کوک شد!');
   };
 
   const editorTracks = editingSlot === 'after' ? POST_ADHAN_TRACKS : PRE_ADHAN_TRACKS;
@@ -494,7 +567,7 @@ export function TawashihAndAdhanReminderSection({
           <div>
             <h3 className="text-sm font-black text-white">تواشیح و یادآور اذان</h3>
             <p className="text-[10px] text-emerald-100/60 mt-0.5">
-              ربنای شجریان، نادعلی علی فانی و نوای معنوی پیش و پس از اذان
+              ربنای شجریان، نادعلی علی فانی و سوره‌ها (ثبت و کوک خودکار)
             </p>
           </div>
         </div>
@@ -517,7 +590,7 @@ export function TawashihAndAdhanReminderSection({
       >
         {PRAYER_META.map((pm) => {
           const isSelected = activePrayer === pm.key;
-          const pState = config[pm.key];
+          const pState = config[pm.key] || DEFAULT_CONFIG[pm.key];
           return (
             <button
               key={pm.key}
@@ -623,7 +696,9 @@ export function TawashihAndAdhanReminderSection({
                       {currentPrayerCfg.before.mode === 'notification_only' ? 'فقط اعلان (بدون صدا)' : selectedBeforeTrack.titleFa}
                     </div>
                     <div className="text-[10px] text-emerald-100/60 truncate">
-                      {currentPrayerCfg.before.mode === 'notification_only' ? 'نوتیفیکیشن بی‌صدا' : `${selectedBeforeTrack.subtitleFa} · ${selectedBeforeTrack.durationFa}`}
+                      {currentPrayerCfg.before.mode === 'notification_only'
+                        ? 'نوتیفیکیشن بی‌صدا'
+                        : `${selectedBeforeTrack.subtitleFa} · سرعت ${toFaDigits(currentPrayerCfg.before.speed || 1)}x`}
                     </div>
                   </div>
                 </div>
@@ -755,7 +830,9 @@ export function TawashihAndAdhanReminderSection({
                       {currentPrayerCfg.after.mode === 'notification_only' ? 'فقط اعلان (بدون صدا)' : selectedAfterTrack.titleFa}
                     </div>
                     <div className="text-[10px] text-emerald-100/60 truncate">
-                      {currentPrayerCfg.after.mode === 'notification_only' ? 'نوتیفیکیشن بی‌صدا' : `${selectedAfterTrack.subtitleFa} · ${selectedAfterTrack.durationFa}`}
+                      {currentPrayerCfg.after.mode === 'notification_only'
+                        ? 'نوتیفیکیشن بی‌صدا'
+                        : `${selectedAfterTrack.subtitleFa} · سرعت ${toFaDigits(currentPrayerCfg.after.speed || 1)}x`}
                     </div>
                   </div>
                 </div>
@@ -774,7 +851,7 @@ export function TawashihAndAdhanReminderSection({
         </div>
       </div>
 
-      {/* مودال انتخاب */}
+      {/* مودال انتخاب با ثبت خودکار لحظه‌ای پشت دست کاربر */}
       {editingSlot && typeof document !== 'undefined' && createPortal(
         <div
           className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
@@ -791,7 +868,7 @@ export function TawashihAndAdhanReminderSection({
                 <h4 className="text-xs font-black text-amber-300">
                   {editingSlot === 'before' ? `تنظیم تواشیح قبل از ${currentMeta.adhanTitleFa}` : `تنظیم سوره و تعقیبات بعد از ${currentMeta.adhanTitleFa}`}
                 </h4>
-                <p className="text-[10px] text-emerald-100/65 mt-0.5">انتخاب نوای معنوی، سرعت پخش یا حالت فقط اعلان</p>
+                <p className="text-[10px] text-emerald-100/65 mt-0.5">هر تغییری بدهید در همان لحظه خودکار ذخیره و کوک می‌شود</p>
               </div>
               <button
                 type="button"
@@ -805,7 +882,10 @@ export function TawashihAndAdhanReminderSection({
             <div className="grid grid-cols-2 gap-2.5">
               <button
                 type="button"
-                onClick={() => setDraftMode('audio')}
+                onClick={() => {
+                  setDraftMode('audio');
+                  applySlotPatchInstantly(editingSlot, { enabled: true, mode: 'audio', trackId: draftTrackId, speed: draftSpeed });
+                }}
                 className="p-3 rounded-2xl border flex items-center justify-between transition-all text-right"
                 style={{
                   background: draftMode === 'audio' ? 'rgba(42, 39, 18, 0.75)' : 'rgba(255,255,255,0.03)',
@@ -821,7 +901,11 @@ export function TawashihAndAdhanReminderSection({
 
               <button
                 type="button"
-                onClick={() => { stopLocalAudio(); setDraftMode('notification_only'); }}
+                onClick={() => {
+                  stopLocalAudio();
+                  setDraftMode('notification_only');
+                  applySlotPatchInstantly(editingSlot, { enabled: true, mode: 'notification_only', trackId: draftTrackId, speed: draftSpeed });
+                }}
                 className="p-3 rounded-2xl border flex items-center justify-between transition-all text-right"
                 style={{
                   background: draftMode === 'notification_only' ? 'rgba(42, 39, 18, 0.75)' : 'rgba(255,255,255,0.03)',
@@ -847,8 +931,11 @@ export function TawashihAndAdhanReminderSection({
                         key={sp}
                         type="button"
                         onClick={() => {
+                          // AUTO_SAVE_ON_SPEED_CLICK
                           setDraftSpeed(sp);
+                          setAlarmPlaybackSpeed(sp);
                           if (audioRef.current) { audioRef.current.playbackRate = sp; }
+                          applySlotPatchInstantly(editingSlot, { enabled: true, mode: draftMode, trackId: draftTrackId, speed: sp });
                         }}
                         className="px-2 py-0.5 rounded-lg text-[10px] font-black border"
                         style={{
@@ -870,7 +957,11 @@ export function TawashihAndAdhanReminderSection({
                     return (
                       <div
                         key={tr.id}
-                        onClick={() => setDraftTrackId(tr.id)}
+                        onClick={() => {
+                          // AUTO_SAVE_ON_TRACK_CLICK
+                          setDraftTrackId(tr.id);
+                          applySlotPatchInstantly(editingSlot, { enabled: true, mode: draftMode, trackId: tr.id, speed: draftSpeed });
+                        }}
                         role="button"
                         tabIndex={0}
                         className="rounded-2xl p-3 border flex items-center justify-between gap-3 cursor-pointer transition-all"
@@ -882,7 +973,12 @@ export function TawashihAndAdhanReminderSection({
                         <div className="flex items-center gap-2.5 min-w-0">
                           <button
                             type="button"
-                            onClick={(e) => { e.stopPropagation(); togglePlayTrack(tr, draftSpeed); }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDraftTrackId(tr.id);
+                              applySlotPatchInstantly(editingSlot, { enabled: true, mode: draftMode, trackId: tr.id, speed: draftSpeed });
+                              togglePlayTrack(tr, draftSpeed);
+                            }}
                             className="w-8 h-8 rounded-full border flex items-center justify-center shrink-0"
                             style={{
                               background: isPlaying ? '#FBBF24' : 'rgba(255,255,255,0.06)',
@@ -915,7 +1011,7 @@ export function TawashihAndAdhanReminderSection({
                 className="flex-1 py-3 rounded-2xl font-black text-xs shadow-lg"
                 style={{ background: 'linear-gradient(135deg, #FBBF24 0%, #D97706 100%)', color: '#041511' }}
               >
-                ذخیره و فعال‌سازی
+                تأیید و بستن (کوک خودکار فعال است)
               </button>
               <button
                 type="button"
@@ -941,4 +1037,4 @@ export function TawashihAndAdhanReminderSection({
       </button>
     </div>
   );
-};
+}

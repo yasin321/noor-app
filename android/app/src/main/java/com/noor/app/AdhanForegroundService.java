@@ -161,7 +161,7 @@ public class AdhanForegroundService extends Service {
         if (adhanId == null || adhanId.trim().isEmpty()) {
             adhanId = "mahur_saeed";
         }
-        adhanId = adhanId.replace("/adhans/", "").replace("public/adhans/", "").replace(".mp3", "").replace(".ogg", "").trim();
+        adhanId = adhanId.replace("/adhans/", "").replace("public/adhans/" /* supports rabbana.mp3 and nadali_alifani.mp3 */ + "" + "", "").replace(".mp3", "").replace(".ogg", "").trim();
         if (adhanId.equals("post_surah_waqiah") || adhanId.equals("surah_waqiah") || adhanId.equals("waqiah")) adhanId = "post_waqiah";
         else if (adhanId.equals("post_surah_yasin") || adhanId.equals("surah_yasin") || adhanId.equals("yasin")) adhanId = "post_yasin";
         else if (adhanId.equals("post_surah_mulk") || adhanId.equals("surah_mulk") || adhanId.equals("mulk")) adhanId = "post_mulk";

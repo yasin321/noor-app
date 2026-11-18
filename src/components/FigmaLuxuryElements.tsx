@@ -1,4 +1,15 @@
 import { useState, useEffect } from 'react';
+  const [, setHeroLiveTick] = useState(0);
+  useEffect(() => {
+    const onHeroLiveUpdate = () => setHeroLiveTick((t) => t + 1);
+    window.addEventListener('noor-hero-config-changed', onHeroLiveUpdate);
+    window.addEventListener('storage', onHeroLiveUpdate);
+    return () => {
+      window.removeEventListener('noor-hero-config-changed', onHeroLiveUpdate);
+      window.removeEventListener('storage', onHeroLiveUpdate);
+    };
+  }, []);
+
 import { resolveActiveHeroDesign, RenderHeroArtworkScene, Hero30SelectorModal } from '@/components/HeroHorizon30Gallery';
 import { toFaDigits } from '@/lib/jalali';
 import { Calendar } from 'lucide-react';

@@ -69,6 +69,11 @@ const FONT_OPTIONS = [
 function ThemeHeroSelectorCard({ theme }: { theme: { surface: string; primary: string; bg: string; border: string } }) {
   const [showHeroGalleryModal, setShowHeroGalleryModal] = useState(false);
   const [heroCfg, setHeroCfg] = useState(() => loadHeroConfig());
+  useEffect(() => {
+    const syncHero = () => setHeroCfg(loadHeroConfig());
+    window.addEventListener('noor-hero-config-changed', syncHero);
+    return () => window.removeEventListener('noor-hero-config-changed', syncHero);
+  }, []);
   const currentHeroDesign = resolveActiveHeroDesign('مشهد', 'fajr');
 
   return (
@@ -117,7 +122,7 @@ function ThemeHeroSelectorCard({ theme }: { theme: { surface: string; primary: s
             style={{ background: 'rgba(2, 12, 9, 0.84)', color: '#FEF08A' }}
           >
             <span className="truncate">{currentHeroDesign.titleFa}</span>
-            <span className="text-[10px] text-emerald-300 shrink-0 mr-2">مشاهده و انتخاب از بین ۲۰ منظره ←</span>
+            <span className="text-[10px] text-emerald-300 shrink-0 mr-2">۲۰ منظره ←</span>
           </div>
         </div>
       </div>
