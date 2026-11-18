@@ -13,6 +13,7 @@ interface NativeAlarmBridge {
     body: string;
     soundType?: string;
     adhanId?: string;
+    audioUrl?: string;
     durationSeconds?: number;
     volumePercent?: number;
     playbackRate?: number;
@@ -262,6 +263,9 @@ export function TawashihAndAdhanReminderSection({
     const validSpeed = Number.isFinite(speedToUse) && speedToUse >= 0.5 && speedToUse <= 3.0 ? speedToUse : 1.0;
     audio.playbackRate = validSpeed;
     audio.defaultPlaybackRate = validSpeed;
+    (audio as any).preservesPitch = true;
+    audio.onloadedmetadata = () => { audio.playbackRate = validSpeed; };
+    audio.onplay = () => { audio.playbackRate = validSpeed; };
     audio.volume = 1.0;
     audioRef.current = audio;
     setPlayingTrackId(track.id);
@@ -319,6 +323,7 @@ export function TawashihAndAdhanReminderSection({
             body: `پخش ${track.titleFa} — ${track.subtitleFa}`,
             soundType: pCfg.before.mode === 'notification_only' ? 'silent' : 'surah_chant',
             adhanId: track.audioAdhanId,
+            audioUrl: track.audioFile,
             durationSeconds: 0,
             volumePercent: pCfg.before.mode === 'notification_only' ? 0 : 100,
             playbackRate: pCfg.before.speed || 1.0,
@@ -345,6 +350,7 @@ export function TawashihAndAdhanReminderSection({
             body: `${track.subtitleFa} (سرعت ${toFaDigits(pCfg.after.speed || 1)}x)`,
             soundType: pCfg.after.mode === 'notification_only' ? 'silent' : 'surah_chant',
             adhanId: track.audioAdhanId,
+            audioUrl: track.audioFile,
             durationSeconds: 0,
             volumePercent: pCfg.after.mode === 'notification_only' ? 0 : 100,
             playbackRate: pCfg.after.speed || 1.0,
