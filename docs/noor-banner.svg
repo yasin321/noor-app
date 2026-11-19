@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 320" width="1200" height="320" role="img" aria-label="Noor Spiritual Companion">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#051018"/>
+      <stop offset="50%" stop-color="#0a222d"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <radialGradient id="glowE" cx="18%" cy="50%" r="38%">
+      <stop offset="0%" stop-color="#10b981" stop-opacity="0.32"/>
+      <stop offset="100%" stop-color="#10b981" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowG" cx="86%" cy="22%" r="35%">
+      <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#f59e0b" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="lineG" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#10b981"/>
+      <stop offset="50%" stop-color="#fbbf24"/>
+      <stop offset="100%" stop-color="#38bdf8"/>
+    </linearGradient>
+    <linearGradient id="iconG" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#0ea5e9" stop-opacity="0.12"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="320" rx="22" fill="url(#bg)"/>
+  <rect width="1200" height="320" rx="22" fill="url(#glowE)"/>
+  <rect width="1200" height="320" rx="22" fill="url(#glowG)"/>
+  <rect x="1.5" y="1.5" width="1197" height="317" rx="21" fill="none" stroke="#ffffff" stroke-opacity="0.12" stroke-width="1.5"/>
+  <circle cx="940" cy="54" r="2" fill="#fde68a" opacity="0.75"/>
+  <circle cx="1010" cy="82" r="1.5" fill="#6ee7b7" opacity="0.6"/>
+  <circle cx="1085" cy="48" r="2.2" fill="#ffffff" opacity="0.5"/>
+  <circle cx="1130" cy="115" r="1.5" fill="#fde68a" opacity="0.6"/>
+  <circle cx="870" cy="95" r="1.3" fill="#93c5fd" opacity="0.5"/>
+  <path d="M 880 320 A 260 260 0 0 1 1200 120" fill="none" stroke="#10b981" stroke-opacity="0.12" stroke-width="1.5"/>
+  <path d="M 940 320 A 210 210 0 0 1 1200 165" fill="none" stroke="#fbbf24" stroke-opacity="0.14" stroke-width="1.2"/>
+  <rect x="58" y="68" width="164" height="164" rx="34" fill="url(#iconG)" stroke="#34d399" stroke-opacity="0.45" stroke-width="1.5"/>
+  <rect x="66" y="76" width="148" height="148" rx="28" fill="#06161f" fill-opacity="0.55" stroke="#ffffff" stroke-opacity="0.08"/>
+  <path d="M 152 104 A 46 46 0 1 0 184 182 A 36 36 0 1 1 152 104 Z" fill="#fbbf24"/>
+  <polygon points="164,116 168,126 179,127 170,134 173,145 164,139 155,145 158,134 149,127 160,126" fill="#34d399"/>
+  <text x="258" y="96" font-family="Segoe UI, sans-serif" font-size="13" font-weight="700" letter-spacing="2.8" fill="#34d399">OPEN-SOURCE HYBRID MOBILE ARCHITECTURE</text>
+  <text x="256" y="152" font-family="Segoe UI, sans-serif" font-size="56" font-weight="800" fill="#ffffff" letter-spacing="1.5">NOOR</text>
+  <rect x="444" y="114" width="76" height="32" rx="16" fill="#10b981" fill-opacity="0.2" stroke="#34d399" stroke-opacity="0.6"/>
+  <text x="482" y="135" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="15" font-weight="700" fill="#6ee7b7">v3.0</text>
+  <text x="258" y="188" font-family="Segoe UI, sans-serif" font-size="21" font-weight="500" fill="#cbd5e1">Offline-First Spiritual Companion &amp; Native Android 13/14 Core</text>
+  <rect x="258" y="206" width="520" height="2.5" rx="1.25" fill="url(#lineG)" opacity="0.85"/>
+  <g font-family="Segoe UI, sans-serif" font-size="13.5" font-weight="600">
+    <rect x="258" y="228" width="182" height="36" rx="18" fill="#ffffff" fill-opacity="0.06" stroke="#ffffff" stroke-opacity="0.14"/>
+    <text x="349" y="251" text-anchor="middle" fill="#e2e8f0">100% Ad-Free &amp; Offline</text>
+    <rect x="452" y="228" width="212" height="36" rx="18" fill="#10b981" fill-opacity="0.12" stroke="#34d399" stroke-opacity="0.35"/>
+    <text x="558" y="251" text-anchor="middle" fill="#a7f3d0">Android 13/14 Exact Alarms</text>
+    <rect x="676" y="228" width="212" height="36" rx="18" fill="#38bdf8" fill-opacity="0.12" stroke="#38bdf8" stroke-opacity="0.35"/>
+    <text x="782" y="251" text-anchor="middle" fill="#bae6fd">React 18 + Capacitor + Java</text>
+    <rect x="900" y="228" width="194" height="36" rx="18" fill="#f59e0b" fill-opacity="0.12" stroke="#fbbf24" stroke-opacity="0.35"/>
+    <text x="997" y="251" text-anchor="middle" fill="#fde68a">CI/CD &amp; E2E Verified</text>
+  </g>
+</svg>
