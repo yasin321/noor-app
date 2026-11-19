@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/noor-banner.svg" alt="Noor Spiritual Companion" width="100%" />
+<img src="docs/noor-banner-v3.svg" alt="Noor Spiritual Companion" width="100%" />
 
 <br />
 
