@@ -246,7 +246,7 @@ export function CalendarModal({ cityLat, cityLng, cityTimezone, cityName, onClos
         <div className="flex items-center justify-between pb-3 mb-3 border-b" style={{ borderColor: theme.border }}>
           <div className="flex items-center gap-2">
             <Calendar size={20} color={theme.primary} />
-            <h2 className="text-base font-black text-app">تقویم سه‌گانه، مناسبت‌ها و قمر در عقرب</h2>
+            <h2 className="text-base font-black text-app">تقویم و مناسبت‌ها</h2>
           </div>
           <button type="button" onClick={onClose} className="text-muted p-1">
             <X size={20} />

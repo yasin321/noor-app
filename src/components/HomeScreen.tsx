@@ -872,7 +872,7 @@ export function LegacyHomeScreenUnused({ onNavigate }: { onNavigate?: (t: Tab) =
               <div className="flex items-center gap-2">
                 <Moon size={18} color={theme.accent} />
                 <div>
-                  <h3 className="text-xs font-black text-app">🌙 نماز شب (تهجد و مناجات سحرگاهی)</h3>
+                  <h3 className="text-xs font-black text-app">🌙 نماز شب</h3>
                   <p className="text-[11px] text-muted mt-0.5">بهترین زمان (ثلث آخر شب به افق {times.location}): {toFaDigits(npWin.descriptionFa)}</p>
                 </div>
               </div>
@@ -1711,7 +1711,7 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-black text-app">📍 مکان‌یابی خودکار یا انتخاب شهر</h3>
+              <h3 className="text-sm font-black text-app">📍 انتخاب شهر و موقعیت</h3>
               <button type="button" onClick={() => setShowCityPicker(false)} className="text-xs text-muted">بستن ✕</button>
             </div>
 

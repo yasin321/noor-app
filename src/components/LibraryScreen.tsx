@@ -29,7 +29,7 @@ const MACRO_GROUPS: Array<{
 }> = [
   {
     key: 'scholars',
-    title: 'توصیه علما و بزرگان',
+    title: 'توصیه بزرگان',
     subtitle: 'آیت‌الله فاطمی‌نیا، بهجت و بزرگان',
     icon: Star,
     match: (c) => c === 'scholars',
@@ -234,7 +234,7 @@ export function LibraryScreen({ onNavigate }: { onNavigate?: (t: Tab) => void })
 
           {selected.scholarNote && (
             <div className="p-3.5 rounded-2xl border" style={{ borderColor: theme.border }}>
-              <p className="text-xs font-bold text-primary mb-1">🌿 توصیه علما و بزرگان</p>
+              <p className="text-xs font-bold text-primary mb-1">🌿 توصیه بزرگان</p>
               <p className="text-muted text-xs leading-relaxed">{selected.scholarNote}</p>
             </div>
           )}
@@ -307,7 +307,7 @@ export function LibraryScreen({ onNavigate }: { onNavigate?: (t: Tab) => void })
             style={{ background: theme.surface, borderColor: theme.border }}
           >
             <div className="flex items-center justify-between mb-1">
-              <h3 className="text-base font-bold text-app">ثبت نکته سخنرانی یا ذکر شخصی</h3>
+              <h3 className="text-base font-bold text-app">ثبت ذکر یا یادداشت شخصی</h3>
               <button type="button" onClick={() => setShowAddCustom(false)} className="text-muted">
                 <X size={20} />
               </button>
@@ -371,7 +371,7 @@ export function LibraryScreen({ onNavigate }: { onNavigate?: (t: Tab) => void })
 
       <div className="flex items-center justify-between gap-2 mb-4">
         <div>
-          <h1 className="text-2xl font-black text-app">گنجینه اذکار و نشانک‌ها</h1>
+          <h1 className="text-2xl font-black text-app">گنجینه اذکار</h1>
           <p className="text-muted text-xs mt-1">قرآن، مفاتیح، توصیه علما، محبوب‌ها و نشانک‌ها</p>
         </div>
         <button

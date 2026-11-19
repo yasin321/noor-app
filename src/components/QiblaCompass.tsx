@@ -604,7 +604,7 @@ export function QiblaCompass({ lat, lng, cityName, onClose }: Props) {
             style={{ background: '#0F172A', borderColor: 'rgba(251, 191, 36, 0.45)' }}
           >
             <div className="flex items-center justify-between border-b pb-2.5" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
-              <h3 className="text-sm font-black text-amber-300">🧭 کالیبراسیون و بررسی قطعه قطب‌نما</h3>
+              <h3 className="text-sm font-black text-amber-300">🧭 کالیبراسیون قطب‌نما</h3>
               <button type="button" onClick={() => setShowCalibrateModal(false)} className="text-slate-400">
                 <X size={18} />
               </button>

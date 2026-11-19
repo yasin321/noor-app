@@ -42,23 +42,23 @@ export interface TrackOption {
 export const PRE_ADHAN_TRACKS: TrackOption[] = [
   {
     id: 'rabbana_shajarian',
-    titleFa: 'ربنای دلنشین استاد شجریان',
-    subtitleFa: 'مناجات ماندگار سحرگاهی و افطار',
+    titleFa: 'ربنای استاد شجریان',
+    subtitleFa: 'مناجات سحر و افطار',
     durationFa: '۴:۴۲',
     audioFile: '/adhans/rabbana.mp3',
     audioAdhanId: 'rabbana',
   },
   {
     id: 'nadali_alifani',
-    titleFa: 'دعای معنوی نادعلی (ع)',
-    subtitleFa: 'با نوای دلنشین علی فانی',
+    titleFa: 'دعای نادعلی (ع)',
+    subtitleFa: 'با نوای علی فانی',
     durationFa: '۵:۱۵',
     audioFile: '/adhans/nadali_alifani.mp3',
     audioAdhanId: 'nadali_alifani',
   },
   {
     id: 'munajat_sahar',
-    titleFa: 'مناجات و تواشیح سحرگاهی',
+    titleFa: 'مناجات سحرگاهی',
     subtitleFa: 'گروه بین‌المللی تواشیح',
     durationFa: '۳:۱۰',
     audioFile: '/adhans/chant_aqim.mp3',
@@ -66,7 +66,7 @@ export const PRE_ADHAN_TRACKS: TrackOption[] = [
   },
   {
     id: 'salawat_reza',
-    titleFa: 'صلوات خاصه حضرت امام رضا (ع)',
+    titleFa: 'صلوات خاصه امام رضا (ع)',
     subtitleFa: 'گروه همخوانی آستان قدس رضوی',
     durationFa: '۲:۱۵',
     audioFile: '/adhans/chant_salawat.mp3',
@@ -74,7 +74,7 @@ export const PRE_ADHAN_TRACKS: TrackOption[] = [
   },
   {
     id: 'tasbihat_pre',
-    titleFa: 'تسبیحات و ذکر آرامش دل‌ها',
+    titleFa: 'تسبیحات آرامش',
     subtitleFa: 'مناجات پیش از اذان',
     durationFa: '۱:۵۸',
     audioFile: '/adhans/chant_tasbihat.mp3',
@@ -85,39 +85,39 @@ export const PRE_ADHAN_TRACKS: TrackOption[] = [
 export const POST_ADHAN_TRACKS: TrackOption[] = [
   {
     id: 'surah_waqiah',
-    titleFa: 'تلاوت سوره مبارکه واقعه',
-    subtitleFa: 'ترتیل مجلسی — برکت و وسعت رزق',
+    titleFa: 'سوره واقعه',
+    subtitleFa: 'برکت و وسعت رزق',
     durationFa: '۹:۴۵',
     audioFile: '/adhans/post_waqiah.mp3',
     audioAdhanId: 'post_waqiah',
   },
   {
     id: 'surah_yasin',
-    titleFa: 'تلاوت سوره مبارکه یس',
-    subtitleFa: 'ترتیل مجلسی — قلب قرآن کریم',
+    titleFa: 'سوره یس',
+    subtitleFa: 'قلب قرآن کریم',
     durationFa: '۱۲:۳۰',
     audioFile: '/adhans/post_yasin.mp3',
     audioAdhanId: 'post_yasin',
   },
   {
     id: 'surah_rahman',
-    titleFa: 'تلاوت سوره مبارکه الرحمن',
-    subtitleFa: 'ترتیل مجلسی — عروس قرآن',
+    titleFa: 'سوره الرحمن',
+    subtitleFa: 'عروس قرآن',
     durationFa: '۸:۲۰',
     audioFile: '/adhans/post_rahman.mp3',
     audioAdhanId: 'post_rahman',
   },
   {
     id: 'surah_mulk',
-    titleFa: 'تلاوت سوره مبارکه ملک',
-    subtitleFa: 'ترتیل مجلسی — آرامش شبانگاهی',
+    titleFa: 'سوره ملک',
+    subtitleFa: 'آرامش شبانگاهی',
     durationFa: '۶:۱۵',
     audioFile: '/adhans/post_mulk.mp3',
     audioAdhanId: 'post_mulk',
   },
   {
     id: 'ayat_kursi',
-    titleFa: 'آیةالکرسی و تسبیحات حضرت زهرا (س)',
+    titleFa: 'آیةالکرسی و تسبیحات',
     subtitleFa: 'تعقیبات عامه نماز',
     durationFa: '۳:۱۲',
     audioFile: '/adhans/post_kursi.mp3',
@@ -597,9 +597,9 @@ export function TawashihAndAdhanReminderSection({
             <Volume2 size={20} />
           </div>
           <div>
-            <h3 className="text-sm font-black text-white">تواشیح و یادآور اذان</h3>
+            <h3 className="text-sm font-black text-white">تواشیح و تعقیبات</h3>
             <p className="text-[10px] text-emerald-100/60 mt-0.5">
-              ربنای شجریان، نادعلی علی فانی و سوره‌ها (ثبت و کوک خودکار)
+              نوای قبل و تلاوت بعد از اذان
             </p>
           </div>
         </div>
@@ -1043,7 +1043,7 @@ export function TawashihAndAdhanReminderSection({
                 className="flex-1 py-3 rounded-2xl font-black text-xs shadow-lg"
                 style={{ background: 'linear-gradient(135deg, #FBBF24 0%, #D97706 100%)', color: '#041511' }}
               >
-                تأیید و بستن (کوک خودکار فعال است)
+                تأیید و بستن
               </button>
               <button
                 type="button"
@@ -1065,7 +1065,7 @@ export function TawashihAndAdhanReminderSection({
         style={{ background: 'rgba(255, 255, 255, 0.03)', borderColor: 'rgba(255, 255, 255, 0.08)', color: 'rgba(236, 253, 245, 0.78)' }}
       >
         <Copy size={13} />
-        <span>اعمال همین تنظیم برای همه نمازها</span>
+        <span>اعمال برای همه نمازها</span>
       </button>
 
       <div className="grid grid-cols-2 gap-2">
@@ -1080,7 +1080,7 @@ export function TawashihAndAdhanReminderSection({
           }}
         >
           <Bell size={13} />
-          <span>تست واقعی (۱۰ ثانیه بعد)</span>
+          <span>تست آلارم (۱۰ ثانیه)</span>
         </button>
 
         <button
@@ -1101,7 +1101,7 @@ export function TawashihAndAdhanReminderSection({
           }}
         >
           <Clock size={13} />
-          <span>اجازه اجرا در صفحه خاموش</span>
+          <span>تنظیمات صفحه خاموش</span>
         </button>
       </div>
     </div>

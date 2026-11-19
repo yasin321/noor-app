@@ -121,7 +121,7 @@ export function NotificationPermissionModal({ onGranted }: Props) {
         </div>
 
         <h2 className="text-lg font-bold text-app mb-2">
-          یادت نره ذکر امروزت رو بگی! 🌿
+          اعلان اذان و یادآوری‌ها را فعال کنید 🌿
         </h2>
 
         <p className="text-muted text-xs leading-relaxed mb-6">

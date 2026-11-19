@@ -253,7 +253,7 @@ export function MosqueFinderModal({ cityName, defaultLat, defaultLng, onClose, o
               <Navigation size={19} color={theme.bg} />
             </div>
             <div>
-              <h2 className="text-base font-black text-app">رادار مسجدیاب و نقشه زنده نشان</h2>
+              <h2 className="text-base font-black text-app">مسجدیاب نزدیک من</h2>
               <p className="text-[11px] text-muted font-medium">موتور ترکیبی Fused GPS + نشان + Maps.me + گوگل</p>
             </div>
           </div>

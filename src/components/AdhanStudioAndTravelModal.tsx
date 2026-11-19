@@ -311,7 +311,7 @@ export function AdhanStudioAndTravelModal({ initialSection = 'studio', onClose, 
         <div className="flex items-center justify-between pb-3 mb-3 border-b" style={{ borderColor: theme.border }}>
           <div className="flex items-center gap-2">
             <BellRing color={theme.primary} size={19} />
-            <h2 className="text-base font-black text-app">اعلان قبل از اذان، سوره پس از اذان و نماز مسافر</h2>
+            <h2 className="text-base font-black text-app">تنظیمات اذان و نماز مسافر</h2>
           </div>
           <button
             type="button"

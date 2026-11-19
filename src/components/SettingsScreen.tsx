@@ -56,12 +56,12 @@ function setGuestNotifEnabled(enabled: boolean): void {
 type SettingsSection = 'main' | 'typography' | 'adhan' | 'city' | 'method' | 'theme' | 'customize' | 'neshan' | 'backup' | 'logs';
 
 const FONT_OPTIONS = [
-  { id: 'Vazirmatn', nameFa: 'فونت وزیرمتن (استاندارد مدرن)', desc: 'بهترین خوانایی در رابط کاربری مدرن', sample: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ — همراه معنوی نور' },
-  { id: 'BNazanin', nameFa: 'فونت نازنین و کتابی (B Nazanin)', desc: 'فونت محبوب و کلاسیک متون فارسی و ادعیه', sample: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ — همراه معنوی نور' },
-  { id: 'Nastaliq', nameFa: 'فونت نستعلیق و خوشنویسی ایرانی', desc: 'حس اصیل ایرانی ویژه اشعار، مناجات و ادعیه', sample: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ — همراه معنوی نور' },
-  { id: 'Parastoo', nameFa: 'فونت پرستو (نرم و چشم‌نواز)', desc: 'بسیار لطیف و مناسب مطالعه طولانی', sample: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ — همراه معنوی نور' },
-  { id: 'Samim', nameFa: 'فونت صمیم (درشت ویژه سالمندان)', desc: 'حروف باز و خوانا برای چشمان حساس', sample: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ — همراه معنوی نور' },
-  { id: 'AmiriQuran', nameFa: 'فونت نسخ قرآنی (عثمان طه / امیری)', desc: 'رسم‌الخط اصیل مصحف شریف و مفاتیح‌الجنان', sample: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ — همراه معنوی نور' },
+  { id: 'Vazirmatn', nameFa: 'وزیرمتن (پیش‌فرض)', desc: 'بهترین خوانایی در رابط کاربری مدرن', sample: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ — همراه معنوی نور' },
+  { id: 'BNazanin', nameFa: 'نازنین (کتابی)', desc: 'فونت محبوب و کلاسیک متون فارسی و ادعیه', sample: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ — همراه معنوی نور' },
+  { id: 'Nastaliq', nameFa: 'نستعلیق ایرانی', desc: 'حس اصیل ایرانی ویژه اشعار، مناجات و ادعیه', sample: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ — همراه معنوی نور' },
+  { id: 'Parastoo', nameFa: 'پرستو (نرم)', desc: 'بسیار لطیف و مناسب مطالعه طولانی', sample: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ — همراه معنوی نور' },
+  { id: 'Samim', nameFa: 'صمیم (درشت)', desc: 'حروف باز و خوانا برای چشمان حساس', sample: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ — همراه معنوی نور' },
+  { id: 'AmiriQuran', nameFa: 'نسخ قرآنی (عثمان طه)', desc: 'رسم‌الخط اصیل مصحف شریف و مفاتیح‌الجنان', sample: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ — همراه معنوی نور' },
 ];
 
 
@@ -93,10 +93,10 @@ function ThemeHeroSelectorCard({ theme }: { theme: { surface: string; primary: s
         <div className="flex items-center justify-between gap-2">
           <div>
             <h3 className="text-sm font-black text-app">
-              🕌 منظره و عکس بالای صفحه خانه (Hero)
+              🕌 تصویر بالای صفحه خانه
             </h3>
             <p className="text-[11px] text-muted mt-0.5">
-              انتخاب از بین ۲۰ منظره حرم‌های مطهر، اوقات نماز، رمضان و محرم
+              انتخاب منظره حرم‌ها، مساجد و مناسبت‌ها
             </p>
           </div>
           <button
@@ -127,7 +127,7 @@ function ThemeHeroSelectorCard({ theme }: { theme: { surface: string; primary: s
         </div>
       </div>
 
-      <p className="text-xs font-bold text-muted mb-2.5 px-1">🎨 انتخاب رنگ‌بندی و پوسته برنامه</p>
+      <p className="text-xs font-bold text-muted mb-2.5 px-1">🎨 انتخاب پوسته رنگی</p>
     </>
   );
 }
@@ -255,7 +255,7 @@ function ContactYasinModal({ onClose }: { onClose: () => void }) {
       >
         <div className="flex items-center justify-between border-b pb-2.5" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
           <div>
-            <h3 className="text-sm font-black text-emerald-300">✉️ ارتباط مستقیم با سازنده برنامه</h3>
+            <h3 className="text-sm font-black text-emerald-300">✉️ ارتباط با سازنده</h3>
             <p className="text-[11px] opacity-75 mt-0.5">ارسال مستقیم نظر، پیشنهاد یا گزارش به یاسین اکبری</p>
           </div>
           <button
@@ -704,17 +704,17 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
           {[
             {
               key: 'showDeenWidgets' as const,
-              title: 'کارت‌های استودیو اذان، مسجد و ادامه قرآن',
+              title: 'کارت‌های میانبر صفحه خانه',
               desc: 'نمایش دو کارت میان‌بر وضعیت سفر/مسجد و آخرین آیه خوانده‌شده در صفحه اول',
             },
             {
               key: 'showContextualTip' as const,
-              title: 'پیشنهاد معنوی هوشمند ساعتی و روزانه',
+              title: 'پیشنهاد معنوی روزانه',
               desc: 'پیشنهاد ذکر و سوره متناسب با روز هفته (چهارشنبه امام رضا ع، شب جمعه و...) و ساعت روز',
             },
             {
               key: 'showDailySummary' as const,
-              title: 'کارت خلاصه فعالیت و تعداد ذکر امروز',
+              title: 'خلاصه فعالیت امروز',
               desc: 'نمایش آمار ذکرهای گفته‌شده امروز در پایین صفحه اول',
             },
           ].map((item) => {
@@ -836,7 +836,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   if (section === 'theme') {
     return (
       <div className="w-full max-w-xl mx-auto px-3.5 pt-4 pb-28 animate-fade-in" dir="rtl">
-        <SubHeader title="پوسته و رنگ‌بندی برنامه" />
+        <SubHeader title="پوسته و ظاهر" />
           <ThemeHeroSelectorCard theme={theme} />
         <div className="grid grid-cols-2 gap-3">
           {themes.map((t) => (
@@ -982,7 +982,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
         {/* بنر تست واقعی ۵ ثانیه بعد اذان در حالت قفل صفحه */}
         <div className="max-w-lg mx-auto px-4 pt-3">
           <div className="p-4 rounded-3xl border space-y-2" style={{ background: 'rgba(16, 185, 129, 0.14)', borderColor: '#34D399' }}>
-            <p className="text-xs font-black text-white">⏱️ تست پخش اذان در حالت قفل صفحه (۵ ثانیه بعد)</p>
+            <p className="text-xs font-black text-white">⏱️ تست اذان در صفحه قفل</p>
             <p className="text-[11px] text-emerald-200/90 leading-relaxed">
               دکمه زیر را بزنید و بلافاصله صفحه گوشی را قفل کنید؛ ۵ ثانیه بعد صدای مؤذن انتخابی روی صفحه قفل پخش می‌شود:
             </p>
@@ -1010,11 +1010,11 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
               className="w-full py-2.5 rounded-2xl text-xs font-black shadow-md transition-transform active:scale-95"
               style={{ background: '#10B981', color: '#041B15' }}
             >
-              🚀 فعال‌سازی تست ۵ ثانیه بعد اذان (قفل صفحه)
+              🚀 اجرای تست (۵ ثانیه بعد)
             </button>
           </div>
         </div>
-        <SubHeader title="کلکسیون مؤذنان و مدت پخش اذان" />
+        <SubHeader title="انتخاب مؤذن و اذان" />
 
         {adhanNotice && (
           <div
@@ -1033,7 +1033,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
           }}
         >
           <div>
-            <h2 className="text-sm font-black text-app">⏱️ مدت زمان پخش در وقت اذان</h2>
+            <h2 className="text-sm font-black text-app">⏱️ مدت پخش اذان</h2>
             <p className="text-[11px] text-muted mt-0.5">
               انتخاب کنید موقع اذان، کل اذان پخش شود یا فقط ۱۰ ثانیه اول
             </p>
@@ -1246,7 +1246,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
       {showVipModal && <VipAndAnalyticsModal initialTab="vip" onClose={() => setShowVipModal(false)} />}
 
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-black text-app">تنظیمات و کارنامه</h1>
+        <h1 className="text-2xl font-black text-app">تنظیمات</h1>
         <button
           type="button"
           onClick={() => setShowGuide(true)}

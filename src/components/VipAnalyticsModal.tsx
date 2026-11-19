@@ -167,7 +167,7 @@ export function VipAnalyticsModal({ onClose, initialTab }: Props) {
               <TrendingUp size={20} color={biAccent} />
             </div>
             <div>
-              <h2 className="text-base font-black text-white">داشبورد تحلیلی Power BI و جعبه ابزار VIP</h2>
+              <h2 className="text-base font-black text-white">گزارش و تحلیل معنوی</h2>
               <p className="text-[11px] text-slate-400">آمار استمرار معنوی، ماتریس حرارتی سالانه و مدیریت قضا</p>
             </div>
           </div>
@@ -290,7 +290,7 @@ export function VipAnalyticsModal({ onClose, initialTab }: Props) {
             {/* ۳. کارت تیک‌های این هفته (This Week Checkboxes) دقیقاً مشابه image_f51b79.jpg */}
             <div className="rounded-3xl p-4 border bg-[#13111C]/90 border-white/10">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-black text-white">عملکرد این هفته (This Week)</h3>
+                <h3 className="text-sm font-black text-white">عملکرد این هفته</h3>
                 <span className="text-[11px] font-bold" style={{ color: biAccent }}>۶ از ۷ روز تکمیل</span>
               </div>
               <div className="grid grid-cols-7 gap-2 text-center">
@@ -317,7 +317,7 @@ export function VipAnalyticsModal({ onClose, initialTab }: Props) {
             <div className="rounded-3xl p-4 border bg-[#13111C]/90 border-white/10">
               <div className="flex items-center justify-between mb-3">
                 <div>
-                  <h3 className="text-sm font-black text-white">تاریخچه فعالیت سالانه (Activity History)</h3>
+                  <h3 className="text-sm font-black text-white">نمای فعالیت سالانه</h3>
                   <p className="text-[10px] text-slate-400 mt-0.5">۵۲ هفته حضور، ذکر، قرآن و نماز اول وقت</p>
                 </div>
                 <div className="flex items-center gap-2 text-xs font-black text-white bg-white/5 px-2.5 py-1 rounded-xl">
@@ -374,7 +374,7 @@ export function VipAnalyticsModal({ onClose, initialTab }: Props) {
               <div className="rounded-3xl p-4 border bg-[#13111C]/90 border-white/10">
                 <div className="flex items-center justify-between mb-2">
                   <div>
-                    <h4 className="text-xs font-black text-white">روند تحقق ماهانه (Completions / Month)</h4>
+                    <h4 className="text-xs font-black text-white">روند ماهانه</h4>
                     <span className="text-[10px] text-slate-400">۱۱۰ برنامه کامل در ۱۲ ماه اخیر</span>
                   </div>
                   <span className="w-7 h-7 rounded-lg flex items-center justify-center text-xs" style={{ background: biAccentSoft, color: biAccent }}>📈</span>
@@ -476,7 +476,7 @@ export function VipAnalyticsModal({ onClose, initialTab }: Props) {
             </div>
 
             <div className="rounded-3xl p-4 border bg-[#13111C]/90 border-white/10 space-y-2.5">
-              <h3 className="text-xs font-black text-white mb-1">📒 دفترچه هوشمند شمارش معکوس نماز و روزه قضا</h3>
+              <h3 className="text-xs font-black text-white mb-1">📒 مدیریت نماز و روزه قضا</h3>
               {([
                 { key: 'fajr', label: 'نماز قضای صبح (۲ رکعت)' },
                 { key: 'dhuhr', label: 'نماز قضای ظهر (۴ رکعت)' },
@@ -519,7 +519,7 @@ export function VipAnalyticsModal({ onClose, initialTab }: Props) {
             <div className="w-16 h-16 rounded-full mx-auto flex items-center justify-center" style={{ background: biAccentSoft, border: `2px solid ${biAccent}` }}>
               <Clock size={28} color={biAccent} />
             </div>
-            <h3 className="text-base font-black text-white">سپر ۱۵ دقیقه‌ای حضور قلب و سم‌زدایی دیجیتال</h3>
+            <h3 className="text-base font-black text-white">خلوت ۱۵ دقیقه‌ای و آرامش</h3>
             <p className="text-xs text-slate-300 leading-relaxed">
               برای دوری از شبکه‌های اجتماعی در وقت نماز و تعقیبات، تایمر خلوت معنوی را فعال کنید.
             </p>

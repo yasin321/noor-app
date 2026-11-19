@@ -209,7 +209,7 @@ export function RemindersScreen() {
 
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h1 className="text-2xl font-black text-app">برنامه و یادآوری‌ها</h1>
+          <h1 className="text-2xl font-black text-app">یادآوری‌ها</h1>
           <p className="text-muted text-xs mt-1">مدیریت چله‌ها، نذرها و تحقق برنامه روزانه</p>
         </div>
         <button
@@ -250,7 +250,7 @@ export function RemindersScreen() {
             style={{ background: theme.surface, borderColor: theme.border }}
           >
             <div className="flex items-center justify-between pb-3 mb-3 border-b" style={{ borderColor: theme.border }}>
-              <h3 className="text-base font-black text-app">برنامه کاری و معنوی امروز من</h3>
+              <h3 className="text-base font-black text-app">برنامه امروز من</h3>
               <button type="button" onClick={() => setShowTodayPopup(false)} className="text-muted">
                 <X size={20} />
               </button>

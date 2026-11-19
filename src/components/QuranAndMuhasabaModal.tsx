@@ -475,7 +475,7 @@ export function QuranAndMuhasabaModal({ initialMode = 'quran', onClose, onUpdate
         <div className="flex items-center justify-between pb-3 mb-3 border-b" style={{ borderColor: theme.border }}>
           <div className="flex items-center gap-2">
             <BookOpen size={19} color={theme.primary} />
-            <h2 className="text-base font-black text-app">سوره‌های مجرب قرآن (با صوت استاد پرهیزگار)</h2>
+            <h2 className="text-base font-black text-app">سوره‌های برگزیده قرآن</h2>
           </div>
           <button
             type="button"

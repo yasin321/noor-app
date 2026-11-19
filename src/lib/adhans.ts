@@ -66,9 +66,9 @@ export const adhans: Adhan[] = [
   {
     "id": "moazenzadeh_ardabili",
     "name": "Ahlolbait Adhan 1",
-    "nameFa": "۱. اذان ماندگار استاد رحیم مؤذن‌زاده اردبیلی (بیات ترک)",
+    "nameFa": "۱. استاد رحیم مؤذن‌زاده اردبیلی (بیات ترک)",
     "reciter": "زنده یاد استاد رحیم مؤذن‌زاده اردبیلی",
-    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۱ (آفلاین)",
+    "originFa": "پخش آفلاین · شماره ۱",
     "audioUrl": "/adhans/ahlolbait_01.mp3",
     "fallbackUrls": [
       "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/rahim_moazenzadeh.mp3"
@@ -79,9 +79,9 @@ export const adhans: Adhan[] = [
   {
     "id": "ahlolbait_2",
     "name": "Ahlolbait Adhan 2",
-    "nameFa": "۲. اذان دلنشین استاد سلیم مؤذن‌زاده اردبیلی",
+    "nameFa": "۲. استاد سلیم مؤذن‌زاده اردبیلی",
     "reciter": "زنده یاد استاد سلیم مؤذن‌زاده اردبیلی",
-    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۲ (آفلاین)",
+    "originFa": "پخش آفلاین · شماره ۲",
     "audioUrl": "/adhans/ahlolbait_02.mp3",
     "fallbackUrls": [
       "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/salim_moazenzadeh.mp3"
@@ -92,9 +92,9 @@ export const adhans: Adhan[] = [
   {
     "id": "ahlolbait_3",
     "name": "Ahlolbait Adhan 3",
-    "nameFa": "۳. اذان ملکوتی استاد حسین صبحدل (نسخه اول)",
+    "nameFa": "۳. استاد حسین صبحدل (۱)",
     "reciter": "استاد حسین صبحدل",
-    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۳ (آفلاین)",
+    "originFa": "پخش آفلاین · شماره ۳",
     "audioUrl": "/adhans/ahlolbait_03.mp3",
     "fallbackUrls": [
       "https://static.ahlolbait.com/files/ahlolbait/old/u12/01/A0030.mp3"
@@ -105,9 +105,9 @@ export const adhans: Adhan[] = [
   {
     "id": "ahlolbait_4",
     "name": "Ahlolbait Adhan 4",
-    "nameFa": "۴. اذان ماندگار استاد حسین صبحدل (نسخه دوم)",
+    "nameFa": "۴. استاد حسین صبحدل (۲)",
     "reciter": "استاد حسین صبحدل",
-    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۴ (آفلاین)",
+    "originFa": "پخش آفلاین · شماره ۴",
     "audioUrl": "/adhans/ahlolbait_04.mp3",
     "fallbackUrls": [
       "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920230000576.mp3"
@@ -118,9 +118,9 @@ export const adhans: Adhan[] = [
   {
     "id": "ahlolbait_5",
     "name": "Ahlolbait Adhan 5",
-    "nameFa": "۵. اذان استاد محمد الطوخی (نسخه اول — مصر)",
+    "nameFa": "۵. استاد محمد الطوخی (۱)",
     "reciter": "استاد محمد الطوخی",
-    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۵ (آفلاین)",
+    "originFa": "پخش آفلاین · شماره ۵",
     "audioUrl": "/adhans/ahlolbait_05.mp3",
     "fallbackUrls": [
       "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000907.mp3"
@@ -131,9 +131,9 @@ export const adhans: Adhan[] = [
   {
     "id": "ahlolbait_6",
     "name": "Ahlolbait Adhan 6",
-    "nameFa": "۶. اذان استاد محمد الطوخی (نسخه دوم — مصر)",
+    "nameFa": "۶. استاد محمد الطوخی (۲)",
     "reciter": "استاد محمد الطوخی",
-    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۶ (آفلاین)",
+    "originFa": "پخش آفلاین · شماره ۶",
     "audioUrl": "/adhans/ahlolbait_06.mp3",
     "fallbackUrls": [
       "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000909.mp3"
@@ -144,9 +144,9 @@ export const adhans: Adhan[] = [
   {
     "id": "ahlolbait_7",
     "name": "Ahlolbait Adhan 7",
-    "nameFa": "۷. اذان استاد مصطفی اسماعیل (مقام حجاز)",
+    "nameFa": "۷. استاد مصطفی اسماعیل (مقام حجاز)",
     "reciter": "استاد مصطفی اسماعیل",
-    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۷ (آفلاین)",
+    "originFa": "پخش آفلاین · شماره ۷",
     "audioUrl": "/adhans/ahlolbait_07.mp3",
     "fallbackUrls": [
       "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000910.mp3"
@@ -157,9 +157,9 @@ export const adhans: Adhan[] = [
   {
     "id": "ahlolbait_8",
     "name": "Ahlolbait Adhan 8",
-    "nameFa": "۸. اذان استاد عبدالباسط محمد عبدالصمد",
+    "nameFa": "۸. استاد عبدالباسط محمد عبدالصمد",
     "reciter": "استاد عبدالباسط محمد عبدالصمد",
-    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۸ (پخش آنلاین)",
+    "originFa": "پخش آنلاین · شماره ۸",
     "audioUrl": "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000915.mp3",
     "fallbackUrls": [
       "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000915.mp3"
@@ -170,9 +170,9 @@ export const adhans: Adhan[] = [
   {
     "id": "ahlolbait_9",
     "name": "Ahlolbait Adhan 9",
-    "nameFa": "۹. اذان استاد محمد صدیق منشاوی",
+    "nameFa": "۹. استاد محمد صدیق منشاوی",
     "reciter": "استاد محمد صدیق منشاوی",
-    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۹ (پخش آنلاین)",
+    "originFa": "پخش آنلاین · شماره ۹",
     "audioUrl": "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000918.mp3",
     "fallbackUrls": [
       "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000918.mp3"
@@ -183,9 +183,9 @@ export const adhans: Adhan[] = [
   {
     "id": "ahlolbait_10",
     "name": "Ahlolbait Adhan 10",
-    "nameFa": "۱۰. اذان استاد راغب مصطفی غلوش (محبوب ایران)",
+    "nameFa": "۱۰. استاد راغب مصطفی غلوش (محبوب ایران)",
     "reciter": "استاد راغب مصطفی غلوش",
-    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۱۰ (پخش آنلاین)",
+    "originFa": "پخش آنلاین · شماره ۱۰",
     "audioUrl": "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000921.mp3",
     "fallbackUrls": [
       "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000921.mp3"
@@ -196,9 +196,9 @@ export const adhans: Adhan[] = [
   {
     "id": "ahlolbait_11",
     "name": "Ahlolbait Adhan 11",
-    "nameFa": "۱۱. اذان استاد شحات محمد انور",
+    "nameFa": "۱۱. استاد شحات محمد انور",
     "reciter": "استاد شحات محمد انور",
-    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۱۱ (پخش آنلاین)",
+    "originFa": "پخش آنلاین · شماره ۱۱",
     "audioUrl": "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000925.mp3",
     "fallbackUrls": [
       "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000925.mp3"
@@ -209,9 +209,9 @@ export const adhans: Adhan[] = [
   {
     "id": "ahlolbait_12",
     "name": "Ahlolbait Adhan 12",
-    "nameFa": "۱۲. اذان استاد سید جواد ذبیحی (بیات ترک اصیل)",
+    "nameFa": "۱۲. استاد سید جواد ذبیحی (بیات ترک اصیل)",
     "reciter": "زنده یاد سید جواد ذبیحی",
-    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۱۲ (پخش آنلاین)",
+    "originFa": "پخش آنلاین · شماره ۱۲",
     "audioUrl": "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000927.mp3",
     "fallbackUrls": [
       "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000927.mp3"
@@ -222,9 +222,9 @@ export const adhans: Adhan[] = [
   {
     "id": "ahlolbait_13",
     "name": "Ahlolbait Adhan 13",
-    "nameFa": "۱۳. اذان استاد محمود شحات انور",
+    "nameFa": "۱۳. استاد محمود شحات انور",
     "reciter": "استاد محمود شحات انور",
-    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۱۳ (پخش آنلاین)",
+    "originFa": "پخش آنلاین · شماره ۱۳",
     "audioUrl": "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000932.mp3",
     "fallbackUrls": [
       "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000932.mp3"
@@ -235,9 +235,9 @@ export const adhans: Adhan[] = [
   {
     "id": "ahlolbait_14",
     "name": "Ahlolbait Adhan 14",
-    "nameFa": "۱۴. اذان استاد سید متولی عبدالعال",
+    "nameFa": "۱۴. استاد سید متولی عبدالعال",
     "reciter": "استاد سید متولی عبدالعال",
-    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۱۴ (پخش آنلاین)",
+    "originFa": "پخش آنلاین · شماره ۱۴",
     "audioUrl": "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000938.mp3",
     "fallbackUrls": [
       "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000938.mp3"
@@ -248,9 +248,9 @@ export const adhans: Adhan[] = [
   {
     "id": "ahlolbait_15",
     "name": "Ahlolbait Adhan 15",
-    "nameFa": "۱۵. اذان استاد ابوالعینین شعیشع",
+    "nameFa": "۱۵. استاد ابوالعینین شعیشع",
     "reciter": "استاد ابوالعینین شعیشع",
-    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۱۵ (پخش آنلاین)",
+    "originFa": "پخش آنلاین · شماره ۱۵",
     "audioUrl": "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000946.mp3",
     "fallbackUrls": [
       "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000946.mp3"
@@ -261,9 +261,9 @@ export const adhans: Adhan[] = [
   {
     "id": "ahlolbait_16",
     "name": "Ahlolbait Adhan 16",
-    "nameFa": "۱۶. اذان استاد کامل یوسف البهتیمی",
+    "nameFa": "۱۶. استاد کامل یوسف البهتیمی",
     "reciter": "استاد کامل یوسف البهتیمی",
-    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۱۶ (پخش آنلاین)",
+    "originFa": "پخش آنلاین · شماره ۱۶",
     "audioUrl": "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000948.mp3",
     "fallbackUrls": [
       "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000948.mp3"
@@ -274,9 +274,9 @@ export const adhans: Adhan[] = [
   {
     "id": "ahlolbait_17",
     "name": "Ahlolbait Adhan 17",
-    "nameFa": "۱۷. اذان استاد عبدالفتاح شعشاعی",
+    "nameFa": "۱۷. استاد عبدالفتاح شعشاعی",
     "reciter": "استاد عبدالفتاح شعشاعی",
-    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۱۷ (پخش آنلاین)",
+    "originFa": "پخش آنلاین · شماره ۱۷",
     "audioUrl": "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000950.mp3",
     "fallbackUrls": [
       "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000950.mp3"
@@ -287,9 +287,9 @@ export const adhans: Adhan[] = [
   {
     "id": "ahlolbait_18",
     "name": "Ahlolbait Adhan 18",
-    "nameFa": "۱۸. اذان استاد طه الفشنی (مقام بیات)",
+    "nameFa": "۱۸. استاد طه الفشنی (مقام بیات)",
     "reciter": "استاد طه الفشنی",
-    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۱۸ (پخش آنلاین)",
+    "originFa": "پخش آنلاین · شماره ۱۸",
     "audioUrl": "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000951.mp3",
     "fallbackUrls": [
       "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000951.mp3"
@@ -300,9 +300,9 @@ export const adhans: Adhan[] = [
   {
     "id": "ahlolbait_19",
     "name": "Ahlolbait Adhan 19",
-    "nameFa": "۱۹. اذان استاد نصرالدین طوبار",
+    "nameFa": "۱۹. استاد نصرالدین طوبار",
     "reciter": "استاد نصرالدین طوبار",
-    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۱۹ (پخش آنلاین)",
+    "originFa": "پخش آنلاین · شماره ۱۹",
     "audioUrl": "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000953.mp3",
     "fallbackUrls": [
       "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000953.mp3"
@@ -313,9 +313,9 @@ export const adhans: Adhan[] = [
   {
     "id": "ahlolbait_20",
     "name": "Ahlolbait Adhan 20",
-    "nameFa": "۲۰. اذان استاد سید نقشبندی",
+    "nameFa": "۲۰. استاد سید نقشبندی",
     "reciter": "استاد سید نقشبندی",
-    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۲۰ (پخش آنلاین)",
+    "originFa": "پخش آنلاین · شماره ۲۰",
     "audioUrl": "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000954.mp3",
     "fallbackUrls": [
       "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000954.mp3"
@@ -326,9 +326,9 @@ export const adhans: Adhan[] = [
   {
     "id": "ahlolbait_21",
     "name": "Ahlolbait Adhan 21",
-    "nameFa": "۲۱. اذان استاد محمد عمران",
+    "nameFa": "۲۱. استاد محمد عمران",
     "reciter": "استاد محمد عمران",
-    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۲۱ (پخش آنلاین)",
+    "originFa": "پخش آنلاین · شماره ۲۱",
     "audioUrl": "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000955.mp3",
     "fallbackUrls": [
       "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000955.mp3"
@@ -339,9 +339,9 @@ export const adhans: Adhan[] = [
   {
     "id": "ahlolbait_22",
     "name": "Ahlolbait Adhan 22",
-    "nameFa": "۲۲. اذان استاد حامد شاکرنژاد",
+    "nameFa": "۲۲. استاد حامد شاکرنژاد",
     "reciter": "استاد حامد شاکرنژاد",
-    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۲۲ (پخش آنلاین)",
+    "originFa": "پخش آنلاین · شماره ۲۲",
     "audioUrl": "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000956.mp3",
     "fallbackUrls": [
       "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/13920305000956.mp3"
@@ -352,9 +352,9 @@ export const adhans: Adhan[] = [
   {
     "id": "ahlolbait_23",
     "name": "Ahlolbait Adhan 23",
-    "nameFa": "۲۳. اذان روح‌بخش «انتظار» — استاد روح‌الله کاظم‌زاده",
+    "nameFa": "۲۳. استاد روح‌الله کاظم‌زاده (انتظار)",
     "reciter": "استاد روح‌الله کاظم‌زاده",
-    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۲۳ (پخش آنلاین)",
+    "originFa": "پخش آنلاین · شماره ۲۳",
     "audioUrl": "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/entezar_2.mp3",
     "fallbackUrls": [
       "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/entezar_2.mp3"
@@ -365,9 +365,9 @@ export const adhans: Adhan[] = [
   {
     "id": "ahlolbait_24",
     "name": "Ahlolbait Adhan 24",
-    "nameFa": "۲۴. اذان استاد محمدحسین ابوریه (لبنان)",
+    "nameFa": "۲۴. استاد محمدحسین ابوریه (لبنان)",
     "reciter": "استاد محمدحسین ابوریه",
-    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۲۴ (آفلاین)",
+    "originFa": "پخش آفلاین · شماره ۲۴",
     "audioUrl": "/adhans/ahlolbait_24.mp3",
     "fallbackUrls": [
       "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/mohammad_hossein_aborieh.mp3"
@@ -378,9 +378,9 @@ export const adhans: Adhan[] = [
   {
     "id": "ahlolbait_25",
     "name": "Ahlolbait Adhan 25",
-    "nameFa": "۲۵. اذان استاد روحانی‌نژاد",
+    "nameFa": "۲۵. استاد روحانی‌نژاد",
     "reciter": "استاد روحانی‌نژاد",
-    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۲۵ (پخش آنلاین)",
+    "originFa": "پخش آنلاین · شماره ۲۵",
     "audioUrl": "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/Rowhani%20Nejad.mp3",
     "fallbackUrls": [
       "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/Rowhani%20Nejad.mp3"
@@ -391,9 +391,9 @@ export const adhans: Adhan[] = [
   {
     "id": "ahlolbait_26",
     "name": "Ahlolbait Adhan 26",
-    "nameFa": "۲۶. اذان شهید حاج محسن حاجی‌حسنی کارگر",
+    "nameFa": "۲۶. شهید حاج محسن حاجی‌حسنی کارگر",
     "reciter": "شهید محسن حاجی‌حسنی کارگر",
-    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۲۶ (پخش آنلاین)",
+    "originFa": "پخش آنلاین · شماره ۲۶",
     "audioUrl": "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/azan-Mohsen-Haji-Hasani.mp3",
     "fallbackUrls": [
       "https://static.ahlolbait.com/files/ahlolbait/old/u12/download/azan-Mohsen-Haji-Hasani.mp3"
@@ -404,9 +404,9 @@ export const adhans: Adhan[] = [
   {
     "id": "ahlolbait_27",
     "name": "Ahlolbait Adhan 27",
-    "nameFa": "۲۷. اذان حرم مطهر امام رضا (ع) — استاد محمدجواد پناهی",
+    "nameFa": "۲۷. استاد محمدجواد پناهی (حرم رضوی)",
     "reciter": "استاد محمدجواد پناهی",
-    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۲۷ (پخش آنلاین)",
+    "originFa": "پخش آنلاین · شماره ۲۷",
     "audioUrl": "https://static.ahlolbait.com/files/ahlolbait/old/u12/13950331000621.mp3",
     "fallbackUrls": [
       "https://static.ahlolbait.com/files/ahlolbait/old/u12/13950331000621.mp3"
@@ -417,9 +417,9 @@ export const adhans: Adhan[] = [
   {
     "id": "ahlolbait_28",
     "name": "Ahlolbait Adhan 28",
-    "nameFa": "۲۸. اذان حرم مطهر رضوی — استاد ابوالقاسم دوستی",
+    "nameFa": "۲۸. استاد ابوالقاسم دوستی (حرم رضوی)",
     "reciter": "استاد ابوالقاسم دوستی",
-    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۲۸ (پخش آنلاین)",
+    "originFa": "پخش آنلاین · شماره ۲۸",
     "audioUrl": "https://static.ahlolbait.com/files/ahlolbait/old/u12/13950331000620.mp3",
     "fallbackUrls": [
       "https://static.ahlolbait.com/files/ahlolbait/old/u12/13950331000620.mp3"
@@ -430,9 +430,9 @@ export const adhans: Adhan[] = [
   {
     "id": "ahlolbait_29",
     "name": "Ahlolbait Adhan 29",
-    "nameFa": "۲۹. اذان استاد قاسم مقدمی",
+    "nameFa": "۲۹. استاد قاسم مقدمی",
     "reciter": "استاد قاسم مقدمی",
-    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۲۹ (پخش آنلاین)",
+    "originFa": "پخش آنلاین · شماره ۲۹",
     "audioUrl": "https://static.ahlolbait.com/files/ahlolbait/old/u12/13950331000615.mp3",
     "fallbackUrls": [
       "https://static.ahlolbait.com/files/ahlolbait/old/u12/13950331000615.mp3"
@@ -443,9 +443,9 @@ export const adhans: Adhan[] = [
   {
     "id": "ahlolbait_30",
     "name": "Ahlolbait Adhan 30",
-    "nameFa": "۳۰. اذان استاد کریم منصوری",
+    "nameFa": "۳۰. استاد کریم منصوری",
     "reciter": "استاد کریم منصوری",
-    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۳۰ (پخش آنلاین)",
+    "originFa": "پخش آنلاین · شماره ۳۰",
     "audioUrl": "https://static.ahlolbait.com/files/ahlolbait/old/u12/13950331000618.mp3",
     "fallbackUrls": [
       "https://static.ahlolbait.com/files/ahlolbait/old/u12/13950331000618.mp3"
@@ -456,9 +456,9 @@ export const adhans: Adhan[] = [
   {
     "id": "ahlolbait_31",
     "name": "Ahlolbait Adhan 31",
-    "nameFa": "۳۱. اذان استاد احمد ابوالقاسمی",
+    "nameFa": "۳۱. استاد احمد ابوالقاسمی",
     "reciter": "استاد احمد ابوالقاسمی",
-    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۳۱ (آفلاین)",
+    "originFa": "پخش آفلاین · شماره ۳۱",
     "audioUrl": "/adhans/ahlolbait_31.mp3",
     "fallbackUrls": [
       "https://static.ahlolbait.com/files/ahlolbait/old/u12/13950331000617.mp3"
@@ -469,9 +469,9 @@ export const adhans: Adhan[] = [
   {
     "id": "ahlolbait_32",
     "name": "Ahlolbait Adhan 32",
-    "nameFa": "۳۲. اذان و اقامه مصری ماندگار",
+    "nameFa": "۳۲. و اقامه مصری ماندگار",
     "reciter": "مؤذن ممتاز مصری",
-    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۳۲ (پخش آنلاین)",
+    "originFa": "پخش آنلاین · شماره ۳۲",
     "audioUrl": "https://static.ahlolbait.com/files/ahlolbait/old/u12/22q.mp3",
     "fallbackUrls": [
       "https://static.ahlolbait.com/files/ahlolbait/old/u12/22q.mp3"
@@ -484,7 +484,7 @@ export const adhans: Adhan[] = [
     "name": "Ahlolbait Adhan 33",
     "nameFa": "۳۳. مقدمه و نوای ملکوتی مکبری حرم مطهر",
     "reciter": "مجموعه مکبری اهل‌البیت (ع)",
-    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۳۳ (پخش آنلاین)",
+    "originFa": "پخش آنلاین · شماره ۳۳",
     "audioUrl": "https://static.ahlolbait.com/files/ahlolbait/old/download/12/1%20%20%20Muqadameh%20%20Barname%20%20Mukaberi.mp3",
     "fallbackUrls": [
       "https://static.ahlolbait.com/files/ahlolbait/old/download/12/1%20%20%20Muqadameh%20%20Barname%20%20Mukaberi.mp3"
@@ -497,7 +497,7 @@ export const adhans: Adhan[] = [
     "name": "Ahlolbait Adhan 34",
     "nameFa": "۳۴. آموزش و نغمه اصیل مکبری و اذان",
     "reciter": "مجموعه مکبری اهل‌البیت (ع)",
-    "originFa": "مجموعه ماندگار اهل‌البیت (ع) — شماره ۳۴ (پخش آنلاین)",
+    "originFa": "پخش آنلاین · شماره ۳۴",
     "audioUrl": "https://static.ahlolbait.com/files/ahlolbait/old/download/12/2%20%20%20Amozeshe%20%20Mukaberi.mp3",
     "fallbackUrls": [
       "https://static.ahlolbait.com/files/ahlolbait/old/download/12/2%20%20%20Amozeshe%20%20Mukaberi.mp3"
