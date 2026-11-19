@@ -1,652 +1,830 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Compass, Camera, Sparkles, RefreshCw, CheckCircle2, AlertTriangle, Smartphone, Navigation, Sun, Volume2, X, HelpCircle, Sliders } from 'lucide-react';
-import { useTheme } from '@/hooks/useTheme';
-function calculateQiblaDirection(lat: number, lng: number): number {
-  const toRad = (d: number) => (d * Math.PI) / 180;
-  const toDeg = (r: number) => (r * 180) / Math.PI;
-  const phiK = toRad(21.422487);
-  const lambdaK = toRad(39.826206);
-  const phi = toRad(lat);
-  const deltaLambda = lambdaK - toRad(lng);
-  const y = Math.sin(deltaLambda);
-  const x = Math.cos(phi) * Math.tan(phiK) - Math.sin(phi) * Math.cos(deltaLambda);
-  return (toDeg(Math.atan2(y, x)) + 360) % 360;
-}
-import { toFaDigits } from '@/lib/jalali';
-
-interface Props {
-  lat: number;
-  lng: number;
-  cityName: string;
-  onClose?: () => void;
-}
+import {
+  Compass,
+  CheckCircle2,
+  RefreshCw,
+  Sparkles,
+  MapPin,
+  AlertTriangle,
+  X,
+  RotateCw,
+  RotateCcw,
+  ShieldCheck,
+} from 'lucide-react';
+import { getCityById, getGuestCityId, getCustomGpsCoords } from '@/lib/cities';
 
 const KAABA_LAT = 21.422487;
 const KAABA_LNG = 39.826206;
+const CALIBRATION_SESSION_KEY = 'noor_qibla_calibrated_session_v1';
 
-// محاسبه فاصله دقیق کروی تا خانه خدا (کعبه معظمه) به کیلومتر
-function calculateDistanceToKaabaKm(lat: number, lng: number): number {
+export interface QiblaCompassProps {
+  lat?: number;
+  lng?: number;
+  latitude?: number;
+  longitude?: number;
+  cityLat?: number;
+  cityLng?: number;
+  cityName?: string;
+  cityNameFa?: string;
+  city?: { lat?: number; lng?: number; nameFa?: string; name?: string };
+  onClose?: () => void;
+  onToast?: (msg: string) => void;
+  embedded?: boolean;
+  compact?: boolean;
+}
+
+const toRad = (deg: number) => (deg * Math.PI) / 180;
+const toDeg = (rad: number) => (rad * 180) / Math.PI;
+
+export function calculateQiblaDirection(lat: number, lng: number): number {
+  const phi1 = toRad(lat);
+  const phi2 = toRad(KAABA_LAT);
+  const deltaLambda = toRad(KAABA_LNG - lng);
+  const y = Math.sin(deltaLambda) * Math.cos(phi2);
+  const x =
+    Math.cos(phi1) * Math.sin(phi2) -
+    Math.sin(phi1) * Math.cos(phi2) * Math.cos(deltaLambda);
+  return (toDeg(Math.atan2(y, x)) + 360) % 360;
+}
+
+export function calculateDistanceToKaabaKm(lat: number, lng: number): number {
   const R = 6371;
-  const toRad = (d: number) => (d * Math.PI) / 180;
   const dLat = toRad(KAABA_LAT - lat);
-  const dLon = toRad(KAABA_LNG - lng);
+  const dLng = toRad(KAABA_LNG - lng);
   const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRad(lat)) * Math.cos(toRad(KAABA_LAT)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return Math.round(R * c);
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat)) * Math.cos(toRad(KAABA_LAT)) * Math.sin(dLng / 2) ** 2;
+  return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
 }
 
-// محاسبه آزیموت جبرانی برای حالتی که کاربر گوشی را عمودی (Upright Portrait) مقابل صورت خود نگه می‌دارد
-function computeUprightCompassHeading(alpha: number, beta: number, gamma: number): number {
-  const degToRad = Math.PI / 180;
-  const _x = (beta || 0) * degToRad;
-  const _y = (gamma || 0) * degToRad;
-  const _z = (alpha || 0) * degToRad;
-
-  const cX = Math.cos(_x);
-  const cY = Math.cos(_y);
-  const cZ = Math.cos(_z);
-  const sX = Math.sin(_x);
-  const sY = Math.sin(_y);
-  const sZ = Math.sin(_z);
-
-  // بردار دید پشت گوشی در فضای سه‌بعدی (Optical Axis Compensation)
-  const Vx = -cZ * sY - sZ * sX * cY;
-  const Vy = -sZ * sY + cZ * sX * cY;
-
-  let compassHeading = Math.atan(Vx / Vy);
-  if (Vy < 0) {
-    compassHeading += Math.PI;
-  } else if (Vx < 0) {
-    compassHeading += 2 * Math.PI;
-  }
-  return (compassHeading * (180 / Math.PI) + 360) % 360;
-}
-
-// وکتور سه‌بعدی و طلایی کعبه معظمه (با پرده کعبه و حجرالاسود)
-function Kaaba3DArtwork({ size = 64, glowing = false }: { size?: number; glowing?: boolean }) {
-  return (
-    <div className="relative inline-flex items-center justify-center">
-      {glowing && (
-        <div
-          className="absolute inset-0 rounded-full animate-ping"
-          style={{ background: 'radial-gradient(circle, rgba(52,211,153,0.45) 0%, transparent 70%)' }}
-        />
-      )}
-      <svg width={size} height={size} viewBox="0 0 80 80" fill="none" className="drop-shadow-xl relative z-10">
-        {/* هاله نورانی زیر کعبه */}
-        <ellipse cx="40" cy="68" rx="26" ry="6" fill={glowing ? '#10B981' : '#F59E0B'} fillOpacity="0.28" />
-        {/* وجه چپ مکعب کعبه */}
-        <polygon points="16,28 40,38 40,66 16,55" fill="#0F172A" stroke="#FBBF24" strokeWidth="1.2" />
-        {/* وجه راست مکعب کعبه */}
-        <polygon points="64,28 40,38 40,66 64,55" fill="#1E293B" stroke="#FBBF24" strokeWidth="1.2" />
-        {/* سقف کعبه */}
-        <polygon points="40,18 64,28 40,38 16,28" fill="#334155" stroke="#FDE68A" strokeWidth="1.4" />
-        {/* حزام (کمربند طلایی قرآنی پرده کعبه) */}
-        <polygon points="16,35 40,45 40,50 16,40" fill="url(#kaabaGoldBand)" />
-        <polygon points="64,35 40,45 40,50 64,40" fill="url(#kaabaGoldBand)" />
-        {/* باب الکعبه (درب طلایی کعبه در وجه راست) */}
-        <polygon points="47,49 54,46 54,59 47,62" fill="url(#kaabaGoldBand)" />
-        {/* رکن حجرالاسود در زاویه روبه‌رو */}
-        <circle cx="40" cy="53" r="2.4" fill="#FDE047" stroke="#FFFFFF" strokeWidth="0.8" />
-        <defs>
-          <linearGradient id="kaabaGoldBand" x1="16" y1="35" x2="64" y2="55" gradientUnits="userSpaceOnUse">
-            <stop stopColor="#FEF08A" />
-            <stop offset="0.5" stopColor="#F59E0B" />
-            <stop offset="1" stopColor="#B45309" />
-          </linearGradient>
-        </defs>
-      </svg>
-    </div>
-  );
-}
-
-export function QiblaCompass({ lat, lng, cityName, onClose }: Props) {
-  const { theme } = useTheme();
-  const qiblaAngle = Math.round(calculateQiblaDirection(lat, lng));
-  const distanceKm = calculateDistanceToKaabaKm(lat, lng);
-
-  // زاویه فیلترشده و بدون لرزش قطب‌نما
-  const [smoothHeading, setSmoothHeading] = useState<number>(qiblaAngle);
-  const [sensorState, setSensorState] = useState<'active' | 'needs_calibration' | 'no_sensor'>('active');
-  const [isUpright, setIsUpright] = useState<boolean>(true);
-  const [pitchAngle, setPitchAngle] = useState<number>(75);
-  const [aiVisionMode, setAiVisionMode] = useState<boolean>(false);
-  const [cameraActive, setCameraActive] = useState<boolean>(false);
-  const [showCalibrateModal, setShowCalibrateModal] = useState<boolean>(false);
-  const [manualMode, setManualMode] = useState<boolean>(false);
-
-  // رفرنس‌های فیلتر نرم‌کننده نمایی دایره‌ای (Circular EMA Filter) برای حذف ۱۰۰٪ لرزش
-  const sinRef = useRef<number>(Math.sin((qiblaAngle * Math.PI) / 180));
-  const cosRef = useRef<number>(Math.cos((qiblaAngle * Math.PI) / 180));
-  const lastDisplayedRef = useRef<number>(qiblaAngle);
-  const eventCountRef = useRef<number>(0);
-  const lastVibrationRef = useRef<number>(0);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-
-  // فیلتر ضدلرزش با میانگین‌گیری برداری روی دایره مثلثاتی
-  const applyAntiJitterHeading = useCallback((rawHeading: number) => {
-    const rad = (rawHeading * Math.PI) / 180;
-    // ضریب 0.12 باعث حرکت فوق‌العاده نرم و بدون پرش عقربه می‌شود
-    const smoothingFactor = 0.12;
-    sinRef.current = sinRef.current * (1 - smoothingFactor) + Math.sin(rad) * smoothingFactor;
-    cosRef.current = cosRef.current * (1 - smoothingFactor) + Math.cos(rad) * smoothingFactor;
-
-    let filteredDeg = (Math.atan2(sinRef.current, cosRef.current) * 180) / Math.PI;
-    filteredDeg = (filteredDeg + 360) % 360;
-
-    // آستانه سکون (Dead-band): تغییرات ریز کمتر از 0.4 درجه را نادیده بگیر تا عقربه نلرزد
-    let diff = Math.abs(filteredDeg - lastDisplayedRef.current);
-    if (diff > 180) diff = 360 - diff;
-    if (diff >= 0.4) {
-      lastDisplayedRef.current = filteredDeg;
-      setSmoothHeading(Math.round(filteredDeg));
-    }
-  }, []);
-
-  useEffect(() => {
-    if (manualMode) return;
-    let receivedAnyReading = false;
-
-    const handleOrientation = (e: DeviceOrientationEvent) => {
-      const ev = e as DeviceOrientationEvent & { webkitCompassHeading?: number; webkitCompassAccuracy?: number };
-      const beta = typeof e.beta === 'number' ? e.beta : 75;
-      const gamma = typeof e.gamma === 'number' ? e.gamma : 0;
-      const alpha = typeof e.alpha === 'number' ? e.alpha : null;
-
-      setPitchAngle(Math.round(beta));
-      // بررسی عمودی بودن گوشی در دست کاربر (بین 30 تا 135 درجه عمودی محسوب می‌شود)
-      setIsUpright(Math.abs(beta) >= 28);
-
-      let rawHeading: number | null = null;
-      if (typeof ev.webkitCompassHeading === 'number' && !isNaN(ev.webkitCompassHeading)) {
-        rawHeading = ev.webkitCompassHeading;
-        if (typeof ev.webkitCompassAccuracy === 'number' && ev.webkitCompassAccuracy > 35) {
-          setSensorState('needs_calibration');
-        } else {
-          setSensorState('active');
-        }
-      } else if (alpha !== null) {
-        // اگر گوشی عمودی روبه‌روی صورت است، از فرمول جبران بردار سه‌بعدی استفاده کن
-        if (Math.abs(beta) >= 40) {
-          rawHeading = computeUprightCompassHeading(alpha, beta, gamma);
-        } else {
-          rawHeading = (360 - alpha) % 360;
-        }
-        setSensorState('active');
-      }
-
-      if (rawHeading !== null && !isNaN(rawHeading)) {
-        receivedAnyReading = true;
-        eventCountRef.current += 1;
-        applyAntiJitterHeading(rawHeading);
-      }
-    };
-
-    const win = window as Window & typeof globalThis;
-    win.addEventListener('deviceorientationabsolute', handleOrientation as EventListener, true);
-    win.addEventListener('deviceorientation', handleOrientation as EventListener, true);
-
-    // اگر بعد از ۲.۵ ثانیه هیچ سنسور مغناطیسی روی دستگاه پاسخ نداد، وضعیت سنسور را اطلاع بده
-    const checkTimer = setTimeout(() => {
-      if (!receivedAnyReading && eventCountRef.current === 0) {
-        setSensorState('no_sensor');
-      }
-    }, 2600);
-
-    return () => {
-      clearTimeout(checkTimer);
-      win.removeEventListener('deviceorientationabsolute', handleOrientation as EventListener, true);
-      win.removeEventListener('deviceorientation', handleOrientation as EventListener, true);
-    };
-  }, [manualMode, applyAntiJitterHeading]);
-
-  // مدیریت روشن/خاموش کردن دوربین پشت برای حالت «نمای هوشمند AI و واقعیت افزوده (AR)»
-  const toggleAiVisionMode = async () => {
-    if (aiVisionMode) {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((t) => t.stop());
-        streamRef.current = null;
-      }
-      setCameraActive(false);
-      setAiVisionMode(false);
-      return;
-    }
-    setAiVisionMode(true);
-    try {
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: 'environment' } },
-          audio: false,
-        });
-        streamRef.current = stream;
-        setCameraActive(true);
-        setTimeout(() => {
-          if (videoRef.current) {
-            videoRef.current.srcObject = stream;
-            void videoRef.current.play();
-          }
-        }, 120);
-      }
-    } catch {
-      // در صورت عدم دسترسی دوربین، آسمان مجازی سه‌بعدی مکه مکرمه (AI Virtual Sky) نمایش داده می‌شود
-      setCameraActive(false);
-    }
+function toFaDigits(value: number | string): string {
+  const map: Record<string, string> = {
+    '0': '۰', '1': '۱', '2': '۲', '3': '۳', '4': '۴',
+    '5': '۵', '6': '۶', '7': '۷', '8': '۸', '9': '۹',
   };
+  return String(value).replace(/[0-9]/g, (d) => map[d] || d);
+}
+
+function normalize360(deg: number): number {
+  return ((deg % 360) + 360) % 360;
+}
+
+function shortestDelta(fromDeg: number, toDegVal: number): number {
+  return ((toDegVal - fromDeg + 540) % 360) - 180;
+}
+
+function cardinalLabelFa(deg: number): string {
+  const d = normalize360(deg);
+  if (d >= 337.5 || d < 22.5) return 'شمال';
+  if (d < 67.5) return 'شمال‌شرقی';
+  if (d < 112.5) return 'شرق';
+  if (d < 157.5) return 'جنوب‌شرقی';
+  if (d < 202.5) return 'جنوب';
+  if (d < 247.5) return 'جنوب‌غربی';
+  if (d < 292.5) return 'غرب';
+  return 'شمال‌غربی';
+}
+
+/**
+ * Gimbal-lock-free heading estimator from W3C DeviceOrientation angles.
+ * Smoothly blends flat (+Y) and upright (-Z) projections so holding the phone
+ * flat or at a comfortable 35-85 degree viewing angle never flips or jitters.
+ */
+function computeTiltCompensatedHeading(
+  alpha: number,
+  beta: number | null,
+  gamma: number | null
+): number {
+  const bVal = typeof beta === 'number' && Number.isFinite(beta) ? Math.max(-85, Math.min(85, beta)) : 0;
+  const gVal = typeof gamma === 'number' && Number.isFinite(gamma) ? Math.max(-75, Math.min(75, gamma)) : 0;
+
+  const a = toRad(alpha);
+  const b = toRad(bVal);
+  const g = toRad(gVal);
+
+  const cA = Math.cos(a), sA = Math.sin(a);
+  const cB = Math.cos(b), sB = Math.sin(b);
+  const cG = Math.cos(g), sG = Math.sin(g);
+
+  const absSinB = Math.abs(sB);
+  const signB = sB >= 0 ? 1 : -1;
+
+  const east = -sA * cB * cB + absSinB * (-cA * sG - sA * signB * absSinB * cG);
+  const north = cA * cB * cB + absSinB * (-sA * sG + cA * signB * absSinB * cG);
+
+  let heading = toDeg(Math.atan2(east, north));
+  if (typeof window !== 'undefined' && window.screen?.orientation?.angle) {
+    heading += window.screen.orientation.angle;
+  }
+  return normalize360(heading);
+}
+
+interface DeviceOrientationWithWebkit extends DeviceOrientationEvent {
+  webkitCompassHeading?: number;
+  webkitCompassAccuracy?: number;
+}
+
+export function QiblaCompass(props: QiblaCompassProps) {
+  // موقعیت جغرافیایی مؤثر (اولویت: پراپ ورودی -> GPS دقیق ذخیره‌شده -> شهر انتخابی)
+  const locationInfo = useMemo(() => {
+    const savedCity = getCityById(getGuestCityId());
+    const gps = getCustomGpsCoords();
+    const lat =
+      props.lat ?? props.latitude ?? props.cityLat ?? props.city?.lat ?? gps?.lat ?? savedCity.lat;
+    const lng =
+      props.lng ?? props.longitude ?? props.cityLng ?? props.city?.lng ?? gps?.lng ?? savedCity.lng;
+    const cityLabel =
+      props.cityNameFa ?? props.cityName ?? props.city?.nameFa ?? props.city?.name ?? savedCity.nameFa;
+    return { lat, lng, cityLabel };
+  }, [
+    props.lat,
+    props.lng,
+    props.latitude,
+    props.longitude,
+    props.cityLat,
+    props.cityLng,
+    props.cityName,
+    props.cityNameFa,
+    props.city?.lat,
+    props.city?.lng,
+    props.city?.nameFa,
+    props.city?.name,
+  ]);
+
+  const qiblaAngle = useMemo(
+    () => calculateQiblaDirection(locationInfo.lat, locationInfo.lng),
+    [locationInfo.lat, locationInfo.lng]
+  );
+
+  const distanceKm = useMemo(
+    () => calculateDistanceToKaabaKm(locationInfo.lat, locationInfo.lng),
+    [locationInfo.lat, locationInfo.lng]
+  );
+
+  const [sensorActive, setSensorActive] = useState(false);
+  const [needsIosPermission, setNeedsIosPermission] = useState(false);
+  const [isAligned, setIsAligned] = useState(false);
+  const [stability, setStability] = useState<'high' | 'medium' | 'low'>('high');
+  const [displayHeading, setDisplayHeading] = useState(0);
+  const [continuousDialDeg, setContinuousDialDeg] = useState(0);
+  const [manualPreviewDeg, setManualPreviewDeg] = useState(0);
+
+  // پاپ‌آپ راهنمای کالیبره ∞ (در اولین ورود جلسه یا با لمس دکمه کالیبره باز می‌شود)
+  const [showCalibModal, setShowCalibModal] = useState<boolean>(() => {
+    try {
+      return sessionStorage.getItem(CALIBRATION_SESSION_KEY) !== 'done';
+    } catch {
+      return true;
+    }
+  });
+  const [calibProgress, setCalibProgress] = useState(0);
+  const [calibDone, setCalibDone] = useState(false);
+
+  // رف‌های موتور ضدلرزش 60fps بدون Re-render اضافی
+  const hasAbsoluteRef = useRef(false);
+  const vecXRef = useRef(0);
+  const vecYRef = useRef(1);
+  const vecInitRef = useRef(false);
+  const targetHeadingRef = useRef(0);
+  const smoothContinuousRef = useRef(0);
+  const lastAlignedRef = useRef(false);
+  const lastOrientationRef = useRef<{ a: number; b: number; g: number } | null>(null);
+  const calibMotionAccRef = useRef(0);
+  const recentDeltasRef = useRef<number[]>([]);
+  const showCalibRef = useRef(showCalibModal);
+  const calibDoneRef = useRef(calibDone);
 
   useEffect(() => {
-    return () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((t) => t.stop());
-      }
-    };
-  }, []);
+    showCalibRef.current = showCalibModal;
+    calibDoneRef.current = calibDone;
+  }, [showCalibModal, calibDone]);
 
-  // محاسبه اختلاف زاویه دید فعلی کاربر با قبله
-  const rawDelta = ((qiblaAngle - smoothHeading + 540) % 360) - 180; // بازه -180 تا +180
-  const absDelta = Math.abs(rawDelta);
-  const isFacingQibla = absDelta <= 7;
-  const isNearQibla = absDelta <= 22;
-
-  // ویبره لطیف در لحظه‌ای که کاربر دقیقاً هم‌راستا با کعبه می‌شود
-  useEffect(() => {
-    if (isFacingQibla && Date.now() - lastVibrationRef.current > 4000) {
-      lastVibrationRef.current = Date.now();
+  const finishCalibration = useCallback(() => {
+    setCalibProgress(100);
+    setCalibDone(true);
+    try {
+      sessionStorage.setItem(CALIBRATION_SESSION_KEY, 'done');
+    } catch {}
+    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
       try {
-        if ('vibrate' in navigator) navigator.vibrate([45, 60, 90]);
+        navigator.vibrate([30, 40, 65]);
       } catch {}
     }
-  }, [isFacingQibla]);
+    window.setTimeout(() => {
+      setShowCalibModal(false);
+    }, 650);
+  }, []);
 
-  const turnInstruction = isFacingQibla
-    ? '✨ دقیقاً رو به قبله و کعبه معظمه قرار دارید'
-    : rawDelta > 0
-    ? `به آرامی ${toFaDigits(Math.round(absDelta))} درجه به سمت راست بچرخید ↱`
-    : `به آرامی ${toFaDigits(Math.round(absDelta))} درجه به سمت چپ بچرخید ↰`;
+  const openCalibrationPopup = useCallback(() => {
+    calibMotionAccRef.current = 0;
+    lastOrientationRef.current = null;
+    setCalibProgress(0);
+    setCalibDone(false);
+    setShowCalibModal(true);
+  }, []);
 
-  const content = (
+  const handleOrientationEvent = useCallback(
+    (ev: DeviceOrientationWithWebkit, isAbsoluteStream: boolean) => {
+      if (isAbsoluteStream && typeof ev.alpha === 'number') {
+        hasAbsoluteRef.current = true;
+      } else if (!isAbsoluteStream && hasAbsoluteRef.current && typeof ev.webkitCompassHeading !== 'number') {
+        return;
+      }
+
+      let rawHeading: number | null = null;
+      if (typeof ev.webkitCompassHeading === 'number' && Number.isFinite(ev.webkitCompassHeading)) {
+        rawHeading = normalize360(ev.webkitCompassHeading);
+        if (typeof ev.webkitCompassAccuracy === 'number' && ev.webkitCompassAccuracy > 28) {
+          setStability('low');
+        }
+      } else if (typeof ev.alpha === 'number' && Number.isFinite(ev.alpha)) {
+        rawHeading = computeTiltCompensatedHeading(ev.alpha, ev.beta, ev.gamma);
+      }
+
+      if (rawHeading === null) return;
+      setSensorActive(true);
+
+      // ۱. محاسبه پیشرفت زنده کالیبره ∞ در صورت باز بودن پاپ‌آپ
+      if (showCalibRef.current && !calibDoneRef.current) {
+        const curA = ev.alpha ?? rawHeading;
+        const curB = ev.beta ?? 0;
+        const curG = ev.gamma ?? 0;
+        const prev = lastOrientationRef.current;
+        if (prev) {
+          const dA = Math.abs(shortestDelta(prev.a, curA));
+          const dB = Math.abs(curB - prev.b);
+          const dG = Math.abs(curG - prev.g);
+          const stepMotion = Math.min(28, dA * 0.55 + dB * 0.9 + dG * 0.9);
+          if (stepMotion > 0.8) {
+            calibMotionAccRef.current += stepMotion;
+            const pct = Math.min(100, Math.round((calibMotionAccRef.current / 420) * 100));
+            setCalibProgress(pct);
+            if (pct >= 100) {
+              finishCalibration();
+            }
+          }
+        }
+        lastOrientationRef.current = { a: curA, b: curB, g: curG };
+      }
+
+      // ۲. فیلتر برداری دایره‌ای تطبیقی (Adaptive Circular Vector Low-Pass) + Deadband
+      const rad = toRad(rawHeading);
+      const nx = Math.sin(rad);
+      const ny = Math.cos(rad);
+
+      if (!vecInitRef.current) {
+        vecXRef.current = nx;
+        vecYRef.current = ny;
+        targetHeadingRef.current = rawHeading;
+        smoothContinuousRef.current = -rawHeading;
+        vecInitRef.current = true;
+        return;
+      }
+
+      const prevFiltered = targetHeadingRef.current;
+      const diff = Math.abs(shortestDelta(prevFiltered, rawHeading));
+
+      // ثبت پایداری سیگنال مغناطیسی در ۲۰ نمونه اخیر
+      recentDeltasRef.current.push(diff);
+      if (recentDeltasRef.current.length > 20) recentDeltasRef.current.shift();
+      const avgJitter =
+        recentDeltasRef.current.reduce((acc, v) => acc + v, 0) / recentDeltasRef.current.length;
+      if (avgJitter > 10) setStability('low');
+      else if (avgJitter > 4.5) setStability('medium');
+      else setStability('high');
+
+      // ناحیه مرده میکرو-لرزش دست: حرکت‌های زیر ۰.۴۵ درجه نادیده گرفته می‌شوند
+      if (diff < 0.45) return;
+
+      // ضریب میرایی هوشمند: در سکون فوق‌العاده نرم (0.065)، در چرخش سریع پاسخگو (0.28)
+      const alphaFactor =
+        diff < 2.5 ? 0.065 : diff < 8 ? 0.11 : diff < 22 ? 0.18 : 0.28;
+
+      vecXRef.current = vecXRef.current * (1 - alphaFactor) + nx * alphaFactor;
+      vecYRef.current = vecYRef.current * (1 - alphaFactor) + ny * alphaFactor;
+
+      const filteredDeg = normalize360(toDeg(Math.atan2(vecXRef.current, vecYRef.current)));
+      targetHeadingRef.current = filteredDeg;
+    },
+    [finishCalibration]
+  );
+
+  // ثبت لیسنرهای سنسور قطب‌نما (اولویت با deviceorientationabsolute در اندروید)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const DOE = window.DeviceOrientationEvent as unknown as {
+      requestPermission?: () => Promise<'granted' | 'denied'>;
+    };
+    if (DOE && typeof DOE.requestPermission === 'function') {
+      setNeedsIosPermission(true);
+      return;
+    }
+
+    const onAbs = (e: Event) => handleOrientationEvent(e as DeviceOrientationWithWebkit, true);
+    const onRel = (e: Event) => handleOrientationEvent(e as DeviceOrientationWithWebkit, false);
+
+    window.addEventListener('deviceorientationabsolute', onAbs, true);
+    window.addEventListener('deviceorientation', onRel, true);
+
+    return () => {
+      window.removeEventListener('deviceorientationabsolute', onAbs, true);
+      window.removeEventListener('deviceorientation', onRel, true);
+    };
+  }, [handleOrientationEvent]);
+
+  const requestIosCompassPermission = async () => {
+    try {
+      const DOE = window.DeviceOrientationEvent as unknown as {
+        requestPermission?: () => Promise<'granted' | 'denied'>;
+      };
+      if (DOE && typeof DOE.requestPermission === 'function') {
+        const res = await DOE.requestPermission();
+        if (res === 'granted') {
+          setNeedsIosPermission(false);
+          const onRel = (e: Event) => handleOrientationEvent(e as DeviceOrientationWithWebkit, false);
+          window.addEventListener('deviceorientation', onRel, true);
+        }
+      }
+    } catch {}
+  };
+
+  // حلقه انیمیشن نرم 60fps برای چرخش بدون پرش صفحه قطب‌نما و تشخیص قفل قبله با هیسترزیس
+  useEffect(() => {
+    let rafId = 0;
+    let lastUiCommit = 0;
+
+    const tick = (now: number) => {
+      const activeTargetHeading = sensorActive ? targetHeadingRef.current : manualPreviewDeg;
+      const desiredDialRotation = -activeTargetHeading;
+
+      const cur = smoothContinuousRef.current;
+      const curNorm = normalize360(cur);
+      const desiredNorm = normalize360(desiredDialRotation);
+      const delta = shortestDelta(curNorm, desiredNorm);
+
+      // حرکت فنری فوق‌العاده نرم (Spring Damping) بدون پرش در مرز ۰/۳۶۰
+      if (Math.abs(delta) > 0.04) {
+        smoothContinuousRef.current = cur + delta * 0.16;
+      }
+
+      if (now - lastUiCommit > 32) {
+        lastUiCommit = now;
+        const visualHeading = normalize360(-smoothContinuousRef.current);
+        setContinuousDialDeg(smoothContinuousRef.current);
+        setDisplayHeading(Math.round(visualHeading));
+
+        const errAbs = Math.abs(shortestDelta(visualHeading, qiblaAngle));
+        // هیسترزیس: قفل شدن در ±5 درجه و باز شدن در ±7.5 درجه (بدون چشمک زدن!)
+        const nextAligned = lastAlignedRef.current ? errAbs <= 7.5 : errAbs <= 5.0;
+        if (nextAligned !== lastAlignedRef.current) {
+          lastAlignedRef.current = nextAligned;
+          setIsAligned(nextAligned);
+          if (
+            nextAligned &&
+            sensorActive &&
+            !showCalibRef.current &&
+            typeof navigator !== 'undefined' &&
+            typeof navigator.vibrate === 'function'
+          ) {
+            try {
+              navigator.vibrate([35, 30, 75]);
+            } catch {}
+          }
+        }
+      }
+
+      rafId = window.requestAnimationFrame(tick);
+    };
+
+    rafId = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(rafId);
+  }, [sensorActive, manualPreviewDeg, qiblaAngle]);
+
+  // محاسبه راهنمای چرخش لحظه‌ای به سمت قبله
+  const turnDelta = shortestDelta(displayHeading, qiblaAngle);
+  const absTurn = Math.round(Math.abs(turnDelta));
+
+  const guidance = useMemo(() => {
+    if (isAligned) {
+      return {
+        text: 'دقیقاً رو به قبله هستید (کعبه معظمه)',
+        dir: 'locked' as const,
+      };
+    }
+    if (absTurn >= 150) {
+      return {
+        text: 'به سمت پشت خود بچرخید',
+        dir: turnDelta > 0 ? ('right' as const) : ('left' as const),
+      };
+    }
+    if (turnDelta > 0) {
+      return {
+        text: absTurn <= 20 ? `کمی به راست بچرخید (${toFaDigits(absTurn)}°)` : `به سمت راست بچرخید (${toFaDigits(absTurn)}°)`,
+        dir: 'right' as const,
+      };
+    }
+    return {
+      text: absTurn <= 20 ? `کمی به چپ بچرخید (${toFaDigits(absTurn)}°)` : `به سمت چپ بچرخید (${toFaDigits(absTurn)}°)`,
+      dir: 'left' as const,
+    };
+  }, [isAligned, absTurn, turnDelta]);
+
+  // خطوط درجه‌بندی دور صفحه قطب‌نما (هر ۵ درجه)
+  const dialTicks = useMemo(() => {
+    const items: { angle: number; major: boolean; cardinal?: string }[] = [];
+    for (let deg = 0; deg < 360; deg += 5) {
+      let cardinal: string | undefined;
+      if (deg === 0) cardinal = 'ش';
+      else if (deg === 90) cardinal = 'ق';
+      else if (deg === 180) cardinal = 'ج';
+      else if (deg === 270) cardinal = 'غ';
+      items.push({ angle: deg, major: deg % 30 === 0, cardinal });
+    }
+    return items;
+  }, []);
+
+  const calibStrokeDash = 2 * Math.PI * 52;
+  const calibStrokeOffset = calibStrokeDash * (1 - calibProgress / 100);
+
+  return (
     <div
-      className="fixed inset-0 z-[999] overflow-y-auto flex flex-col justify-between p-4 sm:p-6 select-none animate-fade-in"
+      className="w-full rounded-[28px] p-4 border shadow-2xl space-y-4 relative overflow-hidden select-none"
       style={{
-        background: aiVisionMode
-          ? 'radial-gradient(circle at 50% 30%, #091E3A 0%, #030914 100%)'
-          : 'radial-gradient(circle at 50% 25%, #0B253A 0%, #040D1A 68%, #02060D 100%)',
+        background: isAligned
+          ? 'linear-gradient(170deg, rgba(6, 56, 42, 0.98) 0%, rgba(4, 24, 19, 0.99) 100%)'
+          : 'linear-gradient(170deg, rgba(8, 28, 34, 0.97) 0%, rgba(4, 15, 20, 0.99) 100%)',
+        borderColor: isAligned ? 'rgba(52, 211, 153, 0.65)' : 'rgba(251, 191, 36, 0.25)',
+        transition: 'background 400ms ease, border-color 400ms ease',
       }}
       dir="rtl"
     >
-      {/* پس‌زمینه ویدیوی زنده دوربین در حالت AI / AR Mode */}
-      {aiVisionMode && cameraActive && (
-        <video
-          ref={videoRef}
-          playsInline
-          muted
-          className="fixed inset-0 w-full h-full object-cover opacity-55 pointer-events-none z-0"
-        />
-      )}
+      {/* هدر قبله‌نما و دکمه کالیبره */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div
+            className="w-10 h-10 rounded-2xl flex items-center justify-center border shrink-0"
+            style={{
+              background: isAligned ? 'rgba(52, 211, 153, 0.2)' : 'rgba(251, 191, 36, 0.14)',
+              borderColor: isAligned ? '#34D399' : 'rgba(251, 191, 36, 0.4)',
+              color: isAligned ? '#34D399' : '#FBBF24',
+            }}
+          >
+            <Compass size={20} />
+          </div>
+          <div className="min-w-0">
+            <h2 className="text-sm font-black text-white truncate">🕋 قبله‌نمای هوشمند</h2>
+            <div className="flex items-center gap-1 text-[11px] text-emerald-100/70 mt-0.5 truncate">
+              <MapPin size={11} className="text-amber-300 shrink-0" />
+              <span className="truncate">{locationInfo.cityLabel}</span>
+              <span>·</span>
+              <span>{toFaDigits(Math.round(qiblaAngle))}° {cardinalLabelFa(qiblaAngle)}</span>
+            </div>
+          </div>
+        </div>
 
-      {/* هاله سبز زمردی دور تا دور صفحه وقتی دقیقاً رو به کعبه قرار می‌گیرید */}
-      {isFacingQibla && (
-        <div
-          className="fixed inset-0 pointer-events-none z-10 transition-opacity duration-500"
-          style={{
-            boxShadow: 'inset 0 0 85px rgba(16, 185, 129, 0.45)',
-            border: '2px solid rgba(52, 211, 153, 0.55)',
-          }}
-        />
-      )}
-
-      {/* ۱. هدر بالای قبله‌نما: دکمه کالیبراسیون، عنوان مکه مکرمه و دکمه بستن */}
-      <div className="relative z-20 flex items-center justify-between gap-2 pb-2">
         <button
           type="button"
-          onClick={() => setShowCalibrateModal(true)}
-          className="px-3 py-2 rounded-2xl border flex items-center gap-1.5 text-xs font-bold transition-transform active:scale-95"
+          onClick={openCalibrationPopup}
+          className="px-3 py-1.5 rounded-xl border text-[11px] font-black flex items-center gap-1.5 transition-transform active:scale-95 shrink-0"
           style={{
-            background: 'rgba(15, 23, 42, 0.78)',
-            borderColor: sensorState === 'active' ? 'rgba(251, 191, 36, 0.45)' : '#EF4444',
-            color: '#FDE68A',
-            backdropFilter: 'blur(8px)',
+            background: stability === 'low' ? 'rgba(245, 158, 11, 0.22)' : 'rgba(255, 255, 255, 0.06)',
+            borderColor: stability === 'low' ? '#F59E0B' : 'rgba(255, 255, 255, 0.16)',
+            color: stability === 'low' ? '#FDE68A' : '#E2E8F0',
           }}
         >
-          <RefreshCw size={14} className={sensorState !== 'active' ? 'animate-spin' : ''} />
-          <span>کالیبره و دقت</span>
+          <RefreshCw size={12} />
+          <span>کالیبره ∞</span>
         </button>
-
-        <div className="text-center">
-          <h2 className="text-base font-black text-white tracking-wide flex items-center justify-center gap-1.5">
-            <span>🕋</span>
-            <span>قبله‌نمای عمودی و هوشمند</span>
-          </h2>
-          <p className="text-[11px] font-bold text-amber-300/90 mt-0.5">
-            مکه مکرمه · فاصله از {cityName}: {toFaDigits(distanceKm.toLocaleString())} کیلومتر
-          </p>
-        </div>
-
-        {onClose ? (
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-9 h-9 rounded-2xl border flex items-center justify-center text-white/80"
-            style={{ background: 'rgba(15, 23, 42, 0.78)', borderColor: 'rgba(255,255,255,0.16)' }}
-          >
-            <X size={18} />
-          </button>
-        ) : (
-          <div className="w-9" />
-        )}
       </div>
 
-      {/* ۲. نوار راهنمای عمودی نگه داشتن گوشی (Upright Portrait Indicator) و وضعیت سنسور */}
-      <div className="relative z-20 flex flex-col gap-2 my-1">
+      {/* بنر راهنمای لحظه‌ای چرخش (کاملاً شفاف و بدون سردرگمی) */}
+      <div
+        className="rounded-2xl px-3.5 py-2.5 border flex items-center justify-center gap-2 text-center transition-all duration-300"
+        style={{
+          background: isAligned
+            ? 'linear-gradient(90deg, rgba(16, 185, 129, 0.28) 0%, rgba(251, 191, 36, 0.22) 100%)'
+            : 'rgba(255, 255, 255, 0.04)',
+          borderColor: isAligned ? '#34D399' : 'rgba(255, 255, 255, 0.1)',
+        }}
+      >
+        {guidance.dir === 'locked' && <CheckCircle2 size={17} className="text-emerald-300 shrink-0" />}
+        {guidance.dir === 'right' && <RotateCw size={16} className="text-amber-300 shrink-0" />}
+        {guidance.dir === 'left' && <RotateCcw size={16} className="text-amber-300 shrink-0" />}
+        <span
+          className="text-xs font-black"
+          style={{ color: isAligned ? '#A7F3D0' : '#FEF3C7' }}
+        >
+          {guidance.text}
+        </span>
+      </div>
+
+      {/* درخواست مجوز سنسور ویژه iOS در صورت نیاز */}
+      {needsIosPermission && (
+        <button
+          type="button"
+          onClick={() => { void requestIosCompassPermission(); }}
+          className="w-full py-2.5 rounded-2xl font-black text-xs shadow-lg"
+          style={{ background: 'linear-gradient(135deg, #FBBF24 0%, #D97706 100%)', color: '#041511' }}
+        >
+          فعال‌سازی سنسور قطب‌نمای گوشی
+        </button>
+      )}
+
+      {/* صفحه اصلی قطب‌نمای شیشه‌ای کریستالی ۲۰۲۶ (بدون لرزش) */}
+      <div className="relative flex items-center justify-center py-2">
+        {/* هاله نورانی قفل قبله */}
         <div
-          className="px-3.5 py-2 rounded-2xl border flex items-center justify-between gap-2"
+          className="absolute w-72 h-72 rounded-full pointer-events-none transition-all duration-500"
           style={{
-            background: 'rgba(15, 23, 42, 0.80)',
-            borderColor: isUpright ? 'rgba(52, 211, 153, 0.4)' : 'rgba(251, 191, 36, 0.5)',
-            backdropFilter: 'blur(10px)',
+            background: isAligned
+              ? 'radial-gradient(circle, rgba(52, 211, 153, 0.28) 0%, rgba(251, 191, 36, 0.14) 45%, transparent 72%)'
+              : 'radial-gradient(circle, rgba(251, 191, 36, 0.10) 0%, transparent 65%)',
+          }}
+        />
+
+        {/* نشانگر ثابت بالای ساعت ۱۲ (خط هم‌راستایی گوشی با قبله) */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center pointer-events-none">
+          <div
+            className="w-3.5 h-3.5 rotate-45 rounded-[3px] shadow-lg transition-colors duration-300"
+            style={{
+              background: isAligned ? '#34D399' : '#FBBF24',
+              boxShadow: isAligned ? '0 0 14px #34D399' : '0 0 10px rgba(251,191,36,0.7)',
+            }}
+          />
+          <div
+            className="w-0.5 h-4 -mt-1 transition-colors duration-300"
+            style={{ background: isAligned ? '#34D399' : 'rgba(251, 191, 36, 0.8)' }}
+          />
+        </div>
+
+        {/* دیسک چرخان قطب‌نما */}
+        <div
+          className="relative w-64 h-64 rounded-full p-2 shadow-2xl border-2"
+          style={{
+            background: 'radial-gradient(circle at 50% 45%, #0D2C26 0%, #051613 78%, #020B09 100%)',
+            borderColor: isAligned ? '#34D399' : 'rgba(251, 191, 36, 0.42)',
+            boxShadow: isAligned
+              ? '0 0 36px rgba(52, 211, 153, 0.32), inset 0 0 24px rgba(52, 211, 153, 0.18)'
+              : '0 16px 36px rgba(0, 0, 0, 0.55), inset 0 0 24px rgba(251, 191, 36, 0.08)',
+            transition: 'border-color 300ms ease, box-shadow 300ms ease',
           }}
         >
-          <div className="flex items-center gap-2">
-            <Smartphone size={16} color={isUpright ? '#34D399' : '#FBBF24'} />
-            <span className="text-[11px] font-bold text-white">
-              {isUpright
-                ? 'حالت عمودی فعال است — گوشی را مقابل صورت نگه دارید و بچرخید'
-                : 'لطفاً گوشی را افقی نگیرید؛ عمودی روبه‌روی صورت خود نگه دارید'}
-            </span>
-          </div>
-          <span
-            className="text-[10px] font-black px-2 py-0.5 rounded-full shrink-0"
+          <svg
+            viewBox="0 0 260 260"
+            className="w-full h-full will-change-transform"
             style={{
-              background: sensorState === 'active' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.22)',
-              color: sensorState === 'active' ? '#34D399' : '#FDE047',
+              transform: `rotate(${continuousDialDeg.toFixed(2)}deg)`,
             }}
           >
-            {sensorState === 'active' ? 'قطب‌نما: دقیق ✓' : sensorState === 'needs_calibration' ? 'نیاز به کالیبره' : 'حالت دستی/خورشیدی'}
-          </span>
-        </div>
+            {/* حلقه درونی تزئینی */}
+            <circle cx="130" cy="130" r="118" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
+            <circle cx="130" cy="130" r="92" fill="none" stroke="rgba(251,191,36,0.14)" strokeWidth="1" strokeDasharray="3 5" />
 
-        {/* کارت ظهور سه‌بعدی کعبه در حالت AI Vision یا در لحظه قفل شدن روی قبله */}
-        {(aiVisionMode || isFacingQibla) && (
-          <div
-            className="px-4 py-2.5 rounded-3xl border flex items-center justify-between gap-3 transition-all"
-            style={{
-              background: isFacingQibla
-                ? 'linear-gradient(135deg, rgba(6, 78, 59, 0.92) 0%, rgba(4, 47, 46, 0.95) 100%)'
-                : 'rgba(15, 23, 42, 0.85)',
-              borderColor: isFacingQibla ? '#34D399' : 'rgba(56, 189, 248, 0.45)',
-              boxShadow: isFacingQibla ? '0 10px 30px rgba(16, 185, 129, 0.35)' : undefined,
-            }}
-          >
-            <div className="flex items-center gap-3">
-              <Kaaba3DArtwork size={50} glowing={isFacingQibla} />
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <Sparkles size={13} color="#FDE047" />
-                  <span className="text-xs font-black text-amber-300">
-                    {isFacingQibla ? 'کعبه معظمه روبه‌روی شماست!' : 'رادار بصری هوش مصنوعی (AI Kaaba Lock)'}
-                  </span>
-                </div>
-                <p className="text-[11px] text-emerald-100 mt-0.5 font-medium">
-                  {isFacingQibla
-                    ? `جهت قبله (${toFaDigits(qiblaAngle)}°) قفل شد · ${toFaDigits(distanceKm.toLocaleString())} کیلومتر تا مسجدالحرام`
-                    : turnInstruction}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
+            {/* خطوط درجه‌بندی و جهات چهارگانه */}
+            {dialTicks.map((t) => (
+              <g key={t.angle} transform={`rotate(${t.angle} 130 130)`}>
+                <line
+                  x1="130"
+                  y1={t.major ? 14 : 18}
+                  x2="130"
+                  y2={t.major ? 26 : 24}
+                  stroke={t.angle === 0 ? '#F87171' : t.major ? 'rgba(251,191,36,0.75)' : 'rgba(255,255,255,0.22)'}
+                  strokeWidth={t.angle === 0 ? 2.6 : t.major ? 1.8 : 1}
+                  strokeLinecap="round"
+                />
+                {t.cardinal && (
+                  <text
+                    x="130"
+                    y="42"
+                    textAnchor="middle"
+                    fill={t.angle === 0 ? '#FCA5A5' : '#D1FAE5'}
+                    fontSize="13"
+                    fontWeight="900"
+                  >
+                    {t.cardinal}
+                  </text>
+                )}
+              </g>
+            ))}
 
-      {/* ۳. دایره اصلی قبله‌نمای عمودی (ترکیب طلایی لوکس، پرتو نوری آبی/سبز و آیکون کعبه در بالا) */}
-      <div className="relative z-20 flex-1 flex flex-col items-center justify-center my-2">
-        <div className="relative w-[290px] h-[290px] sm:w-[320px] sm:h-[320px] flex items-center justify-center">
-          {/* نشانگر ثابت بالای گوشی (خط دید عمودی کاربر) */}
-          <div className="absolute -top-5 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center">
-            <div
-              className="px-2.5 py-0.5 rounded-full text-[10px] font-black border shadow-md"
-              style={{
-                background: isFacingQibla ? '#10B981' : '#0F172A',
-                color: isFacingQibla ? '#042F2E' : '#FDE68A',
-                borderColor: isFacingQibla ? '#6EE7B7' : '#F59E0B',
-              }}
-            >
-              {isFacingQibla ? '🕋 قبله ✓' : '▲ روبه‌روی شما'}
-            </div>
-          </div>
-
-          {/* حلقه بیرونی طلایی ثابت با درجه‌بندی ظریف (الهام از image_f53602.jpg و image_f535e2.jpg) */}
-          <svg className="w-full h-full" viewBox="0 0 300 300">
-            <defs>
-              <radialGradient id="qiblaDialBg" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="#0D1F33" stopOpacity="0.92" />
-                <stop offset="75%" stopColor="#06101E" stopOpacity="0.95" />
-                <stop offset="100%" stopColor="#030811" stopOpacity="0.98" />
-              </radialGradient>
-              <linearGradient id="goldRimGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#FEF08A" />
-                <stop offset="50%" stopColor="#D97706" />
-                <stop offset="100%" stopColor="#78350F" />
-              </linearGradient>
-              <linearGradient id="laserNeedleBlue" x1="50%" y1="0%" x2="50%" y2="100%">
-                <stop offset="0%" stopColor={isFacingQibla ? '#34D399' : '#38BDF8'} />
-                <stop offset="75%" stopColor={isFacingQibla ? '#059669' : '#0284C7'} />
-                <stop offset="100%" stopColor="transparent" />
-              </linearGradient>
-            </defs>
-
-            {/* صفحه تیره سرمه‌ای-طلایی قطب‌نما */}
-            <circle
-              cx="150"
-              cy="150"
-              r="138"
-              fill="url(#qiblaDialBg)"
-              stroke={isFacingQibla ? '#10B981' : 'url(#goldRimGrad)'}
-              strokeWidth={isFacingQibla ? '4' : '2.5'}
-            />
-            <circle cx="150" cy="150" r="112" fill="none" stroke="rgba(251, 191, 36, 0.22)" strokeWidth="1.2" />
-            <circle cx="150" cy="150" r="78" fill="none" stroke="rgba(56, 189, 248, 0.14)" strokeWidth="1" strokeDasharray="3 3" />
-
-            {/* گروه چرخان صفحه قطب‌نما (N, E, S, W و تیک‌های درجه) با چرخش نرم بدون لرزش */}
-            <g
-              style={{
-                transform: `rotate(${-smoothHeading}deg)`,
-                transformOrigin: '150px 150px',
-                transition: 'transform 140ms ease-out',
-              }}
-            >
-              {Array.from({ length: 72 }, (_, i) => {
-                const deg = i * 5;
-                const isMajor = deg % 30 === 0;
-                const y1 = isMajor ? 16 : 20;
-                const y2 = isMajor ? 28 : 25;
-                return (
-                  <line
-                    key={deg}
-                    x1="150"
-                    y1={y1}
-                    x2="150"
-                    y2={y2}
-                    stroke={deg === 0 ? '#EF4444' : isMajor ? '#FDE68A' : 'rgba(255,255,255,0.28)'}
-                    strokeWidth={isMajor ? '2' : '1'}
-                    transform={`rotate(${deg} 150 150)`}
-                  />
-                );
-              })}
-              {/* حروف جهات اصلی جغرافیایی */}
-              <text x="150" y="44" textAnchor="middle" fill="#EF4444" fontSize="14" fontWeight="900">N</text>
-              <text x="260" y="155" textAnchor="middle" fill="#FDE68A" fontSize="13" fontWeight="800">E</text>
-              <text x="150" y="266" textAnchor="middle" fill="#94A3B8" fontSize="13" fontWeight="800">S</text>
-              <text x="40" y="155" textAnchor="middle" fill="#FDE68A" fontSize="13" fontWeight="800">W</text>
-            </g>
-
-            {/* گروه چرخان پرتو لیزری قبله و نماد کعبه (زاویه نسبی rawDelta) */}
-            <g
-              style={{
-                transform: `rotate(${rawDelta}deg)`,
-                transformOrigin: '150px 150px',
-                transition: 'transform 140ms ease-out',
-              }}
-            >
-              {/* پرتو نورانی آبی/سبز به سمت کعبه (دقیقاً مشابه image_f535e2.jpg) */}
-              <polygon points="150,42 141,150 159,150" fill="url(#laserNeedleBlue)" />
-              <polygon points="150,185 144,150 156,150" fill="rgba(56, 189, 248, 0.22)" />
-
-              {/* دایره سبز/طلایی حامل آیکون کعبه در نوک عقربه */}
-              <circle
-                cx="150"
-                cy="40"
-                r="21"
-                fill={isFacingQibla ? '#065F46' : '#0F172A'}
-                stroke={isFacingQibla ? '#34D399' : '#FBBF24'}
-                strokeWidth="3"
+            {/* عقربه طلایی دقیق به سمت کعبه معظمه */}
+            <g transform={`rotate(${qiblaAngle.toFixed(2)} 130 130)`}>
+              {/* پرتو نورانی مسیر قبله */}
+              <path
+                d="M130 34 L138 130 L130 144 L122 130 Z"
+                fill={isAligned ? '#34D399' : '#FBBF24'}
+                fillOpacity="0.92"
               />
-              {/* مکعب کعبه در نوک عقربه */}
-              <rect x="140" y="31" width="20" height="18" rx="2.5" fill="#090D16" stroke="#FDE68A" strokeWidth="1.5" />
-              <line x1="140" y1="36" x2="160" y2="36" stroke="#F59E0B" strokeWidth="2.5" />
-              <rect x="151" y="40" width="4" height="8" fill="#FBBF24" />
+              {/* دنباله متعادل‌کننده */}
+              <path
+                d="M130 144 L134 188 L130 198 L126 188 Z"
+                fill="rgba(255,255,255,0.18)"
+              />
+              {/* نشان کعبه معظمه روی لبه دایره */}
+              <g transform="translate(130, 26)">
+                <circle
+                  r="14"
+                  fill={isAligned ? '#065F46' : '#1E1B10'}
+                  stroke={isAligned ? '#34D399' : '#FBBF24'}
+                  strokeWidth="2"
+                />
+                {/* مکعب کعبه و نوار طلایی حزام */}
+                <rect x="-6.5" y="-6.5" width="13" height="13" rx="2" fill="#0B0F14" stroke="#FDE68A" strokeWidth="1" />
+                <line x1="-6.5" y1="-2" x2="6.5" y2="-2" stroke="#FBBF24" strokeWidth="2.2" />
+              </g>
             </g>
 
-            {/* گوی مرکزی قطب‌نما */}
-            <circle cx="150" cy="150" r="16" fill="#0F172A" stroke="#FBBF24" strokeWidth="2.5" />
-            <circle cx="150" cy="150" r="8" fill={isFacingQibla ? '#34D399' : '#38BDF8'} />
+            {/* مرکز قطب‌نما */}
+            <circle cx="130" cy="130" r="9" fill="#041511" stroke={isAligned ? '#34D399' : '#FBBF24'} strokeWidth="2.5" />
+            <circle cx="130" cy="130" r="3" fill={isAligned ? '#34D399' : '#FDE68A'} />
           </svg>
 
-          {/* متن وضعیت هم‌راستایی در پایین دایره (مشابه Facing Qibla در image_f535e2.jpg) */}
-          <div className="absolute bottom-8 inset-x-0 text-center pointer-events-none">
-            <p
-              className="text-sm font-black tracking-wide"
-              style={{ color: isFacingQibla ? '#34D399' : isNearQibla ? '#FDE047' : '#38BDF8' }}
-            >
-              {isFacingQibla ? '✓ رو به قبله (Facing Qibla)' : `زاویه قبله: ${toFaDigits(qiblaAngle)}°`}
-            </p>
-            <span className="text-[10px] font-bold text-slate-300/85 block mt-0.5">
-              {toFaDigits(distanceKm.toLocaleString())} کیلومتر تا کعبه
-            </span>
+          {/* نمایشگر عددی زاویه فعلی در بخش پایینی مرکز */}
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full bg-black/55 border border-white/10 text-[10px] font-black text-emerald-100/90 backdrop-blur-sm">
+            جهت فعلی: {toFaDigits(displayHeading)}°
           </div>
-        </div>
-
-        {/* راهنمای متنی زیر دایره (Rotate your phone until the arrow points up) */}
-        <div className="text-center mt-2 space-y-1">
-          <h3 className="text-lg font-black text-white">
-            قبله {cityName}: {toFaDigits(qiblaAngle)} درجه (جنوب‌غربی)
-          </h3>
-          <p className="text-xs font-bold" style={{ color: isFacingQibla ? '#34D399' : '#94A3B8' }}>
-            {turnInstruction}
-          </p>
-        </div>
-
-        {/* اسلایدر کمکی برای گوشی‌های فاقد سنسور مغناطیسی یا تست دستی */}
-        {(sensorState === 'no_sensor' || manualMode) && (
-          <div className="w-full max-w-xs mt-3 p-3 rounded-2xl border bg-slate-900/85" style={{ borderColor: 'rgba(251,191,36,0.4)' }}>
-            <div className="flex items-center justify-between text-[11px] font-bold text-amber-200 mb-1.5">
-              <span>🧭 چرخش دستی قطب‌نما (مخصوص گوشی بدون سنسور):</span>
-              <span dir="ltr">{toFaDigits(smoothHeading)}°</span>
-            </div>
-            <input
-              type="range"
-              min={0}
-              max={359}
-              value={smoothHeading}
-              onChange={(e) => setSmoothHeading(Number(e.target.value))}
-              className="w-full accent-amber-400"
-            />
-          </div>
-        )}
-      </div>
-
-      {/* ۴. فوتر دکمه‌های عملیاتی: دکمه AR/AI Mode (مشابه image_f53d65.jpg) + حالت دستی */}
-      <div className="relative z-20 flex flex-col gap-2.5 pt-2">
-        <div className="flex items-center justify-center gap-2.5">
-          <button
-            type="button"
-            onClick={() => void toggleAiVisionMode()}
-            className="flex-1 max-w-[230px] py-3 px-4 rounded-full font-black text-xs flex items-center justify-center gap-2 shadow-xl border transition-transform active:scale-95"
-            style={{
-              background: aiVisionMode
-                ? 'linear-gradient(135deg, #10B981 0%, #059669 100%)'
-                : 'linear-gradient(135deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.98) 100%)',
-              color: aiVisionMode ? '#042F2E' : '#F8FAFC',
-              borderColor: aiVisionMode ? '#6EE7B7' : 'rgba(251, 191, 36, 0.5)',
-            }}
-          >
-            <Camera size={16} />
-            <span>{aiVisionMode ? 'بستن نمای دوربین (AR)' : '✨ نمای هوشمند AI و دوربین (AR)'}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setManualMode((m) => !m)}
-            className="py-3 px-3.5 rounded-full text-xs font-bold border flex items-center gap-1.5"
-            style={{
-              background: manualMode ? 'rgba(251, 191, 36, 0.2)' : 'rgba(15, 23, 42, 0.85)',
-              borderColor: manualMode ? '#FBBF24' : 'rgba(255,255,255,0.16)',
-              color: '#FDE68A',
-            }}
-            title="تنظیم دستی زاویه شمال"
-          >
-            <Sliders size={15} />
-            <span>{manualMode ? 'سنسور خودکار' : 'تنظیم دستی'}</span>
-          </button>
         </div>
       </div>
 
-      {/* ۵. مودال راهنمای کالیبراسیون شکل ∞ و عیب‌یابی سنسور مغناطیسی */}
-      {showCalibrateModal && (
+      {/* کنترل شبیه‌ساز چرخش فقط وقتی دستگاه سنسور قطب‌نما ندارد (مثل مرورگر دسکتاپ) */}
+      {!sensorActive && (
+        <div className="rounded-2xl p-3 border border-white/10 bg-white/[0.03] space-y-2">
+          <div className="flex items-center justify-between text-[11px]">
+            <span className="text-amber-200 font-bold">حالت پیش‌نمایش (سنسور قطب‌نما فعال نیست)</span>
+            <span className="text-emerald-200 font-black">{toFaDigits(manualPreviewDeg)}°</span>
+          </div>
+          <input
+            type="range"
+            min={0}
+            max={359}
+            value={manualPreviewDeg}
+            onChange={(e) => setManualPreviewDeg(Number(e.target.value))}
+            aria-label="چرخش آزمایشی قطب‌نما"
+            className="w-full accent-amber-400 cursor-pointer"
+          />
+        </div>
+      )}
+
+      {/* نوار اطلاعات دقیق پایین: زاویه قبله، فاصله تا کعبه و وضعیت پایداری */}
+      <div className="grid grid-cols-3 gap-2 text-center">
+        <div className="rounded-2xl p-2.5 border border-white/10 bg-white/[0.03]">
+          <div className="text-[10px] text-emerald-100/60">زاویه قبله</div>
+          <div className="text-xs font-black text-amber-300 mt-0.5">{toFaDigits(Math.round(qiblaAngle))}°</div>
+        </div>
+
+        <div className="rounded-2xl p-2.5 border border-white/10 bg-white/[0.03]">
+          <div className="text-[10px] text-emerald-100/60">فاصله تا کعبه</div>
+          <div className="text-xs font-black text-white mt-0.5">{toFaDigits(distanceKm)} کیلومتر</div>
+        </div>
+
+        <div className="rounded-2xl p-2.5 border border-white/10 bg-white/[0.03]">
+          <div className="text-[10px] text-emerald-100/60">دقت سنسور</div>
+          <div
+            className="text-xs font-black mt-0.5 flex items-center justify-center gap-1"
+            style={{
+              color: stability === 'high' ? '#34D399' : stability === 'medium' ? '#FBBF24' : '#FB7185',
+            }}
+          >
+            {stability === 'low' ? <AlertTriangle size={12} /> : <ShieldCheck size={12} />}
+            <span>{stability === 'high' ? 'پایدار' : stability === 'medium' ? 'متوسط' : 'نیاز به کالیبره'}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* پاپ‌آپ وسط‌صفحه راهنمای کالیبره تعاملی ∞ (شکل عدد ۸ انگلیسی) */}
+      {showCalibModal && typeof document !== 'undefined' && createPortal(
         <div
-          className="fixed inset-0 z-[1005] flex items-center justify-center p-4"
-          style={{ background: 'rgba(0,0,0,0.82)', backdropFilter: 'blur(6px)' }}
+          className="fixed inset-0 z-[10000] flex items-center justify-center p-4"
+          style={{ background: 'rgba(2, 10, 12, 0.84)', backdropFilter: 'blur(10px)' }}
+          dir="rtl"
+          onClick={() => setShowCalibModal(false)}
         >
           <div
-            className="w-full max-w-sm rounded-3xl p-5 border space-y-3.5 text-right"
-            style={{ background: '#0F172A', borderColor: 'rgba(251, 191, 36, 0.45)' }}
+            className="w-full max-w-sm rounded-[30px] p-5 border shadow-2xl space-y-4 relative overflow-hidden"
+            style={{
+              background: 'linear-gradient(168deg, #092622 0%, #041315 100%)',
+              borderColor: calibDone ? '#34D399' : 'rgba(251, 191, 36, 0.45)',
+            }}
+            onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b pb-2.5" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
-              <h3 className="text-sm font-black text-amber-300">🧭 کالیبراسیون قطب‌نما</h3>
-              <button type="button" onClick={() => setShowCalibrateModal(false)} className="text-slate-400">
-                <X size={18} />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Sparkles size={17} className="text-amber-300" />
+                <h3 className="text-sm font-black text-white">کالیبره قطب‌نما (حذف لرزش)</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCalibModal(false)}
+                aria-label="بستن راهنمای کالیبره"
+                className="w-8 h-8 rounded-full border border-white/15 bg-white/5 flex items-center justify-center text-white/80"
+              >
+                <X size={15} />
               </button>
             </div>
 
-            {/* انیمیشن شکل ۸ انگلیسی (∞) */}
-            <div className="py-3 rounded-2xl bg-slate-950/80 border border-slate-800 flex flex-col items-center justify-center">
-              <svg width="130" height="64" viewBox="0 0 130 64" fill="none">
-                <path
-                  d="M35 32 C15 10, 15 54, 35 32 C55 10, 75 54, 95 32 C115 10, 115 54, 95 32 C75 10, 55 54, 35 32 Z"
-                  stroke="#38BDF8"
-                  strokeWidth="3"
-                  strokeDasharray="6 4"
-                />
-                <circle cx="65" cy="32" r="6" fill="#FBBF24" />
-              </svg>
-              <span className="text-[11px] font-bold text-sky-300 mt-1">
-                گوشی را ۳ بار به شکل علامت بی‌نهایت (∞) در هوا بچرخانید
-              </span>
+            {/* انیمیشن مسیر ∞ (عدد ۸ انگلیسی) همراه با حلقه پیشرفت زنده */}
+            <div className="flex flex-col items-center justify-center py-2 relative">
+              <div className="relative w-44 h-32 flex items-center justify-center">
+                <svg viewBox="0 0 180 110" className="w-full h-full">
+                  <defs>
+                    <linearGradient id="noorInfGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" stopColor="#34D399" />
+                      <stop offset="50%" stopColor="#FBBF24" />
+                      <stop offset="100%" stopColor="#38BDF8" />
+                    </linearGradient>
+                  </defs>
+                  {/* مسیر ثابت عدد ۸ */}
+                  <path
+                    id="noorFigure8Path"
+                    d="M 90 55 C 122 12, 166 18, 166 55 C 166 92, 122 98, 90 55 C 58 12, 14 18, 14 55 C 14 92, 58 98, 90 55 Z"
+                    fill="none"
+                    stroke="rgba(255,255,255,0.14)"
+                    strokeWidth="6"
+                    strokeLinecap="round"
+                  />
+                  {/* مسیر درخشان */}
+                  <path
+                    d="M 90 55 C 122 12, 166 18, 166 55 C 166 92, 122 98, 90 55 C 58 12, 14 18, 14 55 C 14 92, 58 98, 90 55 Z"
+                    fill="none"
+                    stroke="url(#noorInfGrad)"
+                    strokeWidth="3"
+                    strokeDasharray="6 6"
+                    opacity="0.85"
+                  />
+                  {/* نقطه طلایی متحرک در مسیر ∞ */}
+                  <circle r="8" fill="#FBBF24" stroke="#FEF9C3" strokeWidth="2">
+                    <animateMotion
+                      dur="2.6s"
+                      repeatCount="indefinite"
+                      path="M 90 55 C 122 12, 166 18, 166 55 C 166 92, 122 98, 90 55 C 58 12, 14 18, 14 55 C 14 92, 58 98, 90 55 Z"
+                    />
+                  </circle>
+                </svg>
+              </div>
+
+              {/* حلقه درصد پیشرفت کالیبره واقعی */}
+              <div className="flex items-center gap-3 mt-1">
+                <div className="relative w-14 h-14 flex items-center justify-center">
+                  <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90">
+                    <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="10" />
+                    <circle
+                      cx="60"
+                      cy="60"
+                      r="52"
+                      fill="none"
+                      stroke={calibDone ? '#34D399' : '#FBBF24'}
+                      strokeWidth="10"
+                      strokeLinecap="round"
+                      strokeDasharray={calibStrokeDash}
+                      strokeDashoffset={calibStrokeOffset}
+                      style={{ transition: 'stroke-dashoffset 150ms ease' }}
+                    />
+                  </svg>
+                  <span className="absolute text-xs font-black text-white">
+                    {calibDone ? '✓' : `${toFaDigits(calibProgress)}٪`}
+                  </span>
+                </div>
+                <div className="text-right space-y-1 max-w-[205px]">
+                  <div className="text-xs font-black text-amber-200">
+                    {calibDone ? 'کالیبره با موفقیت انجام شد!' : 'گوشی را به شکل ∞ بچرخانید'}
+                  </div>
+                  <p className="text-[11px] text-emerald-100/75 leading-relaxed">
+                    {calibDone
+                      ? 'الان می‌توانید آسوده بچرخید و قبله را بدون لرزش پیدا کنید.'
+                      : '۳ ثانیه گوشی را در هوا مانند عدد ۸ انگلیسی حرکت دهید و از فلز و آهن‌ربا دور نگه دارید.'}
+                  </p>
+                </div>
+              </div>
             </div>
 
-            <div className="space-y-2 text-xs text-slate-200 leading-relaxed">
-              <p>۱. <strong>نگهداری عمودی:</strong> گوشی را افقی روی زمین نگذارید؛ آن را عمودی روبه‌روی صورت خود بگیرید و به آرامی بچرخید تا آیکون کعبه در بالای دایره قرار گیرد.</p>
-              <p>۲. <strong>دوری از آهنربا:</strong> قاب‌های مگنتی، آهنربای پایه نگهدارنده خودرو یا فلزات نزدیک گوشی باعث انحراف سنسور می‌شوند.</p>
-              <p>۳. <strong>وضعیت قطعه سخت‌افزاری گوشی شما:</strong> {sensorState === 'no_sensor' ? '❌ سنسور مغناطیسی (Magnetometer) روی این دستگاه یافت نشد؛ می‌توانید از اسلایدر «تنظیم دستی» استفاده کنید.' : '✅ قطعه قطب‌نمای مغناطیسی گوشی شما متصل و فعال است (زاویه شیب عمودی: ' + toFaDigits(pitchAngle) + '°).'}</p>
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                type="button"
+                onClick={finishCalibration}
+                className="flex-1 py-3 rounded-2xl font-black text-xs shadow-lg transition-transform active:scale-98"
+                style={{
+                  background: 'linear-gradient(135deg, #34D399 0%, #10B981 100%)',
+                  color: '#041511',
+                }}
+              >
+                {calibDone ? 'شروع قبله‌یابی' : 'انجام دادم · شروع قبله‌یابی'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowCalibModal(false)}
+                className="px-4 py-3 rounded-2xl font-black text-xs border border-white/15 bg-white/5 text-slate-200"
+              >
+                رد کردن
+              </button>
             </div>
-
-            <button
-              type="button"
-              onClick={() => setShowCalibrateModal(false)}
-              className="w-full py-2.5 rounded-2xl text-xs font-black"
-              style={{ background: '#FBBF24', color: '#0F172A' }}
-            >
-              متوجه شدم، بازگشت به قبله‌نما
-            </button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
-
-  return typeof document !== 'undefined' ? createPortal(content, document.body) : content;
 }
 
 export default QiblaCompass;

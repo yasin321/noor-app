@@ -37,7 +37,7 @@ test('custom dhikr modal opens in library screen without crashing', async ({ pag
   await page.goto('/');
   await page.getByRole('button', { name: 'ذکرها', exact: true }).click();
   await page.getByRole('button', { name: /یادداشت سخنرانی/ }).click();
-  await expect(page.getByText('ثبت نکته سخنرانی یا ذکر شخصی')).toBeVisible();
+  await expect(page.getByText('ثبت ذکر یا یادداشت شخصی')).toBeVisible();
 });
 
 test('switching between screens does not throw uncaught page errors', async ({ page }) => {
