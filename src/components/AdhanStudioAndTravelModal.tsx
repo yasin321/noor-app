@@ -1,3 +1,4 @@
+import { applyExternalTawashihSelection } from '@/components/TawashihAndAdhanReminderSection';
 import { getAlarmPlaybackSpeed, setAlarmPlaybackSpeed } from '@/lib/reminderService';
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
@@ -144,6 +145,7 @@ export function AdhanStudioAndTravelModal({ initialSection = 'studio', onClose, 
     const triggerTime = addMinutesToTimeStr(pTimes[selectedPrayer], -preMinutes);
     const chant: PreAdhanChantOption = PRE_ADHAN_CHANT_OPTIONS.find((c) => c.id === targetChantId) ?? PRE_ADHAN_CHANT_OPTIONS[0];
 
+    applyExternalTawashihSelection(selectedPrayer, 'before', { enabled: true, minutesOffset: preMinutes, mode: 'audio', trackId: chant.id, speed: alarmSpeed });
     const dynId = 'pre_adhan_' + selectedPrayer + '_' + preMinutes + '_' + chant.id;
     const nowIso = new Date().toISOString();
     const dynReminder: LocalReminder = {
@@ -194,6 +196,7 @@ export function AdhanStudioAndTravelModal({ initialSection = 'studio', onClose, 
     const pTimes = calculatePrayerTimes(new Date(), lat, lng, city.timezone, 'tehran');
     const triggerTime = addMinutesToTimeStr(pTimes[postPrayer], postMinutes);
 
+    applyExternalTawashihSelection(postPrayer, 'after', { enabled: true, minutesOffset: postMinutes, mode: 'audio', trackId: postItem.id, speed: alarmSpeed });
     const dynId = 'post_adhan_' + postPrayer + '_' + postMinutes + '_' + postItem.id;
     const nowIso = new Date().toISOString();
     const postReminder: LocalReminder = {

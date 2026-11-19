@@ -364,11 +364,40 @@ export async function cancelReminder(reminderId: string): Promise<void> {
   scheduledSlotMap.delete(reminderId);
 }
 
+
+export function isLegacyPrePostAdhanReminder(r: Pick<LocalReminder, 'id' | 'title'>): boolean {
+  const id = (r.id || '').toLowerCase();
+  const title = r.title || '';
+  return (
+    id.startsWith('pre_adhan_') ||
+    id.startsWith('post_adhan_') ||
+    title.includes('مانده تا اذان') ||
+    title.includes('پس از اذان') ||
+    title.includes('بعد از اذان') ||
+    title.includes('قبل از اذان')
+  );
+}
+
+export async function purgeLegacyPrePostAdhanReminders(): Promise<number> {
+  const all = loadReminders();
+  const legacy = all.filter((r) => isLegacyPrePostAdhanReminder(r));
+  for (const old of legacy) {
+    await cancelReminder(old.id);
+    deleteReminderFromStorage(old.id);
+  }
+  return legacy.length;
+}
+
 export async function scheduleReminder(
   reminder: LocalReminder,
   globalNotifEnabled = true
 ): Promise<{ success: boolean; scheduledCount: number; scheduledIds: number[]; error?: string }> {
   await cancelReminder(reminder.id);
+
+  if (isLegacyPrePostAdhanReminder(reminder)) {
+    deleteReminderFromStorage(reminder.id);
+    return { success: true, scheduledCount: 0, scheduledIds: [] };
+  }
 
   if (!reminder.enabled || !globalNotifEnabled) {
     return { success: true, scheduledCount: 0, scheduledIds: [] };
@@ -407,6 +436,7 @@ export async function scheduleReminder(
   const body = buildNotificationBody(reminder);
   const isPrayerAdhan = reminder.id.startsWith('prayer_auto_') || reminder.title.includes('اذان');
   const targetChannelId = isPrayerAdhan ? ADHAN_CHANNEL_ID : REMINDER_CHANNEL_ID;
+  const skipDuplicateLocalOnAndroid = Capacitor.getPlatform() === 'android' && isPrayerAdhan;
 
   if (reminder.type === 'once') {
     const target = computeSingleOccurrence(reminder.date, reminder.time);
@@ -421,19 +451,21 @@ export async function scheduleReminder(
 
     const notifId = reminderIdToNotifId(reminder.id, 0);
     try {
-      await LocalNotifications.schedule({
-        notifications: [
-          {
-            id: notifId,
-            title: reminder.title,
-            body,
-            channelId: targetChannelId,
-            sound: Capacitor.getPlatform() === 'android' ? undefined : (isPrayerAdhan ? 'adhan_mahur' : undefined),
-            schedule: { at: target, allowWhileIdle: true },
-            extra: { reminderId: reminder.id, dhikrId: reminder.dhikrId ?? '' },
-          },
-        ],
-      });
+      if (!skipDuplicateLocalOnAndroid) {
+        await LocalNotifications.schedule({
+          notifications: [
+            {
+              id: notifId,
+              title: reminder.title,
+              body,
+              channelId: targetChannelId,
+              sound: Capacitor.getPlatform() === 'android' ? undefined : (isPrayerAdhan ? 'adhan_mahur' : undefined),
+              schedule: { at: target, allowWhileIdle: true },
+              extra: { reminderId: reminder.id, dhikrId: reminder.dhikrId ?? '' },
+            },
+          ],
+        });
+      }
       if (Capacitor.getPlatform() === 'android') {
         try {
           const p = resolvePrayerAlarmParams(reminder.id, reminder.title);
@@ -470,19 +502,21 @@ export async function scheduleReminder(
       const atDate = computeDynamicPrayerDate(reminder, occurrences[idx]);
       const notifId = reminderIdToNotifId(reminder.id, idx);
       scheduledIds.push(notifId);
-      await LocalNotifications.schedule({
-        notifications: [
-          {
-            id: notifId,
-            title: reminder.title,
-            body,
-            channelId: targetChannelId,
-            sound: Capacitor.getPlatform() === 'android' ? undefined : (isPrayerAdhan ? 'adhan_mahur' : undefined),
-            schedule: { at: atDate, allowWhileIdle: true },
-            extra: { reminderId: reminder.id, dhikrId: reminder.dhikrId ?? '' },
-          },
-        ],
-      });
+      if (!skipDuplicateLocalOnAndroid) {
+        await LocalNotifications.schedule({
+          notifications: [
+            {
+              id: notifId,
+              title: reminder.title,
+              body,
+              channelId: targetChannelId,
+              sound: Capacitor.getPlatform() === 'android' ? undefined : (isPrayerAdhan ? 'adhan_mahur' : undefined),
+              schedule: { at: atDate, allowWhileIdle: true },
+              extra: { reminderId: reminder.id, dhikrId: reminder.dhikrId ?? '' },
+            },
+          ],
+        });
+      }
       if (Capacitor.getPlatform() === 'android') {
         try {
           const p = resolvePrayerAlarmParams(reminder.id, reminder.title);
@@ -513,6 +547,7 @@ export async function scheduleReminder(
 export async function rescheduleAllReminders(
   globalNotifEnabled = true
 ): Promise<{ total: number; succeeded: number; failed: string[] }> {
+  await purgeLegacyPrePostAdhanReminders();
   const reminders = loadReminders();
   let succeeded = 0;
   const failed: string[] = [];

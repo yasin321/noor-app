@@ -1,10 +1,13 @@
 import { createPortal } from 'react-dom';
-import { useState, useEffect, useRef } from 'react';
-import { Bell, Volume2, Square, Clock, Check, Copy } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Bell, Volume2, Square, Clock, Check, Copy, Sparkles, X } from 'lucide-react';
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { adhans, playAdhanPreview, stopAdhanPreview } from '@/lib/adhans';
-import { setAlarmPlaybackSpeed } from '@/lib/reminderService';
+import {
+  setAlarmPlaybackSpeed,
+  purgeLegacyPrePostAdhanReminders,
+} from '@/lib/reminderService';
 import { calculatePrayerTimes } from '@/lib/prayerTimes';
 import { CITIES } from '@/lib/cities';
 
@@ -141,6 +144,7 @@ export interface PrayerTawashihConfig {
 export type AllPrayersTawashihMap = Record<PrayerTabKey, PrayerTawashihConfig>;
 
 const STORAGE_KEY = 'noor_tawashih_redesign_config_v2';
+const SYNC_EVENT_NAME = 'noor-tawashih-config-synced';
 
 const DEFAULT_CONFIG: AllPrayersTawashihMap = {
   fajr: {
@@ -166,31 +170,51 @@ const DEFAULT_CONFIG: AllPrayersTawashihMap = {
 };
 
 function normalizeTrackId(id: string, isAfter: boolean): string {
-  if (!id) return isAfter ? 'surah_waqiah' : 'rabbana_shajarian';
-  if (id === 'rabbanaghfir' || id === 'rabbana') return 'rabbana_shajarian';
-  if (id === 'nadali') return 'nadali_alifani';
-  const list = isAfter ? POST_ADHAN_TRACKS : PRE_ADHAN_TRACKS;
-  if (list.some((t) => t.id === id)) return id;
-  return list[0].id;
+  const s = (id || '').toLowerCase();
+  if (!s) return isAfter ? 'surah_waqiah' : 'rabbana_shajarian';
+  if (isAfter) {
+    if (s.includes('waqiah')) return 'surah_waqiah';
+    if (s.includes('yasin')) return 'surah_yasin';
+    if (s.includes('rahman')) return 'surah_rahman';
+    if (s.includes('mulk')) return 'surah_mulk';
+    if (s.includes('kursi') || s.includes('tasbih') || s.includes('bahjat') || s.includes('fatima')) return 'ayat_kursi';
+    const found = POST_ADHAN_TRACKS.find((t) => t.id === id);
+    return found ? found.id : POST_ADHAN_TRACKS[0].id;
+  } else {
+    if (s.includes('rab')) return 'rabbana_shajarian';
+    if (s.includes('nad')) return 'nadali_alifani';
+    if (s.includes('salawat')) return 'salawat_reza';
+    if (s.includes('tasbih') || s.includes('istighfar')) return 'tasbihat_pre';
+    if (s.includes('aqim') || s.includes('sahar') || s.includes('munajat')) return 'munajat_sahar';
+    const found = PRE_ADHAN_TRACKS.find((t) => t.id === id);
+    return found ? found.id : PRE_ADHAN_TRACKS[0].id;
+  }
 }
 
 export function loadTawashihConfig(): AllPrayersTawashihMap {
-  return loadSavedTawashihConfig();
-}
-
-function loadSavedTawashihConfig(): AllPrayersTawashihMap {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed && typeof parsed === 'object') {
         const keys: PrayerTabKey[] = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'];
+        const normalized = {} as AllPrayersTawashihMap;
         for (const k of keys) {
-          if (!parsed[k]) parsed[k] = DEFAULT_CONFIG[k];
-          parsed[k].before.trackId = normalizeTrackId(parsed[k].before?.trackId, false);
-          parsed[k].after.trackId = normalizeTrackId(parsed[k].after?.trackId, true);
+          const item = parsed[k] || DEFAULT_CONFIG[k];
+          normalized[k] = {
+            before: {
+              ...DEFAULT_CONFIG[k].before,
+              ...(item.before || {}),
+              trackId: normalizeTrackId(item.before?.trackId, false),
+            },
+            after: {
+              ...DEFAULT_CONFIG[k].after,
+              ...(item.after || {}),
+              trackId: normalizeTrackId(item.after?.trackId, true),
+            },
+          };
         }
-        return parsed;
+        return normalized;
       }
     }
   } catch {}
@@ -200,6 +224,9 @@ function loadSavedTawashihConfig(): AllPrayersTawashihMap {
 function saveTawashihConfig(cfg: AllPrayersTawashihMap) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent(SYNC_EVENT_NAME, { detail: cfg }));
+    }
   } catch {}
 }
 
@@ -211,7 +238,7 @@ const PRAYER_META: { key: PrayerTabKey; labelFa: string; adhanTitleFa: string }[
   { key: 'isha', labelFa: 'عشاء', adhanTitleFa: 'اذان عشاء' },
 ];
 
-const OFFSET_OPTIONS = [1, 2, 3, 5, 10, 15, 20, 30];
+const QUICK_OFFSET_PILLS = [2, 5, 10, 15, 20, 30];
 const SPEED_OPTIONS = [1.0, 1.25, 1.5, 2.0];
 
 function toEnDigits(str: string): string {
@@ -225,10 +252,6 @@ function toFaDigits(n: number | string): string {
   if (n === undefined || n === null) return '';
   const map: Record<string, string> = { '0': '۰', '1': '۱', '2': '۲', '3': '۳', '4': '۴', '5': '۵', '6': '۶', '7': '۷', '8': '۸', '9': '۹' };
   return String(n).replace(/[0-9]/g, (d) => map[d] || d);
-}
-
-function formatOffsetLabelFa(mins: number, suffix: string): string {
-  return `${toFaDigits(mins)} دقیقه ${suffix}`;
 }
 
 function addMinutesToTimeStr(timeStr: string, minutes: number): string {
@@ -245,106 +268,151 @@ function addMinutesToTimeStr(timeStr: string, minutes: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
-function resolveEffectivePrayerTimes(passedTimes?: any): Record<string, string> {
+function resolveEffectivePrayerTimes(passedTimes?: Record<string, string>): Record<string, string> {
   if (passedTimes && passedTimes.fajr && passedTimes.dhuhr) {
     return passedTimes;
   }
   try {
     const savedCityId = localStorage.getItem('noor_guest_city') || 'mashhad';
-    const foundCity: any = CITIES.find((c: any) => c.id === savedCityId || c.name === savedCityId) || CITIES[0] || { lat: 36.2605, lng: 59.6168 };
-    return calculatePrayerTimes(new Date(), foundCity.lat, foundCity.lng) as any;
+    const foundCity = CITIES.find((c) => c.id === savedCityId || c.name === savedCityId) || CITIES[0];
+    return calculatePrayerTimes(new Date(), foundCity.lat, foundCity.lng) as unknown as Record<string, string>;
   } catch {
     return { fajr: '04:52', dhuhr: '11:19', asr: '14:03', maghrib: '16:40', isha: '17:32' };
   }
 }
 
+// صف ترتیبی (Serialized Queue) با شماره نسخه تا تغییرات سریع پشت‌سرهم هیچ‌وقت تداخل نکنند و همیشه فقط آخرین انتخاب بماند
+let latestSyncTicket = 0;
+let syncQueueChain: Promise<void> = Promise.resolve();
+
 export async function syncAllTawashihNativeAlarms(
   nextCfg: AllPrayersTawashihMap,
-  passedTimes?: any,
+  passedTimes?: Record<string, string>,
   cityNameFa: string = 'مشهد'
 ): Promise<void> {
-  if (!Capacitor.isNativePlatform()) return;
-  try {
-    await LocalNotifications.requestPermissions();
-  } catch {}
+  const myTicket = ++latestSyncTicket;
 
-  const effectiveTimes = resolveEffectivePrayerTimes(passedTimes);
-  const baseIds: Record<PrayerTabKey, { before: number; after: number }> = {
-    fajr: { before: 72101, after: 72201 },
-    dhuhr: { before: 72102, after: 72202 },
-    asr: { before: 72103, after: 72203 },
-    maghrib: { before: 72104, after: 72204 },
-    isha: { before: 72105, after: 72205 },
+  syncQueueChain = syncQueueChain
+    .catch(() => {})
+    .then(async () => {
+      if (myTicket !== latestSyncTicket) return;
+
+      // ۱. پاک‌سازی قطعی هرگونه یادآور قدیمی و تکراری pre_adhan_* و post_adhan_*
+      await purgeLegacyPrePostAdhanReminders().catch(() => {});
+
+      if (!Capacitor.isNativePlatform()) return;
+      if (myTicket !== latestSyncTicket) return;
+
+      try {
+        await LocalNotifications.requestPermissions();
+      } catch {}
+
+      const effectiveTimes = resolveEffectivePrayerTimes(passedTimes);
+      const baseIds: Record<PrayerTabKey, { before: number; after: number }> = {
+        fajr: { before: 72101, after: 72201 },
+        dhuhr: { before: 72102, after: 72202 },
+        asr: { before: 72103, after: 72203 },
+        maghrib: { before: 72104, after: 72204 },
+        isha: { before: 72105, after: 72205 },
+      };
+
+      for (const pMeta of PRAYER_META) {
+        if (myTicket !== latestSyncTicket) return;
+        const pKey = pMeta.key;
+        const baseTime = toEnDigits(effectiveTimes[pKey] || '04:52');
+        const pCfg = nextCfg[pKey];
+        if (!pCfg) continue;
+
+        // الف) قبل از اذان: ابتدا قبلی را قطعی پاک کن، سپس در صورت فعال بودن جدیدترین را کوک کن
+        const beforeId = baseIds[pKey].before;
+        await NoorAlarm.cancelNativeAlarm({ id: beforeId }).catch(() => {});
+        if (pCfg.before.enabled) {
+          const targetClock = addMinutesToTimeStr(baseTime, -pCfg.before.minutesOffset);
+          const [hh, mm] = targetClock.split(':').map((n) => parseInt(n, 10));
+          if (!isNaN(hh) && !isNaN(mm)) {
+            const targetDate = new Date();
+            targetDate.setHours(hh, mm, 0, 0);
+            if (targetDate.getTime() <= Date.now()) {
+              targetDate.setDate(targetDate.getDate() + 1);
+            }
+            const track = PRE_ADHAN_TRACKS.find((t) => t.id === pCfg.before.trackId) || PRE_ADHAN_TRACKS[0];
+
+            await NoorAlarm.scheduleNativeAlarm({
+              id: beforeId,
+              triggerAtMillis: targetDate.getTime(),
+              title: `🌙 ${toFaDigits(pCfg.before.minutesOffset)} دقیقه تا ${pMeta.adhanTitleFa} (${cityNameFa})`,
+              body: pCfg.before.mode === 'notification_only'
+                ? `یادآور پیش از ${pMeta.adhanTitleFa}`
+                : `پخش ${track.titleFa} — ${track.subtitleFa}`,
+              soundType: pCfg.before.mode === 'notification_only' ? 'notification_only' : 'surah_chant',
+              adhanId: track.audioAdhanId,
+              audioUrl: track.audioFile,
+              durationSeconds: 0,
+              volumePercent: pCfg.before.mode === 'notification_only' ? 0 : 100,
+              playbackRate: pCfg.before.speed || 1.0,
+            }).catch(() => {});
+          }
+        }
+
+        // ب) بعد از اذان: ابتدا قبلی را قطعی پاک کن، سپس در صورت فعال بودن جدیدترین را کوک کن
+        const afterId = baseIds[pKey].after;
+        await NoorAlarm.cancelNativeAlarm({ id: afterId }).catch(() => {});
+        if (pCfg.after.enabled) {
+          const targetClock = addMinutesToTimeStr(baseTime, pCfg.after.minutesOffset);
+          const [hh, mm] = targetClock.split(':').map((n) => parseInt(n, 10));
+          if (!isNaN(hh) && !isNaN(mm)) {
+            const targetDate = new Date();
+            targetDate.setHours(hh, mm, 0, 0);
+            if (targetDate.getTime() <= Date.now()) {
+              targetDate.setDate(targetDate.getDate() + 1);
+            }
+            const track = POST_ADHAN_TRACKS.find((t) => t.id === pCfg.after.trackId) || POST_ADHAN_TRACKS[0];
+
+            await NoorAlarm.scheduleNativeAlarm({
+              id: afterId,
+              triggerAtMillis: targetDate.getTime(),
+              title: `📖 ${pMeta.adhanTitleFa} — ${track.titleFa}`,
+              body: pCfg.after.mode === 'notification_only'
+                ? `یادآور تعقیبات ${pMeta.adhanTitleFa}`
+                : `${track.subtitleFa} · سرعت ${toFaDigits(pCfg.after.speed || 1)}x`,
+              soundType: pCfg.after.mode === 'notification_only' ? 'notification_only' : 'surah_chant',
+              adhanId: track.audioAdhanId,
+              audioUrl: track.audioFile,
+              durationSeconds: 0,
+              volumePercent: pCfg.after.mode === 'notification_only' ? 0 : 100,
+              playbackRate: pCfg.after.speed || 1.0,
+            }).catch(() => {});
+          }
+        }
+      }
+    });
+
+  return syncQueueChain;
+}
+
+// پل یکپارچه برای آپدیت از سایر بخش‌های برنامه (مثل مودال استودیو اذان) بدون ساخت آلارم تکراری
+export function applyExternalTawashihSelection(
+  prayer: PrayerTabKey,
+  slot: 'before' | 'after',
+  patch: Partial<SlotConfig>,
+  cityNameFa?: string
+): AllPrayersTawashihMap {
+  const current = loadTawashihConfig();
+  const nextSlot: SlotConfig = {
+    ...current[prayer][slot],
+    ...patch,
+    trackId: patch.trackId ? normalizeTrackId(patch.trackId, slot === 'after') : current[prayer][slot].trackId,
   };
-
-  for (const pMeta of PRAYER_META) {
-    const pKey = pMeta.key;
-    const baseTime = toEnDigits(effectiveTimes[pKey] || '04:52');
-    const pCfg = nextCfg[pKey];
-    if (!pCfg) continue;
-
-    // ۱. آلارم قبل از اذان
-    const beforeId = baseIds[pKey].before;
-    await NoorAlarm.cancelNativeAlarm({ id: beforeId }).catch(() => {});
-    if (pCfg.before.enabled) {
-      const targetClock = addMinutesToTimeStr(baseTime, -pCfg.before.minutesOffset);
-      const [hh, mm] = targetClock.split(':').map((n) => parseInt(n, 10));
-      if (!isNaN(hh) && !isNaN(mm)) {
-        const targetDate = new Date();
-        targetDate.setHours(hh, mm, 0, 0);
-        if (targetDate.getTime() <= Date.now()) {
-          targetDate.setDate(targetDate.getDate() + 1);
-        }
-        const track = PRE_ADHAN_TRACKS.find((t) => t.id === pCfg.before.trackId) || PRE_ADHAN_TRACKS[0];
-
-        await NoorAlarm.scheduleNativeAlarm({
-          id: beforeId,
-          triggerAtMillis: targetDate.getTime(),
-          title: `🌙 ${toFaDigits(pCfg.before.minutesOffset)} دقیقه تا ${pMeta.adhanTitleFa} (${cityNameFa})`,
-          body: pCfg.before.mode === 'notification_only'
-            ? `یادآور پیش از ${pMeta.adhanTitleFa}`
-            : `پخش ${track.titleFa} — ${track.subtitleFa}`,
-          soundType: pCfg.before.mode === 'notification_only' ? 'silent' : 'surah_chant',
-          adhanId: track.audioAdhanId,
-          audioUrl: track.audioFile,
-          durationSeconds: 0,
-          volumePercent: pCfg.before.mode === 'notification_only' ? 0 : 100,
-          playbackRate: pCfg.before.speed || 1.0,
-        }).catch(() => {});
-      }
-    }
-
-    // ۲. آلارم بعد از اذان
-    const afterId = baseIds[pKey].after;
-    await NoorAlarm.cancelNativeAlarm({ id: afterId }).catch(() => {});
-    if (pCfg.after.enabled) {
-      const targetClock = addMinutesToTimeStr(baseTime, pCfg.after.minutesOffset);
-      const [hh, mm] = targetClock.split(':').map((n) => parseInt(n, 10));
-      if (!isNaN(hh) && !isNaN(mm)) {
-        const targetDate = new Date();
-        targetDate.setHours(hh, mm, 0, 0);
-        if (targetDate.getTime() <= Date.now()) {
-          targetDate.setDate(targetDate.getDate() + 1);
-        }
-        const track = POST_ADHAN_TRACKS.find((t) => t.id === pCfg.after.trackId) || POST_ADHAN_TRACKS[0];
-
-        await NoorAlarm.scheduleNativeAlarm({
-          id: afterId,
-          triggerAtMillis: targetDate.getTime(),
-          title: `📖 یادآور پس از ${pMeta.adhanTitleFa} — ${track.titleFa}`,
-          body: pCfg.after.mode === 'notification_only'
-            ? `یادآور تعقیبات ${pMeta.adhanTitleFa}`
-            : `${track.subtitleFa} (سرعت ${toFaDigits(pCfg.after.speed || 1)}x)`,
-          soundType: pCfg.after.mode === 'notification_only' ? 'silent' : 'surah_chant',
-          adhanId: track.audioAdhanId,
-          audioUrl: track.audioFile,
-          durationSeconds: 0,
-          volumePercent: pCfg.after.mode === 'notification_only' ? 0 : 100,
-          playbackRate: pCfg.after.speed || 1.0,
-        }).catch(() => {});
-      }
-    }
-  }
+  const nextCfg: AllPrayersTawashihMap = {
+    ...current,
+    [prayer]: {
+      ...current[prayer],
+      [slot]: nextSlot,
+    },
+  };
+  saveTawashihConfig(nextCfg);
+  void syncAllTawashihNativeAlarms(nextCfg, undefined, cityNameFa || 'مشهد');
+  return nextCfg;
 }
 
 export function TawashihAndAdhanReminderSection({
@@ -353,7 +421,7 @@ export function TawashihAndAdhanReminderSection({
   cityNameFa,
   onToast,
 }: {
-  times?: any;
+  times?: Record<string, string>;
   cityName?: string;
   cityNameFa?: string;
   onToast?: (msg: string) => void;
@@ -361,18 +429,22 @@ export function TawashihAndAdhanReminderSection({
   const resolvedCityName = cityNameFa || cityName || 'مشهد';
   const effectiveTimes = resolveEffectivePrayerTimes(times);
 
-  const [config, setConfig] = useState<AllPrayersTawashihMap>(() => loadSavedTawashihConfig());
+  const [config, setConfig] = useState<AllPrayersTawashihMap>(() => loadTawashihConfig());
   const [activePrayer, setActivePrayer] = useState<PrayerTabKey>('fajr');
   const [editingSlot, setEditingSlot] = useState<'before' | 'after' | null>(null);
-
-  const [draftMode, setDraftMode] = useState<'audio' | 'notification_only'>('audio');
-  const [draftTrackId, setDraftTrackId] = useState<string>('rabbana_shajarian');
-  const [draftSpeed, setDraftSpeed] = useState<number>(1.0);
-
+  const [liveStatusBadge, setLiveStatusBadge] = useState<string | null>(null);
   const [playingTrackId, setPlayingTrackId] = useState<string | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const stopLocalAudio = () => {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const badgeTimerRef = useRef<number | null>(null);
+
+  const flashSavedBadge = useCallback((msg: string) => {
+    setLiveStatusBadge(msg);
+    if (badgeTimerRef.current) window.clearTimeout(badgeTimerRef.current);
+    badgeTimerRef.current = window.setTimeout(() => setLiveStatusBadge(null), 2600);
+  }, []);
+
+  const stopLocalAudio = useCallback(() => {
     if (audioRef.current) {
       try {
         audioRef.current.pause();
@@ -383,11 +455,17 @@ export function TawashihAndAdhanReminderSection({
     }
     setPlayingTrackId(null);
     void stopAdhanPreview();
-  };
+  }, []);
 
   useEffect(() => {
-    return () => { stopLocalAudio(); };
-  }, []);
+    const onExternalSync = () => setConfig(loadTawashihConfig());
+    window.addEventListener(SYNC_EVENT_NAME, onExternalSync);
+    return () => {
+      window.removeEventListener(SYNC_EVENT_NAME, onExternalSync);
+      stopLocalAudio();
+      if (badgeTimerRef.current) window.clearTimeout(badgeTimerRef.current);
+    };
+  }, [stopLocalAudio]);
 
   const togglePlayTrack = (track: TrackOption, speedToUse = 1.0) => {
     if (playingTrackId === track.id) {
@@ -399,7 +477,7 @@ export function TawashihAndAdhanReminderSection({
     const validSpeed = Number.isFinite(speedToUse) && speedToUse >= 0.5 && speedToUse <= 3.0 ? speedToUse : 1.0;
     audio.playbackRate = validSpeed;
     audio.defaultPlaybackRate = validSpeed;
-    (audio as any).preservesPitch = true;
+    (audio as HTMLAudioElement & { preservesPitch?: boolean }).preservesPitch = true;
     audio.volume = 1.0;
     audioRef.current = audio;
     setPlayingTrackId(track.id);
@@ -429,23 +507,17 @@ export function TawashihAndAdhanReminderSection({
     void syncAllTawashihNativeAlarms(config, effectiveTimes, resolvedCityName);
   }, [effectiveTimes.fajr, effectiveTimes.dhuhr, effectiveTimes.asr, effectiveTimes.maghrib, effectiveTimes.isha, resolvedCityName]);
 
-  // ذخیره و زمان‌بندی فوری پشت دست کاربر در هر تغییر
-  const updateAndSaveInstantly = (nextCfg: AllPrayersTawashihMap, toastMessage?: string) => {
-    setConfig(nextCfg);
-    saveTawashihConfig(nextCfg);
-    try {
-      const cur = nextCfg[activePrayer];
-      const bTrack = PRE_ADHAN_TRACKS.find((t) => t.id === cur.before.trackId);
-      const aTrack = POST_ADHAN_TRACKS.find((t) => t.id === cur.after.trackId);
-      if (bTrack) localStorage.setItem('noor_pre_adhan_chant_id_v1', bTrack.audioAdhanId);
-      if (aTrack) localStorage.setItem('noor_after_adhan_reminder_track_v1', aTrack.audioAdhanId);
-    } catch {}
-    void syncAllTawashihNativeAlarms(nextCfg, effectiveTimes, resolvedCityName);
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('noor-alarms-updated'));
-    }
-    if (toastMessage && onToast) onToast(toastMessage);
-  };
+  // ذخیره، پاک کردن آلارم قبلی و کوک فوری جدیدترین انتخاب پشت دست کاربر
+  const commitConfigInstantly = useCallback(
+    (nextCfg: AllPrayersTawashihMap, badgeText: string, toastText?: string) => {
+      setConfig(nextCfg);
+      saveTawashihConfig(nextCfg);
+      void syncAllTawashihNativeAlarms(nextCfg, effectiveTimes, resolvedCityName);
+      flashSavedBadge(badgeText);
+      if (toastText && onToast) onToast(toastText);
+    },
+    [effectiveTimes, resolvedCityName, flashSavedBadge, onToast]
+  );
 
   const currentPrayerCfg = config[activePrayer] || DEFAULT_CONFIG[activePrayer];
   const currentMeta = PRAYER_META.find((m) => m.key === activePrayer) || PRAYER_META[0];
@@ -456,30 +528,17 @@ export function TawashihAndAdhanReminderSection({
   const selectedBeforeTrack = PRE_ADHAN_TRACKS.find((t) => t.id === currentPrayerCfg.before.trackId) || PRE_ADHAN_TRACKS[0];
   const selectedAfterTrack = POST_ADHAN_TRACKS.find((t) => t.id === currentPrayerCfg.after.trackId) || POST_ADHAN_TRACKS[0];
 
-  const activeCountForCurrent = PRAYER_META.reduce((sum, pm) => {
+  const activeTotalCount = PRAYER_META.reduce((sum, pm) => {
     const item = config[pm.key];
     return sum + (item?.before?.enabled ? 1 : 0) + (item?.after?.enabled ? 1 : 0);
   }, 0);
 
-  const openEditorForSlot = (slot: 'before' | 'after') => {
-    stopLocalAudio();
-    const slotCfg = currentPrayerCfg[slot];
-    setDraftMode(slotCfg.mode);
-    setDraftTrackId(slotCfg.trackId);
-    setDraftSpeed(slotCfg.speed || 1.0);
-    setEditingSlot(slot);
-  };
-
-  // هر تغییری در داخل پاپ‌آپ انجام شود، همان لحظه پشت دست کاربر ذخیره و کوک می‌شود
-  const applySlotPatchInstantly = (
+  const patchSlotInstantly = (
     slot: 'before' | 'after',
     patch: Partial<SlotConfig>,
-    toastMsg?: string
+    customBadge?: string
   ) => {
-    const nextSlot: SlotConfig = {
-      ...currentPrayerCfg[slot],
-      ...patch,
-    };
+    const nextSlot: SlotConfig = { ...currentPrayerCfg[slot], ...patch };
     const nextCfg: AllPrayersTawashihMap = {
       ...config,
       [activePrayer]: {
@@ -487,67 +546,54 @@ export function TawashihAndAdhanReminderSection({
         [slot]: nextSlot,
       },
     };
-    updateAndSaveInstantly(nextCfg, toastMsg);
+    const nextClock =
+      slot === 'before'
+        ? addMinutesToTimeStr(rawPrayerTime, -nextSlot.minutesOffset)
+        : addMinutesToTimeStr(rawPrayerTime, nextSlot.minutesOffset);
+
+    const badge =
+      customBadge ||
+      (nextSlot.enabled
+        ? `✓ ذخیره شد · کوک برای ساعت ${toFaDigits(nextClock)}`
+        : '🔕 یادآور خاموش و آلارم قبلی پاک شد');
+
+    commitConfigInstantly(nextCfg, badge);
   };
 
-  const handleSaveEditor = () => {
-    if (!editingSlot) return;
-    stopLocalAudio();
-    setAlarmPlaybackSpeed(draftSpeed);
-    const slotLabel = editingSlot === 'before' ? 'قبل از اذان' : 'بعد از اذان';
-    applySlotPatchInstantly(
-      editingSlot,
-      { enabled: true, mode: draftMode, trackId: draftTrackId, speed: draftSpeed },
-      `✅ تنظیمات ${slotLabel} برای ${currentMeta.adhanTitleFa} به صورت خودکار کوک شد`
-    );
-    setEditingSlot(null);
-  };
-
-  const handleTurnOffSlot = () => {
-    if (!editingSlot) return;
-    stopLocalAudio();
-    applySlotPatchInstantly(editingSlot, { enabled: false }, '🔕 این یادآور غیرفعال شد');
-    setEditingSlot(null);
-  };
-
-  const toggleSlotDirectly = (slot: 'before' | 'after') => {
-    const nextEnabled = !currentPrayerCfg[slot].enabled;
-    const label = slot === 'before' ? 'تواشیح قبل از اذان' : 'یادآور بعد از اذان';
-    applySlotPatchInstantly(
-      slot,
-      { enabled: nextEnabled },
-      nextEnabled ? `🔔 ${label} (${currentMeta.labelFa}) خودکار کوک شد` : `🔕 ${label} (${currentMeta.labelFa}) خاموش شد`
-    );
-  };
-
-  const updateOffsetMinutes = (slot: 'before' | 'after', mins: number) => {
-    const targetClock = slot === 'before'
-      ? addMinutesToTimeStr(rawPrayerTime, -mins)
-      : addMinutesToTimeStr(rawPrayerTime, mins);
-    applySlotPatchInstantly(
-      slot,
-      { minutesOffset: mins, enabled: true },
-      `⏰ یادآور روی ساعت ${toFaDigits(targetClock)} خودکار کوک شد`
+  const applyCurrentToAllPrayers = () => {
+    const tpl = currentPrayerCfg;
+    const nextCfg: AllPrayersTawashihMap = {
+      fajr: { before: { ...tpl.before }, after: { ...tpl.after } },
+      dhuhr: { before: { ...tpl.before }, after: { ...tpl.after } },
+      asr: { before: { ...tpl.before }, after: { ...tpl.after } },
+      maghrib: { before: { ...tpl.before }, after: { ...tpl.after } },
+      isha: { before: { ...tpl.before }, after: { ...tpl.after } },
+    };
+    commitConfigInstantly(
+      nextCfg,
+      '✓ برای تمام ۵ نماز جایگزین و کوک شد',
+      '✨ تنظیمات برای همه نمازها جایگزین شد (آلارم‌های قبلی پاک شدند)'
     );
   };
 
   const handleTestNativeAlarm10s = async () => {
     stopLocalAudio();
-    const track = selectedBeforeTrack || PRE_ADHAN_TRACKS[0];
-    const testSpeed = currentPrayerCfg.before.speed || 1.0;
+    const track = currentPrayerCfg.after.enabled ? selectedAfterTrack : selectedBeforeTrack;
+    const testSpeed = currentPrayerCfg.after.enabled ? currentPrayerCfg.after.speed : currentPrayerCfg.before.speed;
     if (!Capacitor.isNativePlatform()) {
       togglePlayTrack(track, testSpeed);
-      if (onToast) onToast('🔊 پیش‌نمایش تست در مرورگر پخش شد (تست قفل صفحه روی گوشی اندروید فعال است)');
+      flashSavedBadge('🔊 پیش‌نمایش تست در مرورگر پخش شد');
       return;
     }
     try {
       await NoorAlarm.requestNotificationPermission().catch(() => {});
       await LocalNotifications.requestPermissions().catch(() => {});
+      await NoorAlarm.cancelNativeAlarm({ id: 79999 }).catch(() => {});
       await NoorAlarm.scheduleNativeAlarm({
         id: 79999,
         triggerAtMillis: Date.now() + 10000,
-        title: `🕌 تست واقعی آلارم نور — ${track.titleFa}`,
-        body: `در حال پخش با سرعت ${toFaDigits(testSpeed)}x (صفحه قفل تست شد)`,
+        title: `🕌 تست آلارم نور — ${track.titleFa}`,
+        body: `پخش با سرعت ${toFaDigits(testSpeed)}x (تست قفل صفحه)`,
         soundType: 'surah_chant',
         adhanId: track.audioAdhanId,
         audioUrl: track.audioFile,
@@ -555,25 +601,21 @@ export function TawashihAndAdhanReminderSection({
         volumePercent: 100,
         playbackRate: testSpeed,
       });
-      if (onToast) onToast('✅ آلارم تست برای ۱۰ ثانیه بعد کوک شد! الان صفحه گوشی را قفل و خاموش کنید.');
+      flashSavedBadge('✅ برای ۱۰ ثانیه بعد کوک شد · صفحه را قفل کنید');
+      if (onToast) onToast('✅ آلارم تست برای ۱۰ ثانیه بعد کوک شد! الان صفحه گوشی را قفل کنید.');
     } catch {
-      if (onToast) onToast('❌ خطا در ثبت آلارم تست؛ دسترسی اعلان و باتری را بررسی کنید.');
+      flashSavedBadge('❌ دسترسی اعلان یا باتری را بررسی کنید');
     }
   };
 
-  const applyCurrentToAllPrayers = () => {
-    const template = currentPrayerCfg;
-    const nextCfg: AllPrayersTawashihMap = {
-      fajr: { before: { ...template.before }, after: { ...template.after } },
-      dhuhr: { before: { ...template.before }, after: { ...template.after } },
-      asr: { before: { ...template.before }, after: { ...template.after } },
-      maghrib: { before: { ...template.before }, after: { ...template.after } },
-      isha: { before: { ...template.before }, after: { ...template.after } },
-    };
-    updateAndSaveInstantly(nextCfg, '✨ تنظیمات برای تمام ۵ نماز به صورت خودکار کوک شد!');
-  };
-
+  const editingSlotCfg = editingSlot ? currentPrayerCfg[editingSlot] : null;
   const editorTracks = editingSlot === 'after' ? POST_ADHAN_TRACKS : PRE_ADHAN_TRACKS;
+  const editingClock =
+    editingSlot === 'before'
+      ? beforeClock
+      : editingSlot === 'after'
+      ? afterClock
+      : rawPrayerTime;
 
   return (
     <div
@@ -584,6 +626,7 @@ export function TawashihAndAdhanReminderSection({
       }}
       dir="rtl"
     >
+      {/* هدر */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2.5">
           <div
@@ -598,8 +641,8 @@ export function TawashihAndAdhanReminderSection({
           </div>
           <div>
             <h3 className="text-sm font-black text-white">تواشیح و تعقیبات</h3>
-            <p className="text-[10px] text-emerald-100/60 mt-0.5">
-              نوای قبل و تلاوت بعد از اذان
+            <p className="text-[10.5px] text-emerald-100/65 mt-0.5">
+              نوای قبل و تلاوت بعد از اذان · ذخیره و جایگزینی خودکار
             </p>
           </div>
         </div>
@@ -612,10 +655,26 @@ export function TawashihAndAdhanReminderSection({
             color: '#34D399',
           }}
         >
-          {toFaDigits(activeCountForCurrent)} فعال
+          {toFaDigits(activeTotalCount)} فعال
         </span>
       </div>
 
+      {/* نوار تایید زنده لحظه‌ای (جایگزین دکمه ذخیره) */}
+      {liveStatusBadge && (
+        <div
+          className="px-3 py-2 rounded-2xl border flex items-center justify-center gap-1.5 text-[11px] font-black animate-fade-in"
+          style={{
+            background: 'rgba(16, 185, 129, 0.18)',
+            borderColor: 'rgba(52, 211, 153, 0.45)',
+            color: '#A7F3D0',
+          }}
+        >
+          <Sparkles size={13} className="text-amber-300 shrink-0" />
+          <span>{liveStatusBadge}</span>
+        </div>
+      )}
+
+      {/* تب‌های ۵ نماز */}
       <div
         className="grid grid-cols-5 gap-1 p-1 rounded-2xl border"
         style={{ background: 'rgba(4, 16, 14, 0.65)', borderColor: 'rgba(255, 255, 255, 0.07)' }}
@@ -649,8 +708,9 @@ export function TawashihAndAdhanReminderSection({
         })}
       </div>
 
+      {/* تایم‌لاین ۳ مرحله‌ای: قبل از اذان -> اذان -> بعد از اذان */}
       <div className="relative space-y-2.5">
-        {/* قبل از اذان */}
+        {/* ۱. قبل از اذان */}
         <div className="flex items-stretch gap-2.5">
           <div className="flex flex-col items-center pt-2 shrink-0">
             <div
@@ -673,56 +733,76 @@ export function TawashihAndAdhanReminderSection({
               borderColor: currentPrayerCfg.before.enabled ? 'rgba(251, 191, 36, 0.35)' : 'rgba(255, 255, 255, 0.08)',
             }}
           >
-            <div className="flex items-center justify-between gap-1 flex-wrap">
-              <div className="flex items-center gap-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
                 <span className="px-2 py-0.5 rounded-lg text-[10px] font-black" style={{ background: 'rgba(251, 191, 36, 0.18)', color: '#FBBF24' }}>
                   قبل از اذان
                 </span>
-                <select
-                  aria-label="دقیقه قبل از اذان"
-                  value={currentPrayerCfg.before.minutesOffset}
-                  onChange={(e) => updateOffsetMinutes('before', Number(e.target.value))}
-                  className="bg-black/30 text-emerald-100 px-2 py-0.5 rounded-lg border text-[10px] font-bold outline-none cursor-pointer border-white/10"
-                >
-                  {OFFSET_OPTIONS.map((m) => (
-                    <option key={m} value={m} className="bg-slate-900 text-white">{formatOffsetLabelFa(m, 'قبل')}</option>
-                  ))}
-                </select>
+                <strong className="text-xs font-black tracking-wider text-white">
+                  {currentPrayerCfg.before.enabled ? toFaDigits(beforeClock) : 'خاموش'}
+                </strong>
               </div>
 
-              <div className="flex items-center gap-2">
-                <strong className="text-xs font-black tracking-wider text-white">{toFaDigits(beforeClock)}</strong>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={currentPrayerCfg.before.enabled}
-                  onClick={() => toggleSlotDirectly('before')}
-                  className="w-10 h-5 rounded-full p-0.5 transition-colors flex items-center"
-                  style={{
-                    background: currentPrayerCfg.before.enabled ? '#FBBF24' : 'rgba(255,255,255,0.18)',
-                    justifyContent: currentPrayerCfg.before.enabled ? 'flex-start' : 'flex-end',
-                  }}
-                >
-                  <span className="w-4 h-4 rounded-full bg-white shadow-md block" />
-                </button>
-              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={currentPrayerCfg.before.enabled}
+                onClick={() => patchSlotInstantly('before', { enabled: !currentPrayerCfg.before.enabled })}
+                className="w-10 h-5 rounded-full p-0.5 transition-colors flex items-center"
+                style={{
+                  background: currentPrayerCfg.before.enabled ? '#FBBF24' : 'rgba(255,255,255,0.18)',
+                  justifyContent: currentPrayerCfg.before.enabled ? 'flex-start' : 'flex-end',
+                }}
+              >
+                <span className="w-4 h-4 rounded-full bg-white shadow-md block" />
+              </button>
+            </div>
+
+            {/* چیپ‌های انتخاب سریع دقیقه (تک‌کلیکی و خودکار) */}
+            <div className="flex items-center gap-1 flex-wrap">
+              {QUICK_OFFSET_PILLS.map((m) => {
+                const active = currentPrayerCfg.before.enabled && currentPrayerCfg.before.minutesOffset === m;
+                return (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => patchSlotInstantly('before', { minutesOffset: m, enabled: true })}
+                    className="px-2 py-0.5 rounded-lg text-[10px] font-black border transition-all active:scale-95"
+                    style={{
+                      background: active ? '#FBBF24' : 'rgba(255,255,255,0.04)',
+                      borderColor: active ? '#FBBF24' : 'rgba(255,255,255,0.1)',
+                      color: active ? '#041511' : 'rgba(236,253,245,0.7)',
+                    }}
+                  >
+                    {toFaDigits(m)} دق
+                  </button>
+                );
+              })}
             </div>
 
             <div className="flex items-center justify-between gap-2">
               <div
-                onClick={() => togglePlayTrack(selectedBeforeTrack, currentPrayerCfg.before.speed)}
+                onClick={() => { stopLocalAudio(); setEditingSlot('before'); }}
                 role="button"
                 tabIndex={0}
                 className="flex-1 rounded-xl p-2 border flex items-center justify-between gap-2 cursor-pointer transition-colors"
                 style={{
                   background: 'rgba(15, 46, 39, 0.65)',
-                  borderColor: playingTrackId === selectedBeforeTrack.id ? '#FBBF24' : 'rgba(255,255,255,0.08)',
+                  borderColor: 'rgba(255,255,255,0.08)',
                 }}
               >
                 <div className="flex items-center gap-2 min-w-0">
-                  <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(251, 191, 36, 0.2)', color: '#FBBF24' }}>
-                    {playingTrackId === selectedBeforeTrack.id ? <Square size={12} /> : <Volume2 size={14} />}
-                  </div>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      togglePlayTrack(selectedBeforeTrack, currentPrayerCfg.before.speed);
+                    }}
+                    className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                    style={{ background: 'rgba(251, 191, 36, 0.2)', color: '#FBBF24' }}
+                  >
+                    {playingTrackId === selectedBeforeTrack.id ? <Square size={11} /> : <Volume2 size={13} />}
+                  </button>
                   <div className="min-w-0">
                     <div className="text-xs font-black text-white truncate">
                       {currentPrayerCfg.before.mode === 'notification_only' ? 'فقط اعلان (بدون صدا)' : selectedBeforeTrack.titleFa}
@@ -730,25 +810,17 @@ export function TawashihAndAdhanReminderSection({
                     <div className="text-[10px] text-emerald-100/60 truncate">
                       {currentPrayerCfg.before.mode === 'notification_only'
                         ? 'نوتیفیکیشن بی‌صدا'
-                        : `${selectedBeforeTrack.subtitleFa} · سرعت ${toFaDigits(currentPrayerCfg.before.speed || 1)}x`}
+                        : `${selectedBeforeTrack.subtitleFa} · ${toFaDigits(currentPrayerCfg.before.speed || 1)}x`}
                     </div>
                   </div>
                 </div>
+                <span className="text-[10.5px] font-black text-amber-300 shrink-0 px-1">تغییر ‹</span>
               </div>
-
-              <button
-                type="button"
-                onClick={() => editingSlot === 'before' ? setEditingSlot(null) : openEditorForSlot('before')}
-                className="px-2.5 py-1.5 rounded-xl text-[11px] font-black transition-colors shrink-0"
-                style={{ color: editingSlot === 'before' ? '#FBBF24' : 'rgba(236, 253, 245, 0.7)' }}
-              >
-                تغییر ‹
-              </button>
             </div>
           </div>
         </div>
 
-        {/* اذان اصلی */}
+        {/* ۲. اذان اصلی */}
         <div className="flex items-center gap-2.5">
           <div className="flex flex-col items-center shrink-0">
             <div
@@ -784,7 +856,7 @@ export function TawashihAndAdhanReminderSection({
           </div>
         </div>
 
-        {/* بعد از اذان */}
+        {/* ۳. بعد از اذان */}
         <div className="flex items-stretch gap-2.5">
           <div className="flex flex-col items-center pt-1 shrink-0">
             <div className="w-0.5 h-2 mb-1" style={{ background: 'rgba(52, 211, 153, 0.25)' }} />
@@ -807,56 +879,76 @@ export function TawashihAndAdhanReminderSection({
               borderColor: currentPrayerCfg.after.enabled ? 'rgba(52, 211, 153, 0.35)' : 'rgba(255, 255, 255, 0.08)',
             }}
           >
-            <div className="flex items-center justify-between gap-1 flex-wrap">
-              <div className="flex items-center gap-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
                 <span className="px-2 py-0.5 rounded-lg text-[10px] font-black" style={{ background: 'rgba(52, 211, 153, 0.18)', color: '#34D399' }}>
                   بعد از اذان
                 </span>
-                <select
-                  aria-label="دقیقه بعد از اذان"
-                  value={currentPrayerCfg.after.minutesOffset}
-                  onChange={(e) => updateOffsetMinutes('after', Number(e.target.value))}
-                  className="bg-black/30 text-emerald-100 px-2 py-0.5 rounded-lg border text-[10px] font-bold outline-none cursor-pointer border-white/10"
-                >
-                  {OFFSET_OPTIONS.map((m) => (
-                    <option key={m} value={m} className="bg-slate-900 text-white">{formatOffsetLabelFa(m, 'بعد')}</option>
-                  ))}
-                </select>
+                <strong className="text-xs font-black tracking-wider text-white">
+                  {currentPrayerCfg.after.enabled ? toFaDigits(afterClock) : 'خاموش'}
+                </strong>
               </div>
 
-              <div className="flex items-center gap-2">
-                <strong className="text-xs font-black tracking-wider text-white">{toFaDigits(afterClock)}</strong>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={currentPrayerCfg.after.enabled}
-                  onClick={() => toggleSlotDirectly('after')}
-                  className="w-10 h-5 rounded-full p-0.5 transition-colors flex items-center"
-                  style={{
-                    background: currentPrayerCfg.after.enabled ? '#34D399' : 'rgba(255,255,255,0.18)',
-                    justifyContent: currentPrayerCfg.after.enabled ? 'flex-start' : 'flex-end',
-                  }}
-                >
-                  <span className="w-4 h-4 rounded-full bg-white shadow-md block" />
-                </button>
-              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={currentPrayerCfg.after.enabled}
+                onClick={() => patchSlotInstantly('after', { enabled: !currentPrayerCfg.after.enabled })}
+                className="w-10 h-5 rounded-full p-0.5 transition-colors flex items-center"
+                style={{
+                  background: currentPrayerCfg.after.enabled ? '#34D399' : 'rgba(255,255,255,0.18)',
+                  justifyContent: currentPrayerCfg.after.enabled ? 'flex-start' : 'flex-end',
+                }}
+              >
+                <span className="w-4 h-4 rounded-full bg-white shadow-md block" />
+              </button>
+            </div>
+
+            {/* چیپ‌های انتخاب سریع دقیقه (تک‌کلیکی و خودکار) */}
+            <div className="flex items-center gap-1 flex-wrap">
+              {QUICK_OFFSET_PILLS.map((m) => {
+                const active = currentPrayerCfg.after.enabled && currentPrayerCfg.after.minutesOffset === m;
+                return (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => patchSlotInstantly('after', { minutesOffset: m, enabled: true })}
+                    className="px-2 py-0.5 rounded-lg text-[10px] font-black border transition-all active:scale-95"
+                    style={{
+                      background: active ? '#34D399' : 'rgba(255,255,255,0.04)',
+                      borderColor: active ? '#34D399' : 'rgba(255,255,255,0.1)',
+                      color: active ? '#041511' : 'rgba(236,253,245,0.7)',
+                    }}
+                  >
+                    {toFaDigits(m)} دق
+                  </button>
+                );
+              })}
             </div>
 
             <div className="flex items-center justify-between gap-2">
               <div
-                onClick={() => togglePlayTrack(selectedAfterTrack, currentPrayerCfg.after.speed)}
+                onClick={() => { stopLocalAudio(); setEditingSlot('after'); }}
                 role="button"
                 tabIndex={0}
                 className="flex-1 rounded-xl p-2 border flex items-center justify-between gap-2 cursor-pointer transition-colors"
                 style={{
                   background: 'rgba(15, 46, 39, 0.65)',
-                  borderColor: playingTrackId === selectedAfterTrack.id ? '#34D399' : 'rgba(255,255,255,0.08)',
+                  borderColor: 'rgba(255,255,255,0.08)',
                 }}
               >
                 <div className="flex items-center gap-2 min-w-0">
-                  <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(52, 211, 153, 0.2)', color: '#34D399' }}>
-                    {playingTrackId === selectedAfterTrack.id ? <Square size={12} /> : <Volume2 size={14} />}
-                  </div>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      togglePlayTrack(selectedAfterTrack, currentPrayerCfg.after.speed);
+                    }}
+                    className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                    style={{ background: 'rgba(52, 211, 153, 0.2)', color: '#34D399' }}
+                  >
+                    {playingTrackId === selectedAfterTrack.id ? <Square size={11} /> : <Volume2 size={13} />}
+                  </button>
                   <div className="min-w-0">
                     <div className="text-xs font-black text-white truncate">
                       {currentPrayerCfg.after.mode === 'notification_only' ? 'فقط اعلان (بدون صدا)' : selectedAfterTrack.titleFa}
@@ -864,31 +956,24 @@ export function TawashihAndAdhanReminderSection({
                     <div className="text-[10px] text-emerald-100/60 truncate">
                       {currentPrayerCfg.after.mode === 'notification_only'
                         ? 'نوتیفیکیشن بی‌صدا'
-                        : `${selectedAfterTrack.subtitleFa} · سرعت ${toFaDigits(currentPrayerCfg.after.speed || 1)}x`}
+                        : `${selectedAfterTrack.subtitleFa} · ${toFaDigits(currentPrayerCfg.after.speed || 1)}x`}
                     </div>
                   </div>
                 </div>
+                <span className="text-[10.5px] font-black text-emerald-300 shrink-0 px-1">تغییر ‹</span>
               </div>
-
-              <button
-                type="button"
-                onClick={() => editingSlot === 'after' ? setEditingSlot(null) : openEditorForSlot('after')}
-                className="px-2.5 py-1.5 rounded-xl text-[11px] font-black transition-colors shrink-0"
-                style={{ color: editingSlot === 'after' ? '#34D399' : 'rgba(236, 253, 245, 0.7)' }}
-              >
-                تغییر ‹
-              </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* مودال انتخاب با ثبت خودکار لحظه‌ای پشت دست کاربر */}
-      {editingSlot && typeof document !== 'undefined' && createPortal(
+      {/* پنجره انتخاب شیک و بدون دکمه ذخیره (هر لمس بلافاصله جایگزین قبلی و کوک می‌شود) */}
+      {editingSlot && editingSlotCfg && typeof document !== 'undefined' && createPortal(
         <div
           className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
           style={{ background: 'rgba(2, 12, 10, 0.84)', backdropFilter: 'blur(8px)' }}
           onClick={() => { stopLocalAudio(); setEditingSlot(null); }}
+          dir="rtl"
         >
           <div
             className="w-full max-w-md rounded-3xl p-4 border space-y-3.5 shadow-2xl max-h-[86vh] flex flex-col"
@@ -898,64 +983,66 @@ export function TawashihAndAdhanReminderSection({
             <div className="flex items-center justify-between border-b pb-2.5" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
               <div>
                 <h4 className="text-xs font-black text-amber-300">
-                  {editingSlot === 'before' ? `تنظیم تواشیح قبل از ${currentMeta.adhanTitleFa}` : `تنظیم سوره و تعقیبات بعد از ${currentMeta.adhanTitleFa}`}
+                  {editingSlot === 'before' ? `تواشیح قبل از ${currentMeta.adhanTitleFa}` : `سوره و تعقیبات بعد از ${currentMeta.adhanTitleFa}`}
                 </h4>
-                <p className="text-[10px] text-emerald-100/65 mt-0.5">هر تغییری بدهید در همان لحظه خودکار ذخیره و کوک می‌شود</p>
+                <p className="text-[10.5px] text-emerald-200/80 mt-0.5">
+                  {editingSlotCfg.enabled
+                    ? `✓ کوک خودکار روی ساعت ${toFaDigits(editingClock)} · آلارم قبلی خودکار پاک می‌شود`
+                    : 'با انتخاب هر گزینه به‌صورت خودکار فعال و کوک می‌شود'}
+                </p>
               </div>
               <button
                 type="button"
                 onClick={() => { stopLocalAudio(); setEditingSlot(null); }}
-                className="w-7 h-7 rounded-xl border flex items-center justify-center text-xs text-white/80 border-white/20 bg-white/5"
+                aria-label="بستن"
+                className="w-8 h-8 rounded-full border flex items-center justify-center text-white/85 border-white/20 bg-white/5"
               >
-                ✕
+                <X size={15} />
               </button>
             </div>
 
+            {/* حالت پخش صوتی یا فقط اعلان */}
             <div className="grid grid-cols-2 gap-2.5">
               <button
                 type="button"
-                onClick={() => {
-                  setDraftMode('audio');
-                  applySlotPatchInstantly(editingSlot, { enabled: true, mode: 'audio', trackId: draftTrackId, speed: draftSpeed });
-                }}
+                onClick={() => patchSlotInstantly(editingSlot, { enabled: true, mode: 'audio' })}
                 className="p-3 rounded-2xl border flex items-center justify-between transition-all text-right"
                 style={{
-                  background: draftMode === 'audio' ? 'rgba(42, 39, 18, 0.75)' : 'rgba(255,255,255,0.03)',
-                  borderColor: draftMode === 'audio' ? '#FBBF24' : 'rgba(255,255,255,0.1)',
+                  background: editingSlotCfg.mode === 'audio' ? 'rgba(42, 39, 18, 0.75)' : 'rgba(255,255,255,0.03)',
+                  borderColor: editingSlotCfg.mode === 'audio' ? '#FBBF24' : 'rgba(255,255,255,0.1)',
                 }}
               >
                 <div>
-                  <div className="text-xs font-black" style={{ color: draftMode === 'audio' ? '#FBBF24' : '#FFFFFF' }}>پخش تواشیح</div>
-                  <div className="text-[10px] opacity-65 text-white mt-0.5">صدای کامل نوا</div>
+                  <div className="text-xs font-black" style={{ color: editingSlotCfg.mode === 'audio' ? '#FBBF24' : '#FFFFFF' }}>پخش صوتی</div>
+                  <div className="text-[10px] opacity-65 text-white mt-0.5">پخش کامل نوا یا سوره</div>
                 </div>
-                <Volume2 size={16} className={draftMode === 'audio' ? 'text-amber-300' : 'text-gray-400'} />
+                <Volume2 size={16} className={editingSlotCfg.mode === 'audio' ? 'text-amber-300' : 'text-gray-400'} />
               </button>
 
               <button
                 type="button"
                 onClick={() => {
                   stopLocalAudio();
-                  setDraftMode('notification_only');
-                  applySlotPatchInstantly(editingSlot, { enabled: true, mode: 'notification_only', trackId: draftTrackId, speed: draftSpeed });
+                  patchSlotInstantly(editingSlot, { enabled: true, mode: 'notification_only' });
                 }}
                 className="p-3 rounded-2xl border flex items-center justify-between transition-all text-right"
                 style={{
-                  background: draftMode === 'notification_only' ? 'rgba(42, 39, 18, 0.75)' : 'rgba(255,255,255,0.03)',
-                  borderColor: draftMode === 'notification_only' ? '#FBBF24' : 'rgba(255,255,255,0.1)',
+                  background: editingSlotCfg.mode === 'notification_only' ? 'rgba(42, 39, 18, 0.75)' : 'rgba(255,255,255,0.03)',
+                  borderColor: editingSlotCfg.mode === 'notification_only' ? '#FBBF24' : 'rgba(255,255,255,0.1)',
                 }}
               >
                 <div>
-                  <div className="text-xs font-black" style={{ color: draftMode === 'notification_only' ? '#FBBF24' : '#FFFFFF' }}>فقط اعلان</div>
-                  <div className="text-[10px] opacity-65 text-white mt-0.5">بدون صدا</div>
+                  <div className="text-xs font-black" style={{ color: editingSlotCfg.mode === 'notification_only' ? '#FBBF24' : '#FFFFFF' }}>فقط اعلان</div>
+                  <div className="text-[10px] opacity-65 text-white mt-0.5">یادآور بی‌صدا</div>
                 </div>
-                <Bell size={16} className={draftMode === 'notification_only' ? 'text-amber-300' : 'text-gray-400'} />
+                <Bell size={16} className={editingSlotCfg.mode === 'notification_only' ? 'text-amber-300' : 'text-gray-400'} />
               </button>
             </div>
 
-            {draftMode === 'audio' && (
+            {editingSlotCfg.mode === 'audio' && (
               <>
-                <div className="flex items-center justify-between pt-1">
-                  <span className="text-xs font-black text-white">انتخاب نوا یا سوره مبارکه</span>
+                <div className="flex items-center justify-between pt-0.5">
+                  <span className="text-xs font-black text-white">انتخاب تک‌کلیکی (ذخیره آنی)</span>
                   <div className="flex items-center gap-1">
                     <span className="text-[10px] text-emerald-200/70 ml-1">سرعت:</span>
                     {SPEED_OPTIONS.map((sp) => (
@@ -963,17 +1050,15 @@ export function TawashihAndAdhanReminderSection({
                         key={sp}
                         type="button"
                         onClick={() => {
-                          // AUTO_SAVE_ON_SPEED_CLICK
-                          setDraftSpeed(sp);
                           setAlarmPlaybackSpeed(sp);
-                          if (audioRef.current) { audioRef.current.playbackRate = sp; }
-                          applySlotPatchInstantly(editingSlot, { enabled: true, mode: draftMode, trackId: draftTrackId, speed: sp });
+                          if (audioRef.current) audioRef.current.playbackRate = sp;
+                          patchSlotInstantly(editingSlot, { enabled: true, speed: sp });
                         }}
                         className="px-2 py-0.5 rounded-lg text-[10px] font-black border"
                         style={{
-                          background: draftSpeed === sp ? '#FBBF24' : 'rgba(255,255,255,0.05)',
-                          borderColor: draftSpeed === sp ? '#FBBF24' : 'rgba(255,255,255,0.12)',
-                          color: draftSpeed === sp ? '#041511' : '#D1FAE5',
+                          background: editingSlotCfg.speed === sp ? '#FBBF24' : 'rgba(255,255,255,0.05)',
+                          borderColor: editingSlotCfg.speed === sp ? '#FBBF24' : 'rgba(255,255,255,0.12)',
+                          color: editingSlotCfg.speed === sp ? '#041511' : '#D1FAE5',
                         }}
                       >
                         {toFaDigits(sp)}x
@@ -984,19 +1069,21 @@ export function TawashihAndAdhanReminderSection({
 
                 <div className="space-y-2 max-h-64 overflow-y-auto pr-0.5">
                   {editorTracks.map((tr) => {
-                    const isSelected = draftTrackId === tr.id;
+                    const isSelected = editingSlotCfg.trackId === tr.id;
                     const isPlaying = playingTrackId === tr.id;
                     return (
                       <div
                         key={tr.id}
                         onClick={() => {
-                          // AUTO_SAVE_ON_TRACK_CLICK
-                          setDraftTrackId(tr.id);
-                          applySlotPatchInstantly(editingSlot, { enabled: true, mode: draftMode, trackId: tr.id, speed: draftSpeed });
+                          patchSlotInstantly(
+                            editingSlot,
+                            { enabled: true, mode: 'audio', trackId: tr.id },
+                            `✓ «${tr.titleFa}» جایگزین و برای ${toFaDigits(editingClock)} کوک شد`
+                          );
                         }}
                         role="button"
                         tabIndex={0}
-                        className="rounded-2xl p-3 border flex items-center justify-between gap-3 cursor-pointer transition-all"
+                        className="rounded-2xl p-3 border flex items-center justify-between gap-3 cursor-pointer transition-all active:scale-[0.99]"
                         style={{
                           background: isSelected ? 'rgba(42, 39, 18, 0.55)' : 'rgba(13, 36, 31, 0.65)',
                           borderColor: isSelected ? '#FBBF24' : 'rgba(255, 255, 255, 0.08)',
@@ -1007,9 +1094,8 @@ export function TawashihAndAdhanReminderSection({
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              setDraftTrackId(tr.id);
-                              applySlotPatchInstantly(editingSlot, { enabled: true, mode: draftMode, trackId: tr.id, speed: draftSpeed });
-                              togglePlayTrack(tr, draftSpeed);
+                              patchSlotInstantly(editingSlot, { enabled: true, mode: 'audio', trackId: tr.id });
+                              togglePlayTrack(tr, editingSlotCfg.speed);
                             }}
                             className="w-8 h-8 rounded-full border flex items-center justify-center shrink-0"
                             style={{
@@ -1026,7 +1112,13 @@ export function TawashihAndAdhanReminderSection({
                           </div>
                         </div>
 
-                        <div className="w-5 h-5 rounded-full border flex items-center justify-center shrink-0" style={{ background: isSelected ? '#FBBF24' : 'transparent', borderColor: isSelected ? '#FBBF24' : 'rgba(255,255,255,0.25)' }}>
+                        <div
+                          className="w-5 h-5 rounded-full border flex items-center justify-center shrink-0"
+                          style={{
+                            background: isSelected ? '#FBBF24' : 'transparent',
+                            borderColor: isSelected ? '#FBBF24' : 'rgba(255,255,255,0.25)',
+                          }}
+                        >
                           {isSelected && <Check size={12} strokeWidth={3} className="text-black" />}
                         </div>
                       </div>
@@ -1036,21 +1128,21 @@ export function TawashihAndAdhanReminderSection({
               </>
             )}
 
-            <div className="flex items-center gap-2.5 pt-1">
+            <div className="flex items-center justify-between gap-2 pt-1 border-t border-white/10">
+              <span className="text-[10.5px] font-bold text-emerald-300 flex items-center gap-1">
+                <Check size={13} />
+                <span>تغییرات خودکار ذخیره شده‌اند</span>
+              </span>
               <button
                 type="button"
-                onClick={handleSaveEditor}
-                className="flex-1 py-3 rounded-2xl font-black text-xs shadow-lg"
-                style={{ background: 'linear-gradient(135deg, #FBBF24 0%, #D97706 100%)', color: '#041511' }}
+                onClick={() => {
+                  stopLocalAudio();
+                  patchSlotInstantly(editingSlot, { enabled: false });
+                  setEditingSlot(null);
+                }}
+                className="px-3.5 py-2 rounded-xl font-black text-[11px] border text-rose-200 bg-rose-500/10 border-rose-400/30"
               >
-                تأیید و بستن
-              </button>
-              <button
-                type="button"
-                onClick={handleTurnOffSlot}
-                className="px-4 py-3 rounded-2xl font-black text-xs border text-gray-200 bg-white/5 border-white/20"
-              >
-                خاموش کن
+                خاموش کردن این یادآور
               </button>
             </div>
           </div>
@@ -1058,6 +1150,7 @@ export function TawashihAndAdhanReminderSection({
         document.body
       )}
 
+      {/* دکمه‌های کاربردی پایین */}
       <button
         type="button"
         onClick={applyCurrentToAllPrayers}
@@ -1089,8 +1182,8 @@ export function TawashihAndAdhanReminderSection({
             if (Capacitor.isNativePlatform()) {
               void NoorAlarm.requestNotificationPermission().catch(() => {});
               void NoorAlarm.openBatteryOptimizationSettings().catch(() => {});
-            } else if (onToast) {
-              onToast('این گزینه در اپلیکیشن اندروید تنظیمات باتری را باز می‌کند');
+            } else {
+              flashSavedBadge('این دکمه روی گوشی تنظیمات باتری را باز می‌کند');
             }
           }}
           className="py-2.5 px-2 rounded-2xl border text-[11px] font-black flex items-center justify-center gap-1.5 transition-transform active:scale-[0.98]"

@@ -10,7 +10,8 @@ import { RemindersScreen } from '@/components/RemindersScreen';
 import { SettingsScreen } from '@/components/SettingsScreen';
 import { NotificationPermissionModal } from '@/components/NotificationPermissionModal';
 import { AppTutorialModal } from '@/components/AppTutorialModal';
-import { rescheduleAll } from '@/lib/reminderService';
+import { rescheduleAll, purgeLegacyPrePostAdhanReminders } from '@/lib/reminderService';
+import { loadTawashihConfig, syncAllTawashihNativeAlarms } from '@/components/TawashihAndAdhanReminderSection';
 import { logEvent } from '@/lib/logger';
 import { Capacitor } from '@capacitor/core';
 
@@ -108,6 +109,9 @@ function AppContent() {
       logEvent('info', 'AppStartup', 'شروع زمان‌بندی مجدد یادآوری‌ها در بدو ورود', {
         notifEnabled,
         userId: user?.id ?? 'guest',
+      });
+      void purgeLegacyPrePostAdhanReminders().then(() => {
+        void syncAllTawashihNativeAlarms(loadTawashihConfig());
       });
       void rescheduleAll(notifEnabled).then((res) => {
         logEvent('info', 'AppStartup', 'نتیجه زمان‌بندی مجدد در بدو ورود', res);
