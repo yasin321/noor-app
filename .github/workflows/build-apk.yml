@@ -63,22 +63,6 @@ jobs:
           done
           du -sh public/adhans
 
-      - name: Download High-Res Real Shrine Photographs for Offline Bundle
-        run: |
-          mkdir -p public/shrines
-          curl -L -s -A "Mozilla/5.0" "https://wsrv.nl/?url=upload.wikimedia.org/wikipedia/commons/6/63/Imam_Reza_Shrine_by_Mostafa_Meraji.jpg&w=1000&h=600&fit=cover&q=84&output=jpg" -o public/shrines/mashhad.jpg || true
-          curl -L -s -A "Mozilla/5.0" "https://wsrv.nl/?url=upload.wikimedia.org/wikipedia/commons/e/e0/Imam_Husayn_Shrine_in_Karbala.jpg&w=1000&h=600&fit=cover&q=84&output=jpg" -o public/shrines/karbala.jpg || true
-          curl -L -s -A "Mozilla/5.0" "https://wsrv.nl/?url=upload.wikimedia.org/wikipedia/commons/2/23/Imam_Ali_Mosque_Najaf.jpg&w=1000&h=600&fit=cover&q=84&output=jpg" -o public/shrines/najaf.jpg || true
-          curl -L -s -A "Mozilla/5.0" "https://wsrv.nl/?url=upload.wikimedia.org/wikipedia/commons/f/f3/Kaaba_at_night.jpg&w=1000&h=600&fit=cover&q=84&output=jpg" -o public/shrines/makkah.jpg || true
-          curl -L -s -A "Mozilla/5.0" "https://wsrv.nl/?url=upload.wikimedia.org/wikipedia/commons/e/e8/Al-Masjid_AL-Nabawi_Green_Dome.jpg&w=1000&h=600&fit=cover&q=84&output=jpg" -o public/shrines/madinah.jpg || true
-          curl -L -s -A "Mozilla/5.0" "https://wsrv.nl/?url=upload.wikimedia.org/wikipedia/commons/7/7b/Fatimah_al-Ma%27sumah_Shrine_Qom.jpg&w=1000&h=600&fit=cover&q=84&output=jpg" -o public/shrines/qom.jpg || true
-          curl -L -s -A "Mozilla/5.0" "https://wsrv.nl/?url=upload.wikimedia.org/wikipedia/commons/d/d3/Sheikh_Lotfollah_Mosque_Isfahan_01.jpg&w=1000&h=600&fit=cover&q=84&output=jpg" -o public/shrines/isfahan.jpg || true
-          curl -L -s -A "Mozilla/5.0" "https://wsrv.nl/?url=upload.wikimedia.org/wikipedia/commons/0/07/Nasir_ol_Molk_Mosque_Shiraz_Iran.jpg&w=1000&h=600&fit=cover&q=84&output=jpg" -o public/shrines/shiraz.jpg || true
-          curl -L -s -A "Mozilla/5.0" "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=1000&q=82" -o public/shrines/fajr.jpg || true
-          curl -L -s -A "Mozilla/5.0" "https://images.unsplash.com/photo-1532693322450-2cb5c511067d?auto=format&fit=crop&w=1000&q=82" -o public/shrines/qadr.jpg || true
-          cp public/shrines/mashhad.jpg public/hero-default.jpg || true
-          ls -lh public/shrines/*.jpg
-
       - name: Build Production Web Bundle
         run: npm run build
 

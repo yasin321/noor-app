@@ -11,7 +11,7 @@ import {
 } from './reminderStorage';
 import { dhikrLibrary } from './dhikrLibrary';
 import { logEvent } from './logger';
-import { getAdhanDurationMode, getAdhanDurationSeconds } from './adhans';
+import { adhans, getAdhanDurationMode, getAdhanDurationSeconds } from './adhans';
 import { calculatePrayerTimes, getNightPrayerConfig, calculateNightPrayerWindow } from './prayerTimes';
 import { getCityById, getGuestCityId, getCustomGpsCoords } from './cities';
 import { addMinutesToTimeStr, PRE_ADHAN_CHANT_OPTIONS, POST_ADHAN_OPTIONS } from './deenIntelligenceStore';
@@ -57,10 +57,12 @@ export function getDayLabel(day: number): string {
 function resolvePrayerAlarmParams(
   reminderId: string,
   reminderTitle: string
-): { soundType: string; adhanId: string; durationSeconds: number; volumePercent: number; playbackRate?: number } {
+): { soundType: string; adhanId: string; audioUrl?: string; durationSeconds: number; volumePercent: number; playbackRate?: number } {
   const studio = loadAdhanStudio();
   const prof = studio.profiles[studio.activeProfile];
   const selectedAdhan = localStorage.getItem('noor_guest_adhan_id') || 'moazenzadeh_ardabili';
+  const matchedAdhanObj = adhans.find((a) => a.id === selectedAdhan);
+  const selectedAdhanAudioUrl = (Object.values((matchedAdhanObj || {}) as Record<string, unknown>).find((v): v is string => typeof v === 'string' && v.includes('/adhans/')) || '');
   const globalDurSec = getAdhanDurationSeconds(getAdhanDurationMode());
   const userSpeed = typeof getAlarmPlaybackSpeed === 'function' ? getAlarmPlaybackSpeed() : 1.0;
 
@@ -143,11 +145,12 @@ function resolvePrayerAlarmParams(
     return { soundType: 'silent', adhanId: selectedAdhan, durationSeconds: 0, volumePercent: 0 };
   }
   if (mode === 'short_10s') {
-    return { soundType: 'short_10s', adhanId: selectedAdhan, durationSeconds: 10, volumePercent: vol };
+    return { soundType: 'short_10s', adhanId: selectedAdhan, audioUrl: selectedAdhanAudioUrl, durationSeconds: 10, volumePercent: vol };
   }
   return {
     soundType: 'adhan',
     adhanId: selectedAdhan,
+    audioUrl: selectedAdhanAudioUrl,
     durationSeconds: globalDurSec,
     volumePercent: vol,
     playbackRate: 1.0,

@@ -226,19 +226,39 @@ public class AdhanForegroundService extends Service {
                 }
 
                 if (!loaded) {
+                    // AUTO_ADHAN_MAP_START
+                    String mappedAssetPath = null;
+                    if ("moazenzadeh_ardabili".equals(adhanId)) mappedAssetPath = "public/adhans/ahlolbait_01.mp3";
+                    if ("ahlolbait_2".equals(adhanId)) mappedAssetPath = "public/adhans/ahlolbait_02.mp3";
+                    if ("ahlolbait_3".equals(adhanId)) mappedAssetPath = "public/adhans/ahlolbait_03.mp3";
+                    if ("ahlolbait_4".equals(adhanId)) mappedAssetPath = "public/adhans/ahlolbait_04.mp3";
+                    if ("ahlolbait_5".equals(adhanId)) mappedAssetPath = "public/adhans/ahlolbait_05.mp3";
+                    if ("ahlolbait_6".equals(adhanId)) mappedAssetPath = "public/adhans/ahlolbait_06.mp3";
+                    if ("ahlolbait_7".equals(adhanId)) mappedAssetPath = "public/adhans/ahlolbait_07.mp3";
+                    if ("ahlolbait_24".equals(adhanId)) mappedAssetPath = "public/adhans/ahlolbait_24.mp3";
+                    if ("ahlolbait_31".equals(adhanId)) mappedAssetPath = "public/adhans/ahlolbait_31.mp3";
+                    if ("mahur_saeed".equals(adhanId)) mappedAssetPath = "public/adhans/ahlolbait_01.mp3";
+                    if (mappedAssetPath == null && adhanId != null && adhanId.startsWith("ahlolbait_")) {
+                        String numPart = adhanId.replace("ahlolbait_", "").trim();
+                        if (numPart.length() == 1) mappedAssetPath = "public/adhans/ahlolbait_0" + numPart + ".mp3";
+                    }
                     String directAssetPath = null;
                     if (audioUrl != null && !audioUrl.trim().isEmpty()) {
                         String cleanUrl = audioUrl.trim();
                         if (cleanUrl.startsWith("/")) cleanUrl = cleanUrl.substring(1);
-                        directAssetPath = cleanUrl.startsWith("public/") ? cleanUrl : ("public/" + cleanUrl);
+                        if (!cleanUrl.startsWith("http://") && !cleanUrl.startsWith("https://")) {
+                            directAssetPath = cleanUrl.startsWith("public/") ? cleanUrl : ("public/" + cleanUrl);
+                        }
                     }
+                    String fallbackTrack = isPreOrPostChantOrSurah ? "public/adhans/rabbana.mp3" : "public/adhans/ahlolbait_01.mp3";
                     String[] candidates = new String[] {
                             directAssetPath != null ? directAssetPath : "",
+                            mappedAssetPath != null ? mappedAssetPath : "",
                             "public/adhans/" + adhanId + ".mp3",
                             "public/adhans/" + adhanId + ".ogg",
-                            "public/adhans/mahur_saeed.ogg",
-                            "public/adhans/chant_salawat.mp3"
+                            fallbackTrack
                     };
+// AUTO_ADHAN_MAP_END
                     for (String path : candidates) {
                         if (path == null || path.isEmpty()) continue;
                         try {

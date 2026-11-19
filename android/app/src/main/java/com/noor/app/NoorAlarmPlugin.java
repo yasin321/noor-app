@@ -202,6 +202,7 @@ public class NoorAlarmPlugin extends Plugin {
             record.put("body", body);
             record.put("soundType", soundType);
             record.put("adhanId", adhanId);
+            record.put("audioUrl", audioUrl != null ? audioUrl : "");
             record.put("durationSeconds", durationSeconds);
             record.put("volumePercent", volumePercent);
             SharedPreferences prefs = ctx.getSharedPreferences(ALARM_STORE_PREFS, Context.MODE_PRIVATE);
@@ -516,6 +517,7 @@ public class NoorAlarmPlugin extends Plugin {
         srv.putExtra("body", "در حال پخش نمونه صوتی...");
         srv.putExtra("soundType", "adhan");
         srv.putExtra("adhanId", adhanId);
+        srv.putExtra("audioUrl", call.getString("audioUrl", ""));
         srv.putExtra("durationSeconds", durationSeconds != null ? durationSeconds : 15);
         srv.putExtra("volumePercent", volumePercent != null ? volumePercent : 95);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

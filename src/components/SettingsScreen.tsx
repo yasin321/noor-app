@@ -989,15 +989,16 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
             <button
               type="button"
               onClick={async () => {
-                const chosenId = localStorage.getItem('noor_guest_adhan_id') || 'mahur_saeed';
+                const chosenId = localStorage.getItem('noor_guest_adhan_id') || 'moazenzadeh_ardabili';
                 if (Capacitor.isNativePlatform()) {
                   await NoorAlarm.scheduleNativeAlarm({
                     id: 70998,
                     triggerAtMillis: Date.now() + 5000,
                     title: '🕌 تست پخش اذان روی صفحه قفل',
-                    body: 'همراه معنوی نور — پخش خودکار اذان با صدای مؤذن انتخابی شما',
+                    body: `همراه معنوی نور — ${(adhans.find((a) => a.id === chosenId)?.nameFa || 'اذان انتخابی شما')}`,
                     soundType: 'adhan',
                     adhanId: chosenId,
+                    audioUrl: (Object.values((adhans.find((a: any) => a.id === chosenId) || {}) as Record<string, unknown>).find((v): v is string => typeof v === 'string' && v.includes('/adhans/')) || ''),
                     durationSeconds: 30,
                     volumePercent: 100,
                   });

@@ -490,6 +490,13 @@ function getOfflineIranSafeImage(designId: string | number): string {
 
 export function RenderHeroArtworkScene({ design }: { design: HeroArtDesign }) {
   const localSafeImg = getOfflineIranSafeImage(design.id);
+  const [src, setSrc] = useState<string>(localSafeImg);
+  const [imgHidden, setImgHidden] = useState<boolean>(false);
+
+  useEffect(() => {
+    setSrc(getOfflineIranSafeImage(design.id));
+    setImgHidden(false);
+  }, [design.id]);
 
   return (
     <div
@@ -498,20 +505,26 @@ export function RenderHeroArtworkScene({ design }: { design: HeroArtDesign }) {
         background: `linear-gradient(165deg, ${design.skyTop} 0%, ${design.skyMid} 52%, ${design.skyBottom} 100%)`,
       }}
     >
-      <img
-        src={localSafeImg}
-        alt=""
-        className="absolute inset-0 w-full h-full object-cover object-center transition-opacity duration-300"
-        style={{ filter: 'brightness(0.92) contrast(1.08) saturate(1.12)' }}
-        onError={(e) => {
-          (e.target as HTMLImageElement).src = '/hero-default.jpg';
-        }}
-      />
+      {!imgHidden && (
+        <img
+          src={src}
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover object-center transition-opacity duration-300"
+          style={{ filter: 'brightness(0.96) contrast(1.07) saturate(1.14)' }}
+          onError={() => {
+            if (src !== '/hero-default.jpg') {
+              setSrc('/hero-default.jpg');
+            } else {
+              setImgHidden(true);
+            }
+          }}
+        />
+      )}
 
       <div
         className="absolute inset-0"
         style={{
-          background: `radial-gradient(circle at 50% 35%, ${design.accent}28 0%, transparent 65%), linear-gradient(180deg, rgba(3, 16, 13, 0.38) 0%, rgba(5, 24, 19, 0.18) 52%, ${design.skyBottom}E6 100%)`,
+          background: `radial-gradient(circle at 50% 35%, ${design.accent}22 0%, transparent 65%), linear-gradient(180deg, rgba(3, 16, 13, 0.28) 0%, rgba(5, 24, 19, 0.08) 48%, ${design.skyBottom}CC 100%)`,
         }}
       />
     </div>
