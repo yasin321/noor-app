@@ -22,6 +22,14 @@ export function useTasbih(userId?: string | null) {
     return result;
   }, [userId]);
 
+  const decrement = useCallback(() => {
+    const cur = getSession();
+    if (cur.count > 0) {
+      saveSession({ ...cur, count: cur.count - 1 });
+      setSession(getSession());
+    }
+  }, []);
+
   const reset = useCallback(() => {
     resetSession();
     setSession(getSession());
@@ -35,7 +43,7 @@ export function useTasbih(userId?: string | null) {
   const save = useCallback((s: typeof session) => {
     saveSession(s);
     setSession(getSession());
-  }, [session]);
+  }, []);
 
-  return { session, start, increment, reset, clear, save };
+  return { session, start, increment, decrement, reset, clear, save };
 }

@@ -30,7 +30,7 @@ function AppContent() {
   const [showAuth, setShowAuth] = useState(false);
   const [showFirstTimeGuide, setShowFirstTimeGuide] = useState<boolean>(false);
 
-  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const touchStartRef = useRef<{ x: number; y: number; id: number; multi: boolean } | null>(null);
   const tabOrder: Tab[] = ['tasbih', 'library', 'home', 'reminders', 'settings'];
 
   // به محض اینکه دیتای اولیه برنامه آماده شد، صفحه گرافیکی آغازین (در index.html) را به نرمی کنار بزن
@@ -54,6 +54,11 @@ function AppContent() {
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {
+    // اگر بیش از یک انگشت روی صفحه باشد یا روی بخش ذکرشمار/عناصر قفل‌شده باشیم، سوایپ تعویض تب را کاملاً غیرفعال کن
+    if (e.touches.length > 1) {
+      touchStartRef.current = null;
+      return;
+    }
     const target = e.target as HTMLElement | null;
     if (target && target.closest('input, select, textarea, [data-no-swipe="true"]')) {
       touchStartRef.current = null;
@@ -61,22 +66,33 @@ function AppContent() {
     }
     const t = e.touches[0];
     if (!t) return;
-    touchStartRef.current = { x: t.clientX, y: t.clientY };
+    touchStartRef.current = { x: t.clientX, y: t.clientY, id: t.identifier, multi: false };
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length > 1 && touchStartRef.current) {
+      touchStartRef.current.multi = true;
+    }
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
     if (!touchStartRef.current) return;
-    const t = e.changedTouches[0];
-    if (!t) return;
-    const dx = t.clientX - touchStartRef.current.x;
-    const dy = t.clientY - touchStartRef.current.y;
+    const start = touchStartRef.current;
+    // اگر در طول لمس بیش از یک انگشت درگیر بوده یا هنوز انگشت دیگری روی صفحه است، صفحه عوض نشود
+    if (start.multi || e.touches.length > 0 || e.changedTouches.length > 1) {
+      touchStartRef.current = null;
+      return;
+    }
+    const t = Array.from(e.changedTouches).find((ct) => ct.identifier === start.id);
     touchStartRef.current = null;
+    if (!t) return;
 
-    if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+    const dx = t.clientX - start.x;
+    const dy = t.clientY - start.y;
+
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.45) {
       const currentIndex = tabOrder.indexOf(tab);
       if (currentIndex === -1) return;
-      // کشیدن انگشت از چپ به راست (dx > 0) => رفتن به تب سمت چپ (currentIndex + 1)
-      // کشیدن انگشت از راست به چپ (dx < 0) => رفتن به تب سمت راست (currentIndex - 1)
       if (dx > 0 && currentIndex < tabOrder.length - 1) {
         navigateTo(tabOrder[currentIndex + 1]);
       } else if (dx < 0 && currentIndex > 0) {
@@ -108,6 +124,7 @@ function AppContent() {
       className="min-h-screen"
       style={{ background: 'var(--bg)', color: 'var(--text)' }}
       onTouchStartCapture={handleTouchStart}
+      onTouchMoveCapture={handleTouchMove}
       onTouchEndCapture={handleTouchEnd}
     >
       {showFirstTimeGuide && <AppTutorialModal onClose={() => setShowFirstTimeGuide(false)} />}
