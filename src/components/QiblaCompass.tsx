@@ -180,6 +180,22 @@ export function QiblaCompass(props: QiblaCompassProps) {
   });
   const [calibProgress, setCalibProgress] = useState(0);
   const [calibDone, setCalibDone] = useState(false);
+  const [localOpen, setLocalOpen] = useState(true);
+
+  const handleCloseQibla = useCallback(() => {
+    setLocalOpen(false);
+    if (props.onClose) {
+      props.onClose();
+    }
+  }, [props]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') handleCloseQibla();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [handleCloseQibla]);
 
   // رف‌های موتور ضدلرزش 60fps بدون Re-render اضافی
   const hasAbsoluteRef = useRef(false);
@@ -448,20 +464,25 @@ export function QiblaCompass(props: QiblaCompassProps) {
   const calibStrokeDash = 2 * Math.PI * 52;
   const calibStrokeOffset = calibStrokeDash * (1 - calibProgress / 100);
 
-  return (
+  if (!props.embedded && !localOpen) {
+    return null;
+  }
+
+  const cardBody = (
     <div
-      className="w-full rounded-[28px] p-4 border shadow-2xl space-y-4 relative overflow-hidden select-none"
+      className="w-full max-w-md rounded-[30px] p-4 border shadow-2xl space-y-3.5 relative overflow-hidden select-none max-h-[92vh] overflow-y-auto"
       style={{
         background: isAligned
-          ? 'linear-gradient(170deg, rgba(6, 56, 42, 0.98) 0%, rgba(4, 24, 19, 0.99) 100%)'
-          : 'linear-gradient(170deg, rgba(8, 28, 34, 0.97) 0%, rgba(4, 15, 20, 0.99) 100%)',
-        borderColor: isAligned ? 'rgba(52, 211, 153, 0.65)' : 'rgba(251, 191, 36, 0.25)',
+          ? 'linear-gradient(170deg, rgba(6, 56, 42, 0.99) 0%, rgba(4, 24, 19, 1) 100%)'
+          : 'linear-gradient(170deg, rgba(8, 28, 34, 0.99) 0%, rgba(4, 15, 20, 1) 100%)',
+        borderColor: isAligned ? 'rgba(52, 211, 153, 0.65)' : 'rgba(251, 191, 36, 0.32)',
         transition: 'background 400ms ease, border-color 400ms ease',
       }}
       dir="rtl"
+      onClick={(e) => e.stopPropagation()}
     >
-      {/* هدر قبله‌نما و دکمه کالیبره */}
-      <div className="flex items-center justify-between gap-2">
+      {/* هدر استاندارد پاپ‌آپ قبله‌نما با دکمه واضح خروج/بازگشت و کالیبره */}
+      <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-white/10">
         <div className="flex items-center gap-2.5 min-w-0">
           <div
             className="w-10 h-10 rounded-2xl flex items-center justify-center border shrink-0"
@@ -474,7 +495,7 @@ export function QiblaCompass(props: QiblaCompassProps) {
             <Compass size={20} />
           </div>
           <div className="min-w-0">
-            <h2 className="text-sm font-black text-white truncate">🕋 قبله‌نمای هوشمند</h2>
+            <h2 className="text-sm font-black text-white truncate">قبله‌نمای هوشمند</h2>
             <div className="flex items-center gap-1 text-[11px] text-emerald-100/70 mt-0.5 truncate">
               <MapPin size={11} className="text-amber-300 shrink-0" />
               <span className="truncate">{locationInfo.cityLabel}</span>
@@ -484,346 +505,337 @@ export function QiblaCompass(props: QiblaCompassProps) {
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={openCalibrationPopup}
-          className="px-3 py-1.5 rounded-xl border text-[11px] font-black flex items-center gap-1.5 transition-transform active:scale-95 shrink-0"
-          style={{
-            background: stability === 'low' ? 'rgba(245, 158, 11, 0.22)' : 'rgba(255, 255, 255, 0.06)',
-            borderColor: stability === 'low' ? '#F59E0B' : 'rgba(255, 255, 255, 0.16)',
-            color: stability === 'low' ? '#FDE68A' : '#E2E8F0',
-          }}
-        >
-          <RefreshCw size={12} />
-          <span>کالیبره ∞</span>
-        </button>
-      </div>
-
-      {/* بنر راهنمای لحظه‌ای چرخش (کاملاً شفاف و بدون سردرگمی) */}
-      <div
-        className="rounded-2xl px-3.5 py-2.5 border flex items-center justify-center gap-2 text-center transition-all duration-300"
-        style={{
-          background: isAligned
-            ? 'linear-gradient(90deg, rgba(16, 185, 129, 0.28) 0%, rgba(251, 191, 36, 0.22) 100%)'
-            : 'rgba(255, 255, 255, 0.04)',
-          borderColor: isAligned ? '#34D399' : 'rgba(255, 255, 255, 0.1)',
-        }}
-      >
-        {guidance.dir === 'locked' && <CheckCircle2 size={17} className="text-emerald-300 shrink-0" />}
-        {guidance.dir === 'right' && <RotateCw size={16} className="text-amber-300 shrink-0" />}
-        {guidance.dir === 'left' && <RotateCcw size={16} className="text-amber-300 shrink-0" />}
-        <span
-          className="text-xs font-black"
-          style={{ color: isAligned ? '#A7F3D0' : '#FEF3C7' }}
-        >
-          {guidance.text}
-        </span>
-      </div>
-
-      {/* درخواست مجوز سنسور ویژه iOS در صورت نیاز */}
-      {needsIosPermission && (
-        <button
-          type="button"
-          onClick={() => { void requestIosCompassPermission(); }}
-          className="w-full py-2.5 rounded-2xl font-black text-xs shadow-lg"
-          style={{ background: 'linear-gradient(135deg, #FBBF24 0%, #D97706 100%)', color: '#041511' }}
-        >
-          فعال‌سازی سنسور قطب‌نمای گوشی
-        </button>
-      )}
-
-      {/* صفحه اصلی قطب‌نمای شیشه‌ای کریستالی ۲۰۲۶ (بدون لرزش) */}
-      <div className="relative flex items-center justify-center py-2">
-        {/* هاله نورانی قفل قبله */}
-        <div
-          className="absolute w-72 h-72 rounded-full pointer-events-none transition-all duration-500"
-          style={{
-            background: isAligned
-              ? 'radial-gradient(circle, rgba(52, 211, 153, 0.28) 0%, rgba(251, 191, 36, 0.14) 45%, transparent 72%)'
-              : 'radial-gradient(circle, rgba(251, 191, 36, 0.10) 0%, transparent 65%)',
-          }}
-        />
-
-        {/* نشانگر ثابت بالای ساعت ۱۲ (خط هم‌راستایی گوشی با قبله) */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center pointer-events-none">
-          <div
-            className="w-3.5 h-3.5 rotate-45 rounded-[3px] shadow-lg transition-colors duration-300"
-            style={{
-              background: isAligned ? '#34D399' : '#FBBF24',
-              boxShadow: isAligned ? '0 0 14px #34D399' : '0 0 10px rgba(251,191,36,0.7)',
-            }}
-          />
-          <div
-            className="w-0.5 h-4 -mt-1 transition-colors duration-300"
-            style={{ background: isAligned ? '#34D399' : 'rgba(251, 191, 36, 0.8)' }}
-          />
+        <div className="flex items-center gap-1.5 shrink-0">
+          {!showCalibModal && (
+            <button
+              type="button"
+              onClick={openCalibrationPopup}
+              className="px-2.5 py-1.5 rounded-xl border text-[11px] font-black flex items-center gap-1 transition-transform active:scale-95"
+              style={{
+                background: stability === 'low' ? 'rgba(245, 158, 11, 0.22)' : 'rgba(255, 255, 255, 0.06)',
+                borderColor: stability === 'low' ? '#F59E0B' : 'rgba(255, 255, 255, 0.16)',
+                color: stability === 'low' ? '#FDE68A' : '#E2E8F0',
+              }}
+            >
+              <RefreshCw size={12} />
+              <span>کالیبره ∞</span>
+            </button>
+          )}
+          {!props.embedded && (
+            <button
+              type="button"
+              onClick={handleCloseQibla}
+              aria-label="بستن قبله‌نما"
+              className="w-8 h-8 rounded-full border border-white/20 bg-white/10 flex items-center justify-center text-white transition-transform active:scale-90"
+            >
+              <X size={16} />
+            </button>
+          )}
         </div>
+      </div>
 
-        {/* دیسک چرخان قطب‌نما */}
-        <div
-          className="relative w-64 h-64 rounded-full p-2 shadow-2xl border-2"
-          style={{
-            background: 'radial-gradient(circle at 50% 45%, #0D2C26 0%, #051613 78%, #020B09 100%)',
-            borderColor: isAligned ? '#34D399' : 'rgba(251, 191, 36, 0.42)',
-            boxShadow: isAligned
-              ? '0 0 36px rgba(52, 211, 153, 0.32), inset 0 0 24px rgba(52, 211, 153, 0.18)'
-              : '0 16px 36px rgba(0, 0, 0, 0.55), inset 0 0 24px rgba(251, 191, 36, 0.08)',
-            transition: 'border-color 300ms ease, box-shadow 300ms ease',
-          }}
-        >
-          <svg
-            viewBox="0 0 260 260"
-            className="w-full h-full will-change-transform"
-            style={{
-              transform: `rotate(${continuousDialDeg.toFixed(2)}deg)`,
-            }}
-          >
-            {/* حلقه درونی تزئینی */}
-            <circle cx="130" cy="130" r="118" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
-            <circle cx="130" cy="130" r="92" fill="none" stroke="rgba(251,191,36,0.14)" strokeWidth="1" strokeDasharray="3 5" />
+      {/* مرحله ۱ (درون همان پاپ‌آپ): راهنمای کالیبره ∞ -> پس از اتمام مستقیم وارد قبله‌نما در همین پاپ‌آپ می‌شود */}
+      {showCalibModal ? (
+        <div className="space-y-4 py-1">
+          <div className="flex items-center gap-2 text-amber-300 text-xs font-black">
+            <Sparkles size={15} />
+            <span>کالیبره قطب‌نما برای دقت بالا و حذف لرزش</span>
+          </div>
 
-            {/* خطوط درجه‌بندی و جهات چهارگانه */}
-            {dialTicks.map((t) => (
-              <g key={t.angle} transform={`rotate(${t.angle} 130 130)`}>
-                <line
-                  x1="130"
-                  y1={t.major ? 14 : 18}
-                  x2="130"
-                  y2={t.major ? 26 : 24}
-                  stroke={t.angle === 0 ? '#F87171' : t.major ? 'rgba(251,191,36,0.75)' : 'rgba(255,255,255,0.22)'}
-                  strokeWidth={t.angle === 0 ? 2.6 : t.major ? 1.8 : 1}
+          <div className="flex flex-col items-center justify-center py-2">
+            <div className="relative w-48 h-32 flex items-center justify-center">
+              <svg viewBox="0 0 180 110" className="w-full h-full">
+                <defs>
+                  <linearGradient id="noorInfGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#34D399" />
+                    <stop offset="50%" stopColor="#FBBF24" />
+                    <stop offset="100%" stopColor="#38BDF8" />
+                  </linearGradient>
+                </defs>
+                <path
+                  d="M 90 55 C 122 12, 166 18, 166 55 C 166 92, 122 98, 90 55 C 58 12, 14 18, 14 55 C 14 92, 58 98, 90 55 Z"
+                  fill="none"
+                  stroke="rgba(255,255,255,0.14)"
+                  strokeWidth="6"
                   strokeLinecap="round"
                 />
-                {t.cardinal && (
-                  <text
-                    x="130"
-                    y="42"
-                    textAnchor="middle"
-                    fill={t.angle === 0 ? '#FCA5A5' : '#D1FAE5'}
-                    fontSize="13"
-                    fontWeight="900"
-                  >
-                    {t.cardinal}
-                  </text>
-                )}
-              </g>
-            ))}
-
-            {/* عقربه طلایی دقیق به سمت کعبه معظمه */}
-            <g transform={`rotate(${qiblaAngle.toFixed(2)} 130 130)`}>
-              {/* پرتو نورانی مسیر قبله */}
-              <path
-                d="M130 34 L138 130 L130 144 L122 130 Z"
-                fill={isAligned ? '#34D399' : '#FBBF24'}
-                fillOpacity="0.92"
-              />
-              {/* دنباله متعادل‌کننده */}
-              <path
-                d="M130 144 L134 188 L130 198 L126 188 Z"
-                fill="rgba(255,255,255,0.18)"
-              />
-              {/* نشان کعبه معظمه روی لبه دایره */}
-              <g transform="translate(130, 26)">
-                <circle
-                  r="14"
-                  fill={isAligned ? '#065F46' : '#1E1B10'}
-                  stroke={isAligned ? '#34D399' : '#FBBF24'}
-                  strokeWidth="2"
+                <path
+                  d="M 90 55 C 122 12, 166 18, 166 55 C 166 92, 122 98, 90 55 C 58 12, 14 18, 14 55 C 14 92, 58 98, 90 55 Z"
+                  fill="none"
+                  stroke="url(#noorInfGrad)"
+                  strokeWidth="3"
+                  strokeDasharray="6 6"
+                  opacity="0.88"
                 />
-                {/* مکعب کعبه و نوار طلایی حزام */}
-                <rect x="-6.5" y="-6.5" width="13" height="13" rx="2" fill="#0B0F14" stroke="#FDE68A" strokeWidth="1" />
-                <line x1="-6.5" y1="-2" x2="6.5" y2="-2" stroke="#FBBF24" strokeWidth="2.2" />
-              </g>
-            </g>
-
-            {/* مرکز قطب‌نما */}
-            <circle cx="130" cy="130" r="9" fill="#041511" stroke={isAligned ? '#34D399' : '#FBBF24'} strokeWidth="2.5" />
-            <circle cx="130" cy="130" r="3" fill={isAligned ? '#34D399' : '#FDE68A'} />
-          </svg>
-
-          {/* نمایشگر عددی زاویه فعلی در بخش پایینی مرکز */}
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full bg-black/55 border border-white/10 text-[10px] font-black text-emerald-100/90 backdrop-blur-sm">
-            جهت فعلی: {toFaDigits(displayHeading)}°
-          </div>
-        </div>
-      </div>
-
-      {/* کنترل شبیه‌ساز چرخش فقط وقتی دستگاه سنسور قطب‌نما ندارد (مثل مرورگر دسکتاپ) */}
-      {!sensorActive && (
-        <div className="rounded-2xl p-3 border border-white/10 bg-white/[0.03] space-y-2">
-          <div className="flex items-center justify-between text-[11px]">
-            <span className="text-amber-200 font-bold">حالت پیش‌نمایش (سنسور قطب‌نما فعال نیست)</span>
-            <span className="text-emerald-200 font-black">{toFaDigits(manualPreviewDeg)}°</span>
-          </div>
-          <input
-            type="range"
-            min={0}
-            max={359}
-            value={manualPreviewDeg}
-            onChange={(e) => setManualPreviewDeg(Number(e.target.value))}
-            aria-label="چرخش آزمایشی قطب‌نما"
-            className="w-full accent-amber-400 cursor-pointer"
-          />
-        </div>
-      )}
-
-      {/* نوار اطلاعات دقیق پایین: زاویه قبله، فاصله تا کعبه و وضعیت پایداری */}
-      <div className="grid grid-cols-3 gap-2 text-center">
-        <div className="rounded-2xl p-2.5 border border-white/10 bg-white/[0.03]">
-          <div className="text-[10px] text-emerald-100/60">زاویه قبله</div>
-          <div className="text-xs font-black text-amber-300 mt-0.5">{toFaDigits(Math.round(qiblaAngle))}°</div>
-        </div>
-
-        <div className="rounded-2xl p-2.5 border border-white/10 bg-white/[0.03]">
-          <div className="text-[10px] text-emerald-100/60">فاصله تا کعبه</div>
-          <div className="text-xs font-black text-white mt-0.5">{toFaDigits(distanceKm)} کیلومتر</div>
-        </div>
-
-        <div className="rounded-2xl p-2.5 border border-white/10 bg-white/[0.03]">
-          <div className="text-[10px] text-emerald-100/60">دقت سنسور</div>
-          <div
-            className="text-xs font-black mt-0.5 flex items-center justify-center gap-1"
-            style={{
-              color: stability === 'high' ? '#34D399' : stability === 'medium' ? '#FBBF24' : '#FB7185',
-            }}
-          >
-            {stability === 'low' ? <AlertTriangle size={12} /> : <ShieldCheck size={12} />}
-            <span>{stability === 'high' ? 'پایدار' : stability === 'medium' ? 'متوسط' : 'نیاز به کالیبره'}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* پاپ‌آپ وسط‌صفحه راهنمای کالیبره تعاملی ∞ (شکل عدد ۸ انگلیسی) */}
-      {showCalibModal && typeof document !== 'undefined' && createPortal(
-        <div
-          className="fixed inset-0 z-[10000] flex items-center justify-center p-4"
-          style={{ background: 'rgba(2, 10, 12, 0.84)', backdropFilter: 'blur(10px)' }}
-          dir="rtl"
-          onClick={() => setShowCalibModal(false)}
-        >
-          <div
-            className="w-full max-w-sm rounded-[30px] p-5 border shadow-2xl space-y-4 relative overflow-hidden"
-            style={{
-              background: 'linear-gradient(168deg, #092622 0%, #041315 100%)',
-              borderColor: calibDone ? '#34D399' : 'rgba(251, 191, 36, 0.45)',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Sparkles size={17} className="text-amber-300" />
-                <h3 className="text-sm font-black text-white">کالیبره قطب‌نما (حذف لرزش)</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowCalibModal(false)}
-                aria-label="بستن راهنمای کالیبره"
-                className="w-8 h-8 rounded-full border border-white/15 bg-white/5 flex items-center justify-center text-white/80"
-              >
-                <X size={15} />
-              </button>
+                <circle r="8" fill="#FBBF24" stroke="#FEF9C3" strokeWidth="2">
+                  <animateMotion
+                    dur="2.4s"
+                    repeatCount="indefinite"
+                    path="M 90 55 C 122 12, 166 18, 166 55 C 166 92, 122 98, 90 55 C 58 12, 14 18, 14 55 C 14 92, 58 98, 90 55 Z"
+                  />
+                </circle>
+              </svg>
             </div>
 
-            {/* انیمیشن مسیر ∞ (عدد ۸ انگلیسی) همراه با حلقه پیشرفت زنده */}
-            <div className="flex flex-col items-center justify-center py-2 relative">
-              <div className="relative w-44 h-32 flex items-center justify-center">
-                <svg viewBox="0 0 180 110" className="w-full h-full">
-                  <defs>
-                    <linearGradient id="noorInfGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                      <stop offset="0%" stopColor="#34D399" />
-                      <stop offset="50%" stopColor="#FBBF24" />
-                      <stop offset="100%" stopColor="#38BDF8" />
-                    </linearGradient>
-                  </defs>
-                  {/* مسیر ثابت عدد ۸ */}
-                  <path
-                    id="noorFigure8Path"
-                    d="M 90 55 C 122 12, 166 18, 166 55 C 166 92, 122 98, 90 55 C 58 12, 14 18, 14 55 C 14 92, 58 98, 90 55 Z"
+            <div className="flex items-center gap-3 mt-2">
+              <div className="relative w-14 h-14 flex items-center justify-center shrink-0">
+                <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90">
+                  <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="10" />
+                  <circle
+                    cx="60"
+                    cy="60"
+                    r="52"
                     fill="none"
-                    stroke="rgba(255,255,255,0.14)"
-                    strokeWidth="6"
+                    stroke={calibDone ? '#34D399' : '#FBBF24'}
+                    strokeWidth="10"
                     strokeLinecap="round"
+                    strokeDasharray={calibStrokeDash}
+                    strokeDashoffset={calibStrokeOffset}
+                    style={{ transition: 'stroke-dashoffset 150ms ease' }}
                   />
-                  {/* مسیر درخشان */}
-                  <path
-                    d="M 90 55 C 122 12, 166 18, 166 55 C 166 92, 122 98, 90 55 C 58 12, 14 18, 14 55 C 14 92, 58 98, 90 55 Z"
-                    fill="none"
-                    stroke="url(#noorInfGrad)"
-                    strokeWidth="3"
-                    strokeDasharray="6 6"
-                    opacity="0.85"
-                  />
-                  {/* نقطه طلایی متحرک در مسیر ∞ */}
-                  <circle r="8" fill="#FBBF24" stroke="#FEF9C3" strokeWidth="2">
-                    <animateMotion
-                      dur="2.6s"
-                      repeatCount="indefinite"
-                      path="M 90 55 C 122 12, 166 18, 166 55 C 166 92, 122 98, 90 55 C 58 12, 14 18, 14 55 C 14 92, 58 98, 90 55 Z"
-                    />
-                  </circle>
                 </svg>
+                <span className="absolute text-xs font-black text-white">
+                  {calibDone ? '✓' : `${toFaDigits(calibProgress)}٪`}
+                </span>
               </div>
-
-              {/* حلقه درصد پیشرفت کالیبره واقعی */}
-              <div className="flex items-center gap-3 mt-1">
-                <div className="relative w-14 h-14 flex items-center justify-center">
-                  <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90">
-                    <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="10" />
-                    <circle
-                      cx="60"
-                      cy="60"
-                      r="52"
-                      fill="none"
-                      stroke={calibDone ? '#34D399' : '#FBBF24'}
-                      strokeWidth="10"
-                      strokeLinecap="round"
-                      strokeDasharray={calibStrokeDash}
-                      strokeDashoffset={calibStrokeOffset}
-                      style={{ transition: 'stroke-dashoffset 150ms ease' }}
-                    />
-                  </svg>
-                  <span className="absolute text-xs font-black text-white">
-                    {calibDone ? '✓' : `${toFaDigits(calibProgress)}٪`}
-                  </span>
+              <div className="text-right space-y-1">
+                <div className="text-xs font-black text-amber-200">
+                  {calibDone ? 'کالیبره انجام شد! ورود به قبله‌نما...' : 'گوشی را به شکل ∞ حرکت دهید'}
                 </div>
-                <div className="text-right space-y-1 max-w-[205px]">
-                  <div className="text-xs font-black text-amber-200">
-                    {calibDone ? 'کالیبره با موفقیت انجام شد!' : 'گوشی را به شکل ∞ بچرخانید'}
-                  </div>
-                  <p className="text-[11px] text-emerald-100/75 leading-relaxed">
-                    {calibDone
-                      ? 'الان می‌توانید آسوده بچرخید و قبله را بدون لرزش پیدا کنید.'
-                      : '۳ ثانیه گوشی را در هوا مانند عدد ۸ انگلیسی حرکت دهید و از فلز و آهن‌ربا دور نگه دارید.'}
-                  </p>
-                </div>
+                <p className="text-[11px] text-emerald-100/75 leading-relaxed">
+                  ۳ ثانیه گوشی را در هوا مانند عدد ۸ انگلیسی بچرخانید و از فلز دور نگه دارید.
+                </p>
               </div>
             </div>
+          </div>
 
-            <div className="flex items-center gap-2 pt-1">
-              <button
-                type="button"
-                onClick={finishCalibration}
-                className="flex-1 py-3 rounded-2xl font-black text-xs shadow-lg transition-transform active:scale-98"
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={finishCalibration}
+              className="flex-1 py-3 rounded-2xl font-black text-xs shadow-lg"
+              style={{
+                background: 'linear-gradient(135deg, #34D399 0%, #10B981 100%)',
+                color: '#041511',
+              }}
+            >
+              ادامه به قبله‌نما
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowCalibModal(false)}
+              className="px-4 py-3 rounded-2xl font-black text-xs border border-white/15 bg-white/5 text-slate-200"
+            >
+              رد کردن
+            </button>
+          </div>
+        </div>
+      ) : (
+        /* مرحله ۲ (درون همان پاپ‌آپ): صفحه اصلی قبله‌نما + دکمه خروج/بازگشت */
+        <div className="space-y-3.5 animate-fade-in">
+          <div
+            className="rounded-2xl px-3.5 py-2.5 border flex items-center justify-center gap-2 text-center transition-all duration-300"
+            style={{
+              background: isAligned
+                ? 'linear-gradient(90deg, rgba(16, 185, 129, 0.28) 0%, rgba(251, 191, 36, 0.22) 100%)'
+                : 'rgba(255, 255, 255, 0.04)',
+              borderColor: isAligned ? '#34D399' : 'rgba(255, 255, 255, 0.1)',
+            }}
+          >
+            {guidance.dir === 'locked' && <CheckCircle2 size={17} className="text-emerald-300 shrink-0" />}
+            {guidance.dir === 'right' && <RotateCw size={16} className="text-amber-300 shrink-0" />}
+            {guidance.dir === 'left' && <RotateCcw size={16} className="text-amber-300 shrink-0" />}
+            <span className="text-xs font-black" style={{ color: isAligned ? '#A7F3D0' : '#FEF3C7' }}>
+              {guidance.text}
+            </span>
+          </div>
+
+          {needsIosPermission && (
+            <button
+              type="button"
+              onClick={() => { void requestIosCompassPermission(); }}
+              className="w-full py-2.5 rounded-2xl font-black text-xs shadow-lg"
+              style={{ background: 'linear-gradient(135deg, #FBBF24 0%, #D97706 100%)', color: '#041511' }}
+            >
+              فعال‌سازی سنسور قطب‌نمای گوشی
+            </button>
+          )}
+
+          <div className="relative flex items-center justify-center py-2">
+            <div
+              className="absolute w-72 h-72 rounded-full pointer-events-none transition-all duration-500"
+              style={{
+                background: isAligned
+                  ? 'radial-gradient(circle, rgba(52, 211, 153, 0.28) 0%, rgba(251, 191, 36, 0.14) 45%, transparent 72%)'
+                  : 'radial-gradient(circle, rgba(251, 191, 36, 0.10) 0%, transparent 65%)',
+              }}
+            />
+
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center pointer-events-none">
+              <div
+                className="w-3.5 h-3.5 rotate-45 rounded-[3px] shadow-lg transition-colors duration-300"
                 style={{
-                  background: 'linear-gradient(135deg, #34D399 0%, #10B981 100%)',
-                  color: '#041511',
+                  background: isAligned ? '#34D399' : '#FBBF24',
+                  boxShadow: isAligned ? '0 0 14px #34D399' : '0 0 10px rgba(251,191,36,0.7)',
+                }}
+              />
+              <div
+                className="w-0.5 h-4 -mt-1 transition-colors duration-300"
+                style={{ background: isAligned ? '#34D399' : 'rgba(251, 191, 36, 0.8)' }}
+              />
+            </div>
+
+            <div
+              className="relative w-64 h-64 rounded-full p-2 shadow-2xl border-2"
+              style={{
+                background: 'radial-gradient(circle at 50% 45%, #0D2C26 0%, #051613 78%, #020B09 100%)',
+                borderColor: isAligned ? '#34D399' : 'rgba(251, 191, 36, 0.42)',
+                boxShadow: isAligned
+                  ? '0 0 36px rgba(52, 211, 153, 0.32), inset 0 0 24px rgba(52, 211, 153, 0.18)'
+                  : '0 16px 36px rgba(0, 0, 0, 0.55), inset 0 0 24px rgba(251, 191, 36, 0.08)',
+                transition: 'border-color 300ms ease, box-shadow 300ms ease',
+              }}
+            >
+              <svg
+                viewBox="0 0 260 260"
+                className="w-full h-full will-change-transform"
+                style={{ transform: `rotate(${continuousDialDeg.toFixed(2)}deg)` }}
+              >
+                <circle cx="130" cy="130" r="118" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
+                <circle cx="130" cy="130" r="92" fill="none" stroke="rgba(251,191,36,0.14)" strokeWidth="1" strokeDasharray="3 5" />
+
+                {dialTicks.map((t) => (
+                  <g key={t.angle} transform={`rotate(${t.angle} 130 130)`}>
+                    <line
+                      x1="130"
+                      y1={t.major ? 14 : 18}
+                      x2="130"
+                      y2={t.major ? 26 : 24}
+                      stroke={t.angle === 0 ? '#F87171' : t.major ? 'rgba(251,191,36,0.75)' : 'rgba(255,255,255,0.22)'}
+                      strokeWidth={t.angle === 0 ? 2.6 : t.major ? 1.8 : 1}
+                      strokeLinecap="round"
+                    />
+                    {t.cardinal && (
+                      <text
+                        x="130"
+                        y="42"
+                        textAnchor="middle"
+                        fill={t.angle === 0 ? '#FCA5A5' : '#D1FAE5'}
+                        fontSize="13"
+                        fontWeight="900"
+                      >
+                        {t.cardinal}
+                      </text>
+                    )}
+                  </g>
+                ))}
+
+                <g transform={`rotate(${qiblaAngle.toFixed(2)} 130 130)`}>
+                  <path
+                    d="M130 34 L138 130 L130 144 L122 130 Z"
+                    fill={isAligned ? '#34D399' : '#FBBF24'}
+                    fillOpacity="0.92"
+                  />
+                  <path
+                    d="M130 144 L134 188 L130 198 L126 188 Z"
+                    fill="rgba(255,255,255,0.18)"
+                  />
+                  <g transform="translate(130, 26)">
+                    <circle
+                      r="14"
+                      fill={isAligned ? '#065F46' : '#1E1B10'}
+                      stroke={isAligned ? '#34D399' : '#FBBF24'}
+                      strokeWidth="2"
+                    />
+                    <rect x="-6.5" y="-6.5" width="13" height="13" rx="2" fill="#0B0F14" stroke="#FDE68A" strokeWidth="1" />
+                    <line x1="-6.5" y1="-2" x2="6.5" y2="-2" stroke="#FBBF24" strokeWidth="2.2" />
+                  </g>
+                </g>
+
+                <circle cx="130" cy="130" r="9" fill="#041511" stroke={isAligned ? '#34D399' : '#FBBF24'} strokeWidth="2.5" />
+                <circle cx="130" cy="130" r="3" fill={isAligned ? '#34D399' : '#FDE68A'} />
+              </svg>
+
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full bg-black/55 border border-white/10 text-[10px] font-black text-emerald-100/90 backdrop-blur-sm">
+                جهت فعلی: {toFaDigits(displayHeading)}°
+              </div>
+            </div>
+          </div>
+
+          {!sensorActive && (
+            <div className="rounded-2xl p-3 border border-white/10 bg-white/[0.03] space-y-2">
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="text-amber-200 font-bold">حالت پیش‌نمایش (سنسور فعال نیست)</span>
+                <span className="text-emerald-200 font-black">{toFaDigits(manualPreviewDeg)}°</span>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={359}
+                value={manualPreviewDeg}
+                onChange={(e) => setManualPreviewDeg(Number(e.target.value))}
+                aria-label="چرخش آزمایشی قطب‌نما"
+                className="w-full accent-amber-400 cursor-pointer"
+              />
+            </div>
+          )}
+
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <div className="rounded-2xl p-2.5 border border-white/10 bg-white/[0.03]">
+              <div className="text-[10px] text-emerald-100/60">زاویه قبله</div>
+              <div className="text-xs font-black text-amber-300 mt-0.5">{toFaDigits(Math.round(qiblaAngle))}°</div>
+            </div>
+
+            <div className="rounded-2xl p-2.5 border border-white/10 bg-white/[0.03]">
+              <div className="text-[10px] text-emerald-100/60">فاصله تا کعبه</div>
+              <div className="text-xs font-black text-white mt-0.5">{toFaDigits(distanceKm)} کیلومتر</div>
+            </div>
+
+            <div className="rounded-2xl p-2.5 border border-white/10 bg-white/[0.03]">
+              <div className="text-[10px] text-emerald-100/60">دقت سنسور</div>
+              <div
+                className="text-xs font-black mt-0.5 flex items-center justify-center gap-1"
+                style={{
+                  color: stability === 'high' ? '#34D399' : stability === 'medium' ? '#FBBF24' : '#FB7185',
                 }}
               >
-                {calibDone ? 'شروع قبله‌یابی' : 'انجام دادم · شروع قبله‌یابی'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowCalibModal(false)}
-                className="px-4 py-3 rounded-2xl font-black text-xs border border-white/15 bg-white/5 text-slate-200"
-              >
-                رد کردن
-              </button>
+                {stability === 'low' ? <AlertTriangle size={12} /> : <ShieldCheck size={12} />}
+                <span>{stability === 'high' ? 'پایدار' : stability === 'medium' ? 'متوسط' : 'نیاز به کالیبره'}</span>
+              </div>
             </div>
           </div>
-        </div>,
-        document.body
+
+          {!props.embedded && (
+            <button
+              type="button"
+              onClick={handleCloseQibla}
+              className="w-full py-3 rounded-2xl border border-white/15 bg-white/5 text-xs font-black text-white transition-transform active:scale-98"
+            >
+              بازگشت و خروج
+            </button>
+          )}
+        </div>
       )}
     </div>
+  );
+
+  if (props.embedded) {
+    return cardBody;
+  }
+
+  if (typeof document === 'undefined') {
+    return cardBody;
+  }
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[9998] flex items-center justify-center p-3.5 animate-fade-in"
+      style={{ background: 'rgba(2, 10, 12, 0.86)', backdropFilter: 'blur(10px)' }}
+      onClick={handleCloseQibla}
+    >
+      {cardBody}
+    </div>,
+    document.body
   );
 }
 

@@ -43,6 +43,12 @@ public class MainActivity extends BridgeActivity {
         super.onCreate(savedInstanceState);
         attachZeroMillisecondNativeSplash();
         requestStartupNotificationPermission();
+        try {
+            WebView wv = getBridge() != null ? getBridge().getWebView() : null;
+            if (wv != null && wv.getSettings() != null) {
+                wv.getSettings().setMediaPlaybackRequiresUserGesture(false);
+            }
+        } catch (Exception ignored) {}
     }
 
     private void attachZeroMillisecondNativeSplash() {

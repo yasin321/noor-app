@@ -1,5 +1,12 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { Capacitor, registerPlugin } from '@capacitor/core';
+
+interface TasbihNativeFeedback {
+  vibrateTick(opts: { kind: 'bead' | 'milestone' | 'complete' }): Promise<void>;
+  playBeadClick(opts: { kind: 'bead' | 'milestone' | 'complete' }): Promise<void>;
+}
+const NoorTasbihFeedback = registerPlugin<TasbihNativeFeedback>('NoorAlarm');
 import {
   RotateCcw,
   BookOpen,
@@ -12,7 +19,6 @@ import {
   Undo2,
   Hand,
   Sparkles,
-  Check,
 } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
@@ -61,7 +67,25 @@ function saveTasbihPrefs(p: TasbihPrefs) {
 
 // موتور صوتی سبک WebAudio (صفر کیلوبایت) برای صدای طبیعی و آرامش‌بخش دانه تسبیح
 let sharedAudioCtx: AudioContext | null = null;
+function triggerNativeHaptic(type: 'bead' | 'milestone' | 'complete') {
+  if (Capacitor.isNativePlatform()) {
+    void NoorTasbihFeedback.vibrateTick({ kind: type }).catch(() => {});
+    return;
+  }
+  if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+    try {
+      if (type === 'complete') navigator.vibrate([45, 55, 115]);
+      else if (type === 'milestone') navigator.vibrate([30, 45, 70]);
+      else navigator.vibrate(18);
+    } catch {}
+  }
+}
+
 function playTasbihBeadTone(type: 'bead' | 'milestone' | 'complete') {
+  if (Capacitor.isNativePlatform()) {
+    void NoorTasbihFeedback.playBeadClick({ kind: type }).catch(() => {});
+    return;
+  }
   try {
     const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!Ctx) return;
@@ -79,7 +103,7 @@ function playTasbihBeadTone(type: 'bead' | 'milestone' | 'complete') {
       osc.type = 'triangle';
       osc.frequency.setValueAtTime(680, now);
       osc.frequency.exponentialRampToValueAtTime(210, now + 0.038);
-      gain.gain.setValueAtTime(0.16, now);
+      gain.gain.setValueAtTime(0.42, now);
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.045);
       osc.connect(gain);
       gain.connect(ctx.destination);
@@ -92,7 +116,7 @@ function playTasbihBeadTone(type: 'bead' | 'milestone' | 'complete') {
         const gain = ctx.createGain();
         osc.type = 'sine';
         osc.frequency.setValueAtTime(freq, now + idx * 0.06);
-        gain.gain.setValueAtTime(0.12, now + idx * 0.06);
+        gain.gain.setValueAtTime(0.30, now + idx * 0.06);
         gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.06 + 0.22);
         osc.connect(gain);
         gain.connect(ctx.destination);
@@ -106,7 +130,7 @@ function playTasbihBeadTone(type: 'bead' | 'milestone' | 'complete') {
         const gain = ctx.createGain();
         osc.type = 'sine';
         osc.frequency.setValueAtTime(freq, now + idx * 0.075);
-        gain.gain.setValueAtTime(0.14, now + idx * 0.075);
+        gain.gain.setValueAtTime(0.32, now + idx * 0.075);
         gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.075 + 0.36);
         osc.connect(gain);
         gain.connect(ctx.destination);
@@ -203,16 +227,8 @@ export function TasbihCounter({ onNavigate }: { onNavigate?: (t: Tab) => void })
         playTasbihBeadTone(willCompleteRound ? 'complete' : isMilestone ? 'milestone' : 'bead');
       }
 
-      if (prefs.hapticEnabled && typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
-        try {
-          if (willCompleteRound) {
-            navigator.vibrate([45, 55, 115]);
-          } else if (isMilestone) {
-            navigator.vibrate([30, 45, 70]);
-          } else {
-            navigator.vibrate(11);
-          }
-        } catch {}
+      if (prefs.hapticEnabled) {
+        triggerNativeHaptic(willCompleteRound ? 'complete' : isMilestone ? 'milestone' : 'bead');
       }
 
       if (willCompleteRound) {
@@ -353,7 +369,11 @@ export function TasbihCounter({ onNavigate }: { onNavigate?: (t: Tab) => void })
           <div className="flex items-center gap-1.5">
             <button
               type="button"
-              onClick={() => updatePrefs({ soundEnabled: !prefs.soundEnabled })}
+              onClick={() => {
+                const next = !prefs.soundEnabled;
+                updatePrefs({ soundEnabled: next });
+                if (next) playTasbihBeadTone('bead');
+              }}
               aria-label="تغییر صدای دانه تسبیح"
               title="صدای دانه تسبیح"
               className="w-9 h-9 rounded-xl border flex items-center justify-center transition-all active:scale-95"
@@ -368,7 +388,11 @@ export function TasbihCounter({ onNavigate }: { onNavigate?: (t: Tab) => void })
 
             <button
               type="button"
-              onClick={() => updatePrefs({ hapticEnabled: !prefs.hapticEnabled })}
+              onClick={() => {
+                const next = !prefs.hapticEnabled;
+                updatePrefs({ hapticEnabled: next });
+                if (next) triggerNativeHaptic('bead');
+              }}
               aria-label="تغییر لرزش لمسی"
               title="ویبره لمسی"
               className="w-9 h-9 rounded-xl border flex items-center justify-center transition-all active:scale-95"
@@ -721,19 +745,6 @@ export function TasbihCounter({ onNavigate }: { onNavigate?: (t: Tab) => void })
             <span>{confirmReset ? 'برای صفر شدن دوباره بزنید' : 'صفر کردن این دور'}</span>
           </button>
         </div>
-
-        {session.completed > 0 && (
-          <div
-            className="p-2.5 rounded-2xl flex items-center justify-center gap-2 text-xs font-bold"
-            style={{
-              background: 'color-mix(in srgb, ' + theme.primary + ' 10%, transparent)',
-              color: theme.primary,
-            }}
-          >
-            <Check size={15} />
-            <span>تَقَبَّلَ اللَّهُ — {toFaDigits(session.completed)} دور کامل ثبت شد</span>
-          </div>
-        )}
       </div>
 
       {/* حالت خلوت تمام‌صفحه OLED: کل صفحه با ۱ تا ۵ انگشت می‌شمارد بدون نگاه کردن */}

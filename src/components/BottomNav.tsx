@@ -22,7 +22,9 @@ export function BottomNav({ active, onChange }: Props) {
   const { theme } = useTheme();
 
   return (
-    <nav
+    <>
+      <div className="noor-bottom-nav-backdrop fixed bottom-0 inset-x-0 h-20 pointer-events-none z-30" style={{ background: 'linear-gradient(180deg, transparent 0%, var(--bg) 52%, var(--bg) 100%)' }} aria-hidden="true" />
+      <nav
       aria-label="منوی اصلی پایین صفحه"
       className="fixed bottom-0 inset-x-0 z-50 px-2 pb-2 pt-1 pointer-events-none"
       dir="rtl"
@@ -119,5 +121,6 @@ export function BottomNav({ active, onChange }: Props) {
         </div>
       </div>
     </nav>
+    </>
   );
 }

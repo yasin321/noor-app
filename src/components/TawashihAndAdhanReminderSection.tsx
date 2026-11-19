@@ -1,6 +1,6 @@
 import { createPortal } from 'react-dom';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Bell, Volume2, Square, Clock, Check, Copy, Sparkles, X } from 'lucide-react';
+import { Bell, Volume2, Square, Clock, Check, Copy, Sparkles, X, ChevronDown } from 'lucide-react';
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { adhans, playAdhanPreview, stopAdhanPreview } from '@/lib/adhans';
@@ -430,6 +430,7 @@ export function TawashihAndAdhanReminderSection({
   const effectiveTimes = resolveEffectivePrayerTimes(times);
 
   const [config, setConfig] = useState<AllPrayersTawashihMap>(() => loadTawashihConfig());
+  const [isExpanded, setIsExpanded] = useState<boolean>(false);
   const [activePrayer, setActivePrayer] = useState<PrayerTabKey>('fajr');
   const [editingSlot, setEditingSlot] = useState<'before' | 'after' | null>(null);
   const [liveStatusBadge, setLiveStatusBadge] = useState<string | null>(null);
@@ -619,16 +620,21 @@ export function TawashihAndAdhanReminderSection({
 
   return (
     <div
-      className="rounded-[28px] p-4 border shadow-xl space-y-3.5 relative overflow-hidden"
+      className={"rounded-[26px] border shadow-xl relative overflow-hidden transition-all duration-300 " + (isExpanded ? "p-4 space-y-3" : "p-3.5")}
       style={{
         background: 'linear-gradient(180deg, rgba(13, 39, 34, 0.96) 0%, rgba(8, 26, 22, 0.98) 100%)',
         borderColor: 'rgba(52, 211, 153, 0.22)',
       }}
       dir="rtl"
     >
-      {/* هدر */}
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2.5">
+      {/* هدر کشویی جمع‌وجور (Progressive Disclosure 2026) با عنوان کوتاه «تعقیبات» */}
+      <button
+        type="button"
+        onClick={() => setIsExpanded((prev) => !prev)}
+        aria-expanded={isExpanded}
+        className="w-full flex items-center justify-between gap-2 text-right transition-opacity active:opacity-85"
+      >
+        <div className="flex items-center gap-2.5 min-w-0">
           <div
             className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0"
             style={{
@@ -637,28 +643,40 @@ export function TawashihAndAdhanReminderSection({
               color: '#34D399',
             }}
           >
-            <Volume2 size={20} />
+            <Volume2 size={19} />
           </div>
-          <div>
-            <h3 className="text-sm font-black text-white">تواشیح و تعقیبات</h3>
-            <p className="text-[10.5px] text-emerald-100/65 mt-0.5">
-              نوای قبل و تلاوت بعد از اذان · ذخیره و جایگزینی خودکار
+          <div className="min-w-0">
+            <h3 className="text-sm font-black text-white">تعقیبات</h3>
+            <p className="text-[10.5px] text-emerald-100/65 mt-0.5 truncate">
+              {isExpanded
+                ? 'تنظیم نوای قبل و تلاوت بعد از اذان · ذخیره خودکار'
+                : `${selectedBeforeTrack.titleFa} · ${selectedAfterTrack.titleFa}`}
             </p>
           </div>
         </div>
 
-        <span
-          className="px-2.5 py-1 rounded-full text-[10px] font-black border shrink-0"
-          style={{
-            background: 'rgba(16, 185, 129, 0.15)',
-            borderColor: 'rgba(52, 211, 153, 0.4)',
-            color: '#34D399',
-          }}
-        >
-          {toFaDigits(activeTotalCount)} فعال
-        </span>
-      </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span
+            className="px-2.5 py-1 rounded-full text-[10px] font-black border"
+            style={{
+              background: activeTotalCount > 0 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+              borderColor: activeTotalCount > 0 ? 'rgba(52, 211, 153, 0.4)' : 'rgba(255, 255, 255, 0.12)',
+              color: activeTotalCount > 0 ? '#34D399' : 'rgba(255, 255, 255, 0.55)',
+            }}
+          >
+            {toFaDigits(activeTotalCount)} فعال
+          </span>
+          <div
+            className="w-8 h-8 rounded-xl border border-white/10 bg-white/5 flex items-center justify-center text-emerald-200 transition-transform duration-300"
+            style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
+          >
+            <ChevronDown size={16} />
+          </div>
+        </div>
+      </button>
 
+      {isExpanded && (
+        <div className="space-y-3.5 pt-2.5 mt-1 border-t border-white/10 animate-fade-in">
       {/* نوار تایید زنده لحظه‌ای (جایگزین دکمه ذخیره) */}
       {liveStatusBadge && (
         <div
@@ -1197,6 +1215,8 @@ export function TawashihAndAdhanReminderSection({
           <span>تنظیمات صفحه خاموش</span>
         </button>
       </div>
+        </div>
+      )}
     </div>
   );
 }

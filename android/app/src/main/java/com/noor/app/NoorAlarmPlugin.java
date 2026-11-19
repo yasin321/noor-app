@@ -1,6 +1,12 @@
 package com.noor.app;
 
 import android.Manifest;
+import android.os.VibratorManager;
+import android.os.Vibrator;
+import android.os.VibrationEffect;
+import android.media.AudioTrack;
+import android.media.AudioFormat;
+import android.media.AudioAttributes;
 import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.content.Context;
@@ -556,6 +562,119 @@ public class NoorAlarmPlugin extends Plugin {
             ret.put("granted", true);
         }
         call.resolve(ret);
+    }
+
+
+    @PluginMethod
+    public void vibrateTick(PluginCall call) {
+        String kind = call.getString("kind", "bead");
+        try {
+            Context ctx = getContext();
+            Vibrator vibrator = null;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                VibratorManager vm = (VibratorManager) ctx.getSystemService(Context.VIBRATOR_MANAGER_SERVICE);
+                if (vm != null) vibrator = vm.getDefaultVibrator();
+            } else {
+                vibrator = (Vibrator) ctx.getSystemService(Context.VIBRATOR_SERVICE);
+            }
+            if (vibrator != null && vibrator.hasVibrator()) {
+                if ("complete".equals(kind)) {
+                    long[] timings = new long[]{0, 45, 55, 105};
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        vibrator.vibrate(VibrationEffect.createWaveform(timings, -1));
+                    } else {
+                        vibrator.vibrate(timings, -1);
+                    }
+                } else if ("milestone".equals(kind)) {
+                    long[] timings = new long[]{0, 30, 45, 65};
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        vibrator.vibrate(VibrationEffect.createWaveform(timings, -1));
+                    } else {
+                        vibrator.vibrate(timings, -1);
+                    }
+                } else {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        vibrator.vibrate(VibrationEffect.createOneShot(20L, 185));
+                    } else {
+                        vibrator.vibrate(20L);
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void playBeadClick(PluginCall call) {
+        final String kind = call.getString("kind", "bead");
+        new Thread(() -> {
+            AudioTrack track = null;
+            try {
+                final int sampleRate = 22050;
+                final int durationMs = "complete".equals(kind) ? 300 : ("milestone".equals(kind) ? 190 : 48);
+                final int numSamples = (sampleRate * durationMs) / 1000;
+                final short[] pcm = new short[numSamples];
+
+                for (int i = 0; i < numSamples; i++) {
+                    double t = (double) i / sampleRate;
+                    double sample;
+                    if ("complete".equals(kind)) {
+                        double env = Math.exp(-t * 9.5);
+                        double attack = Math.min(1.0, t / 0.008);
+                        sample = attack * env * (
+                            0.45 * Math.sin(2.0 * Math.PI * 523.25 * t) +
+                            0.35 * Math.sin(2.0 * Math.PI * 659.25 * t) +
+                            0.28 * Math.sin(2.0 * Math.PI * 783.99 * t)
+                        );
+                    } else if ("milestone".equals(kind)) {
+                        double env = Math.exp(-t * 14.0);
+                        double attack = Math.min(1.0, t / 0.006);
+                        sample = attack * env * (
+                            0.55 * Math.sin(2.0 * Math.PI * 587.33 * t) +
+                            0.40 * Math.sin(2.0 * Math.PI * 880.0 * t)
+                        );
+                    } else {
+                        // صدای طبیعی و دلنشین تق دانه چوبی/کهربایی تسبیح
+                        double env = Math.exp(-t * 78.0);
+                        double attack = Math.min(1.0, t / 0.002);
+                        double freq = 860.0 - 420.0 * Math.min(1.0, t / 0.04);
+                        sample = attack * env * (
+                            0.65 * Math.sin(2.0 * Math.PI * freq * t) +
+                            0.35 * Math.sin(2.0 * Math.PI * 2150.0 * t) * Math.exp(-t * 140.0)
+                        );
+                    }
+                    int val = (int) Math.round(sample * 27000.0);
+                    if (val > 32767) val = 32767;
+                    if (val < -32768) val = -32768;
+                    pcm[i] = (short) val;
+                }
+
+                track = new AudioTrack.Builder()
+                    .setAudioAttributes(new AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build())
+                    .setAudioFormat(new AudioFormat.Builder()
+                        .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                        .setSampleRate(sampleRate)
+                        .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                        .build())
+                    .setBufferSizeInBytes(pcm.length * 2)
+                    .setTransferMode(AudioTrack.MODE_STATIC)
+                    .build();
+
+                track.write(pcm, 0, pcm.length);
+                track.play();
+                Thread.sleep(durationMs + 45);
+            } catch (Exception ignored) {
+            } finally {
+                if (track != null) {
+                    try { track.stop(); } catch (Exception ignored) {}
+                    try { track.release(); } catch (Exception ignored) {}
+                }
+            }
+        }).start();
+        call.resolve();
     }
 
 }

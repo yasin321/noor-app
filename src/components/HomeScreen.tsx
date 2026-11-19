@@ -591,7 +591,7 @@ export function LegacyHomeScreenUnused({ onNavigate }: { onNavigate?: (t: Tab) =
               onClick={() => setShowBiModal(true)}
               className="px-2.5 py-1.5 rounded-2xl border flex items-center gap-1 text-xs font-bold transition-transform active:scale-95"
               style={{ background: "rgba(168, 85, 247, 0.18)", borderColor: "rgba(168, 85, 247, 0.45)", color: "#E9D5FF" }}
-              title="داشبورد تحلیلی Power BI، ماتریس حرارتی سالانه و دفترچه قضا"
+              title="داشبورد تحلیلی گزارش معنوی، ماتریس حرارتی سالانه و دفترچه قضا"
             >
               <span>📊 آمار و VIP</span>
             </button>
@@ -1540,7 +1540,7 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
             >
               <Compass size={21} color={theme.accent} />
             </div>
-            <span className="text-[11px] font-black" style={{ color: theme.accent }}>قبله‌نما AR</span>
+            <span className="text-[11px] font-black" style={{ color: theme.accent }}>قبله‌نما</span>
           </button>
         </div>
 
@@ -1658,7 +1658,7 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
           </div>
         </div>
 
-        {/* ۶. ردیف دوتایی پایین: «خلاصه فعالیت امروز (Power BI)» + «تسبیح روزانه» */}
+        {/* ۶. ردیف دوتایی پایین: «خلاصه فعالیت امروز (گزارش معنوی)» + «تسبیح روزانه» */}
         <div className="grid grid-cols-2 gap-2.5">
           <button
             type="button"
@@ -1669,7 +1669,7 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
             <div>
               <span className="text-[11px] font-black block" style={{ color: theme.primary }}>📊 خلاصه فعالیت</span>
               <strong className="text-lg font-black block mt-0.5" style={{ color: theme.text }}>۴/۵</strong>
-              <span className="text-[10px] block" style={{ color: theme.textMuted }}>داشبورد Power BI ←</span>
+              <span className="text-[10px] block" style={{ color: theme.textMuted }}>گزارش معنوی ←</span>
             </div>
             <svg width="44" height="44" viewBox="0 0 44 44" className="shrink-0">
               <circle cx="22" cy="22" r="17" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="4.5" />
