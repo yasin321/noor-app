@@ -16,6 +16,7 @@ import android.os.Build;
 import android.os.Looper;
 import android.provider.Settings;
 import androidx.annotation.NonNull;
+import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
@@ -85,8 +86,11 @@ public class NoorAlarmPlugin extends Plugin {
         intent.putExtra("adhanId", adhanId);
         intent.putExtra("durationSeconds", durationSeconds);
         intent.putExtra("volumePercent", volumePercent);
-        float savedRate = ctx.getSharedPreferences(ALARM_STORE_PREFS, Context.MODE_PRIVATE).getFloat("rate_" + alarmId, 1.0f);
+        SharedPreferences sp = ctx.getSharedPreferences(ALARM_STORE_PREFS, Context.MODE_PRIVATE);
+        float savedRate = sp.getFloat("rate_" + alarmId, 1.0f);
+        String savedAudioUrl = sp.getString("audioUrl_" + alarmId, "");
         intent.putExtra("playbackRate", savedRate);
+        intent.putExtra("audioUrl", savedAudioUrl);
 
         PendingIntent pi = PendingIntent.getBroadcast(
                 ctx,
@@ -129,6 +133,7 @@ public class NoorAlarmPlugin extends Plugin {
             long now = System.currentTimeMillis();
             SharedPreferences.Editor editor = prefs.edit();
             for (Map.Entry<String, ?> entry : all.entrySet()) {
+                if (!entry.getKey().startsWith("alarm_")) continue;
                 try {
                     String rawJson = String.valueOf(entry.getValue());
                     JSONObject obj = new JSONObject(rawJson);
@@ -172,6 +177,7 @@ public class NoorAlarmPlugin extends Plugin {
         String body = call.getString("body", "حَیَّ عَلَی الصَّلَاة");
         String soundType = call.getString("soundType", "adhan");
         String adhanId = call.getString("adhanId", "mahur_saeed");
+        String audioUrl = call.getString("audioUrl", "");
         Integer durationObj = call.getInt("durationSeconds", 0);
         int durationSeconds = durationObj != null ? durationObj : 0;
         Float rateObj = call.getFloat("playbackRate", 1.0f);
@@ -180,6 +186,7 @@ public class NoorAlarmPlugin extends Plugin {
             .edit()
             .putFloat("rate_" + alarmId, reqRate)
             .putFloat("last_playback_rate", reqRate)
+            .putString("audioUrl_" + alarmId, audioUrl != null ? audioUrl : "")
             .apply();
         Integer volumeObj = call.getInt("volumePercent", 100);
         int volumePercent = volumeObj != null ? volumeObj : 100;
@@ -246,6 +253,16 @@ public class NoorAlarmPlugin extends Plugin {
     public void openBatteryOptimizationSettings(PluginCall call) {
         try {
             Context ctx = getContext();
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                try {
+                    Intent direct = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+                    direct.setData(Uri.parse("package:" + ctx.getPackageName()));
+                    direct.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    ctx.startActivity(direct);
+                    call.resolve();
+                    return;
+                } catch (Exception ignored) {}
+            }
             Intent intent = new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS);
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             ctx.startActivity(intent);
@@ -518,4 +535,25 @@ public class NoorAlarmPlugin extends Plugin {
         ctx.startService(stopIntent);
         call.resolve();
     }
+
+    @PluginMethod
+    public void requestNotificationPermission(PluginCall call) {
+        JSObject ret = new JSObject();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            boolean granted = ContextCompat.checkSelfPermission(getContext(), Manifest.permission.POST_NOTIFICATIONS)
+                    == PackageManager.PERMISSION_GRANTED;
+            if (!granted && getActivity() != null) {
+                ActivityCompat.requestPermissions(
+                        getActivity(),
+                        new String[]{ Manifest.permission.POST_NOTIFICATIONS },
+                        9001
+                );
+            }
+            ret.put("granted", granted);
+        } else {
+            ret.put("granted", true);
+        }
+        call.resolve(ret);
+    }
+
 }

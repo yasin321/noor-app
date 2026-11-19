@@ -22,6 +22,8 @@ interface NativeAlarmBridge {
     playbackRate?: number;
   }): Promise<void>;
   cancelNativeAlarm(opts: { id: number }): Promise<void>;
+  requestNotificationPermission(): Promise<{ granted: boolean }>;
+  openBatteryOptimizationSettings(): Promise<void>;
 }
 
 const NoorAlarm = registerPlugin<NativeAlarmBridge>('NoorAlarm');
@@ -527,6 +529,36 @@ export function TawashihAndAdhanReminderSection({
       { minutesOffset: mins, enabled: true },
       `⏰ یادآور روی ساعت ${toFaDigits(targetClock)} خودکار کوک شد`
     );
+  };
+
+  const handleTestNativeAlarm10s = async () => {
+    stopLocalAudio();
+    const track = selectedBeforeTrack || PRE_ADHAN_TRACKS[0];
+    const testSpeed = currentPrayerCfg.before.speed || 1.0;
+    if (!Capacitor.isNativePlatform()) {
+      togglePlayTrack(track, testSpeed);
+      if (onToast) onToast('🔊 پیش‌نمایش تست در مرورگر پخش شد (تست قفل صفحه روی گوشی اندروید فعال است)');
+      return;
+    }
+    try {
+      await NoorAlarm.requestNotificationPermission().catch(() => {});
+      await LocalNotifications.requestPermissions().catch(() => {});
+      await NoorAlarm.scheduleNativeAlarm({
+        id: 79999,
+        triggerAtMillis: Date.now() + 10000,
+        title: `🕌 تست واقعی آلارم نور — ${track.titleFa}`,
+        body: `در حال پخش با سرعت ${toFaDigits(testSpeed)}x (صفحه قفل تست شد)`,
+        soundType: 'surah_chant',
+        adhanId: track.audioAdhanId,
+        audioUrl: track.audioFile,
+        durationSeconds: 0,
+        volumePercent: 100,
+        playbackRate: testSpeed,
+      });
+      if (onToast) onToast('✅ آلارم تست برای ۱۰ ثانیه بعد کوک شد! الان صفحه گوشی را قفل و خاموش کنید.');
+    } catch {
+      if (onToast) onToast('❌ خطا در ثبت آلارم تست؛ دسترسی اعلان و باتری را بررسی کنید.');
+    }
   };
 
   const applyCurrentToAllPrayers = () => {
@@ -1035,6 +1067,43 @@ export function TawashihAndAdhanReminderSection({
         <Copy size={13} />
         <span>اعمال همین تنظیم برای همه نمازها</span>
       </button>
+
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={() => { void handleTestNativeAlarm10s(); }}
+          className="py-2.5 px-2 rounded-2xl border text-[11px] font-black flex items-center justify-center gap-1.5 transition-transform active:scale-[0.98]"
+          style={{
+            background: 'rgba(251, 191, 36, 0.14)',
+            borderColor: 'rgba(251, 191, 36, 0.45)',
+            color: '#FDE68A',
+          }}
+        >
+          <Bell size={13} />
+          <span>تست واقعی (۱۰ ثانیه بعد)</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            if (Capacitor.isNativePlatform()) {
+              void NoorAlarm.requestNotificationPermission().catch(() => {});
+              void NoorAlarm.openBatteryOptimizationSettings().catch(() => {});
+            } else if (onToast) {
+              onToast('این گزینه در اپلیکیشن اندروید تنظیمات باتری را باز می‌کند');
+            }
+          }}
+          className="py-2.5 px-2 rounded-2xl border text-[11px] font-black flex items-center justify-center gap-1.5 transition-transform active:scale-[0.98]"
+          style={{
+            background: 'rgba(16, 185, 129, 0.12)',
+            borderColor: 'rgba(52, 211, 153, 0.35)',
+            color: '#A7F3D0',
+          }}
+        >
+          <Clock size={13} />
+          <span>اجازه اجرا در صفحه خاموش</span>
+        </button>
+      </div>
     </div>
   );
 }

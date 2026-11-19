@@ -28,6 +28,8 @@ export interface NoorAlarmPluginInterface {
     adhanId?: string;
     durationSeconds?: number;
     volumePercent?: number;
+    playbackRate?: number;
+    audioUrl?: string;
   }): Promise<{ scheduled: boolean }>;
   cancelNativeAlarm(options: { id: number }): Promise<void>;
   stopActiveAlarm(): Promise<void>;
@@ -96,7 +98,8 @@ function resolvePrayerAlarmParams(
     else if (lowerTitle.includes('استغفار') || lowerId.includes('istighfar')) trackKey = 'chant_istighfar';
     else if (lowerTitle.includes('اقم') || lowerTitle.includes('مناجات') || lowerId.includes('aqim')) trackKey = 'chant_aqim';
     else if (lowerTitle.includes('تسبیح') || lowerId.includes('tasbihat')) trackKey = 'chant_tasbihat';
-    else if (lowerTitle.includes('ربنا') || lowerId.includes('rabbanaghfir')) trackKey = 'chant_rabbanaghfir';
+    else if (lowerTitle.includes('نادعلی') || lowerId.includes('nadali')) trackKey = 'nadali_alifani';
+    else if (lowerTitle.includes('ربنا') || lowerId.includes('rabbana')) trackKey = 'rabbana';
 
     return {
       soundType: 'surah_chant',

@@ -106,6 +106,7 @@ public class AdhanForegroundService extends Service {
         int durationSeconds = intent != null ? intent.getIntExtra("durationSeconds", 0) : 0;
         float playbackRate = intent != null ? intent.getFloatExtra("playbackRate", 1.0f) : 1.0f;
         int volumePercent = intent != null ? intent.getIntExtra("volumePercent", 100) : 100;
+        String audioUrl = intent != null ? intent.getStringExtra("audioUrl") : "";
 
         Intent fullScreenIntent = new Intent(this, AdhanAlarmActivity.class);
         fullScreenIntent.putExtra("title", title);
@@ -144,17 +145,39 @@ public class AdhanForegroundService extends Service {
             startForeground(NOTIF_ID, notification);
         }
 
+        if ("silent".equals(soundType) || "notification_only".equals(soundType) || volumePercent <= 0) {
+            triggerShortVibration();
+            try {
+                Notification alertNotif = new NotificationCompat.Builder(this, CHANNEL_ID)
+                        .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+                        .setContentTitle(title)
+                        .setContentText(body)
+                        .setStyle(new NotificationCompat.BigTextStyle().bigText(body))
+                        .setPriority(NotificationCompat.PRIORITY_MAX)
+                        .setCategory(NotificationCompat.CATEGORY_REMINDER)
+                        .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                        .setAutoCancel(true)
+                        .setContentIntent(fullScreenPi)
+                        .build();
+                NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+                if (nm != null) nm.notify(NOTIF_ID + 1, alertNotif);
+            } catch (Exception ignored) {}
+            stopForeground(Service.STOP_FOREGROUND_REMOVE);
+            stopSelf();
+            return START_NOT_STICKY;
+        }
+
         try {
             startActivity(fullScreenIntent);
         } catch (Exception ignored) {}
 
         triggerShortVibration();
-        startAudioPlayback(soundType, adhanId, durationSeconds, volumePercent, playbackRate);
+        startAudioPlayback(soundType, adhanId, audioUrl, durationSeconds, volumePercent, playbackRate);
 
         return START_NOT_STICKY;
     }
 
-    private void startAudioPlayback(String soundType, String adhanId, int durationSeconds, int volumePercent, float playbackRate) {
+    private void startAudioPlayback(String soundType, String adhanId, String audioUrl, int durationSeconds, int volumePercent, float playbackRate) {
         if ("silent".equals(soundType) || volumePercent <= 0) {
             return;
         }
@@ -174,7 +197,8 @@ public class AdhanForegroundService extends Service {
         else if (adhanId.equals("post_fajr_ya_fatima") || adhanId.equals("salawat_reza") || adhanId.equals("salawat")) adhanId = "chant_salawat";
         else if (adhanId.equals("post_asr_istighfar_qadi") || adhanId.equals("istighfar_pre") || adhanId.equals("istighfar")) adhanId = "chant_istighfar";
         else if (adhanId.equals("munajat_sahar") || adhanId.equals("aqim")) adhanId = "chant_aqim";
-        else if (adhanId.equals("chant_fatiha") || adhanId.equals("rabbanaghfir")) adhanId = "chant_rabbanaghfir";
+        else if (adhanId.equals("rabbana_shajarian") || adhanId.equals("rabbana") || adhanId.equals("chant_fatiha") || adhanId.equals("rabbanaghfir")) adhanId = "rabbana";
+        else if (adhanId.equals("nadali_alifani") || adhanId.equals("nadali") || adhanId.equals("nad_ali")) adhanId = "nadali_alifani";
         boolean isPreOrPostChantOrSurah = adhanId.startsWith("post_") || adhanId.startsWith("chant_") || "surah_chant".equals(soundType);
         synchronized (PLAYER_LOCK) {
             try {
@@ -202,13 +226,21 @@ public class AdhanForegroundService extends Service {
                 }
 
                 if (!loaded) {
+                    String directAssetPath = null;
+                    if (audioUrl != null && !audioUrl.trim().isEmpty()) {
+                        String cleanUrl = audioUrl.trim();
+                        if (cleanUrl.startsWith("/")) cleanUrl = cleanUrl.substring(1);
+                        directAssetPath = cleanUrl.startsWith("public/") ? cleanUrl : ("public/" + cleanUrl);
+                    }
                     String[] candidates = new String[] {
+                            directAssetPath != null ? directAssetPath : "",
                             "public/adhans/" + adhanId + ".mp3",
                             "public/adhans/" + adhanId + ".ogg",
                             "public/adhans/mahur_saeed.ogg",
                             "public/adhans/chant_salawat.mp3"
                     };
                     for (String path : candidates) {
+                        if (path == null || path.isEmpty()) continue;
                         try {
                             AssetFileDescriptor afd = getAssets().openFd(path);
                             mp.setDataSource(afd.getFileDescriptor(), afd.getStartOffset(), afd.getLength());
