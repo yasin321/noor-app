@@ -409,7 +409,7 @@ export function TasbihCounter({ onNavigate }: { onNavigate?: (t: Tab) => void })
                 }}
               >
                 <BookOpen size={14} />
-                <span>ذکرها</span>
+                <span>تغییر ذکر</span>
               </button>
             )}
           </div>
