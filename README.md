@@ -11,28 +11,22 @@
   &nbsp;•&nbsp;
   <a href="https://github.com/yasin321/noor-app/releases/latest"><b>Download APK</b></a>
   &nbsp;•&nbsp;
-  <a href="#-system-architecture"><b>Architecture</b></a>
+  <a href="#system-architecture"><b>Architecture</b></a>
   &nbsp;•&nbsp;
-  <a href="#-roadmap"><b>Roadmap</b></a>
+  <a href="#roadmap"><b>Roadmap</b></a>
 </p>
 
 <p>
-  <a href="https://github.com/yasin321/noor-app/releases/latest"><img src="https://img.shields.io/github/v/release/yasin321/noor-app?style=for-the-badge&amp;color=10b981&amp;label=Latest%20Release" alt="Latest Release" /></a>
-  <a href="https://github.com/yasin321/noor-app/actions/workflows/browser-e2e.yml"><img src="https://img.shields.io/github/actions/workflow/status/yasin321/noor-app/browser-e2e.yml?style=for-the-badge&amp;label=browser%20e2e" alt="browser-e2e.yml" /></a>
-  <a href="https://github.com/yasin321/noor-app/actions/workflows/build-apk.yml"><img src="https://img.shields.io/github/actions/workflow/status/yasin321/noor-app/build-apk.yml?style=for-the-badge&amp;label=build%20apk" alt="build-apk.yml" /></a>
-  <a href="https://github.com/yasin321/noor-app/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/yasin321/noor-app/ci.yml?style=for-the-badge&amp;label=ci" alt="ci.yml" /></a>
-  <a href="https://github.com/yasin321/noor-app/blob/main/LICENSE"><img src="https://img.shields.io/github/license/yasin321/noor-app?style=for-the-badge&amp;color=3b82f6" alt="License" /></a>
-</p>
-
-<p>
+  <a href="https://github.com/yasin321/noor-app/releases/latest"><img src="https://img.shields.io/github/v/release/yasin321/noor-app?style=flat-square&amp;color=eab308&amp;label=Release" alt="Latest Release" /></a>
+  <a href="https://github.com/yasin321/noor-app/actions/workflows/browser-e2e.yml"><img src="https://img.shields.io/github/actions/workflow/status/yasin321/noor-app/browser-e2e.yml?style=flat-square&amp;label=browser%20e2e" alt="browser-e2e.yml" /></a>
+  <a href="https://github.com/yasin321/noor-app/actions/workflows/build-apk.yml"><img src="https://img.shields.io/github/actions/workflow/status/yasin321/noor-app/build-apk.yml?style=flat-square&amp;label=build%20apk" alt="build-apk.yml" /></a>
+  <a href="https://github.com/yasin321/noor-app/blob/main/LICENSE"><img src="https://img.shields.io/github/license/yasin321/noor-app?style=flat-square&amp;color=2563eb" alt="License" /></a>
   <img src="https://img.shields.io/badge/React-18-61DAFB?style=flat-square&amp;logo=react&amp;logoColor=0f172a" alt="React 18" />
   <img src="https://img.shields.io/badge/TypeScript-5.x-3178C6?style=flat-square&amp;logo=typescript&amp;logoColor=white" alt="TypeScript" />
-  <img src="https://img.shields.io/badge/Vite-5.4-646CFF?style=flat-square&amp;logo=vite&amp;logoColor=white" alt="Vite" />
-  <img src="https://img.shields.io/badge/Tailwind_CSS-3.x-06B6D4?style=flat-square&amp;logo=tailwindcss&amp;logoColor=white" alt="Tailwind CSS" />
-  <img src="https://img.shields.io/badge/Capacitor-Native_Bridge-119EFF?style=flat-square&amp;logo=capacitor&amp;logoColor=white" alt="Capacitor" />
-  <img src="https://img.shields.io/badge/Android-13_%2F_14_Native_Java-3DDC84?style=flat-square&amp;logo=android&amp;logoColor=0f172a" alt="Android 13/14" />
-  <img src="https://img.shields.io/badge/Vitest-44_Tests_Passing-6E9F18?style=flat-square&amp;logo=vitest&amp;logoColor=white" alt="Vitest" />
-  <img src="https://img.shields.io/badge/Playwright-E2E_Verified-2EAD33?style=flat-square&amp;logo=playwright&amp;logoColor=white" alt="Playwright" />
+  <img src="https://img.shields.io/badge/Capacitor-Java-119EFF?style=flat-square&amp;logo=capacitor&amp;logoColor=white" alt="Capacitor" />
+  <img src="https://img.shields.io/badge/Android-13%2F14-3DDC84?style=flat-square&amp;logo=android&amp;logoColor=0f172a" alt="Android 13/14" />
+  <img src="https://img.shields.io/badge/Vitest-44_Passed-6E9F18?style=flat-square&amp;logo=vitest&amp;logoColor=white" alt="Vitest" />
+  <img src="https://img.shields.io/badge/Playwright-E2E-2EAD33?style=flat-square&amp;logo=playwright&amp;logoColor=white" alt="Playwright" />
 </p>
 
 </div>
@@ -179,7 +173,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), [CHANGELOG.m
 
 <p align="left"><a href="#-english-overview">⬆️ بازگشت به نسخه انگلیسی (Back to English)</a></p>
 
-نور (Noor) یک اپلیکیشن اندروید ۱۰۰٪ رایگان، بدون تبلیغات، متنـباز و آفلاین‌محور (Offline-First) است که رابط کاربری مدرن React 18 و TypeScript را از طریق پل بومی Capacitor + Java مستقیماً به هسته اندروید ۱۳ و ۱۴ متصل می‌کند.
+نور (Noor) یک اپلیکیشن اندروید ۱۰۰٪ رایگان، بدون تبلیغات، متن‌باز و آفلاین‌محور (Offline-First) است که رابط کاربری مدرن React 18 و TypeScript را از طریق پل بومی Capacitor + Java مستقیماً به هسته اندروید ۱۳ و ۱۴ متصل می‌کند.
 
 ### ✨ امکانات و قابلیتهای کلیدی
 
@@ -211,7 +205,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), [CHANGELOG.m
     </td>
     <td width="50%" valign="top">
       <h4>تست‌های جامع و بیلد خودکار CI/CD</h4>
-      ۴۴ تست واحد Vitest، تستهای مرورگر Playwright E2E و انتشار خودکار APK در GitHub Actions.
+      ۴۴ تست واحد Vitest، تست‌های مرورگر Playwright E2E و انتشار خودکار APK در GitHub Actions.
     </td>
   </tr>
 </table>
