@@ -21,6 +21,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
+import { useI18n } from '@/i18n';
 import { useAuth } from '@/hooks/useAuth';
 import { useTasbih } from '@/hooks/useTasbih';
 import { getAllDhikr } from '@/lib/dhikrLibrary';
@@ -143,6 +144,7 @@ function playTasbihBeadTone(type: 'bead' | 'milestone' | 'complete') {
 
 export function TasbihCounter({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
   const { theme } = useTheme();
+  const { lang, dir, t, formatDigits } = useI18n();
   const { user } = useAuth();
   const { session, start, increment, decrement, reset } = useTasbih(user?.id ?? null);
   const dhikrItems = useMemo(() => getAllDhikr(), []);
@@ -268,7 +270,7 @@ export function TasbihCounter({ onNavigate }: { onNavigate?: (t: Tab) => void })
       // تشخیص ضربه چندانگشتی هم‌زمان برای نمایش بج ظریف (+۲ انگشت / +۳ انگشت)
       burstCountRef.current += 1;
       if (burstCountRef.current >= 2) {
-        setMultiBadge(`+${toFaDigits(burstCountRef.current)} هم‌زمان`);
+        setMultiBadge('+' + formatDigits(burstCountRef.current) + ' ' + t('tasbih.multiBadgeSuffix'));
       }
       if (burstTimerRef.current) window.clearTimeout(burstTimerRef.current);
       burstTimerRef.current = window.setTimeout(() => {
@@ -317,20 +319,23 @@ export function TasbihCounter({ onNavigate }: { onNavigate?: (t: Tab) => void })
   const circumference = 2 * Math.PI * 120;
   const dashOffset = circumference - (progress / 100) * circumference;
 
-  // راهنمای هوشمند تسبیحات حضرت زهرا (س) و ذکرهای ۳ مرحله‌ای
   const stepHint = useMemo(() => {
+    const mk = (step: number, arabic: string, cur: number, tot: number) =>
+      lang === 'fa'
+        ? 'مرحله ' + toFaDigits(step) + ': ' + arabic + ' (' + toFaDigits(cur) + ' از ' + toFaDigits(tot) + ')'
+        : (lang === 'es' ? 'Paso ' : 'Step ') + step + ': ' + arabic + ' (' + cur + '/' + tot + ')';
     if (activeDhikr.id === 'farahzad_work_tasbih') {
-      if (session.count < 33) return 'مرحله ۱: سُبْحَانَ اللَّهِ (' + toFaDigits(session.count + 1) + ' از ۳۳)';
-      if (session.count < 66) return 'مرحله ۲: الْحَمْدُ لِلَّهِ (' + toFaDigits(session.count - 33 + 1) + ' از ۳۳)';
-      return 'مرحله ۳: اللَّهُ أَكْبَرُ (' + toFaDigits(session.count - 66 + 1) + ' از ۳۴)';
+      if (session.count < 33) return mk(1, 'سُبْحَانَ اللَّهِ', session.count + 1, 33);
+      if (session.count < 66) return mk(2, 'الْحَمْدُ لِلَّهِ', session.count - 33 + 1, 33);
+      return mk(3, 'اللَّهُ أَكْبَرُ', session.count - 66 + 1, 34);
     }
     if (activeDhikr.id.includes('zahra') || (targetVal === 100 && activeDhikr.arabic.includes('اللَّهُ أَكْبَرُ'))) {
-      if (session.count < 34) return 'مرحله ۱: اللَّهُ أَكْبَرُ (' + toFaDigits(session.count + 1) + ' از ۳۴)';
-      if (session.count < 67) return 'مرحله ۲: الْحَمْدُ لِلَّهِ (' + toFaDigits(session.count - 34 + 1) + ' از ۳۳)';
-      return 'مرحله ۳: سُبْحَانَ اللَّهِ (' + toFaDigits(session.count - 67 + 1) + ' از ۳۳)';
+      if (session.count < 34) return mk(1, 'اللَّهُ أَكْبَرُ', session.count + 1, 34);
+      if (session.count < 67) return mk(2, 'الْحَمْدُ لِلَّهِ', session.count - 34 + 1, 33);
+      return mk(3, 'سُبْحَانَ اللَّهِ', session.count - 67 + 1, 33);
     }
     return null;
-  }, [activeDhikr.id, activeDhikr.arabic, session.count, targetVal]);
+  }, [activeDhikr.id, activeDhikr.arabic, session.count, targetVal, lang]);
 
   // محاسبه مختصات ۱۱ دانه تسبیح متحرک روی قوس بالایی
   const beadArcItems = useMemo(() => {
@@ -353,7 +358,7 @@ export function TasbihCounter({ onNavigate }: { onNavigate?: (t: Tab) => void })
   return (
     <div
       className="w-full max-w-xl mx-auto px-3.5 pt-3.5 pb-32 animate-fade-in min-h-screen"
-      dir="rtl"
+      dir={dir}
       data-no-swipe="true"
     >
       <div className="max-w-md mx-auto space-y-3">
@@ -361,9 +366,9 @@ export function TasbihCounter({ onNavigate }: { onNavigate?: (t: Tab) => void })
         <header className="flex items-center justify-between gap-2">
           <div>
             <p className="text-[11px] font-bold" style={{ color: theme.accent }}>
-              تسبیح هوشمند چندانگشتی
+              {t('tasbih.subtitle')}
             </p>
-            <h1 className="text-2xl font-black text-app">ذکرشمار</h1>
+            <h1 className="text-2xl font-black text-app">{t('tasbih.title')}</h1>
           </div>
 
           <div className="flex items-center gap-1.5">
@@ -418,7 +423,7 @@ export function TasbihCounter({ onNavigate }: { onNavigate?: (t: Tab) => void })
               }}
             >
               <Moon size={14} />
-              <span>خلوت</span>
+              <span>{t('tasbih.sanctuaryBtn')}</span>
             </button>
 
             {onNavigate && (
@@ -433,7 +438,7 @@ export function TasbihCounter({ onNavigate }: { onNavigate?: (t: Tab) => void })
                 }}
               >
                 <BookOpen size={14} />
-                <span>تغییر ذکر</span>
+                <span>{t('tasbih.changeDhikr')}</span>
               </button>
             )}
           </div>
@@ -451,7 +456,7 @@ export function TasbihCounter({ onNavigate }: { onNavigate?: (t: Tab) => void })
             <div className="flex items-center gap-2">
               <Award size={19} color={theme.primary} />
               <span className="text-xs font-black text-app">
-                تَقَبَّلَ اللَّهُ ✨ دور {toFaDigits(session.completed)} با موفقیت کامل شد!
+                {t('tasbih.celebratePrefix')} {formatDigits(session.completed)} {t('tasbih.celebrateSuffix')}
               </span>
             </div>
             <button
@@ -511,7 +516,7 @@ export function TasbihCounter({ onNavigate }: { onNavigate?: (t: Tab) => void })
                   color: targetVal === preset ? theme.bg : theme.textMuted,
                 }}
               >
-                {toFaDigits(preset)}
+                {formatDigits(preset)}
               </button>
             ))}
           </div>
@@ -541,8 +546,8 @@ export function TasbihCounter({ onNavigate }: { onNavigate?: (t: Tab) => void })
               <Hand size={13} />
               <span>
                 {prefs.multiFingerMode === 'each'
-                  ? 'حالت چندانگشتی فعال (۲ و ۳ انگشت = شمارش سریع)'
-                  : 'حالت تک‌شمارش (هر لمس یک ذکر)'}
+                  ? t('tasbih.multiOn')
+                  : t('tasbih.multiOff')}
               </span>
             </button>
           </div>
@@ -672,11 +677,11 @@ export function TasbihCounter({ onNavigate }: { onNavigate?: (t: Tab) => void })
                   className="text-6xl font-black tracking-tight text-primary tabular-nums relative z-10"
                   style={{ fontFamily: 'system-ui, sans-serif' }}
                 >
-                  {session.count === 0 ? '۰' : toFaDigits(session.count)}
+                  {formatDigits(session.count)}
                 </span>
 
                 <span className="text-muted text-xs font-bold mt-1.5 relative z-10">
-                  از {toFaDigits(targetVal)} مرتبه
+                  {t('tasbih.ofTimesPrefix')} {formatDigits(targetVal)} {t('tasbih.ofTimesSuffix')}
                 </span>
 
                 <span
@@ -686,7 +691,7 @@ export function TasbihCounter({ onNavigate }: { onNavigate?: (t: Tab) => void })
                     color: theme.primary,
                   }}
                 >
-                  {session.count === 0 ? 'با ۱، ۲ یا ۳ انگشت لمس کنید ✨' : `${toFaDigits(Math.round(progress))}٪ این دور`}
+                  {session.count === 0 ? t('tasbih.tapHint') : formatDigits(Math.round(progress)) + t('tasbih.roundPctSuffix')}
                 </span>
               </button>
             </div>
@@ -695,18 +700,18 @@ export function TasbihCounter({ onNavigate }: { onNavigate?: (t: Tab) => void })
           {/* نوار آمار یکپارچه و خلوت */}
           <div className="grid grid-cols-3 gap-2 pt-2 border-t" style={{ borderColor: theme.border }}>
             <div className="py-1">
-              <div className="text-lg font-black text-primary tabular-nums">{toFaDigits(session.completed)}</div>
-              <div className="text-[10px] text-muted">دور کامل</div>
+              <div className="text-lg font-black text-primary tabular-nums">{formatDigits(session.completed)}</div>
+              <div className="text-[10px] text-muted">{t('tasbih.statRounds')}</div>
             </div>
             <div className="py-1 border-x" style={{ borderColor: theme.border }}>
-              <div className="text-lg font-black text-accent tabular-nums">{toFaDigits(totalInSession)}</div>
-              <div className="text-[10px] text-muted">مجموع این نشست</div>
+              <div className="text-lg font-black text-accent tabular-nums">{formatDigits(totalInSession)}</div>
+              <div className="text-[10px] text-muted">{t('tasbih.statSessionTotal')}</div>
             </div>
             <div className="py-1">
               <div className="text-lg font-black text-app tabular-nums">
-                {toFaDigits(Math.max(0, targetVal - session.count))}
+                {formatDigits(Math.max(0, targetVal - session.count))}
               </div>
-              <div className="text-[10px] text-muted">باقی‌مانده</div>
+              <div className="text-[10px] text-muted">{t('tasbih.statRemaining')}</div>
             </div>
           </div>
         </section>
@@ -725,7 +730,7 @@ export function TasbihCounter({ onNavigate }: { onNavigate?: (t: Tab) => void })
             }}
           >
             <Undo2 size={15} />
-            <span>اصلاح (۱-)</span>
+            <span>{t('tasbih.undo')}</span>
           </button>
 
           <button
@@ -742,7 +747,7 @@ export function TasbihCounter({ onNavigate }: { onNavigate?: (t: Tab) => void })
             }}
           >
             <RotateCcw size={15} />
-            <span>{confirmReset ? 'برای صفر شدن دوباره بزنید' : 'صفر کردن این دور'}</span>
+            <span>{confirmReset ? t('tasbih.resetConfirm') : t('tasbih.reset')}</span>
           </button>
         </div>
       </div>
@@ -762,7 +767,7 @@ export function TasbihCounter({ onNavigate }: { onNavigate?: (t: Tab) => void })
               touchAction: 'none',
               WebkitTapHighlightColor: 'transparent',
             }}
-            dir="rtl"
+            dir={dir}
           >
             {/* امواج نوری روی کل بوم تاریک */}
             {ripples.map((rp) => (
@@ -788,7 +793,7 @@ export function TasbihCounter({ onNavigate }: { onNavigate?: (t: Tab) => void })
             >
               <div className="flex items-center gap-2 text-emerald-200/80 text-xs font-bold">
                 <Sparkles size={15} className="text-amber-300" />
-                <span>حالت خلوت تمام‌صفحه</span>
+                <span>{t('tasbih.sanctuaryHeader')}</span>
               </div>
               <button
                 type="button"
@@ -796,7 +801,7 @@ export function TasbihCounter({ onNavigate }: { onNavigate?: (t: Tab) => void })
                 className="px-3.5 py-2 rounded-full border border-white/15 bg-white/5 text-white text-xs font-black flex items-center gap-1.5"
               >
                 <X size={14} />
-                <span>خروج</span>
+                <span>{t('tasbih.exit')}</span>
               </button>
             </div>
 
@@ -808,10 +813,10 @@ export function TasbihCounter({ onNavigate }: { onNavigate?: (t: Tab) => void })
                 className={'text-8xl font-black text-emerald-300 tabular-nums transition-transform duration-75 ' + (tapPulse ? 'scale-95' : '')}
                 style={{ fontFamily: 'system-ui, sans-serif' }}
               >
-                {toFaDigits(session.count)}
+                {formatDigits(session.count)}
               </div>
               <p className="text-emerald-100/55 text-sm font-bold">
-                از {toFaDigits(targetVal)} · دور {toFaDigits(session.completed + 1)}
+                {t('tasbih.ofTimesPrefix')} {formatDigits(targetVal)} · {t('tasbih.roundLabel')} {formatDigits(session.completed + 1)}
               </p>
               {multiBadge && (
                 <div className="inline-block px-3 py-1 rounded-full bg-amber-400/20 border border-amber-400/50 text-amber-200 text-xs font-black">
@@ -822,7 +827,7 @@ export function TasbihCounter({ onNavigate }: { onNavigate?: (t: Tab) => void })
 
             {/* راهنمای پایین صفحه خلوت */}
             <div className="text-center text-[11px] text-emerald-100/45 pointer-events-none z-10">
-              هر نقطه از صفحه را با ۱، ۲ یا ۳ انگشت لمس کنید
+              {t('tasbih.sanctuaryHint')}
             </div>
           </div>,
           document.body

@@ -535,7 +535,10 @@ export function calculatePrayerTimes(
 export function getNextPrayer(
   times: PrayerTimes,
   timezone?: string,
+  lang: 'fa' | 'en' | 'es' = 'fa',
 ): { name: string; nameFa: string; time: string; key: string; remaining: string } | null {
+  const fmtRem = (h: number, m: number) =>
+    lang === 'fa' ? h.toLocaleString('fa-IR') + 'س ' + m.toLocaleString('fa-IR') + 'د' : h + 'h ' + m + 'm';
   const now = new Date();
   let nowMin: number;
   if (timezone) {
@@ -566,7 +569,7 @@ export function getNextPrayer(
       const diff = pMin - nowMin;
       const hours = Math.floor(diff / 60);
       const mins = diff % 60;
-      return { ...p, remaining: hours.toLocaleString('fa-IR') + 'س ' + mins.toLocaleString('fa-IR') + 'د' };
+      return { ...p, remaining: fmtRem(hours, mins) };
     }
   }
   const fMin = timeToMinutes(times.fajr);
@@ -575,7 +578,7 @@ export function getNextPrayer(
   const diff = nextFajrMin - nowMin;
   const hours = Math.floor(diff / 60);
   const mins = diff % 60;
-  return { name: 'Fajr', nameFa: 'صبح', time: times.fajr, key: 'fajr', remaining: hours.toLocaleString('fa-IR') + 'س ' + mins.toLocaleString('fa-IR') + 'د' };
+  return { name: 'Fajr', nameFa: 'صبح', time: times.fajr, key: 'fajr', remaining: fmtRem(hours, mins) };
 }
 
 export interface NightPrayerConfig {

@@ -8,6 +8,8 @@ import { NastaliqMahdiCrown, CelestialPrayerArcGauge, ThemePatternWatermark, Dyn
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { MapPin, Clock, Sunrise, Sunset, Moon, Sun, CloudSun, ArrowLeft, Hand, Bell, BellOff, Compass, Sparkles, LocateFixed, Navigation, BookOpen, Sliders, Calendar } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
+import { useI18n } from '@/i18n';
+import { getCityDisplayName, getCountryDisplayName, findNearestCity } from '@/lib/cities';
 import { useAuth } from '@/hooks/useAuth';
 import { calculatePrayerTimes, getNextPrayer, getLocalDateString, timeToMinutes, getNightPrayerConfig, saveNightPrayerConfig, calculateNightPrayerWindow, type NightPrayerConfig, type PrayerTimes } from '@/lib/prayerTimes';
 import { CITIES, getCityById, getGuestCityId, setGuestCityId, getCustomGpsCoords, saveCustomGpsCoords, clearCustomGpsCoords } from '@/lib/cities';
@@ -1160,6 +1162,7 @@ function getDynamicDailyHourlySuggestion(now: Date): DailyHourlySuggestion {
 export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
   const { theme } = useTheme();
   const { profile } = useAuth();
+  const { lang, dir, isRtl, t, formatDigits, prayerName } = useI18n();
   const [guestCalcMethod, setGuestCalcMethod] = useState<string>(() => {
     try { return localStorage.getItem('noor_guest_calc_method') || 'tehran'; } catch { return 'tehran'; }
   });
@@ -1170,23 +1173,9 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
   const [statusBanner, setStatusBanner] = useState<string | null>(null);
   const [citySearchQuery, setCitySearchQuery] = useState('');
 
-  // خواندن شهر مستقیماً از سیستم رسمی برنامه (getGuestCityId و CITIES از @/lib/cities)
+  // خواندن دقیق شهر و منطقه زمانی واقعی آن از CITIES (همگام کامل با تنظیمات)
   const resolveCurrentCity = () => {
     try {
-      const savedCustom = localStorage.getItem('noor_selected_city');
-      if (savedCustom) {
-        const parsed = JSON.parse(savedCustom);
-        if (parsed && typeof parsed.lat === 'number' && typeof parsed.lng === 'number') {
-          return {
-            id: parsed.id || 'custom',
-            name: parsed.name || 'Custom',
-            nameFa: parsed.nameFa || 'موقعیت من',
-            lat: parsed.lat,
-            lng: parsed.lng,
-            timezone: parsed.timezone || 'Asia/Tehran',
-          };
-        }
-      }
       const guestId = getGuestCityId();
       const found = getCityById(guestId);
       if (found) {
@@ -1194,19 +1183,28 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
           id: found.id,
           name: found.name,
           nameFa: found.nameFa,
+          nameEs: found.nameEs,
+          country: found.country,
+          countryFa: found.countryFa,
+          countryEs: found.countryEs,
           lat: found.lat,
           lng: found.lng,
-          timezone: 'Asia/Tehran',
+          timezone: found.timezone || 'Asia/Tehran',
         };
       }
     } catch {}
+    const fallback = CITIES[0];
     return {
-      id: 'mashhad',
-      name: 'Mashhad',
-      nameFa: 'مشهد',
-      lat: 36.2972,
-      lng: 59.6067,
-      timezone: 'Asia/Tehran',
+      id: fallback.id,
+      name: fallback.name,
+      nameFa: fallback.nameFa,
+      nameEs: fallback.nameEs,
+      country: fallback.country,
+      countryFa: fallback.countryFa,
+      countryEs: fallback.countryEs,
+      lat: fallback.lat,
+      lng: fallback.lng,
+      timezone: fallback.timezone || 'Asia/Tehran',
     };
   };
 
@@ -1233,6 +1231,7 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
       clearInterval(timer);
       window.removeEventListener('storage', syncCity);
       window.removeEventListener('noor-city-changed', syncCity);
+      window.removeEventListener('noor-hero-config-changed', syncCity);
       window.removeEventListener('noor-tasbih-session-changed', syncTasbih);
       window.removeEventListener(INBOX_UPDATED_EVENT, syncInbox);
       window.removeEventListener('noor-calc-method-changed', syncMethod);
@@ -1240,12 +1239,40 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
     };
   }, []);
 
-  const applyCitySelection = (c: { id: string; name: string; nameFa: string; lat: number; lng: number; timezone?: string }) => {
+  const applyCitySelection = (
+    c: {
+      id: string;
+      name: string;
+      nameFa: string;
+      nameEs?: string;
+      country?: string;
+      countryFa?: string;
+      countryEs?: string;
+      lat: number;
+      lng: number;
+      timezone?: string;
+    },
+    isGps = false
+  ) => {
     try {
+      if (!isGps) clearCustomGpsCoords();
       setGuestCityId(c.id);
       localStorage.setItem('noor_selected_city', JSON.stringify(c));
     } catch {}
-    setCity({ ...c, timezone: c.timezone || 'Asia/Tehran' });
+    const fullCity = getCityById(c.id);
+    setCity({
+      id: fullCity.id,
+      name: fullCity.name,
+      nameFa: fullCity.nameFa,
+      nameEs: fullCity.nameEs,
+      country: fullCity.country,
+      countryFa: fullCity.countryFa,
+      countryEs: fullCity.countryEs,
+      lat: c.lat,
+      lng: c.lng,
+      timezone: c.timezone || fullCity.timezone || 'Asia/Tehran',
+    });
+    window.dispatchEvent(new Event('noor-city-changed'));
     void rescheduleAll();
   };
 
@@ -1276,10 +1303,12 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
     setTimeout(() => setStatusBanner(null), 4000);
   };
 
-  // مکان‌یابی خودکار GPS با استفاده از متد واقعی NoorAlarm.requestAndGetLocation() در پروژه شما!
+  const cityDisplayLabel = getCityDisplayName(city, lang);
+
+  // مکان‌یابی دقیق جهانی GPS با الگوریتم Haversine و حفظ منطقه زمانی واقعی شهر
   const autoDetectLocationNow = async () => {
     setLocatingGps(true);
-    showQuickToast('📡 در حال دریافت مجوز و موقعیت دقیق GPS از سیستم اندروید...');
+    showQuickToast(t('home.toastGpsStart'));
     try {
       let lat: number | null = null;
       let lng: number | null = null;
@@ -1307,29 +1336,25 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
       }
 
       if (lat !== null && lng !== null) {
-        let nearest = CITIES[0];
-        let minDist = Infinity;
-        for (const c of CITIES) {
-          const d = Math.hypot(c.lat - lat, c.lng - lng);
-          if (d < minDist) {
-            minDist = d;
-            nearest = c;
-          }
-        }
-        const matched = {
-          id: nearest.id,
-          name: nearest.name,
-          nameFa: nearest.nameFa,
-          lat,
-          lng,
-          timezone: 'Asia/Tehran',
-        };
-        applyCitySelection(matched);
-        showQuickToast(`✅ موقعیت شما با GPS روی «${matched.nameFa}» تنظیم شد`);
+        const { city: nearest } = findNearestCity(lat, lng);
+        saveCustomGpsCoords(lat, lng, getCityDisplayName(nearest, lang));
+        applyCitySelection(
+          {
+            id: nearest.id,
+            name: nearest.name,
+            nameFa: nearest.nameFa,
+            nameEs: nearest.nameEs,
+            lat,
+            lng,
+            timezone: nearest.timezone,
+          },
+          true
+        );
+        showQuickToast(t('home.toastGpsDone') + ' ' + getCityDisplayName(nearest, lang));
         setShowCityPicker(false);
       }
     } catch {
-      showQuickToast('📍 لطفاً مکان‌یاب (GPS) گوشی را روشن کنید یا شهر را از لیست زیر انتخاب نمایید');
+      showQuickToast(t('home.toastGpsErr'));
     } finally {
       setLocatingGps(false);
     }
@@ -1338,20 +1363,28 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
   const exactGps = getCustomGpsCoords();
   const effectiveLat = exactGps ? exactGps.lat : city.lat;
   const effectiveLng = exactGps ? exactGps.lng : city.lng;
-  const times = calculatePrayerTimes(now, effectiveLat, effectiveLng, city.timezone || 'Asia/Tehran', calcMethod);
-  const nextPrayerInfo = times ? getNextPrayer(times) : null;
+  const activeTimezone = city.timezone || 'Asia/Tehran';
+  const times = calculatePrayerTimes(now, effectiveLat, effectiveLng, activeTimezone, calcMethod);
+  const nextPrayerInfo = times ? getNextPrayer(times, activeTimezone, lang) : null;
+  const nextPrayerKey = (nextPrayerInfo?.key ?? 'fajr') as
+    | 'fajr'
+    | 'sunrise'
+    | 'dhuhr'
+    | 'asr'
+    | 'maghrib'
+    | 'isha'
+    | 'midnight';
   const nextPrayer = {
-    key: nextPrayerInfo?.key ?? 'fajr',
-    nameFa: nextPrayerInfo?.nameFa ?? 'صبح',
+    key: nextPrayerKey,
+    nameLabel: prayerName(nextPrayerKey),
     time: nextPrayerInfo?.time ?? (times?.fajr || '04:45'),
-    remaining: nextPrayerInfo?.remaining ?? '۱ ساعت و ۳۰ دقیقه',
+    remaining: nextPrayerInfo?.remaining ?? (lang === 'fa' ? '۱س ۳۰د' : '1h 30m'),
     progress: (nextPrayerInfo as { progress?: number } | null)?.progress ?? 55,
   };
 
-  // کوک کردن مستقیم آلارم نیتیو کرنل اندروید (NoorAlarm.scheduleNativeAlarm) که حتی با صفحه قفل اذان می‌گوید!
   const scheduleNativeLockscreenAdhanForPrayer = async (
     prayerKey: string,
-    labelFa: string,
+    labelStr: string,
     timeStr: string,
     enable: boolean
   ) => {
@@ -1381,14 +1414,14 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
         target.setDate(target.getDate() + 1);
       }
 
-      const selectedAdhanId = localStorage.getItem('noor_guest_adhan_id') || 'mahur_saeed';
+      const selectedAdhanId = localStorage.getItem('noor_guest_adhan_id') || 'moazenzadeh_ardabili';
       const durSec = getAdhanDurationSeconds(getAdhanDurationMode());
 
       await NoorAlarm.scheduleNativeAlarm({
         id: alarmId,
         triggerAtMillis: target.getTime(),
-        title: `🕌 اذان ${labelFa} به افق ${city.nameFa}`,
-        body: `حي على الصلاة — وقت نماز ${labelFa} فرا رسیده است`,
+        title: lang === 'fa' ? '🕌 اذان ' + labelStr + ' به افق ' + city.nameFa : '🕌 ' + labelStr + ' Adhan · ' + cityDisplayLabel,
+        body: lang === 'fa' ? 'حي على الصلاة — وقت نماز ' + labelStr + ' فرا رسیده است' : 'Hayya ala as-Salah — Time for ' + labelStr + ' prayer',
         soundType: 'adhan',
         adhanId: selectedAdhanId,
         durationSeconds: durSec,
@@ -1397,35 +1430,34 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
     } catch {}
   };
 
-  // همگام‌سازی خودکار و تضمینی تمام زنگوله‌های روشن اذان با آلارم بیدارکننده قفل صفحه اندروید
   useEffect(() => {
     if (!Capacitor.isNativePlatform() || !times) return;
     const syncAllActivePrayerAlarms = async () => {
-      const prayerMap: { key: string; label: string; timeStr: string }[] = [
-        { key: 'fajr', label: 'صبح', timeStr: times.fajr },
-        { key: 'dhuhr', label: 'ظهر', timeStr: times.dhuhr },
-        { key: 'asr', label: 'عصر', timeStr: times.asr },
-        { key: 'maghrib', label: 'مغرب', timeStr: times.maghrib },
-        { key: 'isha', label: 'عشاء', timeStr: times.isha },
+      const prayerMap: { key: 'fajr' | 'dhuhr' | 'asr' | 'maghrib' | 'isha'; timeStr: string }[] = [
+        { key: 'fajr', timeStr: times.fajr },
+        { key: 'dhuhr', timeStr: times.dhuhr },
+        { key: 'asr', timeStr: times.asr },
+        { key: 'maghrib', timeStr: times.maghrib },
+        { key: 'isha', timeStr: times.isha },
       ];
       for (const item of prayerMap) {
         if (item.timeStr) {
           await scheduleNativeLockscreenAdhanForPrayer(
             item.key,
-            item.label,
+            prayerName(item.key),
             item.timeStr,
             Boolean(adhanBells[item.key])
           );
         }
       }
     };
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       void syncAllActivePrayerAlarms();
     }, 600);
-    return () => clearTimeout(t);
-  }, [city.lat, city.lng, adhanBells, calcMethod, adhanConfigTick]);
+    return () => clearTimeout(timer);
+  }, [effectiveLat, effectiveLng, activeTimezone, adhanBells, calcMethod, adhanConfigTick, lang]);
 
-  const togglePrayerBell = async (key: string, labelFa: string, timeStr: string) => {
+  const togglePrayerBell = async (key: string, labelStr: string, timeStr: string) => {
     const currentVal = Boolean(adhanBells[key]);
     const nextVal = !currentVal;
     const nextState = { ...adhanBells, [key]: nextVal };
@@ -1434,69 +1466,50 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
       localStorage.setItem('noor_adhan_bells_v1', JSON.stringify(nextState));
     } catch {}
 
-    await scheduleNativeLockscreenAdhanForPrayer(key, labelFa, timeStr, nextVal);
+    await scheduleNativeLockscreenAdhanForPrayer(key, labelStr, timeStr, nextVal);
     void rescheduleAll();
 
     if (nextVal) {
-      const selectedAdhanId = localStorage.getItem('noor_guest_adhan_id') || 'mahur_saeed';
+      const selectedAdhanId = localStorage.getItem('noor_guest_adhan_id') || 'moazenzadeh_ardabili';
       void playAdhanPreview(adhans.find((a) => a.id === selectedAdhanId) || adhans[0]);
       setTimeout(() => stopAdhanPreview(), 7000);
-      showQuickToast(`🔔 زنگ اذان ${labelFa} (ساعت ${toFaDigits(timeStr)}) روی قفل صفحه کوک شد`);
+      showQuickToast(t('home.toastBellOn') + ' ' + labelStr + ' (' + formatDigits(timeStr) + ')');
     } else {
       stopAdhanPreview();
-      showQuickToast(`🔕 پخش خودکار اذان ${labelFa} غیرفعال شد`);
+      showQuickToast(t('home.toastBellOff') + ' ' + labelStr);
     }
-  };
-
-  // تست فوری ۵ ثانیه بعد اذان روی صفحه قفل
-  const trigger5SecondLockScreenTest = async () => {
-    const selectedAdhanId = localStorage.getItem('noor_guest_adhan_id') || 'mahur_saeed';
-    if (Capacitor.isNativePlatform()) {
-      try {
-        await NoorAlarm.scheduleNativeAlarm({
-          id: 70999,
-          triggerAtMillis: Date.now() + 5000,
-          title: '🕌 تست پخش اذان در حالت قفل صفحه',
-          body: 'همراه معنوی نور — پخش خودکار اذان با صدای مؤذن انتخابی شما',
-          soundType: 'adhan',
-          adhanId: selectedAdhanId,
-          durationSeconds: 30,
-          volumePercent: 100,
-        });
-        showQuickToast('⏱️ آلارم اذان برای ۵ ثانیه دیگر کوک شد! همین الان صفحه گوشی را قفل (خاموش) کنید.');
-        return;
-      } catch {}
-    }
-    void playAdhanPreview(adhans.find((a) => a.id === selectedAdhanId) || adhans[0]);
-    showQuickToast('🔊 در حال پخش پیش‌نمایش صدای مؤذن انتخابی...');
   };
 
   const prayerColumns = [
-    { key: 'fajr', nameFa: 'صبح', time: times?.fajr ?? '04:45', icon: Sunrise, hasAdhan: true },
-    { key: 'sunrise', nameFa: 'طلوع', time: times?.sunrise ?? '06:03', icon: Sun, hasAdhan: false },
-    { key: 'dhuhr', nameFa: 'ظهر', time: times?.dhuhr ?? '11:17', icon: Sun, hasAdhan: true },
+    { key: 'fajr', nameLabel: prayerName('fajr'), time: times?.fajr ?? '04:45', icon: Sunrise, hasAdhan: true },
+    { key: 'sunrise', nameLabel: prayerName('sunrise'), time: times?.sunrise ?? '06:03', icon: Sun, hasAdhan: false },
+    { key: 'dhuhr', nameLabel: prayerName('dhuhr'), time: times?.dhuhr ?? '11:17', icon: Sun, hasAdhan: true },
     ...((modulesVis as any).showAsrPrayer !== false
-      ? [{ key: 'asr', nameFa: 'عصر', time: times?.asr ?? '14:06', icon: Sunset, hasAdhan: true }]
+      ? [{ key: 'asr', nameLabel: prayerName('asr'), time: times?.asr ?? '14:06', icon: Sunset, hasAdhan: true }]
       : []),
-    { key: 'maghrib', nameFa: 'مغرب', time: times?.maghrib ?? '16:44', icon: Sunset, hasAdhan: true },
+    { key: 'maghrib', nameLabel: prayerName('maghrib'), time: times?.maghrib ?? '16:44', icon: Sunset, hasAdhan: true },
     ...((modulesVis as any).showIshaPrayer !== false
-      ? [{ key: 'isha', nameFa: 'عشاء', time: times?.isha ?? '17:36', icon: Moon, hasAdhan: true }]
+      ? [{ key: 'isha', nameLabel: prayerName('isha'), time: times?.isha ?? '17:36', icon: Moon, hasAdhan: true }]
       : []),
   ];
 
+  const qSearch = citySearchQuery.trim().toLowerCase();
   const filteredCities = CITIES.filter(
     (c) =>
-      !citySearchQuery.trim() ||
-      c.nameFa.includes(citySearchQuery.trim()) ||
-      ((c as any).provinceFa || "").includes(citySearchQuery.trim()) ||
-      c.name.toLowerCase().includes(citySearchQuery.trim().toLowerCase())
+      !qSearch ||
+      c.nameFa.includes(qSearch) ||
+      c.countryFa.includes(qSearch) ||
+      c.name.toLowerCase().includes(qSearch) ||
+      c.country.toLowerCase().includes(qSearch) ||
+      (c.nameEs || '').toLowerCase().includes(qSearch) ||
+      (c.countryEs || '').toLowerCase().includes(qSearch)
   );
 
   return (
     <div
       className="min-h-screen pb-32 relative select-none"
       style={{ background: theme.bg, color: theme.text }}
-      dir="rtl"
+      dir={dir}
     >
       {/* ۱. هدر بالای صفحه با تصویر افق ۳۰تایی کاملاً آفلاین */}
       <div className="relative">
@@ -1510,7 +1523,6 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
               type="button"
               onClick={() => {
                 setShowCityPicker(true);
-                void autoDetectLocationNow();
               }}
               className="px-4 py-2 rounded-full border flex items-center gap-2 text-sm font-black transition-transform active:scale-95 shadow-lg"
               style={{
@@ -1521,7 +1533,7 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
               }}
             >
               <MapPin size={16} color="#34D399" className={locatingGps ? 'animate-bounce' : ''} />
-              <span>{locatingGps ? 'مکان‌یابی...' : city.nameFa}</span>
+              <span>{locatingGps ? t('home.locating') : cityDisplayLabel}</span>
               <span className="text-xs opacity-80">⌄</span>
             </button>
 
@@ -1529,8 +1541,8 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
               <button
                 type="button"
                 onClick={() => setShowInbox(true)}
-                aria-label="صندوق پیام‌ها و اعلانات"
-                title="صندوق پیام‌ها و اعلانات نور"
+                aria-label={t('home.inboxAria')}
+                title={t('home.inboxAria')}
                 className="relative w-9 h-9 rounded-full border flex items-center justify-center transition-transform active:scale-95 shadow-lg"
                 style={{
                   background: 'linear-gradient(135deg, rgba(14, 58, 47, 0.92) 0%, rgba(7, 32, 26, 0.96) 100%)',
@@ -1544,14 +1556,14 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
                     className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-black flex items-center justify-center shadow-md animate-pulse"
                     style={{ background: '#EF4444', color: '#FFFFFF' }}
                   >
-                    {toFaDigits(unreadInboxCount > 9 ? '۹+' : unreadInboxCount)}
+                    {formatDigits(unreadInboxCount > 9 ? '9+' : unreadInboxCount)}
                   </span>
                 )}
               </button>
               <CompactHeaderWeatherPill
-                cityName={city.nameFa}
-                lat={city.lat}
-                lng={city.lng}
+                cityName={cityDisplayLabel}
+                lat={effectiveLat}
+                lng={effectiveLng}
                 onOpenCalendar={() => setShowCalendar(true)}
               />
             </div>
@@ -1577,27 +1589,25 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
       {/* ۲. بدنه اصلی صفحه خانه */}
       <div className="max-w-lg mx-auto px-4 -mt-4 relative z-10 space-y-3.5">
         <div className="flex items-stretch gap-2.5">
-          {/* کارت بزرگ نماز بعدی در سمت راست */}
           <div
             className="flex-1 rounded-[28px] p-3.5 relative overflow-hidden border shadow-2xl flex flex-col justify-center"
             style={{
               background: theme.card,
               borderColor: theme.border,
-              boxShadow: `0 12px 32px rgba(0, 0, 0, 0.38), 0 0 20px ${theme.primaryGlow}`,
+              boxShadow: '0 12px 32px rgba(0, 0, 0, 0.38), 0 0 20px ' + theme.primaryGlow,
             }}
           >
             <ThemePatternWatermark themeId={theme.id} className="opacity-70" />
             <CelestialPrayerArcGauge
               progressPercent={nextPrayer.progress}
               remainingText={nextPrayer.remaining}
-              nextPrayerName={nextPrayer.nameFa}
+              nextPrayerName={nextPrayer.nameLabel}
               nextPrayerTime={nextPrayer.time}
               accentColor={theme.accent}
               primaryColor={theme.primary}
             />
           </div>
 
-          {/* کارت تقویم و روزشمار سال در سمت چپ */}
           <VerticalJalaliDayCounterCard
             now={now}
             weekdayFa={getJalaliWeekday(now)}
@@ -1618,11 +1628,11 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
           >
             <div
               className="w-11 h-11 rounded-2xl flex items-center justify-center"
-              style={{ background: theme.primaryGlow, border: `1px solid ${theme.border}` }}
+              style={{ background: theme.primaryGlow, border: '1px solid ' + theme.border }}
             >
               <BookOpen size={21} color={theme.primary} />
             </div>
-            <span className="text-[11px] font-black" style={{ color: theme.text }}>قرآن</span>
+            <span className="text-[11px] font-black" style={{ color: theme.text }}>{t('home.dockQuran')}</span>
           </button>
 
           <button
@@ -1633,11 +1643,11 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
           >
             <div
               className="w-11 h-11 rounded-2xl flex items-center justify-center"
-              style={{ background: theme.primaryGlow, border: `1px solid ${theme.border}` }}
+              style={{ background: theme.primaryGlow, border: '1px solid ' + theme.border }}
             >
               <Calendar size={21} color={theme.primary} />
             </div>
-            <span className="text-[11px] font-black whitespace-nowrap" style={{ color: theme.text }}>تقویم و هوا</span>
+            <span className="text-[11px] font-black whitespace-nowrap" style={{ color: theme.text }}>{t('home.dockCalendar')}</span>
           </button>
 
           <button
@@ -1648,11 +1658,11 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
           >
             <div
               className="w-11 h-11 rounded-2xl flex items-center justify-center"
-              style={{ background: theme.primaryGlow, border: `1px solid ${theme.border}` }}
+              style={{ background: theme.primaryGlow, border: '1px solid ' + theme.border }}
             >
               <Navigation size={21} color={theme.primary} />
             </div>
-            <span className="text-[11px] font-black" style={{ color: theme.text }}>مسجدیاب</span>
+            <span className="text-[11px] font-black" style={{ color: theme.text }}>{t('home.dockMosque')}</span>
           </button>
 
           <button
@@ -1663,38 +1673,38 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
           >
             <div
               className="w-11 h-11 rounded-2xl flex items-center justify-center"
-              style={{ background: `color-mix(in srgb, ${theme.accent} 20%, transparent)`, border: `1px solid ${theme.accent}` }}
+              style={{ background: 'color-mix(in srgb, ' + theme.accent + ' 20%, transparent)', border: '1px solid ' + theme.accent }}
             >
               <Compass size={21} color={theme.accent} />
             </div>
-            <span className="text-[11px] font-black" style={{ color: theme.accent }}>قبله‌نما</span>
+            <span className="text-[11px] font-black" style={{ color: theme.accent }}>{t('home.dockQibla')}</span>
           </button>
         </div>
 
-        {/* ۴. جدول ستونی «اوقات شرعی امروز» + دکمه تست ۵ ثانیه‌ای اذان روی قفل صفحه */}
+        {/* ۴. جدول ستونی اوقات شرعی امروز */}
         <div
           className="rounded-3xl p-4 border shadow-lg"
           style={{ background: theme.card, borderColor: theme.border }}
         >
           <div className="flex items-center justify-between gap-1 mb-3 flex-wrap">
             <span className="text-xs font-black flex items-center gap-1.5" style={{ color: theme.text }}>
-              <span>اوقات شرعی · {city.nameFa}</span>
+              <span>{t('home.prayerTimesTitle')} · {cityDisplayLabel}</span>
             </span>
             <div className="flex items-center gap-2 text-[10px] font-bold">
               <span className="flex items-center gap-1" style={{ color: '#FBBF24' }}>
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />
-                <span>قبل</span>
+                <span>{t('home.beforeLabel')}</span>
               </span>
               <span className="flex items-center gap-1" style={{ color: '#34D399' }}>
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
-                <span>بعد</span>
+                <span>{t('home.afterLabel')}</span>
               </span>
             </div>
           </div>
 
           <div
             className="grid gap-1.5 text-center"
-            style={{ gridTemplateColumns: `repeat(${prayerColumns.length}, minmax(0, 1fr))` }}
+            style={{ gridTemplateColumns: 'repeat(' + prayerColumns.length + ', minmax(0, 1fr))' }}
           >
             {prayerColumns.map((p) => {
               const isNext = nextPrayer.key === p.key;
@@ -1709,24 +1719,24 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
                     borderColor: isNext ? theme.primary : theme.border,
                   }}
                 >
-                  <span className="text-[11px] font-black" style={{ color: theme.text }}>{p.nameFa}</span>
+                  <span className="text-[11px] font-black" style={{ color: theme.text }}>{p.nameLabel}</span>
                   <strong
                     className="text-xs font-black tracking-tight"
                     style={{ color: isNext ? theme.accent : theme.text }}
                   >
-                    {toFaDigits(p.time)}
+                    {formatDigits(p.time)}
                   </strong>
                   <Icon size={14} color={isNext ? theme.accent : theme.primary} />
 
                   {p.hasAdhan ? (
                     <button
                       type="button"
-                      onClick={() => void togglePrayerBell(p.key, p.nameFa, p.time)}
-                      title={`پخش خودکار اذان ${p.nameFa}`}
+                      onClick={() => void togglePrayerBell(p.key, p.nameLabel, p.time)}
+                      title={p.nameLabel}
                       className="mt-0.5 w-7 h-7 rounded-xl border flex items-center justify-center transition-transform active:scale-90"
                       style={{
                         background: isBellOn
-                          ? `color-mix(in srgb, ${theme.accent} 24%, transparent)`
+                          ? 'color-mix(in srgb, ' + theme.accent + ' 24%, transparent)'
                           : 'rgba(255,255,255,0.04)',
                         borderColor: isBellOn ? theme.accent : 'rgba(255,255,255,0.1)',
                         color: isBellOn ? theme.accent : theme.textMuted,
@@ -1743,10 +1753,10 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
           </div>
         </div>
 
-        {/* ۵. کارت گرافیکی «پیشنهاد امروز: ذکر و نیایش» */}
+        {/* ۵. تعقیبات و پیشنهاد هوشمند روزانه */}
         <TawashihAndAdhanReminderSection
           times={times}
-          cityNameFa={city.nameFa}
+          cityNameFa={cityDisplayLabel}
           onToast={showQuickToast}
         />
 
@@ -1810,18 +1820,18 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
           );
         })()}
 
-        {/* ۶. ردیف دوتایی پایین: «خلاصه فعالیت امروز (گزارش معنوی)» + «تسبیح روزانه» */}
+        {/* ۶. ردیف دوتایی پایین */}
         <div className="grid grid-cols-2 gap-2.5">
           <button
             type="button"
             onClick={() => setShowBiModal(true)}
-            className="rounded-3xl p-3.5 border text-right flex items-center justify-between gap-2 transition-transform active:scale-95 shadow-md"
+            className={'rounded-3xl p-3.5 border flex items-center justify-between gap-2 transition-transform active:scale-95 shadow-md ' + (isRtl ? 'text-right' : 'text-left')}
             style={{ background: theme.card, borderColor: theme.border }}
           >
             <div>
-              <span className="text-[11px] font-black block" style={{ color: theme.primary }}>📊 خلاصه فعالیت</span>
-              <strong className="text-lg font-black block mt-0.5" style={{ color: theme.text }}>۴/۵</strong>
-              <span className="text-[10px] block" style={{ color: theme.textMuted }}>گزارش معنوی ←</span>
+              <span className="text-[11px] font-black block" style={{ color: theme.primary }}>{t('home.activityTitle')}</span>
+              <strong className="text-lg font-black block mt-0.5" style={{ color: theme.text }}>{formatDigits('4/5')}</strong>
+              <span className="text-[10px] block" style={{ color: theme.textMuted }}>{t('home.activitySub')}</span>
             </div>
             <svg width="44" height="44" viewBox="0 0 44 44" className="shrink-0">
               <circle cx="22" cy="22" r="17" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="4.5" />
@@ -1832,13 +1842,15 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
           <button
             type="button"
             onClick={() => onNavigate('tasbih')}
-            className="rounded-3xl p-3.5 border text-right flex items-center justify-between gap-2 transition-transform active:scale-95 shadow-md"
+            className={'rounded-3xl p-3.5 border flex items-center justify-between gap-2 transition-transform active:scale-95 shadow-md ' + (isRtl ? 'text-right' : 'text-left')}
             style={{ background: theme.card, borderColor: theme.border }}
           >
             <div className="min-w-0">
-              <span className="text-[11px] font-black block" style={{ color: theme.accent }}>📿 تسبیح روزانه</span>
-              <strong className="text-base font-black block mt-0.5 truncate" style={{ color: theme.text }}>{toFaDigits(liveTasbihSession.count)} از {toFaDigits(liveTasbihSession.target || 100)}</strong>
-              <span className="text-[10px] font-bold block" style={{ color: theme.primary }}>ادامه شمارش ←</span>
+              <span className="text-[11px] font-black block" style={{ color: theme.accent }}>{t('home.tasbihCardTitle')}</span>
+              <strong className="text-base font-black block mt-0.5 truncate" style={{ color: theme.text }}>
+                {formatDigits(liveTasbihSession.count)} {t('home.tasbihOf')} {formatDigits(liveTasbihSession.target || 100)}
+              </strong>
+              <span className="text-[10px] font-bold block" style={{ color: theme.primary }}>{t('home.tasbihContinue')}</span>
             </div>
             <div
               className="w-11 h-11 rounded-full border-2 flex items-center justify-center shrink-0 text-sm"
@@ -1850,11 +1862,12 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
         </div>
       </div>
 
-      {/* مودال انتخاب شهر متصل به لیست کامل CITIES در @/lib/cities + مکان‌یاب نیتیو */}
+      {/* مودال انتخاب شهر جهانی + GPS */}
       {showCityPicker && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
           style={{ background: 'rgba(0,0,0,0.82)', backdropFilter: 'blur(6px)' }}
+          dir={dir}
           onClick={() => setShowCityPicker(false)}
         >
           <div
@@ -1863,8 +1876,10 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-black text-app">📍 انتخاب شهر و موقعیت</h3>
-              <button type="button" onClick={() => setShowCityPicker(false)} className="text-xs text-muted">بستن ✕</button>
+              <h3 className="text-sm font-black text-app">{t('home.cityPickerTitle')}</h3>
+              <button type="button" onClick={() => setShowCityPicker(false)} className="text-xs text-muted">
+                {t('common.close')} ✕
+              </button>
             </div>
 
             <button
@@ -1874,14 +1889,14 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
               style={{ background: theme.primary, color: theme.bg }}
             >
               <Navigation size={15} />
-              <span>{locatingGps ? 'در حال دریافت مختصات GPS...' : '📡 تشخیص خودکار موقعیت فعلی من با GPS'}</span>
+              <span>{locatingGps ? t('home.gpsBtnBusy') : t('home.gpsBtnIdle')}</span>
             </button>
 
             <input
               type="text"
               value={citySearchQuery}
               onChange={(e) => setCitySearchQuery(e.target.value)}
-              placeholder="جستجوی نام شهر یا استان (مثلاً قم، اهواز، مشهد...)"
+              placeholder={t('home.citySearchPh')}
               className="w-full px-3.5 py-2.5 rounded-2xl border text-xs bg-black/20 text-white outline-none"
               style={{ borderColor: theme.border }}
             />
@@ -1892,26 +1907,30 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
                   key={c.id}
                   type="button"
                   onClick={() => {
-                    applyCitySelection({
-                      id: c.id,
-                      name: c.name,
-                      nameFa: c.nameFa,
-                      lat: c.lat,
-                      lng: c.lng,
-                      timezone: 'Asia/Tehran',
-                    });
+                    applyCitySelection(
+                      {
+                        id: c.id,
+                        name: c.name,
+                        nameFa: c.nameFa,
+                        nameEs: c.nameEs,
+                        lat: c.lat,
+                        lng: c.lng,
+                        timezone: c.timezone,
+                      },
+                      false
+                    );
                     setShowCityPicker(false);
-                    showQuickToast(`📍 افق شرعی روی «${c.nameFa}» تنظیم شد`);
+                    showQuickToast(t('home.toastCitySet') + ' ' + getCityDisplayName(c, lang));
                   }}
-                  className="p-2.5 rounded-2xl border text-right text-xs font-bold transition-all"
+                  className={'p-2.5 rounded-2xl border text-xs font-bold transition-all ' + (isRtl ? 'text-right' : 'text-left')}
                   style={{
-                    borderColor: c.id === city.id || c.nameFa === city.nameFa ? theme.primary : theme.border,
-                    background: c.id === city.id || c.nameFa === city.nameFa ? theme.primaryGlow : theme.bg,
+                    borderColor: c.id === city.id ? theme.primary : theme.border,
+                    background: c.id === city.id ? theme.primaryGlow : theme.bg,
                     color: theme.text,
                   }}
                 >
-                  <span>{c.nameFa}</span>
-                  <span className="text-[9px] text-muted block">{(c as any).provinceFa || ""}</span>
+                  <span className="block truncate">{getCityDisplayName(c, lang)}</span>
+                  <span className="text-[9.5px] text-muted block truncate">{getCountryDisplayName(c, lang)}</span>
                 </button>
               ))}
             </div>
@@ -1921,28 +1940,28 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
 
       {showQibla && (
         <QiblaCompass
-          lat={city.lat}
-          lng={city.lng}
-          cityName={city.nameFa}
+          lat={effectiveLat}
+          lng={effectiveLng}
+          cityName={cityDisplayLabel}
           onClose={() => setShowQibla(false)}
         />
       )}
 
       {showCalendar && (
         <CalendarModal
-          cityName={city.nameFa}
-          cityLat={city.lat}
-          cityLng={city.lng}
-          cityTimezone={city.timezone || 'Asia/Tehran'}
+          cityName={cityDisplayLabel}
+          cityLat={effectiveLat}
+          cityLng={effectiveLng}
+          cityTimezone={activeTimezone}
           onClose={() => setShowCalendar(false)}
         />
       )}
 
       {showMosqueFinder && (
         <MosqueFinderModal
-          cityName={city.nameFa}
-          defaultLat={city.lat}
-          defaultLng={city.lng}
+          cityName={cityDisplayLabel}
+          defaultLat={effectiveLat}
+          defaultLng={effectiveLng}
           onClose={() => setShowMosqueFinder(false)}
         />
       )}

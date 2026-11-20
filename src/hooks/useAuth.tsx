@@ -1,8 +1,8 @@
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react';
 import { supabase, isSupabaseConfigured, type Profile } from '@/lib/supabase';
 import {
-  isValidIranPhone,
-  normalizeIranPhone,
+  isValidGlobalPhone,
+  normalizeGlobalPhone,
   phoneToSyntheticEmail,
   getLocalAuthSession,
   clearLocalAuthSession,
@@ -138,8 +138,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [fetchProfile]);
 
   const signIn = useCallback(async (phoneOrEmail: string, password: string) => {
-    const isPhone = isValidIranPhone(phoneOrEmail);
-    const normalizedPhone = isPhone ? normalizeIranPhone(phoneOrEmail) : null;
+    const isPhone = isValidGlobalPhone(phoneOrEmail);
+    const normalizedPhone = isPhone ? normalizeGlobalPhone(phoneOrEmail) : null;
 
     if (!isSupabaseConfigured) {
       const res = await localSignInWithPhone(phoneOrEmail, password);
@@ -161,8 +161,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signUp = useCallback(async (phoneOrEmail: string, password: string, displayName: string) => {
-    const isPhone = isValidIranPhone(phoneOrEmail);
-    const normalizedPhone = isPhone ? normalizeIranPhone(phoneOrEmail) : null;
+    const isPhone = isValidGlobalPhone(phoneOrEmail);
+    const normalizedPhone = isPhone ? normalizeGlobalPhone(phoneOrEmail) : null;
 
     if (!isSupabaseConfigured) {
       const res = await localSignUpWithPhone(phoneOrEmail, password, displayName);

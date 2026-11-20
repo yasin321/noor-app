@@ -165,8 +165,8 @@ export async function localSignUpWithPhone(
   password: string,
   displayName: string
 ): Promise<{ session: LocalAuthSession | null; error: string | null }> {
-  const phone = normalizeIranPhone(rawPhone);
-  if (!isValidIranPhone(phone)) {
+  const phone = normalizeGlobalPhone(rawPhone);
+  if (!isValidGlobalPhone(phone)) {
     return { session: null, error: 'شماره موبایل معتبر نیست (مثال: 09123456789)' };
   }
   if (!password || password.length < 6) {
@@ -207,8 +207,8 @@ export async function localSignInWithPhone(
   rawPhone: string,
   password: string
 ): Promise<{ session: LocalAuthSession | null; error: string | null }> {
-  const phone = normalizeIranPhone(rawPhone);
-  if (!isValidIranPhone(phone)) {
+  const phone = normalizeGlobalPhone(rawPhone);
+  if (!isValidGlobalPhone(phone)) {
     return { session: null, error: 'شماره موبایل معتبر نیست (باید با 09 شروع شود و ۱۱ رقم باشد)' };
   }
   const accounts = loadLocalAccounts();
