@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, Sparkles, MapPin, Compass } from 'lucide-react';
+import { Check, Sparkles, MapPin } from 'lucide-react';
+import { getCachedRemoteWallpapers, getCachedRemoteThemes, GLOBAL_SYNC_UPDATED_EVENT } from '@/lib/globalSyncService';
 
 export type HeroCategoryKey =
   | 'all'
@@ -32,6 +33,8 @@ export interface HeroArtDesign {
   hasLanterns?: boolean;
   hasStars?: boolean;
   hasBirds?: boolean;
+  isRemoteOta?: boolean;
+  isFeatured?: boolean;
 }
 
 export const HERO_RELIGIOUS_CATEGORIES: { id: HeroCategoryKey; labelFa: string; icon: string }[] = [
@@ -422,10 +425,65 @@ export function saveHeroConfig(cfg: HeroUserConfig): void {
   } catch {}
 }
 
+function mapRemoteWallpaperCategory(cat: string): Exclude<HeroCategoryKey, 'all'> {
+  if (cat === 'mosque') return 'islamic_arch';
+  if (cat === 'occasion') return 'occ_ramadan_mahdi';
+  if (cat === 'nature') return 'prayer_times';
+  return 'shrines';
+}
+
+export function getAllHeroDesigns(): HeroArtDesign[] {
+  const remoteWallpapers: HeroArtDesign[] = getCachedRemoteWallpapers()
+    .filter((w) => Boolean(w.image_url))
+    .map((w, idx) => ({
+      id: 'ota_wp_' + w.id,
+      order: idx + 1,
+      titleFa: w.title_fa,
+      subtitleFa: w.subtitle_fa || 'والپیپر جدید آنلاین',
+      dhikrFa: w.occasion_tag || '✨ اضافه شده از همگام‌سازی سراسری نور',
+      usageGuideFa: w.subtitle_fa || 'تصویر جدید و باکیفیت دریافت‌شده از سرور نور',
+      category: mapRemoteWallpaperCategory(w.category),
+      imageUrl: w.image_url,
+      skyTop: '#041B15',
+      skyMid: '#0B3B2D',
+      skyBottom: '#165B46',
+      accent: '#FBBF24',
+      glow: 'rgba(251, 191, 36, 0.42)',
+      archType: 'shrine_gold',
+      isRemoteOta: true,
+      isFeatured: Boolean(w.is_featured),
+    }));
+
+  // والپیپرهای اختصاصی متصل به تم‌های مناسبتی آنلاین
+  const themeWallpapers: HeroArtDesign[] = getCachedRemoteThemes()
+    .filter((t) => Boolean(t.wallpaper_url))
+    .map((t, idx) => ({
+      id: 'ota_theme_wp_' + t.id,
+      order: 100 + idx,
+      titleFa: 'منظره تم ' + t.name_fa,
+      subtitleFa: t.occasion_fa || 'والپیپر هماهنگ با تم مناسبتی',
+      dhikrFa: t.occasion_fa || t.name_fa,
+      usageGuideFa: 'هماهنگ با رنگ‌بندی تم ' + t.name_fa,
+      category: 'occ_ramadan_mahdi',
+      imageUrl: t.wallpaper_url,
+      skyTop: t.bg_color || '#041B15',
+      skyMid: t.surface_color || '#0B3B2D',
+      skyBottom: t.surface_alt_color || '#165B46',
+      accent: t.accent_color || '#FBBF24',
+      glow: 'rgba(251, 191, 36, 0.42)',
+      archType: 'shrine_gold',
+      isRemoteOta: true,
+      isFeatured: Boolean(t.is_featured),
+    }));
+
+  return [...remoteWallpapers, ...themeWallpapers, ...HERO_30_DESIGNS];
+}
+
 export function resolveActiveHeroDesign(cityName: string = 'مشهد', nextPrayerKey: string = 'fajr'): HeroArtDesign {
   const cfg = loadHeroConfig();
+  const allDesigns = getAllHeroDesigns();
   if (cfg.mode === 'manual') {
-    return HERO_30_DESIGNS.find((d) => d.id === cfg.selectedId) || HERO_30_DESIGNS[0];
+    return allDesigns.find((d) => d.id === cfg.selectedId) || HERO_30_DESIGNS[0];
   }
   if (cfg.mode === 'auto_city') {
     const matched = HERO_30_DESIGNS.find((d) => d.cityMatch?.some((c) => cityName.includes(c.trim())));
@@ -490,13 +548,14 @@ function getOfflineIranSafeImage(designId: string | number): string {
 
 export function RenderHeroArtworkScene({ design }: { design: HeroArtDesign }) {
   const localSafeImg = getOfflineIranSafeImage(design.id);
-  const [src, setSrc] = useState<string>(localSafeImg);
+  const preferredImg = design.imageUrl || localSafeImg;
+  const [src, setSrc] = useState<string>(preferredImg);
   const [imgHidden, setImgHidden] = useState<boolean>(false);
 
   useEffect(() => {
-    setSrc(getOfflineIranSafeImage(design.id));
+    setSrc(design.imageUrl || getOfflineIranSafeImage(design.id));
     setImgHidden(false);
-  }, [design.id]);
+  }, [design.id, design.imageUrl]);
 
   return (
     <div
@@ -512,7 +571,9 @@ export function RenderHeroArtworkScene({ design }: { design: HeroArtDesign }) {
           className="absolute inset-0 w-full h-full object-cover object-center transition-opacity duration-300"
           style={{ filter: 'brightness(0.96) contrast(1.07) saturate(1.14)' }}
           onError={() => {
-            if (src !== '/hero-default.jpg') {
+            if (src !== localSafeImg) {
+              setSrc(localSafeImg);
+            } else if (src !== '/hero-default.jpg') {
               setSrc('/hero-default.jpg');
             } else {
               setImgHidden(true);
@@ -542,8 +603,16 @@ export function Hero30SelectorModal({
 }) {
   const [cfg, setCfg] = useState<HeroUserConfig>(() => loadHeroConfig());
   const [activeCategory, setActiveCategory] = useState<HeroCategoryKey>('all');
+  const [syncTick, setSyncTick] = useState(0);
+  useEffect(() => {
+    const onSync = () => setSyncTick((t) => t + 1);
+    window.addEventListener(GLOBAL_SYNC_UPDATED_EVENT, onSync);
+    return () => window.removeEventListener(GLOBAL_SYNC_UPDATED_EVENT, onSync);
+  }, []);
+  void syncTick;
 
-  const filteredDesigns = HERO_30_DESIGNS.filter(
+  const allDesigns = getAllHeroDesigns();
+  const filteredDesigns = allDesigns.filter(
     (d) => activeCategory === 'all' || d.category === activeCategory
   );
 
@@ -685,6 +754,14 @@ export function Hero30SelectorModal({
                 {/* تصویر گرافیکی زنده بالای کارت (بدون تگ img شکسته!) */}
                 <div className="w-full h-24 relative overflow-hidden">
                   <RenderHeroArtworkScene design={d} />
+                  {d.isRemoteOta && (
+                    <span
+                      className="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[9px] font-black shadow"
+                      style={{ background: 'rgba(16, 185, 129, 0.92)', color: '#041511' }}
+                    >
+                      ✨ جدید
+                    </span>
+                  )}
                   {isSelected && (
                     <div
                       className="absolute top-2 left-2 w-6 h-6 rounded-full flex items-center justify-center shadow-lg"

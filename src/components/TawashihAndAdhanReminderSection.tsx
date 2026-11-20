@@ -3,7 +3,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Bell, Volume2, Square, Clock, Check, Copy, Sparkles, X, ChevronDown } from 'lucide-react';
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
-import { adhans, playAdhanPreview, stopAdhanPreview } from '@/lib/adhans';
+import { adhans, getAllAdhans, playAdhanPreview, stopAdhanPreview } from '@/lib/adhans';
+import { getCachedOtaMediaCatalog } from '@/lib/globalSyncService';
 import {
   setAlarmPlaybackSpeed,
   purgeLegacyPrePostAdhanReminders,
@@ -128,6 +129,36 @@ export const POST_ADHAN_TRACKS: TrackOption[] = [
   },
 ];
 
+export function getEffectivePreAdhanTracks(): TrackOption[] {
+  const remotePre: TrackOption[] = getCachedOtaMediaCatalog()
+    .filter((m) => (m.category === 'pre_adhan' || m.category === 'dua') && Boolean(m.audio_url))
+    .map((m) => ({
+      id: m.id,
+      titleFa: '✨ ' + m.title_fa,
+      subtitleFa: m.reciter_fa || m.subtitle_fa || 'نوای جدید آنلاین',
+      durationFa: m.duration_fa || 'آنلاین',
+      audioFile: m.audio_url,
+      audioAdhanId: m.id,
+    }));
+  const builtIds = new Set(PRE_ADHAN_TRACKS.map((t) => t.id));
+  return [...remotePre.filter((r) => !builtIds.has(r.id)), ...PRE_ADHAN_TRACKS];
+}
+
+export function getEffectivePostAdhanTracks(): TrackOption[] {
+  const remotePost: TrackOption[] = getCachedOtaMediaCatalog()
+    .filter((m) => (m.category === 'post_adhan' || m.category === 'surah') && Boolean(m.audio_url))
+    .map((m) => ({
+      id: m.id,
+      titleFa: '✨ ' + m.title_fa,
+      subtitleFa: m.reciter_fa || m.subtitle_fa || 'تلاوت جدید آنلاین',
+      durationFa: m.duration_fa || 'آنلاین',
+      audioFile: m.audio_url,
+      audioAdhanId: m.id,
+    }));
+  const builtIds = new Set(POST_ADHAN_TRACKS.map((t) => t.id));
+  return [...remotePost.filter((r) => !builtIds.has(r.id)), ...POST_ADHAN_TRACKS];
+}
+
 export interface SlotConfig {
   enabled: boolean;
   minutesOffset: number;
@@ -178,7 +209,7 @@ function normalizeTrackId(id: string, isAfter: boolean): string {
     if (s.includes('rahman')) return 'surah_rahman';
     if (s.includes('mulk')) return 'surah_mulk';
     if (s.includes('kursi') || s.includes('tasbih') || s.includes('bahjat') || s.includes('fatima')) return 'ayat_kursi';
-    const found = POST_ADHAN_TRACKS.find((t) => t.id === id);
+    const found = getEffectivePostAdhanTracks().find((t) => t.id === id);
     return found ? found.id : POST_ADHAN_TRACKS[0].id;
   } else {
     if (s.includes('rab')) return 'rabbana_shajarian';
@@ -186,7 +217,7 @@ function normalizeTrackId(id: string, isAfter: boolean): string {
     if (s.includes('salawat')) return 'salawat_reza';
     if (s.includes('tasbih') || s.includes('istighfar')) return 'tasbihat_pre';
     if (s.includes('aqim') || s.includes('sahar') || s.includes('munajat')) return 'munajat_sahar';
-    const found = PRE_ADHAN_TRACKS.find((t) => t.id === id);
+    const found = getEffectivePreAdhanTracks().find((t) => t.id === id);
     return found ? found.id : PRE_ADHAN_TRACKS[0].id;
   }
 }
@@ -335,7 +366,7 @@ export async function syncAllTawashihNativeAlarms(
             if (targetDate.getTime() <= Date.now()) {
               targetDate.setDate(targetDate.getDate() + 1);
             }
-            const track = PRE_ADHAN_TRACKS.find((t) => t.id === pCfg.before.trackId) || PRE_ADHAN_TRACKS[0];
+            const track = getEffectivePreAdhanTracks().find((t) => t.id === pCfg.before.trackId) || PRE_ADHAN_TRACKS[0];
 
             await NoorAlarm.scheduleNativeAlarm({
               id: beforeId,
@@ -366,7 +397,7 @@ export async function syncAllTawashihNativeAlarms(
             if (targetDate.getTime() <= Date.now()) {
               targetDate.setDate(targetDate.getDate() + 1);
             }
-            const track = POST_ADHAN_TRACKS.find((t) => t.id === pCfg.after.trackId) || POST_ADHAN_TRACKS[0];
+            const track = getEffectivePostAdhanTracks().find((t) => t.id === pCfg.after.trackId) || POST_ADHAN_TRACKS[0];
 
             await NoorAlarm.scheduleNativeAlarm({
               id: afterId,
@@ -497,7 +528,7 @@ export function TawashihAndAdhanReminderSection({
     }
     stopLocalAudio();
     const selectedAdhanId = localStorage.getItem('noor_guest_adhan_id') || 'moazenzadeh_ardabili';
-    const found = adhans.find((a) => a.id === selectedAdhanId) || adhans[0];
+    const found = getAllAdhans().find((a) => a.id === selectedAdhanId) || adhans[0];
     setPlayingTrackId('main_adhan_preview');
     void playAdhanPreview(found, 0, 100, () => {
       setPlayingTrackId(null);
@@ -526,8 +557,8 @@ export function TawashihAndAdhanReminderSection({
   const beforeClock = addMinutesToTimeStr(rawPrayerTime, -currentPrayerCfg.before.minutesOffset);
   const afterClock = addMinutesToTimeStr(rawPrayerTime, currentPrayerCfg.after.minutesOffset);
 
-  const selectedBeforeTrack = PRE_ADHAN_TRACKS.find((t) => t.id === currentPrayerCfg.before.trackId) || PRE_ADHAN_TRACKS[0];
-  const selectedAfterTrack = POST_ADHAN_TRACKS.find((t) => t.id === currentPrayerCfg.after.trackId) || POST_ADHAN_TRACKS[0];
+  const selectedBeforeTrack = getEffectivePreAdhanTracks().find((t) => t.id === currentPrayerCfg.before.trackId) || PRE_ADHAN_TRACKS[0];
+  const selectedAfterTrack = getEffectivePostAdhanTracks().find((t) => t.id === currentPrayerCfg.after.trackId) || POST_ADHAN_TRACKS[0];
 
   const activeTotalCount = PRAYER_META.reduce((sum, pm) => {
     const item = config[pm.key];
@@ -610,7 +641,7 @@ export function TawashihAndAdhanReminderSection({
   };
 
   const editingSlotCfg = editingSlot ? currentPrayerCfg[editingSlot] : null;
-  const editorTracks = editingSlot === 'after' ? POST_ADHAN_TRACKS : PRE_ADHAN_TRACKS;
+  const editorTracks = editingSlot === 'after' ? getEffectivePostAdhanTracks() : getEffectivePreAdhanTracks();
   const editingClock =
     editingSlot === 'before'
       ? beforeClock

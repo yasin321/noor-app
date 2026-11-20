@@ -8,7 +8,7 @@ import {
   saveMosqueAndTravel,
 } from '@/lib/deenIntelligenceStore';
 import { loadReminders } from '@/lib/reminderStorage';
-import { getCustomDhikr } from '@/lib/dhikrLibrary';
+import { getCustomDhikr, getFavoriteDhikrIds } from '@/lib/dhikrLibrary';
 import { getTodayTotal, getTodayRounds, getSession } from '@/lib/tasbihStorage';
 import { getGuestCityId, setGuestCityId } from '@/lib/cities';
 import {
@@ -16,6 +16,7 @@ import {
   syncAllTawashihNativeAlarms,
 } from '@/components/TawashihAndAdhanReminderSection';
 import { loadSurahAlarms, syncAllSurahNativeAlarms } from '@/lib/surahAlarmService';
+import { rescheduleAllReminders } from '@/lib/reminderService';
 
 export interface CloudSyncStatus {
   lastSyncedAtIso: string | null;
@@ -25,6 +26,53 @@ export interface CloudSyncStatus {
 
 const CLOUD_SYNC_STATUS_KEY = 'noor_cloud_sync_status_v1';
 export const CLOUD_SYNC_STATUS_EVENT = 'noor-cloud-sync-status-changed';
+
+// کلیدهایی که هرگز نباید به سرور ارسال شوند (حریم خصوصی محاسبه نفس + کش‌های حجیم + نشست محلی)
+function isExcludedFromCloudSnapshot(key: string): boolean {
+  if (!key.startsWith('noor_')) return true;
+  const k = key.toLowerCase();
+  return (
+    k.includes('muhasaba') ||
+    k.includes('surah_cache') ||
+    k.includes('ota_') ||
+    k.includes('global_sync') ||
+    k.includes('cloud_sync') ||
+    k.includes('phone_accounts') ||
+    k.includes('phone_session') ||
+    k.includes('logs') ||
+    k.includes('diagnostic') ||
+    k.includes('geocode') ||
+    k.includes('weather_cache') ||
+    k.includes('downloaded_adhan')
+  );
+}
+
+function collectDeviceUserSnapshot(): Record<string, string> {
+  const snapshot: Record<string, string> = {};
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k || isExcludedFromCloudSnapshot(k)) continue;
+      const val = localStorage.getItem(k);
+      if (typeof val === 'string' && val.length <= 65000) {
+        snapshot[k] = val;
+      }
+    }
+  } catch {}
+  return snapshot;
+}
+
+function isFreshInstallDevice(): boolean {
+  try {
+    const hasTawashih = Boolean(localStorage.getItem('noor_tawashih_redesign_config_v2'));
+    const hasTasbih = getTodayTotal() > 0 || getTodayRounds() > 0 || getSession().count > 0;
+    const hasFavs = getFavoriteDhikrIds().length > 0;
+    const hasCustom = getCustomDhikr().length > 0;
+    return !hasTawashih && !hasTasbih && !hasFavs && !hasCustom;
+  } catch {
+    return false;
+  }
+}
 
 export function getLastCloudSyncStatus(): CloudSyncStatus {
   try {
@@ -75,8 +123,18 @@ export async function syncLocalStateToCloud(userId: string | null | undefined): 
       fontScale: localStorage.getItem('noor_font_scale') || 'normal',
       quranDisplayMode: localStorage.getItem('noor_quran_display_mode_v1') || 'page',
       adhanDurationMode: localStorage.getItem('noor_adhan_duration_mode_v1') || 'full',
+      favoriteDhikrIds: getFavoriteDhikrIds(),
+      customDhikrCounts: safeParseJson<Record<string, number>>(
+        localStorage.getItem('noor_custom_dhikr_counts_v1'),
+        {}
+      ),
+      heroConfig: safeParseJson<Record<string, unknown>>(
+        localStorage.getItem('noor_hero_gallery_config_v3'),
+        {}
+      ),
       adhanStudio: loadAdhanStudio(),
       mosqueTravel: loadMosqueAndTravel(),
+      device_snapshot: collectDeviceUserSnapshot(),
     };
     const quranState = loadQuranContinuity();
     const remindersBackup = {
@@ -93,13 +151,15 @@ export async function syncLocalStateToCloud(userId: string | null | undefined): 
       localStorage.getItem('noor_qaza_ledger_v1') || localStorage.getItem('noor_vip_qaza_v1'),
       {}
     );
+    const activeThemeId =
+      localStorage.getItem('noor_theme_id') || localStorage.getItem('noor_theme') || 'emerald';
 
     const { error } = await supabase
       .from('profiles')
       .update({
         city_id: getGuestCityId(),
         adhan_id: localStorage.getItem('noor_guest_adhan_id') || 'moazenzadeh_ardabili',
-        theme_id: localStorage.getItem('noor_theme') || 'emerald',
+        theme_id: activeThemeId,
         app_settings: appSettings,
         quran_state: quranState,
         reminders_backup: remindersBackup,
@@ -114,7 +174,6 @@ export async function syncLocalStateToCloud(userId: string | null | undefined): 
 
     if (error) return false;
 
-    // همگام‌سازی آمار روزانه تسبیح (بدون از دست رفتن شمارش بین گوشی و کروم)
     const todayTotal = getTodayTotal();
     const todayRounds = getTodayRounds();
     const activeSession = getSession();
@@ -153,6 +212,52 @@ export async function pullCloudStateToLocal(userId: string | null | undefined): 
 
     if (error || !data) return false;
 
+    const freshDevice = isFreshInstallDevice();
+
+    // ۱. بازیابی کامل کلیدهای کاربر روی دستگاه جدید یا بعد از نصب مجدد (ذکرشمار، قضا، زنگوله‌ها، فونت، والپیپر، تعقیبات...)
+    if (data.app_settings && typeof data.app_settings === 'object') {
+      const settings = data.app_settings as Record<string, unknown>;
+      const snap = settings.device_snapshot as Record<string, unknown> | undefined;
+      if (snap && typeof snap === 'object') {
+        for (const [k, v] of Object.entries(snap)) {
+          if (typeof v !== 'string' || isExcludedFromCloudSnapshot(k)) continue;
+          const existing = localStorage.getItem(k);
+          if (freshDevice || existing === null || existing === '' || existing === '[]' || existing === '{}') {
+            localStorage.setItem(k, v);
+          }
+        }
+      }
+
+      // ادغام هوشمند علاقه‌مندی‌های ذکر (Favorites) حتی روی دستگاهی که قبلاً دیتا داشته
+      if (Array.isArray(settings.favoriteDhikrIds)) {
+        const mergedFavs = Array.from(
+          new Set([
+            ...getFavoriteDhikrIds(),
+            ...settings.favoriteDhikrIds.filter((x): x is string => typeof x === 'string'),
+          ])
+        );
+        localStorage.setItem('noor_favorite_dhikrs_v1', JSON.stringify(mergedFavs));
+      }
+
+      // ادغام تعداد دلخواه هر ذکر
+      if (settings.customDhikrCounts && typeof settings.customDhikrCounts === 'object') {
+        const localCounts = safeParseJson<Record<string, number>>(
+          localStorage.getItem('noor_custom_dhikr_counts_v1'),
+          {}
+        );
+        const mergedCounts = {
+          ...(settings.customDhikrCounts as Record<string, number>),
+          ...localCounts,
+        };
+        localStorage.setItem('noor_custom_dhikr_counts_v1', JSON.stringify(mergedCounts));
+      }
+
+      if (settings.mosqueTravel && typeof settings.mosqueTravel === 'object') {
+        const curMt = loadMosqueAndTravel();
+        saveMosqueAndTravel({ ...curMt, ...(settings.mosqueTravel as Partial<typeof curMt>) });
+      }
+    }
+
     if (typeof data.city_id === 'string' && data.city_id.trim()) {
       setGuestCityId(data.city_id);
       window.dispatchEvent(new Event('noor-city-changed'));
@@ -162,12 +267,21 @@ export async function pullCloudStateToLocal(userId: string | null | undefined): 
       localStorage.setItem('noor_guest_adhan_id', data.adhan_id);
     }
 
+    if (typeof data.theme_id === 'string' && data.theme_id.trim()) {
+      localStorage.setItem('noor_theme_id', data.theme_id);
+    }
+
+    // ۲. ادغام نشانک‌ها و موقعیت قرآن
     if (data.quran_state && typeof data.quran_state === 'object' && 'surahIndex' in data.quran_state) {
       const localQ = loadQuranContinuity();
       const cloudQ = data.quran_state as ReturnType<typeof loadQuranContinuity>;
       const mergedBookmarks = [...(cloudQ.bookmarks || [])];
       for (const lb of localQ.bookmarks || []) {
-        if (!mergedBookmarks.some((cb) => cb.surahNameFa === lb.surahNameFa && cb.ayahNumber === lb.ayahNumber)) {
+        if (
+          !mergedBookmarks.some(
+            (cb) => cb.surahNameFa === lb.surahNameFa && cb.ayahNumber === lb.ayahNumber
+          )
+        ) {
           mergedBookmarks.push(lb);
         }
       }
@@ -178,14 +292,7 @@ export async function pullCloudStateToLocal(userId: string | null | undefined): 
       });
     }
 
-    if (data.app_settings && typeof data.app_settings === 'object') {
-      const settings = data.app_settings as Record<string, unknown>;
-      if (settings.mosqueTravel && typeof settings.mosqueTravel === 'object') {
-        const curMt = loadMosqueAndTravel();
-        saveMosqueAndTravel({ ...curMt, ...(settings.mosqueTravel as Partial<typeof curMt>) });
-      }
-    }
-
+    // ۳. ادغام ذکرهای شخصی
     if (Array.isArray(data.custom_dhikrs) && data.custom_dhikrs.length > 0) {
       const localCustom = getCustomDhikr();
       const merged = [...localCustom];
@@ -197,21 +304,30 @@ export async function pullCloudStateToLocal(userId: string | null | undefined): 
       localStorage.setItem('noor_custom_dhikr_v1', JSON.stringify(merged));
     }
 
+    // ۴. بازیابی تعقیبات و آلارم سوره‌ها + کوک مجدد نیتیو در اندروید
     if (data.tawashih_config && typeof data.tawashih_config === 'object' && 'fajr' in data.tawashih_config) {
-      const existingRaw = localStorage.getItem('noor_tawashih_redesign_config_v2');
-      if (!existingRaw) {
+      if (freshDevice || !localStorage.getItem('noor_tawashih_redesign_config_v2')) {
         localStorage.setItem('noor_tawashih_redesign_config_v2', JSON.stringify(data.tawashih_config));
-        void syncAllTawashihNativeAlarms(loadTawashihConfig());
       }
+      void syncAllTawashihNativeAlarms(loadTawashihConfig());
     }
 
     if (data.surah_alarms && typeof data.surah_alarms === 'object' && Object.keys(data.surah_alarms).length > 0) {
-      const existingSurah = localStorage.getItem('noor_surah_native_alarms_v1');
-      if (!existingSurah) {
+      if (freshDevice || !localStorage.getItem('noor_surah_native_alarms_v1')) {
         localStorage.setItem('noor_surah_native_alarms_v1', JSON.stringify(data.surah_alarms));
-        void syncAllSurahNativeAlarms();
       }
+      void syncAllSurahNativeAlarms();
     }
+
+    if (freshDevice) {
+      const notifOn = localStorage.getItem('noor_guest_notif_enabled') !== 'false';
+      void rescheduleAllReminders(notifOn);
+    }
+
+    // اطلاع‌رسانی زنده به تمام صفحات برای رفرش فوری UI
+    window.dispatchEvent(new Event('noor-tasbih-session-changed'));
+    window.dispatchEvent(new Event('noor-hero-config-changed'));
+    window.dispatchEvent(new Event('noor-tawashih-config-synced'));
 
     saveCloudSyncStatus({
       lastSyncedAtIso: new Date().toISOString(),

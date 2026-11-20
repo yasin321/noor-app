@@ -28,6 +28,37 @@ export interface OtaMediaItem {
   catalog_version: number;
 }
 
+export interface RemoteWallpaperItem {
+  id: string;
+  title_fa: string;
+  subtitle_fa: string;
+  category: 'shrine' | 'mosque' | 'occasion' | 'nature';
+  occasion_tag: string;
+  image_url: string;
+  file_size_kb: number;
+  is_featured: boolean;
+  sort_order: number;
+}
+
+export interface RemoteThemeItem {
+  id: string;
+  name_en: string;
+  name_fa: string;
+  occasion_fa: string;
+  bg_color: string;
+  surface_color: string;
+  surface_alt_color: string;
+  card_color: string;
+  primary_color: string;
+  accent_color: string;
+  text_color: string;
+  text_muted_color: string;
+  border_color: string;
+  wallpaper_url: string;
+  is_featured: boolean;
+  sort_order: number;
+}
+
 export interface RemoteAppRelease {
   platform: 'android' | 'web_ios' | 'chrome_ext';
   version_code: number;
@@ -50,6 +81,8 @@ export interface GlobalSyncSnapshot {
   syncedAtIso: string | null;
   catalogVersion: number;
   mediaItems: OtaMediaItem[];
+  wallpapers: RemoteWallpaperItem[];
+  themes: RemoteThemeItem[];
   latestRelease: RemoteAppRelease | null;
   updateAvailable: boolean;
   forceUpdate: boolean;
@@ -58,6 +91,8 @@ export interface GlobalSyncSnapshot {
 }
 
 const OTA_CATALOG_KEY = 'noor_ota_media_catalog_v1';
+const OTA_WALLPAPERS_KEY = 'noor_ota_wallpapers_v1';
+const OTA_THEMES_KEY = 'noor_ota_themes_v1';
 const GLOBAL_SYNC_STATE_KEY = 'noor_global_sync_snapshot_v1';
 const DISMISSED_UPDATE_KEY = 'noor_dismissed_release_code_v1';
 const DISMISSED_ANNOUNCEMENT_KEY = 'noor_dismissed_announcement_v1';
@@ -82,6 +117,28 @@ export function getCachedOtaMediaCatalog(): OtaMediaItem[] {
   }
 }
 
+export function getCachedRemoteWallpapers(): RemoteWallpaperItem[] {
+  try {
+    const raw = localStorage.getItem(OTA_WALLPAPERS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as RemoteWallpaperItem[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function getCachedRemoteThemes(): RemoteThemeItem[] {
+  try {
+    const raw = localStorage.getItem(OTA_THEMES_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as RemoteThemeItem[]) : [];
+  } catch {
+    return [];
+  }
+}
+
 export function getCachedGlobalSyncSnapshot(): GlobalSyncSnapshot {
   try {
     const raw = localStorage.getItem(GLOBAL_SYNC_STATE_KEY);
@@ -91,6 +148,8 @@ export function getCachedGlobalSyncSnapshot(): GlobalSyncSnapshot {
         syncedAtIso: parsed.syncedAtIso ?? null,
         catalogVersion: typeof parsed.catalogVersion === 'number' ? parsed.catalogVersion : 0,
         mediaItems: Array.isArray(parsed.mediaItems) ? parsed.mediaItems : getCachedOtaMediaCatalog(),
+        wallpapers: Array.isArray(parsed.wallpapers) ? parsed.wallpapers : getCachedRemoteWallpapers(),
+        themes: Array.isArray(parsed.themes) ? parsed.themes : getCachedRemoteThemes(),
         latestRelease: parsed.latestRelease ?? null,
         updateAvailable: Boolean(parsed.updateAvailable),
         forceUpdate: Boolean(parsed.forceUpdate),
@@ -103,6 +162,8 @@ export function getCachedGlobalSyncSnapshot(): GlobalSyncSnapshot {
     syncedAtIso: null,
     catalogVersion: 0,
     mediaItems: getCachedOtaMediaCatalog(),
+    wallpapers: getCachedRemoteWallpapers(),
+    themes: getCachedRemoteThemes(),
     latestRelease: null,
     updateAvailable: false,
     forceUpdate: false,
@@ -114,9 +175,12 @@ export function getCachedGlobalSyncSnapshot(): GlobalSyncSnapshot {
 function saveGlobalSyncSnapshot(snap: GlobalSyncSnapshot): void {
   try {
     localStorage.setItem(OTA_CATALOG_KEY, JSON.stringify(snap.mediaItems));
+    localStorage.setItem(OTA_WALLPAPERS_KEY, JSON.stringify(snap.wallpapers));
+    localStorage.setItem(OTA_THEMES_KEY, JSON.stringify(snap.themes));
     localStorage.setItem(GLOBAL_SYNC_STATE_KEY, JSON.stringify(snap));
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent(GLOBAL_SYNC_UPDATED_EVENT, { detail: snap }));
+      window.dispatchEvent(new Event('noor-hero-config-changed'));
     }
   } catch {}
 }
@@ -174,10 +238,24 @@ export async function listOfflineOtaMediaIds(): Promise<string[]> {
 
 export async function runGlobalSync(opts?: {
   forceCatalogRefresh?: boolean;
-}): Promise<{ ok: boolean; snapshot: GlobalSyncSnapshot; newTracksCount: number; error?: string }> {
+}): Promise<{
+  ok: boolean;
+  snapshot: GlobalSyncSnapshot;
+  newTracksCount: number;
+  newWallpapersCount: number;
+  newThemesCount: number;
+  error?: string;
+}> {
   const prev = getCachedGlobalSyncSnapshot();
   if (!isSupabaseConfigured) {
-    return { ok: false, snapshot: prev, newTracksCount: 0, error: 'اتصال ابری تنظیم نشده است' };
+    return {
+      ok: false,
+      snapshot: prev,
+      newTracksCount: 0,
+      newWallpapersCount: 0,
+      newThemesCount: 0,
+      error: 'اتصال ابری تنظیم نشده است',
+    };
   }
 
   try {
@@ -202,20 +280,55 @@ export async function runGlobalSync(opts?: {
 
     const remoteCatalogVer = meta?.catalog_version ?? 1;
     let mediaItems = prev.mediaItems;
+    let wallpapers = prev.wallpapers;
+    let themes = prev.themes;
     let newTracksCount = 0;
+    let newWallpapersCount = 0;
+    let newThemesCount = 0;
 
-    if (opts?.forceCatalogRefresh || remoteCatalogVer > prev.catalogVersion || prev.mediaItems.length === 0) {
-      const { data: catalogData } = await supabase
-        .from('media_catalog')
-        .select('*')
-        .eq('is_active', true)
-        .order('sort_order', { ascending: true });
+    const shouldFetchCatalog =
+      opts?.forceCatalogRefresh ||
+      remoteCatalogVer > prev.catalogVersion ||
+      (prev.mediaItems.length === 0 && prev.wallpapers.length === 0 && prev.themes.length === 0);
 
-      if (Array.isArray(catalogData)) {
+    if (shouldFetchCatalog) {
+      const [catRes, wpRes, thRes] = await Promise.all([
+        supabase
+          .from('media_catalog')
+          .select('*')
+          .eq('is_active', true)
+          .order('sort_order', { ascending: true }),
+        supabase
+          .from('remote_wallpapers')
+          .select('*')
+          .eq('is_active', true)
+          .order('sort_order', { ascending: true }),
+        supabase
+          .from('remote_themes')
+          .select('*')
+          .eq('is_active', true)
+          .order('sort_order', { ascending: true }),
+      ]);
+
+      if (Array.isArray(catRes.data)) {
         const prevIds = new Set(prev.mediaItems.map((x) => x.id));
-        const nextItems = catalogData as OtaMediaItem[];
+        const nextItems = catRes.data as OtaMediaItem[];
         newTracksCount = nextItems.filter((x) => !prevIds.has(x.id)).length;
         mediaItems = nextItems;
+      }
+
+      if (Array.isArray(wpRes.data)) {
+        const prevWpIds = new Set(prev.wallpapers.map((x) => x.id));
+        const nextWps = wpRes.data as RemoteWallpaperItem[];
+        newWallpapersCount = nextWps.filter((x) => !prevWpIds.has(x.id)).length;
+        wallpapers = nextWps;
+      }
+
+      if (Array.isArray(thRes.data)) {
+        const prevThIds = new Set(prev.themes.map((x) => x.id));
+        const nextThs = thRes.data as RemoteThemeItem[];
+        newThemesCount = nextThs.filter((x) => !prevThIds.has(x.id)).length;
+        themes = nextThs;
       }
     }
 
@@ -234,6 +347,8 @@ export async function runGlobalSync(opts?: {
       syncedAtIso: new Date().toISOString(),
       catalogVersion: remoteCatalogVer,
       mediaItems,
+      wallpapers,
+      themes,
       latestRelease,
       updateAvailable: hasNewRelease,
       forceUpdate: mustForceUpdate,
@@ -242,8 +357,15 @@ export async function runGlobalSync(opts?: {
     };
 
     saveGlobalSyncSnapshot(nextSnap);
-    return { ok: true, snapshot: nextSnap, newTracksCount };
+    return { ok: true, snapshot: nextSnap, newTracksCount, newWallpapersCount, newThemesCount };
   } catch {
-    return { ok: false, snapshot: prev, newTracksCount: 0, error: 'ارتباط با سرور نور برقرار نشد' };
+    return {
+      ok: false,
+      snapshot: prev,
+      newTracksCount: 0,
+      newWallpapersCount: 0,
+      newThemesCount: 0,
+      error: 'ارتباط با سرور نور برقرار نشد',
+    };
   }
 }

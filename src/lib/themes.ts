@@ -1,3 +1,5 @@
+import { getCachedRemoteThemes, type RemoteThemeItem } from '@/lib/globalSyncService';
+
 export type Theme = {
   id: string;
   name: string;
@@ -14,6 +16,10 @@ export type Theme = {
   border: string;
   card: string;
   gradient: string;
+  occasionFa?: string;
+  wallpaperUrl?: string;
+  isRemoteOta?: boolean;
+  isFeatured?: boolean;
 };
 
 export type ThemeConfig = Theme;
@@ -228,7 +234,49 @@ export const themes: Theme[] = [
 
 export const THEMES: Theme[] = themes;
 
+function hexToRgbaGlow(hex: string, alpha = 0.28): string {
+  const clean = (hex || '').replace('#', '').trim();
+  if (/^[0-9a-fA-F]{6}$/.test(clean)) {
+    const r = parseInt(clean.slice(0, 2), 16);
+    const g = parseInt(clean.slice(2, 4), 16);
+    const b = parseInt(clean.slice(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+  return 'rgba(52, 211, 153, 0.26)';
+}
+
+function mapRemoteThemeToAppTheme(rt: RemoteThemeItem): Theme {
+  return {
+    id: rt.id,
+    name: rt.name_en || rt.name_fa,
+    nameFa: rt.name_fa,
+    nameEn: rt.name_en || rt.name_fa,
+    bg: rt.bg_color || '#071a16',
+    surface: rt.surface_color || '#0d2e26',
+    surfaceAlt: rt.surface_alt_color || rt.surface_color || '#113e33',
+    card: rt.card_color || rt.surface_color || 'rgba(17, 62, 51, 0.78)',
+    primary: rt.primary_color || '#34d399',
+    primaryGlow: hexToRgbaGlow(rt.primary_color || '#34d399', 0.28),
+    accent: rt.accent_color || '#fbbf24',
+    text: rt.text_color || '#f8fafc',
+    textMuted: rt.text_muted_color || '#94a3b8',
+    border: rt.border_color || 'rgba(255, 255, 255, 0.14)',
+    gradient: `linear-gradient(135deg, ${rt.surface_alt_color || rt.surface_color} 0%, ${rt.bg_color} 72%)`,
+    occasionFa: rt.occasion_fa || '',
+    wallpaperUrl: rt.wallpaper_url || '',
+    isRemoteOta: true,
+    isFeatured: Boolean(rt.is_featured),
+  };
+}
+
+export function getAllThemes(): Theme[] {
+  const remoteList = getCachedRemoteThemes().map(mapRemoteThemeToAppTheme);
+  const builtInIds = new Set(themes.map((t) => t.id));
+  const uniqueRemote = remoteList.filter((r) => !builtInIds.has(r.id));
+  return [...uniqueRemote, ...themes];
+}
+
 export function getThemeById(id: string): Theme {
-  const found = themes.find((t: Theme) => t.id === id);
+  const found = getAllThemes().find((t: Theme) => t.id === id);
   return found ?? themes[0];
 }

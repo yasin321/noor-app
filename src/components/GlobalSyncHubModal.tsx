@@ -15,6 +15,8 @@ import {
   Volume2,
   ArrowUpCircle,
   LogIn,
+  Image as ImageIcon,
+  Palette,
 } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { useTheme } from '@/hooks/useTheme';
@@ -28,12 +30,15 @@ import {
   type GlobalSyncSnapshot,
   type OtaMediaItem,
   type OtaMediaCategory,
+  type RemoteWallpaperItem,
+  type RemoteThemeItem,
 } from '@/lib/globalSyncService';
 import {
   getLastCloudSyncStatus,
   runFullUserCloudSync,
   type CloudSyncStatus,
 } from '@/lib/cloudSyncService';
+import { saveHeroConfig, loadHeroConfig } from '@/components/HeroHorizon30Gallery';
 import { rescheduleAllReminders } from '@/lib/reminderService';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { toFaDigits } from '@/lib/jalali';
@@ -65,16 +70,18 @@ function formatSyncTimeFa(iso: string | null): string {
 }
 
 export function GlobalSyncHubModal({ onClose, onOpenAuth, onAppliedAdhan }: Props) {
-  const { theme } = useTheme();
+  const { theme, themeId, setThemeId } = useTheme();
   const { user, profile, updateProfile } = useAuth();
   const [snap, setSnap] = useState<GlobalSyncSnapshot>(() => getCachedGlobalSyncSnapshot());
   const [cloudStatus, setCloudStatus] = useState<CloudSyncStatus>(() => getLastCloudSyncStatus());
   const [syncing, setSyncing] = useState(false);
   const [statusBanner, setStatusBanner] = useState<string | null>(null);
+  const [hubTab, setHubTab] = useState<'audio' | 'wallpapers' | 'themes'>('audio');
   const [selectedCat, setSelectedCat] = useState<'all' | OtaMediaCategory>('all');
   const [offlineIds, setOfflineIds] = useState<string[]>([]);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [playingId, setPlayingId] = useState<string | null>(null);
+  const [activeHeroId, setActiveHeroId] = useState<string>(() => loadHeroConfig().selectedId);
   const [activeAdhanId, setActiveAdhanId] = useState<string>(() => {
     try {
       return localStorage.getItem('noor_guest_adhan_id') || 'moazenzadeh_ardabili';
@@ -103,7 +110,7 @@ export function GlobalSyncHubModal({ onClose, onOpenAuth, onAppliedAdhan }: Prop
 
   const flashBanner = (msg: string) => {
     setStatusBanner(msg);
-    window.setTimeout(() => setStatusBanner(null), 4200);
+    window.setTimeout(() => setStatusBanner(null), 4400);
   };
 
   const handleGlobalSyncNow = async () => {
@@ -126,16 +133,18 @@ export function GlobalSyncHubModal({ onClose, onOpenAuth, onAppliedAdhan }: Prop
         flashBanner('⚠️ ' + (globalRes.error || 'اتصال اینترنت را بررسی کنید و دوباره تلاش نمایید.'));
       } else {
         const parts: string[] = [];
-        if (globalRes.newTracksCount > 0) {
-          parts.push(toFaDigits(globalRes.newTracksCount) + ' نوای جدید دریافت شد');
+        const totalNew =
+          globalRes.newTracksCount + globalRes.newWallpapersCount + globalRes.newThemesCount;
+        if (totalNew > 0) {
+          parts.push(toFaDigits(totalNew) + ' محتوای جدید دریافت شد');
         } else {
-          parts.push('کاتالوگ نواها و نسخه بررسی شد');
+          parts.push('نواها، والپیپرها، تم‌ها و نسخه بررسی شد');
         }
         if (globalRes.snapshot.updateAvailable && globalRes.snapshot.latestRelease) {
           parts.push('نسخه جدید ' + globalRes.snapshot.latestRelease.version_name + ' آماده نصب است');
         }
         if (cloudOk) {
-          parts.push('پشتیبان ابری حساب شما همگام شد');
+          parts.push('پشتیبان ابری حساب همگام شد');
         }
         flashBanner('✅ ' + parts.join(' · '));
       }
@@ -188,11 +197,35 @@ export function GlobalSyncHubModal({ onClose, onOpenAuth, onAppliedAdhan }: Prop
         onAppliedAdhan?.(item.id);
         flashBanner('✅ «' + item.title_fa + '» دانلود و به عنوان مؤذن اصلی گوشی فعال شد!');
       } else {
-        flashBanner('✅ «' + item.title_fa + '» برای پخش آفلاین روی گوشی ذخیره شد.');
+        flashBanner('✅ «' + item.title_fa + '» ذخیره شد و داخل کشوی تعقیبات هم در دسترس است.');
       }
     } finally {
       setDownloadingId(null);
     }
+  };
+
+  const handleApplyRemoteWallpaper = (wp: RemoteWallpaperItem) => {
+    const heroId = 'ota_wp_' + wp.id;
+    saveHeroConfig({ mode: 'manual', selectedId: heroId });
+    setActiveHeroId(heroId);
+    flashBanner('✅ منظره «' + wp.title_fa + '» روی بالای صفحه خانه اعمال شد!');
+  };
+
+  const handleApplyRemoteTheme = async (rt: RemoteThemeItem) => {
+    setThemeId(rt.id);
+    if (rt.wallpaper_url) {
+      const heroId = 'ota_theme_wp_' + rt.id;
+      saveHeroConfig({ mode: 'manual', selectedId: heroId });
+      setActiveHeroId(heroId);
+    }
+    if (profile) {
+      await updateProfile({ theme_id: rt.id });
+    }
+    flashBanner(
+      rt.wallpaper_url
+        ? '✨ تم مناسبتی «' + rt.name_fa + '» به همراه والپیپر هماهنگش فعال شد!'
+        : '✨ پوسته «' + rt.name_fa + '» روی کل برنامه فعال شد!'
+    );
   };
 
   const filteredItems = snap.mediaItems.filter(
@@ -230,9 +263,9 @@ export function GlobalSyncHubModal({ onClose, onOpenAuth, onAppliedAdhan }: Prop
               <Cloud size={20} />
             </div>
             <div>
-              <h2 className="text-base font-black text-app">مرکز همگام‌سازی و نواهای جدید</h2>
+              <h2 className="text-base font-black text-app">مرکز سینک گلوبال و محتوای زنده</h2>
               <p className="text-[11px] text-muted mt-0.5">
-                همگام‌سازی ابری حساب · دریافت اذان و تواشیح جدید بدون آپدیت اپ
+                اذان و تواشیح جدید · والپیپر حرم · تم‌های مناسبتی و بکاپ ابری
               </p>
             </div>
           </div>
@@ -310,11 +343,10 @@ export function GlobalSyncHubModal({ onClose, onOpenAuth, onAppliedAdhan }: Prop
             <span>
               {syncing
                 ? 'در حال همگام‌سازی با سرور نور...'
-                : 'بررسی نواهای جدید، نسخه اپ و همگام‌سازی حساب'}
+                : 'بررسی نواها، والپیپرها، تم‌ها و همگام‌سازی حساب'}
             </span>
           </button>
 
-          {/* وضعیت حساب کاربری چنددستگاهی */}
           <div
             className="pt-2.5 border-t flex items-center justify-between gap-2 text-[11px]"
             style={{ borderColor: theme.border }}
@@ -373,15 +405,11 @@ export function GlobalSyncHubModal({ onClose, onOpenAuth, onAppliedAdhan }: Prop
                   : 'نسخه فعلی شما به‌روز است (' + currentVer.versionName + ')'}
               </span>
             </p>
-            {snap.updateAvailable && snap.latestRelease?.changelog_fa ? (
-              <p className="text-[10.5px] text-muted mt-0.5 leading-relaxed">
-                {snap.latestRelease.changelog_fa}
-              </p>
-            ) : (
-              <p className="text-[10.5px] text-muted mt-0.5">
-                هر زمان نسخه جدیدی منتشر شود، خودکار اینجا نمایش داده می‌شود.
-              </p>
-            )}
+            <p className="text-[10.5px] text-muted mt-0.5 leading-relaxed">
+              {snap.updateAvailable && snap.latestRelease?.changelog_fa
+                ? snap.latestRelease.changelog_fa
+                : 'به‌محض انتشار نسخه جدید، دکمه دانلود مستقیم همین‌جا ظاهر می‌شود.'}
+            </p>
           </div>
           {snap.updateAvailable && snap.latestRelease && (
             <a
@@ -396,127 +424,267 @@ export function GlobalSyncHubModal({ onClose, onOpenAuth, onAppliedAdhan }: Prop
           )}
         </div>
 
-        {/* کتابخانه زنده نواها و اذان‌های جدید (OTA) */}
-        <div className="space-y-2.5">
-          <div className="flex items-center justify-between px-0.5">
-            <h3 className="text-xs font-black text-app flex items-center gap-1.5">
-              <Volume2 size={15} color={theme.primary} />
-              <span>کتابخانه آنلاین اذان و نواهای جدید ({toFaDigits(snap.mediaItems.length)})</span>
-            </h3>
-          </div>
-
-          <div className="flex gap-1.5 overflow-x-auto pb-1">
-            {(Object.keys(CATEGORY_LABELS) as Array<'all' | OtaMediaCategory>).map((cat) => (
+        {/* تب‌های ۳گانه محتوای زنده (نواها / والپیپرها / تم‌های مناسبتی) */}
+        <div
+          className="grid grid-cols-3 gap-1.5 p-1 rounded-2xl border"
+          style={{ background: theme.bg, borderColor: theme.border }}
+        >
+          {[
+            { id: 'audio' as const, label: 'نواها', count: snap.mediaItems.length, Icon: Volume2 },
+            { id: 'wallpapers' as const, label: 'والپیپرها', count: snap.wallpapers.length, Icon: ImageIcon },
+            { id: 'themes' as const, label: 'تم مناسبتی', count: snap.themes.length, Icon: Palette },
+          ].map((tabItem) => {
+            const active = hubTab === tabItem.id;
+            const IconComp = tabItem.Icon;
+            return (
               <button
-                key={cat}
+                key={tabItem.id}
                 type="button"
-                onClick={() => setSelectedCat(cat)}
-                className="px-2.5 py-1 rounded-xl text-[10.5px] font-bold border shrink-0 transition-all"
+                onClick={() => {
+                  stopPreview();
+                  setHubTab(tabItem.id);
+                }}
+                className="py-2 rounded-xl text-[11px] font-black flex items-center justify-center gap-1 transition-all"
                 style={{
-                  borderColor: selectedCat === cat ? theme.primary : theme.border,
-                  background: selectedCat === cat ? theme.primary : theme.bg,
-                  color: selectedCat === cat ? theme.bg : theme.textMuted,
+                  background: active ? theme.primary : 'transparent',
+                  color: active ? theme.bg : theme.textMuted,
                 }}
               >
-                {CATEGORY_LABELS[cat]}
+                <IconComp size={13} />
+                <span>
+                  {tabItem.label} ({toFaDigits(tabItem.count)})
+                </span>
               </button>
-            ))}
-          </div>
+            );
+          })}
+        </div>
 
-          {filteredItems.length === 0 ? (
+        {/* محتوای تب انتخاب‌شده */}
+        {hubTab === 'audio' ? (
+          <div className="space-y-2.5">
+            <div className="flex gap-1.5 overflow-x-auto pb-1">
+              {(Object.keys(CATEGORY_LABELS) as Array<'all' | OtaMediaCategory>).map((cat) => (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setSelectedCat(cat)}
+                  className="px-2.5 py-1 rounded-xl text-[10.5px] font-bold border shrink-0 transition-all"
+                  style={{
+                    borderColor: selectedCat === cat ? theme.primary : theme.border,
+                    background: selectedCat === cat ? theme.primary : theme.bg,
+                    color: selectedCat === cat ? theme.bg : theme.textMuted,
+                  }}
+                >
+                  {CATEGORY_LABELS[cat]}
+                </button>
+              ))}
+            </div>
+
+            {filteredItems.length === 0 ? (
+              <div
+                className="rounded-2xl p-5 border text-center space-y-1.5"
+                style={{ background: theme.bg, borderColor: theme.border }}
+              >
+                <p className="text-xs font-bold text-app">فعلاً نوای آنلاین تازه‌ای در این دسته نیست</p>
+                <p className="text-[10.5px] text-muted leading-relaxed">
+                  هر اذان، تواشیح یا دعایی که منتشر شود، خودکار اینجا و در لیست مؤذنان/تعقیبات اضافه می‌شود.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-60 overflow-y-auto pr-0.5">
+                {filteredItems.map((item) => {
+                  const isOffline = offlineIds.includes(item.id);
+                  const isPlaying = playingId === item.id;
+                  const isDownloading = downloadingId === item.id;
+                  const isSelectedAdhan = item.category === 'adhan' && activeAdhanId === item.id;
+
+                  return (
+                    <div
+                      key={item.id}
+                      className="rounded-2xl p-3 border space-y-2"
+                      style={{
+                        background: theme.bg,
+                        borderColor: isSelectedAdhan ? theme.primary : theme.border,
+                      }}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-xs font-black text-app truncate">{item.title_fa}</p>
+                          <p className="text-[10.5px] text-muted truncate mt-0.5">
+                            {[item.reciter_fa, item.subtitle_fa, item.duration_fa]
+                              .filter(Boolean)
+                              .join(' · ')}
+                          </p>
+                        </div>
+                        <span
+                          className="px-2 py-0.5 rounded-lg text-[9.5px] font-bold shrink-0"
+                          style={{
+                            background: 'color-mix(in srgb, ' + theme.accent + ' 16%, transparent)',
+                            color: theme.accent,
+                          }}
+                        >
+                          {CATEGORY_LABELS[item.category]}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleTogglePlay(item)}
+                          className="px-3 py-1.5 rounded-xl text-[11px] font-bold border flex items-center gap-1"
+                          style={{
+                            borderColor: isPlaying ? '#f87171' : theme.accent,
+                            color: isPlaying ? '#fca5a5' : theme.accent,
+                          }}
+                        >
+                          {isPlaying ? <Square size={11} /> : <Play size={11} />}
+                          <span>{isPlaying ? 'توقف' : 'شنیدن'}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={isDownloading}
+                          onClick={() => void handleDownloadAndUse(item, item.category === 'adhan')}
+                          className="flex-1 py-1.5 rounded-xl text-[11px] font-black flex items-center justify-center gap-1.5 disabled:opacity-60"
+                          style={{
+                            background: isSelectedAdhan
+                              ? 'color-mix(in srgb, ' + theme.primary + ' 18%, transparent)'
+                              : theme.primary,
+                            color: isSelectedAdhan ? theme.primary : theme.bg,
+                          }}
+                        >
+                          {isSelectedAdhan ? (
+                            <>
+                              <Check size={13} /> مؤذن فعال شما
+                            </>
+                          ) : isDownloading ? (
+                            'در حال دریافت...'
+                          ) : item.category === 'adhan' ? (
+                            <>
+                              <Download size={12} /> {isOffline ? 'انتخاب مؤذن' : 'دانلود و انتخاب مؤذن'}
+                            </>
+                          ) : (
+                            <>
+                              <Download size={12} /> {isOffline ? 'ذخیره‌شده روی گوشی ✓' : 'ذخیره آفلاین'}
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        ) : hubTab === 'wallpapers' ? (
+          snap.wallpapers.length === 0 ? (
             <div
               className="rounded-2xl p-5 border text-center space-y-1.5"
               style={{ background: theme.bg, borderColor: theme.border }}
             >
-              <p className="text-xs font-bold text-app">فعلاً نوای آنلاین تازه‌ای در این دسته ثبت نشده</p>
+              <p className="text-xs font-bold text-app">فعلاً والپیپر آنلاین جدیدی ثبت نشده</p>
               <p className="text-[10.5px] text-muted leading-relaxed">
-                به‌محض انتشار اذان، تواشیح یا دعای جدید در سرور نور، با دکمه «سینک گلوبال» بدون نیاز به آپدیت برنامه اینجا اضافه می‌شود.
+                به‌محض انتشار تصاویر جدید حرم‌ها و مناظر مناسبتی، اینجا و در گالری صفحه خانه نمایش داده می‌شوند.
               </p>
             </div>
           ) : (
-            <div className="space-y-2 max-h-60 overflow-y-auto pr-0.5">
-              {filteredItems.map((item) => {
-                const isOffline = offlineIds.includes(item.id);
-                const isPlaying = playingId === item.id;
-                const isDownloading = downloadingId === item.id;
-                const isSelectedAdhan = item.category === 'adhan' && activeAdhanId === item.id;
-
+            <div className="grid grid-cols-2 gap-2.5 max-h-64 overflow-y-auto pr-0.5">
+              {snap.wallpapers.map((wp) => {
+                const isSelected = activeHeroId === 'ota_wp_' + wp.id;
                 return (
-                  <div
-                    key={item.id}
-                    className="rounded-2xl p-3 border space-y-2"
+                  <button
+                    key={wp.id}
+                    type="button"
+                    onClick={() => handleApplyRemoteWallpaper(wp)}
+                    className="rounded-2xl overflow-hidden border text-right transition-transform active:scale-[0.98]"
                     style={{
                       background: theme.bg,
-                      borderColor: isSelectedAdhan ? theme.primary : theme.border,
+                      borderColor: isSelected ? theme.primary : theme.border,
                     }}
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="text-xs font-black text-app truncate">{item.title_fa}</p>
-                        <p className="text-[10.5px] text-muted truncate mt-0.5">
-                          {[item.reciter_fa, item.subtitle_fa, item.duration_fa].filter(Boolean).join(' · ')}
-                        </p>
-                      </div>
-                      <span
-                        className="px-2 py-0.5 rounded-lg text-[9.5px] font-bold shrink-0"
-                        style={{
-                          background: 'color-mix(in srgb, ' + theme.accent + ' 16%, transparent)',
-                          color: theme.accent,
-                        }}
-                      >
-                        {CATEGORY_LABELS[item.category]}
-                      </span>
+                    <div className="h-24 w-full relative overflow-hidden bg-black/30">
+                      <img
+                        src={wp.image_url}
+                        alt={wp.title_fa}
+                        className="w-full h-full object-cover"
+                      />
+                      {isSelected && (
+                        <span
+                          className="absolute top-2 left-2 w-6 h-6 rounded-full flex items-center justify-center"
+                          style={{ background: theme.primary, color: theme.bg }}
+                        >
+                          <Check size={13} />
+                        </span>
+                      )}
                     </div>
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleTogglePlay(item)}
-                        className="px-3 py-1.5 rounded-xl text-[11px] font-bold border flex items-center gap-1"
-                        style={{
-                          borderColor: isPlaying ? '#f87171' : theme.accent,
-                          color: isPlaying ? '#fca5a5' : theme.accent,
-                        }}
-                      >
-                        {isPlaying ? <Square size={11} /> : <Play size={11} />}
-                        <span>{isPlaying ? 'توقف' : 'شنیدن'}</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        disabled={isDownloading}
-                        onClick={() => void handleDownloadAndUse(item, item.category === 'adhan')}
-                        className="flex-1 py-1.5 rounded-xl text-[11px] font-black flex items-center justify-center gap-1.5 disabled:opacity-60"
-                        style={{
-                          background: isSelectedAdhan
-                            ? 'color-mix(in srgb, ' + theme.primary + ' 18%, transparent)'
-                            : theme.primary,
-                          color: isSelectedAdhan ? theme.primary : theme.bg,
-                        }}
-                      >
-                        {isSelectedAdhan ? (
-                          <>
-                            <Check size={13} /> مؤذن فعال شما
-                          </>
-                        ) : isDownloading ? (
-                          'در حال دریافت...'
-                        ) : item.category === 'adhan' ? (
-                          <>
-                            <Download size={12} /> {isOffline ? 'انتخاب مؤذن' : 'دانلود و انتخاب مؤذن'}
-                          </>
-                        ) : (
-                          <>
-                            <Download size={12} /> {isOffline ? 'ذخیره‌شده روی گوشی ✓' : 'ذخیره آفلاین'}
-                          </>
-                        )}
-                      </button>
+                    <div className="p-2.5">
+                      <p className="text-xs font-black text-app truncate">{wp.title_fa}</p>
+                      <p className="text-[10px] text-muted truncate mt-0.5">
+                        {wp.occasion_tag || wp.subtitle_fa || 'لمس برای اعمال در صفحه خانه'}
+                      </p>
                     </div>
-                  </div>
+                  </button>
                 );
               })}
             </div>
-          )}
-        </div>
+          )
+        ) : snap.themes.length === 0 ? (
+          <div
+            className="rounded-2xl p-5 border text-center space-y-1.5"
+            style={{ background: theme.bg, borderColor: theme.border }}
+          >
+            <p className="text-xs font-bold text-app">فعلاً تم مناسبتی آنلاین جدیدی منتشر نشده</p>
+            <p className="text-[10.5px] text-muted leading-relaxed">
+              پوسته‌های مناسبتی جدید (رمضان، محرم، غدیر، نوروز...) بدون آپدیت اپ همین‌جا و در بخش پوسته اضافه می‌شوند.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-2 max-h-64 overflow-y-auto pr-0.5">
+            {snap.themes.map((rt) => {
+              const active = themeId === rt.id;
+              return (
+                <button
+                  key={rt.id}
+                  type="button"
+                  onClick={() => void handleApplyRemoteTheme(rt)}
+                  className="w-full rounded-2xl p-3 border flex items-center justify-between gap-3 text-right transition-transform active:scale-[0.99]"
+                  style={{
+                    background: rt.surface_color || theme.bg,
+                    borderColor: active ? rt.primary_color : theme.border,
+                  }}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div
+                      className="w-11 h-11 rounded-xl shrink-0 border flex items-center justify-center"
+                      style={{
+                        background:
+                          'linear-gradient(135deg, ' + rt.primary_color + ', ' + rt.accent_color + ')',
+                        borderColor: 'rgba(255,255,255,0.2)',
+                      }}
+                    >
+                      {active ? <Check size={17} color={rt.bg_color} /> : <Palette size={17} color={rt.bg_color} />}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-black truncate" style={{ color: rt.text_color || '#fff' }}>
+                        {rt.name_fa}
+                      </p>
+                      <p className="text-[10px] truncate mt-0.5" style={{ color: rt.text_muted_color || '#cbd5e1' }}>
+                        {rt.occasion_fa || 'پوسته مناسبتی ویژه'}
+                        {rt.wallpaper_url ? ' · همراه با والپیپر هماهنگ' : ''}
+                      </p>
+                    </div>
+                  </div>
+                  <span
+                    className="px-2.5 py-1 rounded-xl text-[10.5px] font-black shrink-0"
+                    style={{ background: rt.primary_color, color: rt.bg_color }}
+                  >
+                    {active ? 'فعال ✓' : 'اعمال'}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {/* نقشه اکوسیستم چندپلتفرمه نور */}
         <div

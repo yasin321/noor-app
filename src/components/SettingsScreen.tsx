@@ -1,5 +1,5 @@
 import { createPortal } from 'react-dom';
-import { Hero30SelectorModal, loadHeroConfig, resolveActiveHeroDesign, RenderHeroArtworkScene } from '@/components/HeroHorizon30Gallery';
+import { Hero30SelectorModal, loadHeroConfig, saveHeroConfig, resolveActiveHeroDesign, RenderHeroArtworkScene } from '@/components/HeroHorizon30Gallery';
 import { ThemePatternWatermark } from '@/components/FigmaLuxuryElements';
 import { getTemperatureUnit, setTemperatureUnit, type TempUnit } from '@/lib/weatherService';
 
@@ -17,9 +17,9 @@ import { useTheme } from '@/hooks/useTheme';
 import { OCCASION_MOTIFS, getSelectedOccasionMotif, setSelectedOccasionMotif, type OccasionMotifId } from '@/components/ThemeBackdropPattern';
 
 import { useAuth } from '@/hooks/useAuth';
-import { themes } from '@/lib/themes';
+import { themes, getAllThemes } from '@/lib/themes';
 import {
-  adhans, getDownloadedAdhanIds, syncNativeDownloadedAdhans, downloadAndCacheAdhan,
+  adhans, getAllAdhans, getDownloadedAdhanIds, syncNativeDownloadedAdhans, downloadAndCacheAdhan,
   playAdhanPreview, stopAdhanPreview, getAdhanDurationMode, setAdhanDurationMode,
   getAdhanDurationSeconds, type Adhan, type AdhanPlaybackDurationMode
 } from '@/lib/adhans';
@@ -546,7 +546,9 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   const currentMethod = profile?.calculation_method ?? guestMethod;
   const methods = getAvailableMethods();
   const selectedAdhanId = profile?.adhan_id ?? guestAdhanId;
-  const selectedAdhanObj = adhans.find((a) => a.id === selectedAdhanId) ?? adhans[0];
+  const allAdhans = getAllAdhans();
+  const allThemes = getAllThemes();
+  const selectedAdhanObj = allAdhans.find((a) => a.id === selectedAdhanId) ?? adhans[0];
   const selectedFontObj = FONT_OPTIONS.find((f) => f.id === fontFamily) ?? FONT_OPTIONS[0];
 
   const applyCity = async (id: string) => {
@@ -560,6 +562,10 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
 
   const applyTheme = async (id: string) => {
     setThemeId(id);
+    const matched = getAllThemes().find((t) => t.id === id);
+    if (matched?.wallpaperUrl) {
+      saveHeroConfig({ mode: 'manual', selectedId: 'ota_theme_wp_' + matched.id });
+    }
     if (profile) await updateProfile({ theme_id: id });
   };
 
@@ -842,7 +848,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
         <SubHeader title="پوسته و ظاهر" />
           <ThemeHeroSelectorCard theme={theme} />
         <div className="grid grid-cols-2 gap-3">
-          {themes.map((t) => (
+          {allThemes.map((t) => (
             <button
               key={t.id}
               onClick={() => void applyTheme(t.id)}
@@ -850,6 +856,14 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
               style={{ borderColor: themeId === t.id ? t.primary : theme.border }}
             >
               <div className="w-full h-20 rounded-xl mb-3" style={{ background: t.gradient }} />
+              {t.isRemoteOta && (
+                <span
+                  className="inline-block mb-1 px-2 py-0.5 rounded-full text-[9px] font-black"
+                  style={{ background: 'rgba(16, 185, 129, 0.2)', color: '#34d399' }}
+                >
+                  ✨ {t.occasionFa || 'پوسته جدید آنلاین'}
+                </span>
+              )}
               <p className="text-app font-bold text-sm">{t.nameFa}</p>
               <p className="text-muted text-xs">{t.name}</p>
               {themeId === t.id && (
@@ -1077,7 +1091,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
         </div>
 
         <div className="space-y-3">
-          {adhans.map((a) => {
+          {allAdhans.map((a) => {
             const isSelected = selectedAdhanId === a.id;
             const isDownloaded = downloadedAdhans.includes(a.id) || Boolean(a.bundledOffline);
             const isDownloading = downloadingId === a.id;
@@ -1331,7 +1345,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
         <RowItem
           icon={Palette}
           title="پوسته و رنگ‌بندی"
-          value={themes.find((t) => t.id === themeId)?.nameFa ?? 'زمردی'}
+          value={allThemes.find((t) => t.id === themeId)?.nameFa ?? 'زمردی'}
           onClick={() => setSection('theme')}
         />
         <RowItem

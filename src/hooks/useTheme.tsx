@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react';
-import { themes, getThemeById, type Theme } from '@/lib/themes';
+import { themes, getAllThemes, getThemeById, type Theme } from '@/lib/themes';
+import { GLOBAL_SYNC_UPDATED_EVENT } from '@/lib/globalSyncService';
 import { useAuth } from '@/hooks/useAuth';
 
 const GUEST_THEME_KEY = 'noor_theme_id';
@@ -37,6 +38,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const [otaTick, setOtaTick] = useState(0);
+  useEffect(() => {
+    const onSync = () => setOtaTick((t) => t + 1);
+    window.addEventListener(GLOBAL_SYNC_UPDATED_EVENT, onSync);
+    return () => window.removeEventListener(GLOBAL_SYNC_UPDATED_EVENT, onSync);
+  }, []);
+  void otaTick;
   const theme = getThemeById(themeId);
 
   useEffect(() => {
@@ -67,4 +75,4 @@ export function useTheme() {
   return ctx;
 }
 
-export { themes };
+export { themes, getAllThemes };

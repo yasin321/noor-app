@@ -1,5 +1,6 @@
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { loadAdhanStudio, saveAdhanStudio } from '@/lib/deenIntelligenceStore';
+import { getCachedOtaMediaCatalog } from '@/lib/globalSyncService';
 
 export type Adhan = {
   id: string;
@@ -11,6 +12,8 @@ export type Adhan = {
   fallbackUrls?: string[];
   bundledOffline?: boolean;
   license?: string;
+  isRemoteOta?: boolean;
+  isFeatured?: boolean;
 };
 
 export type AdhanPlaybackDurationMode = 'full' | '10s' | '30s';
@@ -509,6 +512,25 @@ export const adhans: Adhan[] = [
 
 export const ADHAN_OPTIONS = adhans;
 
+export function getAllAdhans(): Adhan[] {
+  const remoteAdhans: Adhan[] = getCachedOtaMediaCatalog()
+    .filter((item) => item.category === 'adhan' && Boolean(item.audio_url))
+    .map((item) => ({
+      id: item.id,
+      name: item.title_fa,
+      nameFa: item.title_fa,
+      reciter: item.reciter_fa || item.subtitle_fa || 'مؤذن جدید نور',
+      originFa: '✨ نوای جدید آنلاین' + (item.duration_fa ? ' · ' + item.duration_fa : ''),
+      audioUrl: item.audio_url,
+      fallbackUrls: [item.audio_url],
+      bundledOffline: false,
+      isRemoteOta: true,
+      isFeatured: Boolean(item.is_featured),
+    }));
+  const builtInIds = new Set(adhans.map((a) => a.id));
+  return [...remoteAdhans.filter((r) => !builtInIds.has(r.id)), ...adhans];
+}
+
 export function getDownloadedAdhanIds(): string[] {
   try {
     const raw = localStorage.getItem(DOWNLOADED_ADHANS_KEY);
@@ -624,7 +646,7 @@ export async function playAdhanPreview(
         bundledOffline: true,
       };
     } else {
-      targetAdhan = adhans.find((a) => a.id === adhanOrId) || adhans[0];
+      targetAdhan = getAllAdhans().find((a) => a.id === adhanOrId) || adhans[0];
     }
   } else {
     targetAdhan = adhanOrId || adhans[0];
