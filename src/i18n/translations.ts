@@ -323,6 +323,16 @@ const fa = {
   'tasbih.exit': 'خروج',
   'tasbih.roundLabel': 'دور',
   'tasbih.sanctuaryHint': 'هر نقطه از صفحه را با ۱، ۲ یا ۳ انگشت لمس کنید',
+  // Quran & Translation
+  'quran.translationHeader': 'ترجمه روان فارسی آیات این صفحه (لمس 🔖 = ذخیره در نشانک‌ها):',
+  'quran.pageWord': 'صفحه',
+  'quran.ofWord': 'از',
+  'quran.totalWord': 'کل:',
+  'quran.ayahWord': 'آیه',
+  'quran.meccan': 'مکی',
+  'quran.medinan': 'مدنی',
+  'quran.loadingTranslation': 'در حال دریافت ترجمه قرآن...',
+  'quran.offlineHint': '(برای دریافت کامل ترجمه این سوره یک‌بار به اینترنت متصل شوید تا برای همیشه آفلاین ذخیره شود.)',
 } as const;
 
 export type TranslationKey = keyof typeof fa;
@@ -620,6 +630,16 @@ const en: Record<TranslationKey, string> = {
   'tasbih.exit': 'Exit',
   'tasbih.roundLabel': 'Round',
   'tasbih.sanctuaryHint': 'Tap anywhere on screen with 1, 2, or 3 fingers',
+  // Quran & Translation
+  'quran.translationHeader': 'English Translation — Saheeh International (Tap 🔖 to bookmark):',
+  'quran.pageWord': 'Page',
+  'quran.ofWord': 'of',
+  'quran.totalWord': 'Total:',
+  'quran.ayahWord': 'verses',
+  'quran.meccan': 'Meccan',
+  'quran.medinan': 'Medinan',
+  'quran.loadingTranslation': 'Loading English translation...',
+  'quran.offlineHint': '(Connect to the internet once to save the English translation offline on your device.)',
 };
 
 const es: Record<TranslationKey, string> = {
@@ -915,6 +935,16 @@ const es: Record<TranslationKey, string> = {
   'tasbih.exit': 'Salir',
   'tasbih.roundLabel': 'Ronda',
   'tasbih.sanctuaryHint': 'Toca en cualquier parte de la pantalla con 1, 2 o 3 dedos',
+  // Quran & Translation
+  'quran.translationHeader': 'Traducción al español — Julio Cortés (Toca 🔖 para guardar):',
+  'quran.pageWord': 'Página',
+  'quran.ofWord': 'de',
+  'quran.totalWord': 'Total:',
+  'quran.ayahWord': 'aleyas',
+  'quran.meccan': 'Mequí',
+  'quran.medinan': 'Medinés',
+  'quran.loadingTranslation': 'Cargando traducción al español...',
+  'quran.offlineHint': '(Conéctate a internet una vez para guardar la traducción al español sin conexión.)',
 };
 
 export const translations: Record<AppLang, Record<TranslationKey, string>> = {

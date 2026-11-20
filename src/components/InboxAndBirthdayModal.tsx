@@ -26,6 +26,7 @@ import {
   fetchInboxMessages,
   markBirthdayCelebratedThisYear,
   INBOX_UPDATED_EVENT,
+  getLocalizedInboxMessage,
   type InboxMessage,
   type InboxCategory,
 } from '@/lib/inboxService';
@@ -71,7 +72,7 @@ export function InboxModal({
 }) {
   const { theme } = useTheme();
   const { profile } = useAuth();
-  const { dir, isRtl, t, formatDate } = useI18n();
+  const { lang, dir, isRtl, t, formatDate } = useI18n();
   const [messages, setMessages] = useState<InboxMessage[]>(() =>
     getCachedInboxMessages(profile?.display_name)
   );
@@ -188,6 +189,7 @@ export function InboxModal({
               const isRead = readIds.includes(msg.id);
               const meta = CAT_META[msg.category] || CAT_META.news;
               const IconComp = meta.Icon;
+              const loc = getLocalizedInboxMessage(msg, lang);
               const dateLabel = (() => {
                 try {
                   return formatDate(new Date(msg.created_at));
@@ -226,7 +228,7 @@ export function InboxModal({
                           {t(meta.labelKey)}
                         </span>
                         <h3 className="text-xs font-black text-app mt-1 leading-snug">
-                          {msg.title_fa}
+                          {loc.title}
                         </h3>
                       </div>
                     </div>
@@ -246,9 +248,9 @@ export function InboxModal({
                     </div>
                   </div>
 
-                  <p className="text-[11.5px] text-muted leading-relaxed">{msg.body_fa}</p>
+                  <p className="text-[11.5px] text-muted leading-relaxed">{loc.body}</p>
 
-                  {msg.action_label_fa && msg.action_target && (
+                  {loc.actionLabel && msg.action_target && (
                     <button
                       type="button"
                       onClick={(e) => {
@@ -259,7 +261,7 @@ export function InboxModal({
                       className="mt-1 px-3 py-1.5 rounded-xl text-[11px] font-black inline-flex items-center gap-1.5"
                       style={{ background: theme.primary, color: theme.bg }}
                     >
-                      <span>{msg.action_label_fa}</span>
+                      <span>{loc.actionLabel}</span>
                       <ExternalLink size={12} />
                     </button>
                   )}
@@ -294,9 +296,10 @@ export function LiveNotificationPopup({
   onNavigate?: (tab: 'home' | 'tasbih' | 'library' | 'reminders' | 'settings') => void;
 }) {
   const { theme } = useTheme();
-  const { dir, t } = useI18n();
+  const { lang, dir, t } = useI18n();
   const meta = CAT_META[message.category] || CAT_META.news;
   const IconComp = meta.Icon;
+  const loc = getLocalizedInboxMessage(message, lang);
 
   const dismiss = () => {
     markMessagePopped(message.id);
@@ -338,11 +341,11 @@ export function LiveNotificationPopup({
         >
           {t(meta.labelKey)}
         </span>
-        <h3 className="text-base font-black text-app leading-snug">{message.title_fa}</h3>
-        <p className="text-xs text-muted leading-relaxed">{message.body_fa}</p>
+        <h3 className="text-base font-black text-app leading-snug">{loc.title}</h3>
+        <p className="text-xs text-muted leading-relaxed">{loc.body}</p>
 
         <div className="flex gap-2 pt-1">
-          {message.action_label_fa && message.action_target && (
+          {loc.actionLabel && message.action_target && (
             <button
               type="button"
               onClick={() => {
@@ -353,19 +356,19 @@ export function LiveNotificationPopup({
               className="flex-1 py-3 rounded-2xl text-xs font-black"
               style={{ background: theme.primary, color: theme.bg }}
             >
-              {message.action_label_fa}
+              {loc.actionLabel}
             </button>
           )}
           <button
             type="button"
             onClick={dismiss}
             className={
-              message.action_label_fa
+              loc.actionLabel
                 ? 'px-4 py-3 rounded-2xl text-xs font-bold border'
                 : 'w-full py-3 rounded-2xl text-xs font-black'
             }
             style={
-              message.action_label_fa
+              loc.actionLabel
                 ? { borderColor: theme.border, color: theme.text }
                 : { background: theme.primary, color: theme.bg }
             }

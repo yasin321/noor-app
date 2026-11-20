@@ -127,7 +127,47 @@ export const ALL_114_SURAHS: SurahMeta[] = [
   { number: 114, nameAr: 'الناس', nameFa: 'سوره مبارکه ناس', ayahCount: 6, revelationType: 'مکی' },
 ];
 
-export type QuranAyahItem = { number: number; arabic: string; translationFa: string };
+export type QuranLang = 'fa' | 'en' | 'es';
+
+export type QuranAyahItem = {
+  number: number;
+  arabic: string;
+  translationFa: string;
+  translation?: string;
+  lang?: QuranLang;
+};
+
+export interface QuranTranslationEdition {
+  code: string;
+  labelFa: string;
+  labelEn: string;
+  labelEs: string;
+}
+
+export function getQuranEditionForLang(lang: QuranLang = 'fa'): QuranTranslationEdition {
+  if (lang === 'en') {
+    return {
+      code: 'en.sahih',
+      labelFa: 'ترجمه انگلیسی (Saheeh International)',
+      labelEn: 'English — Saheeh International',
+      labelEs: 'Inglés — Saheeh International',
+    };
+  }
+  if (lang === 'es') {
+    return {
+      code: 'es.cortes',
+      labelFa: 'ترجمه اسپانیایی (Julio Cortés)',
+      labelEn: 'Spanish — Julio Cortés',
+      labelEs: 'Español — Julio Cortés',
+    };
+  }
+  return {
+    code: 'fa.fooladvand',
+    labelFa: 'ترجمه روان فارسی (فولادوند / مکارم)',
+    labelEn: 'Persian — Fooladvand',
+    labelEs: 'Persa — Fooladvand',
+  };
+}
 
 const QURAN_DISPLAY_MODE_KEY = 'noor_quran_display_mode_v1';
 const QURAN_SURAH_CACHE_PREFIX = 'noor_surah_cache_v1_';
@@ -156,40 +196,111 @@ const BUNDLED_COMPLETE_SURAHS: Record<number, QuranAyahItem[]> = {"36":[{"number
 
 export async function fetchSurahAyahs(
   surahNumber: number,
-  fallbackAyahs?: QuranAyahItem[]
+  fallbackAyahs?: QuranAyahItem[],
+  lang: QuranLang = 'fa'
 ): Promise<QuranAyahItem[]> {
-  if (BUNDLED_COMPLETE_SURAHS[surahNumber] && BUNDLED_COMPLETE_SURAHS[surahNumber].length > 0) {
-    return BUNDLED_COMPLETE_SURAHS[surahNumber];
+  const bundled = BUNDLED_COMPLETE_SURAHS[surahNumber];
+
+  // ۱. حالت فارسی: استفاده فوری از ۹ سوره آفلاین داخلی
+  if (lang === 'fa' && bundled && bundled.length > 0) {
+    return bundled.map((a) => ({ ...a, translation: a.translationFa, lang: 'fa' }));
   }
+
+  const cacheKey =
+    lang === 'fa'
+      ? QURAN_SURAH_CACHE_PREFIX + surahNumber
+      : 'noor_surah_cache_v2_' + lang + '_' + surahNumber;
+
+  // ۲. بررسی کش دائمی آفلاین روی حافظه گوشی برای زبان انتخاب‌شده
   try {
-    const cached = localStorage.getItem(QURAN_SURAH_CACHE_PREFIX + surahNumber);
+    const cached = localStorage.getItem(cacheKey);
     if (cached) {
       const parsed = JSON.parse(cached);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return (parsed as QuranAyahItem[]).map((a) => ({
+          ...a,
+          translation: a.translation || a.translationFa,
+          lang,
+        }));
+      }
     }
   } catch {}
 
+  const edition = getQuranEditionForLang(lang).code;
+
+  // ۳. واکشی هوشمند از alquran.cloud (برای ۹ سوره داخلی در EN/ES فقط ترجمه دریافت و با عربی عثمانی داخلی ادغام می‌شود)
   try {
-    const res = await fetch(`https://api.alquran.cloud/v1/surah/${surahNumber}/editions/quran-simple,fa.fooladvand`);
-    if (res.ok) {
-      const json = await res.json();
-      if (json?.data && Array.isArray(json.data) && json.data.length >= 2) {
-        const arAyahs = json.data[0].ayahs || [];
-        const faAyahs = json.data[1].ayahs || [];
-        const combined: QuranAyahItem[] = arAyahs.map((a: { numberInSurah: number; text: string }, idx: number) => ({
-          number: a.numberInSurah || idx + 1,
-          arabic: a.text,
-          translationFa: faAyahs[idx]?.text || '',
-        }));
-        if (combined.length > 0) {
+    if (lang !== 'fa' && bundled && bundled.length > 0) {
+      const res = await fetch('https://api.alquran.cloud/v1/surah/' + surahNumber + '/' + edition);
+      if (res.ok) {
+        const json = await res.json();
+        const trAyahs = json?.data?.ayahs;
+        if (Array.isArray(trAyahs) && trAyahs.length > 0) {
+          const merged: QuranAyahItem[] = bundled.map((bItem, idx) => {
+            const trText = String(trAyahs[idx]?.text || '').trim();
+            return {
+              number: bItem.number,
+              arabic: bItem.arabic,
+              translationFa: bItem.translationFa,
+              translation: trText || bItem.translationFa,
+              lang,
+            };
+          });
           try {
-            localStorage.setItem(QURAN_SURAH_CACHE_PREFIX + surahNumber, JSON.stringify(combined));
+            localStorage.setItem(cacheKey, JSON.stringify(merged));
           } catch {}
-          return combined;
+          return merged;
+        }
+      }
+    } else {
+      const res = await fetch(
+        'https://api.alquran.cloud/v1/surah/' + surahNumber + '/editions/quran-simple,' + edition
+      );
+      if (res.ok) {
+        const json = await res.json();
+        if (json?.data && Array.isArray(json.data) && json.data.length >= 2) {
+          const arAyahs = json.data[0].ayahs || [];
+          const trAyahs = json.data[1].ayahs || [];
+          const combined: QuranAyahItem[] = arAyahs.map(
+            (a: { numberInSurah: number; text: string }, idx: number) => {
+              const trText = String(trAyahs[idx]?.text || '');
+              return {
+                number: a.numberInSurah || idx + 1,
+                arabic: a.text,
+                translationFa: lang === 'fa' ? trText : '',
+                translation: trText,
+                lang,
+              };
+            }
+          );
+          if (combined.length > 0) {
+            try {
+              localStorage.setItem(cacheKey, JSON.stringify(combined));
+            } catch {}
+            return combined;
+          }
         }
       }
     }
   } catch {}
+
+  // ۴. حالت آفلاین ایمن (اگر هنوز ترجمه EN/ES دانلود نشده، متن کامل عربی سوره بدون خطا نمایش داده می‌شود)
+  const offlineNotice =
+    lang === 'en'
+      ? 'Connect to the internet once to cache the English translation (Saheeh International) offline.'
+      : lang === 'es'
+      ? 'Conéctate a internet una vez para guardar la traducción al español (Julio Cortés) sin conexión.'
+      : 'به نام خداوند بخشنده مهربان (برای دریافت کامل تمام آیات این سوره یک‌بار به اینترنت متصل شوید تا برای همیشه در گوشی ذخیره شود).';
+
+  if (lang !== 'fa' && bundled && bundled.length > 0) {
+    return bundled.map((bItem, idx) => ({
+      number: bItem.number,
+      arabic: bItem.arabic,
+      translationFa: bItem.translationFa,
+      translation: idx === 0 ? offlineNotice : '',
+      lang,
+    }));
+  }
 
   return fallbackAyahs && fallbackAyahs.length > 0
     ? fallbackAyahs
@@ -197,7 +308,9 @@ export async function fetchSurahAyahs(
         {
           number: 1,
           arabic: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ',
-          translationFa: 'به نام خداوند بخشنده مهربان (برای دریافت کامل تمام آیات این سوره یک‌بار به اینترنت متصل شوید تا برای همیشه در گوشی ذخیره شود).',
+          translationFa: offlineNotice,
+          translation: offlineNotice,
+          lang,
         },
       ];
 }

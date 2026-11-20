@@ -19,6 +19,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
+import { useI18n, type AppLang } from '@/i18n';
 import {
   loadQuranContinuity,
   saveQuranContinuity,
@@ -169,6 +170,34 @@ export const CURATED_SURAHS: SelectedSurahInfo[] = [
   },
 ];
 
+const CURATED_SURAH_I18N: Record<number, { en: string; es: string; shortEn: string; shortEs: string }> = {
+  56: { en: "Surah Al-Waqi'ah", es: 'Sura Al-Wáqiah', shortEn: "Al-Waqi'ah", shortEs: 'Al-Wáqiah' },
+  36: { en: 'Surah Ya-Sin', es: 'Sura Ya-Sin', shortEn: 'Ya-Sin', shortEs: 'Ya-Sin' },
+  67: { en: 'Surah Al-Mulk', es: 'Sura Al-Mulk', shortEn: 'Al-Mulk', shortEs: 'Al-Mulk' },
+  55: { en: 'Surah Ar-Rahman', es: 'Sura Ar-Rahmán', shortEn: 'Ar-Rahman', shortEs: 'Ar-Rahmán' },
+  51: { en: 'Surah Adh-Dhariyat', es: 'Sura Adh-Dhariyat', shortEn: 'Adh-Dhariyat', shortEs: 'Adh-Dhariyat' },
+  37: { en: 'Surah As-Saffat', es: 'Sura As-Saffat', shortEn: 'As-Saffat', shortEs: 'As-Saffat' },
+  62: { en: "Surah Al-Jumu'ah", es: "Sura Al-Yumu'ah", shortEn: "Al-Jumu'ah", shortEs: "Al-Yumu'ah" },
+  97: { en: 'Surah Al-Qadr', es: 'Sura Al-Qadr', shortEn: 'Al-Qadr', shortEs: 'Al-Qadr' },
+  112: { en: 'Surah Al-Ikhlas', es: 'Sura Al-Ijlás', shortEn: 'Al-Ikhlas', shortEs: 'Al-Ijlás' },
+};
+
+function getCuratedSurahName(s: SelectedSurahInfo, lang: AppLang): string {
+  const m = CURATED_SURAH_I18N[s.number];
+  if (!m) return s.nameFa;
+  if (lang === 'en') return m.en;
+  if (lang === 'es') return m.es;
+  return s.nameFa;
+}
+
+function getCuratedSurahShort(s: SelectedSurahInfo, lang: AppLang): string {
+  const m = CURATED_SURAH_I18N[s.number];
+  if (!m) return s.shortLabel;
+  if (lang === 'en') return m.shortEn;
+  if (lang === 'es') return m.shortEs;
+  return s.shortLabel;
+}
+
 const AYAHS_PER_MUSHAF_PAGE = 10;
 const SURAH_AYAH_COUNTS = [
   7,286,200,176,120,165,206,75,129,109,123,111,43,52,99,128,111,110,98,135,
@@ -244,6 +273,7 @@ export function QuranAndMuhasabaModal({
   onUpdated,
 }: Props) {
   const { theme } = useTheme();
+  const { lang, dir, isRtl, t, formatDigits } = useI18n();
   const [mode, setMode] = useState<'quran' | 'bookmarks' | 'muhasaba'>(initialMode);
   const [qState, setQState] = useState(() => {
     const loaded = loadQuranContinuity();
@@ -349,7 +379,7 @@ export function QuranAndMuhasabaModal({
     let active = true;
     stopSurahAudio();
     setLoadingSurah(true);
-    fetchSurahAyahs(currentSurah.number).then((list) => {
+    fetchSurahAyahs(currentSurah.number, undefined, lang).then((list) => {
       if (!active) return;
       const cleaned = list.map((item) => ({
         ...item,
@@ -361,7 +391,7 @@ export function QuranAndMuhasabaModal({
     return () => {
       active = false;
     };
-  }, [currentSurah.number, stopSurahAudio]);
+  }, [currentSurah.number, stopSurahAudio, lang]);
 
   const handleChangeSpeed = (nextSpeed: number) => {
     setPlaybackRate(nextSpeed);
@@ -587,7 +617,7 @@ export function QuranAndMuhasabaModal({
           surahNameFa: currentSurah.nameFa,
           ayahNumber: ayah.number,
           arabic: ayah.arabic,
-          note: ayah.translationFa.slice(0, 80),
+          note: (ayah.translation || ayah.translationFa).slice(0, 80),
         },
         ...qState.bookmarks,
       ].slice(0, 40),
@@ -778,7 +808,7 @@ export function QuranAndMuhasabaModal({
                           {s.revelationPlace} · {toFaDigits(s.ayahCount)}
                         </span>
                       </div>
-                      <p className="text-xs font-black text-app truncate">{s.shortLabel}</p>
+                      <p className="text-xs font-black text-app truncate">{getCuratedSurahShort(s, lang)}</p>
                     </button>
                   );
                 })}
@@ -794,7 +824,7 @@ export function QuranAndMuhasabaModal({
             >
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs font-black text-primary">
-                  {currentSurah.revelationIcon} {currentSurah.nameFa} ({currentSurah.revelationPlace} — {toFaDigits(currentSurah.ayahCount)} آیه)
+                  {currentSurah.revelationIcon} {getCuratedSurahName(currentSurah, lang)} ({currentSurah.revelationPlace === 'مکی' ? t('quran.meccan') : t('quran.medinan')} — {formatDigits(currentSurah.ayahCount)} {t('quran.ayahWord')})
                 </span>
                 <span className="text-[10px] font-bold text-accent">⏰ {currentSurah.bestTimeFa}</span>
               </div>
@@ -878,9 +908,9 @@ export function QuranAndMuhasabaModal({
               }}
             >
               <div className="flex items-center justify-between text-xs pb-2.5 mb-2 border-b" style={{ borderColor: theme.border }}>
-                <span className="font-black text-primary">{currentSurah.nameFa}</span>
+                <span className="font-black text-primary">{getCuratedSurahName(currentSurah, lang)}</span>
                 <span className="text-muted font-bold">
-                  صفحه {toFaDigits(currentPageIndex + 1)} از {toFaDigits(totalPages)} (کل: {toFaDigits(ayahs.length)} آیه)
+                  {t('quran.pageWord')} {formatDigits(currentPageIndex + 1)} {t('quran.ofWord')} {formatDigits(totalPages)} ({t('quran.totalWord')} {formatDigits(ayahs.length)} {t('quran.ayahWord')})
                 </span>
               </div>
 
@@ -970,7 +1000,7 @@ export function QuranAndMuhasabaModal({
 
                   <div className="space-y-2 max-h-48 overflow-y-auto pr-1 pt-1">
                     <p className="text-[11px] font-bold text-primary">
-                      ترجمه روان فارسی آیات این صفحه (لمس 🔖 = ذخیره در نشانک‌ها):
+                      {t('quran.translationHeader')}
                     </p>
                     {visibleAyahs.map((a) => {
                       const isAyahPlaying = playingAyahNumber === a.number;
@@ -990,9 +1020,11 @@ export function QuranAndMuhasabaModal({
                             color: isAyahPlaying ? theme.text : theme.textMuted,
                           }}
                         >
-                          <div>
-                            <strong className="text-accent ml-1">({toFaDigits(a.number)})</strong>
-                            <span>{a.translationFa}</span>
+                          <div dir={dir} className={isRtl ? 'text-right' : 'text-left'}>
+                            <strong className={isRtl ? 'text-accent ml-1' : 'text-accent mr-1'}>
+                              ({formatDigits(a.number)})
+                            </strong>
+                            <span>{a.translation || a.translationFa}</span>
                           </div>
                           <button
                             type="button"

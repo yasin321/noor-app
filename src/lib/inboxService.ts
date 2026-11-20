@@ -8,13 +8,44 @@ export type InboxCategory = 'update' | 'dhikr' | 'audio' | 'occasion' | 'news' |
 export interface InboxMessage {
   id: string;
   title_fa: string;
+  title_en?: string | null;
+  title_es?: string | null;
   body_fa: string;
+  body_en?: string | null;
+  body_es?: string | null;
   category: InboxCategory;
   priority: 'normal' | 'high';
   show_popup: boolean;
   action_label_fa: string;
+  action_label_en?: string | null;
+  action_label_es?: string | null;
   action_target: string;
   created_at: string;
+}
+
+export function getLocalizedInboxMessage(
+  msg: InboxMessage,
+  lang: 'fa' | 'en' | 'es' = 'fa'
+): { title: string; body: string; actionLabel: string } {
+  const title =
+    lang === 'en'
+      ? (msg.title_en || msg.title_fa)
+      : lang === 'es'
+      ? (msg.title_es || msg.title_en || msg.title_fa)
+      : msg.title_fa;
+  const body =
+    lang === 'en'
+      ? (msg.body_en || msg.body_fa)
+      : lang === 'es'
+      ? (msg.body_es || msg.body_en || msg.body_fa)
+      : msg.body_fa;
+  const actionLabel =
+    lang === 'en'
+      ? (msg.action_label_en || msg.action_label_fa)
+      : lang === 'es'
+      ? (msg.action_label_es || msg.action_label_en || msg.action_label_fa)
+      : msg.action_label_fa;
+  return { title, body, actionLabel };
 }
 
 export interface UserBirthday {
@@ -236,7 +267,7 @@ export async function fetchInboxMessages(displayName?: string | null): Promise<{
   try {
     const { data, error } = await supabase
       .from('app_notifications')
-      .select('id, title_fa, body_fa, category, priority, show_popup, action_label_fa, action_target, created_at')
+      .select('*')
       .eq('is_active', true)
       .order('created_at', { ascending: false })
       .limit(40);
