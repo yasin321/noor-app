@@ -1,6 +1,27 @@
+
+try {
+  const savedFont = localStorage.getItem('noor_font_family') || 'Vazirmatn';
+  const mapFont: Record<string, string> = {
+    Vazirmatn: "'Vazirmatn', system-ui, sans-serif",
+    BNazanin: "'BNazaninWeb', 'Parastoo', 'Vazirmatn', serif",
+    Nastaliq: "'Gulzar', 'Mirza', 'Parastoo', serif",
+    Parastoo: "'Parastoo', 'Vazirmatn', serif",
+    Samim: "'Samim', 'Vazirmatn', sans-serif",
+    AmiriQuran: "'Amiri', 'Amiri Quran', 'Parastoo', serif",
+  };
+  document.documentElement.style.setProperty('--app-font', mapFont[savedFont] || mapFont.Vazirmatn);
+  const savedScale = localStorage.getItem('noor_font_scale') || 'normal';
+  const sizeMap: Record<string, string> = { normal: '16px', medium: '17.5px', senior: '19.5px' };
+  document.documentElement.style.fontSize = sizeMap[savedScale] || '16px';
+} catch {}
+
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
+import { AppErrorBoundary } from './components/AppErrorBoundary';
+import { installGlobalErrorTelemetry } from './lib/errorTelemetry';
+
+installGlobalErrorTelemetry();
 import './index.css';
 
 if ('serviceWorker' in navigator) {
@@ -11,6 +32,10 @@ if ('serviceWorker' in navigator) {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <AppErrorBoundary>
+      <App />
+    </AppErrorBoundary>
   </StrictMode>
 );
+
+try { document.getElementById('noor-celestial-splash')?.remove(); } catch {}

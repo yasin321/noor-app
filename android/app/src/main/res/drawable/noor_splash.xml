@@ -1,4 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="@color/ic_launcher_background" />
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="315"
+                android:startColor="#030B1A"
+                android:centerColor="#062822"
+                android:endColor="#021310"
+                android:type="linear" />
+        </shape>
+    </item>
+    <item
+        android:width="180dp"
+        android:height="180dp"
+        android:drawable="@drawable/noor_launcher"
+        android:gravity="center" />
 </layer-list>

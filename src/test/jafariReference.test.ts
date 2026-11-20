@@ -28,7 +28,7 @@ const TEHRAN_REF: ReferenceRow[] = [
     date: new Date(2026, 9, 18, 12, 0),
     ref: {
       fajr: '04:58', sunrise: '06:13', dhuhr: '11:50',
-      asr: '15:00', maghrib: '17:41', isha: '18:31', midnight: '23:49',
+      asr: '15:00', maghrib: '17:41', isha: '18:31', midnight: '23:11',
     },
   },
   {
@@ -36,7 +36,7 @@ const TEHRAN_REF: ReferenceRow[] = [
     date: new Date(2026, 5, 21, 12, 0),
     ref: {
       fajr: '03:14', sunrise: '04:49', dhuhr: '12:06',
-      asr: '15:55', maghrib: '19:42', isha: '20:44', midnight: '00:06',
+      asr: '15:55', maghrib: '19:42', isha: '20:44', midnight: '23:19',
     },
   },
 ];
