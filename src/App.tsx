@@ -12,6 +12,7 @@ import { NotificationPermissionModal } from '@/components/NotificationPermission
 import { AppTutorialModal } from '@/components/AppTutorialModal';
 import { rescheduleAll, purgeLegacyPrePostAdhanReminders } from '@/lib/reminderService';
 import { loadTawashihConfig, syncAllTawashihNativeAlarms } from '@/components/TawashihAndAdhanReminderSection';
+import { syncAllSurahNativeAlarms } from '@/lib/surahAlarmService';
 import { logEvent } from '@/lib/logger';
 import { Capacitor } from '@capacitor/core';
 
@@ -112,6 +113,7 @@ function AppContent() {
       });
       void purgeLegacyPrePostAdhanReminders().then(() => {
         void syncAllTawashihNativeAlarms(loadTawashihConfig());
+        void syncAllSurahNativeAlarms();
       });
       void rescheduleAll(notifEnabled).then((res) => {
         logEvent('info', 'AppStartup', 'نتیجه زمان‌بندی مجدد در بدو ورود', res);

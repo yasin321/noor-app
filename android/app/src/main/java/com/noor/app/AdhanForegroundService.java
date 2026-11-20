@@ -111,6 +111,9 @@ public class AdhanForegroundService extends Service {
         Intent fullScreenIntent = new Intent(this, AdhanAlarmActivity.class);
         fullScreenIntent.putExtra("title", title);
         fullScreenIntent.putExtra("body", body);
+        fullScreenIntent.putExtra("soundType", soundType);
+        fullScreenIntent.putExtra("adhanId", adhanId);
+        fullScreenIntent.putExtra("playbackRate", playbackRate);
         fullScreenIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         PendingIntent fullScreenPi = PendingIntent.getActivity(
                 this, 201, fullScreenIntent,
@@ -199,7 +202,7 @@ public class AdhanForegroundService extends Service {
         else if (adhanId.equals("munajat_sahar") || adhanId.equals("aqim")) adhanId = "chant_aqim";
         else if (adhanId.equals("rabbana_shajarian") || adhanId.equals("rabbana") || adhanId.equals("chant_fatiha") || adhanId.equals("rabbanaghfir")) adhanId = "rabbana";
         else if (adhanId.equals("nadali_alifani") || adhanId.equals("nadali") || adhanId.equals("nad_ali")) adhanId = "nadali_alifani";
-        boolean isPreOrPostChantOrSurah = adhanId.startsWith("post_") || adhanId.startsWith("chant_") || "surah_chant".equals(soundType);
+        boolean isPreOrPostChantOrSurah = adhanId.startsWith("post_") || adhanId.startsWith("chant_") || adhanId.startsWith("surah_") || "surah_chant".equals(soundType);
         synchronized (PLAYER_LOCK) {
             try {
                 MediaPlayer mp = new MediaPlayer();
@@ -281,6 +284,15 @@ public class AdhanForegroundService extends Service {
                     }
                 }
 
+                boolean usingRemoteStream = false;
+                if (!loaded && audioUrl != null && (audioUrl.startsWith("http://") || audioUrl.startsWith("https://"))) {
+                    try {
+                        mp.setDataSource(audioUrl.trim());
+                        loaded = true;
+                        usingRemoteStream = true;
+                    } catch (Exception ignored) {}
+                }
+
                 if (!loaded) {
                     Uri fallbackUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
                     mp.setDataSource(this, fallbackUri);
@@ -295,16 +307,48 @@ public class AdhanForegroundService extends Service {
                     stopForeground(true);
                     stopSelf();
                 });
-                mp.prepare();
-                mp.start();
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && playbackRate >= 0.5f && playbackRate <= 3.0f && Math.abs(playbackRate - 1.0f) > 0.04f) {
-                try {
-                    PlaybackParams params = new PlaybackParams();
-                    params.setSpeed(playbackRate);
-                    params.setPitch(1.0f);
-                    mp.setPlaybackParams(params);
-                } catch (Exception ignored) {}
-            }
+                final float safeRate = playbackRate;
+                final Runnable applyRateAndStart = () -> {
+                    synchronized (PLAYER_LOCK) {
+                        if (activePlayer != mp) {
+                            try { mp.release(); } catch (Exception ignored) {}
+                            return;
+                        }
+                        try {
+                            mp.start();
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && safeRate >= 0.5f && safeRate <= 3.0f && Math.abs(safeRate - 1.0f) > 0.04f) {
+                                PlaybackParams params = new PlaybackParams();
+                                params.setSpeed(safeRate);
+                                params.setPitch(1.0f);
+                                mp.setPlaybackParams(params);
+                            }
+                        } catch (Exception ignored) {}
+                    }
+                };
+
+                if (usingRemoteStream) {
+                    mp.setOnPreparedListener(player -> applyRateAndStart.run());
+                    mp.setOnErrorListener((player, what, extra) -> {
+                        synchronized (PLAYER_LOCK) {
+                            if (activePlayer != mp) return true;
+                            try {
+                                mp.reset();
+                                AssetFileDescriptor afd = getAssets().openFd("public/adhans/post_kursi.mp3");
+                                mp.setDataSource(afd.getFileDescriptor(), afd.getStartOffset(), afd.getLength());
+                                afd.close();
+                                mp.prepare();
+                                applyRateAndStart.run();
+                            } catch (Exception ignored) {
+                                killActivePlayer(AdhanForegroundService.this);
+                            }
+                        }
+                        return true;
+                    });
+                    mp.prepareAsync();
+                } else {
+                    mp.prepare();
+                    applyRateAndStart.run();
+                }
 
                 // اگر کاربر حالت پخش کامل (durationSeconds <= 0) را انتخاب کرده یا اعلان قبل/بعد از اذان کامل است،
                 // اجازه بده تا انتهای فایل صوتی (OnCompletionListener) به طور کامل پخش شود و زود قطع نشود!

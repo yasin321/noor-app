@@ -1,22 +1,41 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { BookOpen, Heart, Bookmark, ChevronRight, ChevronLeft, Check, X, Sparkles, Lock, BellRing, Play, Square, Volume2, Gauge } from 'lucide-react';
+import {
+  BookOpen,
+  Heart,
+  Bookmark,
+  ChevronRight,
+  ChevronLeft,
+  Check,
+  X,
+  Sparkles,
+  Lock,
+  BellRing,
+  BellOff,
+  Play,
+  Square,
+  Volume2,
+  Gauge,
+  Zap,
+} from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import {
   loadQuranContinuity,
   saveQuranContinuity,
   loadMuhasabaEntries,
   addMuhasabaEntry,
-  addMinutesToTimeStr,
   type MuhasabaEntry,
 } from '@/lib/deenIntelligenceStore';
+import { fetchSurahAyahs, type QuranAyahItem } from '@/lib/quranCatalog';
 import {
-  fetchSurahAyahs,
-  type QuranAyahItem,
-} from '@/lib/quranCatalog';
-import { calculatePrayerTimes } from '@/lib/prayerTimes';
-import { getCityById, getGuestCityId } from '@/lib/cities';
-import { createReminder, updateReminder, loadReminders } from '@/lib/reminderService';
+  loadSurahAlarms,
+  scheduleSurahNativeAlarm,
+  cancelSurahNativeAlarm,
+  triggerSurahAlarmTest10s,
+  getSurahAudioDescriptor,
+  type SurahAlarmAnchor,
+  type SurahAlarmRecord,
+} from '@/lib/surahAlarmService';
 import { toFaDigits, toJalaliShort } from '@/lib/jalali';
 
 interface Props {
@@ -151,14 +170,13 @@ export const CURATED_SURAHS: SelectedSurahInfo[] = [
 ];
 
 const AYAHS_PER_MUSHAF_PAGE = 10;
-// تعداد آیات ۱۱۴ سوره برای محاسبه شماره آیه کل قرآن در CDN جهانی
 const SURAH_AYAH_COUNTS = [
   7,286,200,176,120,165,206,75,129,109,123,111,43,52,99,128,111,110,98,135,
   112,78,118,64,77,227,93,88,69,60,34,30,73,54,45,83,182,88,75,85,
   54,53,89,59,37,35,38,29,18,45,60,49,62,55,78,96,29,22,24,13,
   14,11,11,18,12,12,30,52,52,44,28,28,20,56,40,31,50,40,46,42,
   29,19,36,25,22,17,19,26,30,20,15,21,11,8,8,19,5,8,8,11,
-  11,8,3,9,5,4,7,3,6,3,5,4,5,6
+  11,8,3,9,5,4,7,3,6,3,5,4,5,6,
 ];
 
 function getGlobalAyahNumber(surahNumber: number, ayahInSurah: number): number {
@@ -168,20 +186,63 @@ function getGlobalAyahNumber(surahNumber: number, ayahInSurah: number): number {
   }
   return offset + ayahInSurah;
 }
+
 const PLAYBACK_SPEEDS = [1, 1.25, 1.5, 2, 3];
 
-// حذف ۱۰۰٪ بسم‌الله تکراری از ابتدای آیه ۱ در تمام رسم‌الخط‌ها (عثمان طه و استاندارد)
-function stripLeadingBasmala(arabicText: string, surahNum: number, ayahNum: number): string {
-  if (surahNum === 1 || surahNum === 9 || ayahNum !== 1) return arabicText;
-  let cleaned = arabicText.trim();
-  const words = cleaned.split(/\s+/);
-  if (words.length > 4 && (words[0].includes('بِسْمِ') || words[0].includes('بسم')) && (words[3].includes('الرَّحِيمِ') || words[3].includes('ٱلرَّحِيمِ'))) {
-    cleaned = words.slice(4).join(' ').trim();
-  }
-  return cleaned;
+function stripArabicDiacritics(s: string): string {
+  return s
+    .replace(/[ً-ٰٟۖ-ۭ]/g, '')
+    .replace(/[ٱأإآ]/g, 'ا')
+    .trim();
 }
 
-export function QuranAndMuhasabaModal({ initialMode = 'quran', initialSurahNumber, onClose, onUpdated }: Props) {
+function stripLeadingBasmala(arabicText: string, surahNum: number, ayahNum: number): string {
+  if (surahNum === 1 || surahNum === 9 || ayahNum !== 1) return arabicText;
+  const trimmed = arabicText.trim();
+  const words = trimmed.split(/s+/);
+  if (words.length > 4) {
+    const firstFour = stripArabicDiacritics(words.slice(0, 4).join(' '));
+    if (firstFour === 'بسم الله الرحمن الرحيم') {
+      return words.slice(4).join(' ').trim();
+    }
+  }
+  return trimmed;
+}
+
+function applyAudioPlaybackRate(el: HTMLAudioElement, rate: number): void {
+  const safe = Number.isFinite(rate) && rate >= 0.5 && rate <= 3.0 ? rate : 1.0;
+  try {
+    el.defaultPlaybackRate = safe;
+    el.playbackRate = safe;
+    const ext = el as HTMLAudioElement & {
+      preservesPitch?: boolean;
+      webkitPreservesPitch?: boolean;
+      mozPreservesPitch?: boolean;
+    };
+    ext.preservesPitch = true;
+    ext.webkitPreservesPitch = true;
+    ext.mozPreservesPitch = true;
+  } catch {}
+}
+
+function buildAyahCandidateUrls(surahNumber: number, ayahNum: number): string[] {
+  const sPad = String(surahNumber).padStart(3, '0');
+  const aPad = String(ayahNum).padStart(3, '0');
+  const globalNum = getGlobalAyahNumber(surahNumber, ayahNum);
+  return [
+    'https://everyayah.com/data/Parhizgar_48kbps/' + sPad + aPad + '.mp3',
+    'https://everyayah.com/data/Alafasy_64kbps/' + sPad + aPad + '.mp3',
+    'https://cdn.islamic.network/quran/audio/128/ar.alafasy/' + globalNum + '.mp3',
+    'https://cdn.islamic.network/quran/audio/64/ar.abdulbasitmurattal/' + globalNum + '.mp3',
+  ];
+}
+
+export function QuranAndMuhasabaModal({
+  initialMode = 'quran',
+  initialSurahNumber,
+  onClose,
+  onUpdated,
+}: Props) {
   const { theme } = useTheme();
   const [mode, setMode] = useState<'quran' | 'bookmarks' | 'muhasaba'>(initialMode);
   const [qState, setQState] = useState(() => {
@@ -203,18 +264,25 @@ export function QuranAndMuhasabaModal({ initialMode = 'quran', initialSurahNumbe
     }
     return loaded;
   });
+
   const [ayahs, setAyahs] = useState<QuranAyahItem[]>([]);
   const [loadingSurah, setLoadingSurah] = useState(false);
-  const [isPlayingParhizgar, setIsPlayingParhizgar] = useState(false);
+  const [isPlayingRecitation, setIsPlayingRecitation] = useState(false);
+  const [isOfflineSingleTrack, setIsOfflineSingleTrack] = useState(false);
   const [playingAyahNumber, setPlayingAyahNumber] = useState<number | null>(null);
   const [playbackRate, setPlaybackRate] = useState<number>(1);
+
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const preloadAudioRef = useRef<HTMLAudioElement | null>(null);
   const isPlayingRef = useRef<boolean>(false);
+  const playSessionTokenRef = useRef<number>(0);
   const playbackRateRef = useRef<number>(1);
   const longPressTimerRef = useRef<number | null>(null);
 
-  const [selectedAnchor, setSelectedAnchor] = useState<'maghrib' | 'fajr' | 'dhuhr' | 'custom'>('maghrib');
+  const [surahAlarms, setSurahAlarms] = useState<Record<number, SurahAlarmRecord>>(() =>
+    loadSurahAlarms()
+  );
+  const [selectedAnchor, setSelectedAnchor] = useState<SurahAlarmAnchor>('maghrib');
   const [offsetMinutes, setOffsetMinutes] = useState<number>(30);
   const [customTime, setCustomTime] = useState<string>('21:00');
 
@@ -225,24 +293,57 @@ export function QuranAndMuhasabaModal({ initialMode = 'quran', initialSurahNumbe
   const [tomorrow, setTomorrow] = useState('');
   const [toast, setToast] = useState<string | null>(null);
 
-  const currentSurah = CURATED_SURAHS.find((s) => s.number === qState.surahIndex) ?? CURATED_SURAHS[0];
+  const currentSurah =
+    CURATED_SURAHS.find((s) => s.number === qState.surahIndex) ?? CURATED_SURAHS[0];
+  const activeSurahAlarm = surahAlarms[currentSurah.number];
 
-    const stopSurahAudio = () => {
+  const showToast = useCallback((m: string) => {
+    setToast(m);
+    window.setTimeout(() => setToast(null), 3500);
+  }, []);
+
+  const stopSurahAudio = useCallback(() => {
+    playSessionTokenRef.current += 1;
     isPlayingRef.current = false;
     if (audioRef.current) {
       audioRef.current.onended = null;
       audioRef.current.onerror = null;
-      try { audioRef.current.pause(); } catch {}
+      audioRef.current.onloadedmetadata = null;
+      audioRef.current.oncanplay = null;
+      audioRef.current.onplay = null;
+      try {
+        audioRef.current.pause();
+      } catch {}
     }
-    setIsPlayingParhizgar(false);
+    if (preloadAudioRef.current) {
+      try {
+        preloadAudioRef.current.removeAttribute('src');
+        preloadAudioRef.current.load();
+      } catch {}
+    }
+    setIsPlayingRecitation(false);
+    setIsOfflineSingleTrack(false);
     setPlayingAyahNumber(null);
-  };
+  }, []);
 
   useEffect(() => {
     return () => {
       stopSurahAudio();
     };
-  }, []);
+  }, [stopSurahAudio]);
+
+  // هماهنگی تنظیمات فرم یادآور پایین صفحه با سوره انتخاب‌شده بالا
+  useEffect(() => {
+    const saved = surahAlarms[currentSurah.number];
+    if (saved) {
+      setSelectedAnchor(saved.anchor);
+      setOffsetMinutes(saved.offsetMinutes);
+      setCustomTime(saved.customTime || '21:00');
+    } else {
+      setSelectedAnchor(currentSurah.number === 36 || currentSurah.number === 51 ? 'fajr' : 'maghrib');
+      setOffsetMinutes(30);
+    }
+  }, [currentSurah.number, surahAlarms]);
 
   useEffect(() => {
     let active = true;
@@ -260,125 +361,206 @@ export function QuranAndMuhasabaModal({ initialMode = 'quran', initialSurahNumbe
     return () => {
       active = false;
     };
-  }, [currentSurah.number]);
-
-  const showToast = (m: string) => {
-    setToast(m);
-    setTimeout(() => setToast(null), 3200);
-  };
+  }, [currentSurah.number, stopSurahAudio]);
 
   const handleChangeSpeed = (nextSpeed: number) => {
     setPlaybackRate(nextSpeed);
     playbackRateRef.current = nextSpeed;
     if (audioRef.current) {
-      audioRef.current.playbackRate = nextSpeed;
+      applyAudioPlaybackRate(audioRef.current, nextSpeed);
     }
   };
 
-  const updateQuranPosition = (surahNumber: number, ayahNumber: number) => {
-    const meta = CURATED_SURAHS.find((s) => s.number === surahNumber) ?? CURATED_SURAHS[0];
-    setQState((prev) => {
-      const next = {
-        ...prev,
-        surahIndex: meta.number,
-        surahNameFa: meta.nameFa,
-        ayahNumber: Math.max(1, ayahNumber),
-        totalAyahs: meta.ayahCount,
-        lastReadIso: new Date().toISOString(),
-      };
-      saveQuranContinuity(next);
-      return next;
-    });
-    onUpdated?.();
-  };
+  const updateQuranPosition = useCallback(
+    (surahNumber: number, ayahNumber: number) => {
+      const meta = CURATED_SURAHS.find((s) => s.number === surahNumber) ?? CURATED_SURAHS[0];
+      const clamped = Math.max(1, Math.min(meta.ayahCount, ayahNumber));
+      setQState((prev) => {
+        const next = {
+          ...prev,
+          surahIndex: meta.number,
+          surahNameFa: meta.nameFa,
+          ayahNumber: clamped,
+          totalAyahs: meta.ayahCount,
+          lastReadIso: new Date().toISOString(),
+        };
+        saveQuranContinuity(next);
+        return next;
+      });
+      onUpdated?.();
+    },
+    [onUpdated]
+  );
 
-    const togglePlayParhizgar = (startAyah: number) => {
-    if (isPlayingRef.current || isPlayingParhizgar) {
+  // اسکرول نرم و همزمان آیه عربی + ترجمه فارسی پس از تغییر آیه یا ورق‌خوردن خودکار صفحه
+  const safeAyahIdx = Math.max(0, Math.min(Math.max(0, ayahs.length - 1), qState.ayahNumber - 1));
+  const currentPageIndex = Math.floor(safeAyahIdx / AYAHS_PER_MUSHAF_PAGE);
+  const totalPages = Math.max(1, Math.ceil(ayahs.length / AYAHS_PER_MUSHAF_PAGE));
+  const visibleAyahs = ayahs.slice(
+    currentPageIndex * AYAHS_PER_MUSHAF_PAGE,
+    (currentPageIndex + 1) * AYAHS_PER_MUSHAF_PAGE
+  );
+
+  useEffect(() => {
+    if (playingAyahNumber === null) return;
+    const rafId = window.requestAnimationFrame(() => {
+      const ayahEl = document.getElementById('mushaf-ayah-' + playingAyahNumber);
+      if (ayahEl) {
+        ayahEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      const transEl = document.getElementById('mushaf-trans-' + playingAyahNumber);
+      if (transEl) {
+        transEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    });
+    return () => window.cancelAnimationFrame(rafId);
+  }, [playingAyahNumber, currentPageIndex]);
+
+  const startAyahByAyahPlayback = useCallback(
+    (startAyah: number) => {
+      stopSurahAudio();
+      const myToken = ++playSessionTokenRef.current;
+      isPlayingRef.current = true;
+      setIsPlayingRecitation(true);
+      setIsOfflineSingleTrack(false);
+
+      const player = audioRef.current ?? new Audio();
+      audioRef.current = player;
+      const preloader = preloadAudioRef.current ?? new Audio();
+      preloader.preload = 'auto';
+      preloadAudioRef.current = preloader;
+
+      const surahNum = currentSurah.number;
+      const maxAyah = Math.max(currentSurah.ayahCount, ayahs.length || currentSurah.ayahCount);
+
+      const preloadNextAyah = (nextAyah: number) => {
+        if (nextAyah > maxAyah) return;
+        const nextUrls = buildAyahCandidateUrls(surahNum, nextAyah);
+        try {
+          preloader.src = nextUrls[0];
+          preloader.load();
+        } catch {}
+      };
+
+      const playOfflineBundledFallback = () => {
+        if (playSessionTokenRef.current !== myToken || !isPlayingRef.current) return;
+        const desc = getSurahAudioDescriptor(surahNum);
+        if (!desc.bundledPath) {
+          stopSurahAudio();
+          showToast('برای پخش صوت آیه‌به‌آیه این سوره، اتصال اینترنت را بررسی کنید.');
+          return;
+        }
+        setIsOfflineSingleTrack(true);
+        player.onended = null;
+        player.onerror = null;
+        player.src = desc.bundledPath;
+        applyAudioPlaybackRate(player, playbackRateRef.current);
+        player.onloadedmetadata = () => applyAudioPlaybackRate(player, playbackRateRef.current);
+        player.onplay = () => applyAudioPlaybackRate(player, playbackRateRef.current);
+        player.onended = () => {
+          if (playSessionTokenRef.current === myToken) stopSurahAudio();
+        };
+        player.onerror = () => {
+          if (playSessionTokenRef.current === myToken) {
+            stopSurahAudio();
+            showToast('پخش صوتی ممکن نشد؛ اتصال اینترنت را بررسی کنید.');
+          }
+        };
+        player
+          .play()
+          .then(() => {
+            applyAudioPlaybackRate(player, playbackRateRef.current);
+            showToast('حالت آفلاین: پخش صوت یکپارچه سوره (برای حرکت آیه‌به‌آیه اینترنت را وصل کنید)');
+          })
+          .catch(() => {
+            if (playSessionTokenRef.current === myToken) stopSurahAudio();
+          });
+      };
+
+      const playAyahStep = (ayahNum: number, urlIndex = 0) => {
+        if (playSessionTokenRef.current !== myToken || !isPlayingRef.current) return;
+        if (ayahNum > maxAyah) {
+          stopSurahAudio();
+          showToast('تلاوت ' + currentSurah.nameFa + ' به پایان رسید ✨');
+          return;
+        }
+
+        const candidates = buildAyahCandidateUrls(surahNum, ayahNum);
+        if (urlIndex >= candidates.length) {
+          if (ayahNum === startAyah) {
+            playOfflineBundledFallback();
+          } else {
+            stopSurahAudio();
+            showToast('اتصال اینترنت برای ادامه تلاوت آیه‌به‌آیه قطع شد.');
+          }
+          return;
+        }
+
+        setPlayingAyahNumber(ayahNum);
+        updateQuranPosition(surahNum, ayahNum);
+
+        if (urlIndex === 0) {
+          preloadNextAyah(ayahNum + 1);
+        }
+
+        const targetUrl = candidates[urlIndex];
+        player.onended = null;
+        player.onerror = null;
+        player.onloadedmetadata = null;
+        player.oncanplay = null;
+        player.onplay = null;
+
+        player.src = targetUrl;
+        applyAudioPlaybackRate(player, playbackRateRef.current);
+
+        player.onloadedmetadata = () => {
+          if (playSessionTokenRef.current === myToken) {
+            applyAudioPlaybackRate(player, playbackRateRef.current);
+          }
+        };
+        player.oncanplay = () => {
+          if (playSessionTokenRef.current === myToken) {
+            applyAudioPlaybackRate(player, playbackRateRef.current);
+          }
+        };
+        player.onplay = () => {
+          if (playSessionTokenRef.current === myToken) {
+            applyAudioPlaybackRate(player, playbackRateRef.current);
+          }
+        };
+        player.onended = () => {
+          if (playSessionTokenRef.current !== myToken || !isPlayingRef.current) return;
+          playAyahStep(ayahNum + 1, 0);
+        };
+        player.onerror = () => {
+          if (playSessionTokenRef.current !== myToken || !isPlayingRef.current) return;
+          playAyahStep(ayahNum, urlIndex + 1);
+        };
+
+        player
+          .play()
+          .then(() => {
+            if (playSessionTokenRef.current === myToken) {
+              applyAudioPlaybackRate(player, playbackRateRef.current);
+            }
+          })
+          .catch(() => {
+            if (playSessionTokenRef.current !== myToken || !isPlayingRef.current) return;
+            playAyahStep(ayahNum, urlIndex + 1);
+          });
+      };
+
+      playAyahStep(Math.max(1, startAyah), 0);
+    },
+    [ayahs.length, currentSurah.ayahCount, currentSurah.nameFa, currentSurah.number, showToast, stopSurahAudio, updateQuranPosition]
+  );
+
+  const togglePlayRecitation = (startAyah: number) => {
+    if (isPlayingRef.current || isPlayingRecitation) {
       stopSurahAudio();
       return;
     }
-    stopSurahAudio();
-    isPlayingRef.current = true;
-    setIsPlayingParhizgar(true);
-
-    // استفاده از یک عنصر صوتی واحد که با کلیک کاربر Unlock می‌شود تا اندروید هرگز آیات بعدی را بلاک نکند
-    const player = audioRef.current ?? new Audio();
-    audioRef.current = player;
-    const sPad = String(currentSurah.number).padStart(3, '0');
-
-    const getCandidateUrls = (ayahNum: number): string[] => {
-      const aPad = String(ayahNum).padStart(3, '0');
-      const globalNum = getGlobalAyahNumber(currentSurah.number, ayahNum);
-      const list: string[] = [];
-      // ۱. اگر آیه اول سوره‌های باندل‌شده آفلاین است، اول فایل آفلاین داخل گوشی هم امتحان شود
-      if (ayahNum === 1) {
-        const localMap: Record<number, string> = {
-          56: '/adhans/post_waqiah.mp3',
-          36: '/adhans/post_yasin.mp3',
-          67: '/adhans/post_mulk.mp3',
-          51: '/adhans/post_dhariyat.mp3',
-          37: '/adhans/post_saffat.mp3',
-          55: '/adhans/post_rahman.mp3',
-        };
-        if (localMap[currentSurah.number]) list.push(localMap[currentSurah.number]);
-      }
-      // ۲. سرور استاد شهریار پرهیزگار + سرور CDN پرسرعت جهانی (بدون قطعی در ایران)
-      list.push('https://everyayah.com/data/Parhizgar_48kbps/' + sPad + aPad + '.mp3');
-      list.push('https://cdn.islamic.network/quran/audio/128/ar.alafasy/' + globalNum + '.mp3');
-      list.push('https://cdn.islamic.network/quran/audio/64/ar.abdulbasitmurattal/' + globalNum + '.mp3');
-      list.push(currentSurah.parhizgarSurahUrl);
-      return list;
-    };
-
-    const playAyahStep = (ayahNum: number, urlIndex = 0) => {
-      if (!isPlayingRef.current || ayahNum > currentSurah.ayahCount) {
-        stopSurahAudio();
-        return;
-      }
-      const candidates = getCandidateUrls(ayahNum);
-      if (urlIndex >= candidates.length) {
-        stopSurahAudio();
-        showToast('لطفاً اتصال اینترنت را برای پخش صوت کامل سوره بررسی کنید.');
-        return;
-      }
-
-      setPlayingAyahNumber(ayahNum);
-      updateQuranPosition(currentSurah.number, ayahNum);
-
-      setTimeout(() => {
-        const el = document.getElementById('mushaf-ayah-' + ayahNum);
-        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 100);
-
-      const targetUrl = candidates[urlIndex];
-      const isFullSurahStream = targetUrl === currentSurah.parhizgarSurahUrl;
-
-      player.onended = null;
-      player.onerror = null;
-      player.src = targetUrl;
-      player.playbackRate = playbackRateRef.current;
-
-      player.onended = () => {
-        if (!isPlayingRef.current) return;
-        if (isFullSurahStream) {
-          stopSurahAudio();
-        } else {
-          playAyahStep(ayahNum + 1, 0);
-        }
-      };
-
-      player.onerror = () => {
-        if (!isPlayingRef.current) return;
-        playAyahStep(ayahNum, urlIndex + 1);
-      };
-
-      player.play().catch(() => {
-        if (!isPlayingRef.current) return;
-        playAyahStep(ayahNum, urlIndex + 1);
-      });
-    };
-
-    playAyahStep(startAyah, 0);
+    startAyahByAyahPlayback(startAyah);
   };
 
   const handleToggleBookmarkAyah = (ayah: QuranAyahItem) => {
@@ -417,43 +599,48 @@ export function QuranAndMuhasabaModal({ initialMode = 'quran', initialSurahNumbe
   };
 
   const handleScheduleSurahReminder = async () => {
-    const city = getCityById(getGuestCityId());
-    const pTimes = calculatePrayerTimes(new Date(), city.lat, city.lng, city.timezone, 'tehran');
-
-    let targetTime = customTime;
-    let timeDesc = 'ساعت ' + toFaDigits(customTime);
-
-    if (selectedAnchor === 'maghrib') {
-      targetTime = addMinutesToTimeStr(pTimes.maghrib, offsetMinutes);
-      timeDesc = toFaDigits(offsetMinutes) + ' دقیقه بعد از اذان مغرب (' + toFaDigits(targetTime) + ')';
-    } else if (selectedAnchor === 'fajr') {
-      targetTime = addMinutesToTimeStr(pTimes.fajr, offsetMinutes);
-      timeDesc = toFaDigits(offsetMinutes) + ' دقیقه بعد از اذان صبح (' + toFaDigits(targetTime) + ')';
-    } else if (selectedAnchor === 'dhuhr') {
-      targetTime = addMinutesToTimeStr(pTimes.dhuhr, offsetMinutes);
-      timeDesc = toFaDigits(offsetMinutes) + ' دقیقه بعد از اذان ظهر (' + toFaDigits(targetTime) + ')';
-    }
-
-    const title = '📖 تلاوت ' + currentSurah.nameFa;
-    const body = 'وقت انس روزانه با قرآن (' + timeDesc + ') — ' + currentSurah.virtueFa;
-
-    const existing = loadReminders().find((r) => r.title === title);
-    if (existing) {
-      await updateReminder(existing.id, { time: targetTime, body, enabled: true }, true);
-    } else {
-      await createReminder({
-        title,
-        body,
-        time: targetTime,
-        days: [0, 1, 2, 3, 4, 5, 6],
-        dhikrId: null,
-        type: 'recurring',
-        notifEnabled: true,
-      });
-    }
-
-    showToast('🔔 یادآور «' + currentSurah.nameFa + '» برای ' + timeDesc + ' کوک شد!');
+    const { descFa } = await scheduleSurahNativeAlarm({
+      surahNumber: currentSurah.number,
+      surahNameFa: currentSurah.nameFa,
+      virtueFa: currentSurah.virtueFa,
+      anchor: selectedAnchor,
+      offsetMinutes,
+      customTime,
+      speed: playbackRate,
+    });
+    setSurahAlarms(loadSurahAlarms());
+    showToast(
+      '🔔 پخش خودکار «' +
+        currentSurah.nameFa +
+        '» برای ' +
+        descFa +
+        ' با سرعت ' +
+        toFaDigits(playbackRate) +
+        'x روی صفحه قفل کوک شد!'
+    );
     onUpdated?.();
+  };
+
+  const handleCancelSurahReminder = async () => {
+    await cancelSurahNativeAlarm(currentSurah.number);
+    setSurahAlarms(loadSurahAlarms());
+    showToast('🔕 یادآور خودکار «' + currentSurah.nameFa + '» خاموش شد.');
+    onUpdated?.();
+  };
+
+  const handleTestSurahAlarm10s = async () => {
+    const scheduled = await triggerSurahAlarmTest10s({
+      surahNumber: currentSurah.number,
+      surahNameFa: currentSurah.nameFa,
+      virtueFa: currentSurah.virtueFa,
+      speed: playbackRate,
+    });
+    if (scheduled) {
+      showToast('⏱️ تست تلاوت «' + currentSurah.nameFa + '» برای ۱۰ ثانیه بعد کوک شد؛ صفحه را قفل کنید!');
+    } else {
+      startAyahByAyahPlayback(visibleAyahs[0]?.number ?? 1);
+      showToast('🔊 پیش‌نمایش تلاوت در مرورگر اجرا شد (تست قفل صفحه روی گوشی اندروید فعال است).');
+    }
   };
 
   const handleSaveMuhasaba = () => {
@@ -475,11 +662,6 @@ export function QuranAndMuhasabaModal({ initialMode = 'quran', initialSurahNumbe
     showToast('✨ یادداشت محاسبه نفس به‌صورت کاملاً خصوصی روی گوشی ذخیره شد.');
     onUpdated?.();
   };
-
-  const safeAyahIdx = Math.max(0, Math.min(ayahs.length - 1, qState.ayahNumber - 1));
-  const currentPageIndex = Math.floor(safeAyahIdx / AYAHS_PER_MUSHAF_PAGE);
-  const totalPages = Math.max(1, Math.ceil(ayahs.length / AYAHS_PER_MUSHAF_PAGE));
-  const visibleAyahs = ayahs.slice(currentPageIndex * AYAHS_PER_MUSHAF_PAGE, (currentPageIndex + 1) * AYAHS_PER_MUSHAF_PAGE);
 
   const node = (
     <div
@@ -561,11 +743,12 @@ export function QuranAndMuhasabaModal({ initialMode = 'quran', initialSurahNumbe
             <div>
               <div className="flex items-center justify-between mb-2 px-1">
                 <span className="text-[11px] font-bold text-muted">انتخاب سوره (🕋 = مکی · 🕌 = مدنی):</span>
-                <span className="text-[10px] font-bold text-primary">لمس ﴿۱﴾ یا 🔖 = ذخیره در نشانک‌ها</span>
+                <span className="text-[10px] font-bold text-primary">لمس هر آیه = پخش از همان آیه</span>
               </div>
               <div className="grid grid-cols-3 gap-2">
                 {CURATED_SURAHS.map((s) => {
                   const active = currentSurah.number === s.number;
+                  const hasAlarm = Boolean(surahAlarms[s.number]?.enabled);
                   return (
                     <button
                       key={s.number}
@@ -581,7 +764,10 @@ export function QuranAndMuhasabaModal({ initialMode = 'quran', initialSurahNumbe
                       }}
                     >
                       <div className="flex items-center justify-between w-full mb-1">
-                        <span className="text-sm" title={s.revelationPlace}>{s.revelationIcon}</span>
+                        <span className="text-sm" title={s.revelationPlace}>
+                          {s.revelationIcon}
+                          {hasAlarm && <span className="text-[10px] mr-0.5">🔔</span>}
+                        </span>
                         <span
                           className="text-[9px] font-bold px-1.5 py-0.5 rounded-md"
                           style={{
@@ -619,7 +805,7 @@ export function QuranAndMuhasabaModal({ initialMode = 'quran', initialSurahNumbe
             <div
               className="p-3 rounded-2xl border space-y-2.5"
               style={{
-                borderColor: isPlayingParhizgar ? theme.accent : theme.primary,
+                borderColor: isPlayingRecitation ? theme.accent : theme.primary,
                 background: 'color-mix(in srgb, ' + theme.primary + ' 12%, transparent)',
               }}
             >
@@ -631,23 +817,29 @@ export function QuranAndMuhasabaModal({ initialMode = 'quran', initialSurahNumbe
                       🎙️ ترتیل استاد شهریار پرهیزگار
                     </p>
                     <p className="text-[10px] text-muted truncate">
-                      {isPlayingParhizgar
-                        ? 'ılılı در حال تلاوت آیه ' + toFaDigits(playingAyahNumber ?? qState.ayahNumber) + ' (ورق‌زدن خودکار فعال)'
-                        : 'پخش فوری همراه با ورق‌زدن خودکار صفحه مصحف'}
+                      {isPlayingRecitation
+                        ? isOfflineSingleTrack
+                          ? 'ılılı پخش آفلاین یکپارچه سوره (سرعت ' + toFaDigits(playbackRate) + 'x)'
+                          : 'ılılı آیه ' +
+                            toFaDigits(playingAyahNumber ?? qState.ayahNumber) +
+                            ' از ' +
+                            toFaDigits(currentSurah.ayahCount) +
+                            ' · ورق‌زدن خودکار فعال'
+                        : 'پخش آیه‌به‌آیه با ورق‌زدن خودکار صفحه مصحف'}
                     </p>
                   </div>
                 </div>
                 <button
                   type="button"
-                  onClick={() => togglePlayParhizgar(playingAyahNumber ?? visibleAyahs[0]?.number ?? 1)}
+                  onClick={() => togglePlayRecitation(playingAyahNumber ?? visibleAyahs[0]?.number ?? 1)}
                   className="px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shrink-0 shadow-md"
                   style={{
-                    background: isPlayingParhizgar ? '#ef4444' : theme.primary,
-                    color: isPlayingParhizgar ? '#ffffff' : theme.bg,
+                    background: isPlayingRecitation ? '#ef4444' : theme.primary,
+                    color: isPlayingRecitation ? '#ffffff' : theme.bg,
                   }}
                 >
-                  {isPlayingParhizgar ? <Square size={12} /> : <Play size={12} />}
-                  <span>{isPlayingParhizgar ? '⏹️ توقف فوری' : '▶️ پخش ترتیل'}</span>
+                  {isPlayingRecitation ? <Square size={12} /> : <Play size={12} />}
+                  <span>{isPlayingRecitation ? 'توقف' : 'پخش ترتیل'}</span>
                 </button>
               </div>
 
@@ -663,7 +855,10 @@ export function QuranAndMuhasabaModal({ initialMode = 'quran', initialSurahNumbe
                       onClick={() => handleChangeSpeed(spd)}
                       className="px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all"
                       style={{
-                        background: playbackRate === spd ? theme.accent : 'color-mix(in srgb, ' + theme.primary + ' 10%, transparent)',
+                        background:
+                          playbackRate === spd
+                            ? theme.accent
+                            : 'color-mix(in srgb, ' + theme.primary + ' 10%, transparent)',
                         color: playbackRate === spd ? theme.bg : theme.textMuted,
                       }}
                     >
@@ -715,7 +910,12 @@ export function QuranAndMuhasabaModal({ initialMode = 'quran', initialSurahNumbe
                           <span
                             id={'mushaf-ayah-' + a.number}
                             key={a.number}
-                            onClick={() => updateQuranPosition(currentSurah.number, a.number)}
+                            onClick={() => {
+                              updateQuranPosition(currentSurah.number, a.number);
+                              if (isPlayingRecitation) {
+                                startAyahByAyahPlayback(a.number);
+                              }
+                            }}
                             onTouchStart={() => {
                               longPressTimerRef.current = window.setTimeout(() => {
                                 handleToggleBookmarkAyah(a);
@@ -734,10 +934,13 @@ export function QuranAndMuhasabaModal({ initialMode = 'quran', initialSurahNumbe
                             className="inline cursor-pointer rounded-lg px-1 py-0.5 transition-all select-none"
                             style={{
                               background: isAyahPlaying
-                                ? 'color-mix(in srgb, ' + theme.accent + ' 30%, transparent)'
+                                ? 'color-mix(in srgb, ' + theme.accent + ' 34%, transparent)'
                                 : isBookmarked
                                 ? 'color-mix(in srgb, ' + theme.primary + ' 20%, transparent)'
                                 : 'transparent',
+                              boxShadow: isAyahPlaying
+                                ? '0 0 0 1px color-mix(in srgb, ' + theme.accent + ' 65%, transparent)'
+                                : undefined,
                             }}
                           >
                             {a.arabic}{' '}
@@ -749,10 +952,12 @@ export function QuranAndMuhasabaModal({ initialMode = 'quran', initialSurahNumbe
                               title="برای نشانک‌گذاری لمس کنید"
                               className="inline-flex items-center justify-center px-1.5 py-0.5 mx-1 rounded-full text-xs font-bold"
                               style={{
-                                background: isBookmarked
+                                background: isAyahPlaying
+                                  ? theme.accent
+                                  : isBookmarked
                                   ? theme.accent
                                   : 'color-mix(in srgb, ' + theme.primary + ' 22%, transparent)',
-                                color: isBookmarked ? theme.bg : theme.primary,
+                                color: isAyahPlaying || isBookmarked ? theme.bg : theme.primary,
                               }}
                             >
                               ﴿{toFaDigits(a.number)}{isBookmarked ? '🔖' : ''}﴾
@@ -764,16 +969,26 @@ export function QuranAndMuhasabaModal({ initialMode = 'quran', initialSurahNumbe
                   </div>
 
                   <div className="space-y-2 max-h-48 overflow-y-auto pr-1 pt-1">
-                    <p className="text-[11px] font-bold text-primary">ترجمه روان فارسی آیات این صفحه (لمس 🔖 = ذخیره در نشانک‌ها):</p>
+                    <p className="text-[11px] font-bold text-primary">
+                      ترجمه روان فارسی آیات این صفحه (لمس 🔖 = ذخیره در نشانک‌ها):
+                    </p>
                     {visibleAyahs.map((a) => {
+                      const isAyahPlaying = playingAyahNumber === a.number;
                       const isBookmarked = qState.bookmarks.some(
                         (b) => b.surahNameFa === currentSurah.nameFa && b.ayahNumber === a.number
                       );
                       return (
                         <div
+                          id={'mushaf-trans-' + a.number}
                           key={a.number}
-                          className="text-xs text-muted leading-relaxed border-b pb-1.5 flex items-start justify-between gap-2"
-                          style={{ borderColor: theme.border }}
+                          className="text-xs leading-relaxed border-b pb-1.5 px-2 py-1 rounded-xl flex items-start justify-between gap-2 transition-colors"
+                          style={{
+                            borderColor: theme.border,
+                            background: isAyahPlaying
+                              ? 'color-mix(in srgb, ' + theme.accent + ' 16%, transparent)'
+                              : 'transparent',
+                            color: isAyahPlaying ? theme.text : theme.textMuted,
+                          }}
                         >
                           <div>
                             <strong className="text-accent ml-1">({toFaDigits(a.number)})</strong>
@@ -839,16 +1054,38 @@ export function QuranAndMuhasabaModal({ initialMode = 'quran', initialSurahNumbe
               </div>
             </div>
 
+            {/* کوک نیتیو تلاوت خودکار سوره روی صفحه قفل (هم‌تراز با موتور تعقیبات) */}
             <div
               className="card-flat p-3.5 space-y-2.5 border"
-              style={{ borderColor: 'color-mix(in srgb, ' + theme.accent + ' 40%, ' + theme.border + ')' }}
+              style={{
+                borderColor: activeSurahAlarm?.enabled
+                  ? theme.primary
+                  : 'color-mix(in srgb, ' + theme.accent + ' 40%, ' + theme.border + ')',
+              }}
             >
-              <div className="flex items-center gap-1.5">
-                <BellRing size={15} color={theme.accent} />
-                <span className="text-xs font-black text-app">
-                  کوک یادآور روزانه «{currentSurah.nameFa}» پس از اذان:
-                </span>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <BellRing size={15} color={theme.accent} className="shrink-0" />
+                  <span className="text-xs font-black text-app truncate">
+                    کوک پخش خودکار «{currentSurah.nameFa}»:
+                  </span>
+                </div>
+                {activeSurahAlarm?.enabled && (
+                  <span
+                    className="px-2 py-0.5 rounded-full text-[10px] font-black shrink-0"
+                    style={{
+                      background: 'rgba(16, 185, 129, 0.18)',
+                      color: '#34d399',
+                    }}
+                  >
+                    فعال · {toFaDigits(activeSurahAlarm.resolvedClock)}
+                  </span>
+                )}
               </div>
+
+              <p className="text-[10.5px] text-muted leading-relaxed">
+                سر ساعت انتخابی، صفحه گوشی خودکار روشن می‌شود و تلاوت «{currentSurah.nameFa}» با سرعت {toFaDigits(playbackRate)}x پخش می‌گردد.
+              </p>
 
               <div className="grid grid-cols-2 gap-1.5">
                 {[
@@ -864,7 +1101,10 @@ export function QuranAndMuhasabaModal({ initialMode = 'quran', initialSurahNumbe
                     className="py-2 px-2 rounded-xl text-[11px] font-bold border"
                     style={{
                       borderColor: selectedAnchor === anc.id ? theme.accent : theme.border,
-                      background: selectedAnchor === anc.id ? 'color-mix(in srgb, ' + theme.accent + ' 18%, transparent)' : 'transparent',
+                      background:
+                        selectedAnchor === anc.id
+                          ? 'color-mix(in srgb, ' + theme.accent + ' 18%, transparent)'
+                          : 'transparent',
                       color: selectedAnchor === anc.id ? theme.accent : theme.textMuted,
                     }}
                   >
@@ -884,7 +1124,10 @@ export function QuranAndMuhasabaModal({ initialMode = 'quran', initialSurahNumbe
                         onClick={() => setOffsetMinutes(min)}
                         className="px-2.5 py-1 rounded-lg text-[11px] font-bold"
                         style={{
-                          background: offsetMinutes === min ? theme.primary : 'color-mix(in srgb, ' + theme.primary + ' 12%, transparent)',
+                          background:
+                            offsetMinutes === min
+                              ? theme.primary
+                              : 'color-mix(in srgb, ' + theme.primary + ' 12%, transparent)',
                           color: offsetMinutes === min ? theme.bg : theme.textMuted,
                         }}
                       >
@@ -907,14 +1150,46 @@ export function QuranAndMuhasabaModal({ initialMode = 'quran', initialSurahNumbe
                 </div>
               )}
 
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => void handleScheduleSurahReminder()}
+                  className="flex-1 py-2.5 rounded-2xl text-xs font-black flex items-center justify-center gap-1.5 shadow-md"
+                  style={{ background: theme.primary, color: theme.bg }}
+                >
+                  <BellRing size={14} />
+                  <span>کوک پخش خودکار {currentSurah.shortLabel}</span>
+                </button>
+                {activeSurahAlarm?.enabled && (
+                  <button
+                    type="button"
+                    onClick={() => void handleCancelSurahReminder()}
+                    title="خاموش کردن یادآور این سوره"
+                    className="px-3 py-2.5 rounded-2xl text-xs font-bold border flex items-center gap-1"
+                    style={{
+                      borderColor: 'rgba(239, 68, 68, 0.45)',
+                      background: 'rgba(239, 68, 68, 0.12)',
+                      color: '#fca5a5',
+                    }}
+                  >
+                    <BellOff size={14} />
+                    <span>خاموش</span>
+                  </button>
+                )}
+              </div>
+
               <button
                 type="button"
-                onClick={() => void handleScheduleSurahReminder()}
-                className="w-full py-2.5 rounded-2xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-md"
-                style={{ background: theme.primary, color: theme.bg }}
+                onClick={() => void handleTestSurahAlarm10s()}
+                className="w-full py-2 rounded-xl text-[11px] font-bold border flex items-center justify-center gap-1.5"
+                style={{
+                  borderColor: 'color-mix(in srgb, ' + theme.accent + ' 40%, ' + theme.border + ')',
+                  background: 'color-mix(in srgb, ' + theme.accent + ' 10%, transparent)',
+                  color: theme.accent,
+                }}
               >
-                <BellRing size={14} />
-                <span>کوک یادآور {currentSurah.nameFa}</span>
+                <Zap size={13} />
+                <span>تست فوری روی صفحه قفل (۱۰ ثانیه بعد)</span>
               </button>
             </div>
           </div>
@@ -933,12 +1208,16 @@ export function QuranAndMuhasabaModal({ initialMode = 'quran', initialSurahNumbe
                 {qState.bookmarks.map((bm, idx) => (
                   <div key={idx} className="card-flat p-4 space-y-2 border" style={{ borderColor: theme.primary }}>
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-black text-primary">🔖 {bm.surahNameFa} — آیه {toFaDigits(bm.ayahNumber)}</span>
+                      <span className="text-xs font-black text-primary">
+                        🔖 {bm.surahNameFa} — آیه {toFaDigits(bm.ayahNumber)}
+                      </span>
                       <div className="flex items-center gap-1.5">
                         <button
                           type="button"
                           onClick={() => {
-                            const foundSurah = CURATED_SURAHS.find((s) => s.nameFa === bm.surahNameFa || s.number === bm.surahNumber);
+                            const foundSurah = CURATED_SURAHS.find(
+                              (s) => s.nameFa === bm.surahNameFa || s.number === bm.surahNumber
+                            );
                             if (foundSurah) {
                               updateQuranPosition(foundSurah.number, bm.ayahNumber);
                               setMode('quran');
