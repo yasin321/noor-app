@@ -19,6 +19,73 @@ export type PrayerTimes = {
   location: string;
 };
 
+export type PrayerManualOffsets = {
+  fajr: number;
+  dhuhr: number;
+  asr: number;
+  maghrib: number;
+  isha: number;
+};
+
+const MANUAL_OFFSETS_KEY = 'noor_prayer_manual_offsets_v1';
+
+const DEFAULT_OFFSETS: PrayerManualOffsets = {
+  fajr: 0,
+  dhuhr: 0,
+  asr: 0,
+  maghrib: 0,
+  isha: 0,
+};
+
+function clampOffset(val: unknown): number {
+  const n = Number(val);
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(-5, Math.min(5, Math.round(n)));
+}
+
+export function getPrayerManualOffsets(): PrayerManualOffsets {
+  try {
+    const raw = localStorage.getItem(MANUAL_OFFSETS_KEY);
+    if (!raw) return { ...DEFAULT_OFFSETS };
+    const p = JSON.parse(raw);
+    return {
+      fajr: clampOffset(p?.fajr),
+      dhuhr: clampOffset(p?.dhuhr),
+      asr: clampOffset(p?.asr),
+      maghrib: clampOffset(p?.maghrib),
+      isha: clampOffset(p?.isha),
+    };
+  } catch {
+    return { ...DEFAULT_OFFSETS };
+  }
+}
+
+export function savePrayerManualOffsets(offsets: PrayerManualOffsets): void {
+  const clean: PrayerManualOffsets = {
+    fajr: clampOffset(offsets.fajr),
+    dhuhr: clampOffset(offsets.dhuhr),
+    asr: clampOffset(offsets.asr),
+    maghrib: clampOffset(offsets.maghrib),
+    isha: clampOffset(offsets.isha),
+  };
+  try {
+    localStorage.setItem(MANUAL_OFFSETS_KEY, JSON.stringify(clean));
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('noor-calc-method-changed'));
+    }
+  } catch {}
+}
+
+export function hasNonZeroManualOffsets(offsets: PrayerManualOffsets = getPrayerManualOffsets()): boolean {
+  return (
+    offsets.fajr !== 0 ||
+    offsets.dhuhr !== 0 ||
+    offsets.asr !== 0 ||
+    offsets.maghrib !== 0 ||
+    offsets.isha !== 0
+  );
+}
+
 const prayerNames: PrayerTime[] = [
   { name: 'Fajr', nameFa: 'صبح', time: '', key: 'fajr' },
   { name: 'Sunrise', nameFa: 'طلوع', time: '', key: 'sunrise' },
@@ -51,10 +118,13 @@ function gregorianToHijri(year: number, month: number, day: number): { year: num
   const j =
     Math.floor((10985 - l2) / 5316) * Math.floor((50 * l2) / 17719) +
     Math.floor(l2 / 5670) * Math.floor((43 * l2) / 15238);
-  const l3 = l2 - Math.floor((30 - j) / 15) * Math.floor((17719 * j) / 50) -
-    Math.floor(j / 16) * Math.floor((15238 * j) / 43) + 29;
+  const l3 =
+    l2 -
+    Math.floor((30 - j) / 15) * Math.floor((17719 * j) / 50) -
+    Math.floor(j / 16) * Math.floor((15238 * j) / 43) +
+    29;
   const m = Math.floor((24 * l3) / 709);
-  const d = l3 - Math.floor(709 * m / 24);
+  const d = l3 - Math.floor((709 * m) / 24);
   const y = 30 * n + j - 30;
   return { year: y, month: m, day: d };
 }
@@ -67,6 +137,16 @@ const hijriMonthsFa = [
 function deg2rad(d: number): number { return (d * Math.PI) / 180; }
 function rad2deg(r: number): number { return (r * 180) / Math.PI; }
 
+function normalizeDeg(deg: number): number {
+  const r = deg % 360;
+  return r < 0 ? r + 360 : r;
+}
+
+function normalizeHour(h: number): number {
+  const r = h % 24;
+  return r < 0 ? r + 24 : r;
+}
+
 export function timeToMinutes(t: string): number {
   const [h, m] = t.split(':').map(Number);
   if (isNaN(h) || isNaN(m)) return NaN;
@@ -74,10 +154,11 @@ export function timeToMinutes(t: string): number {
 }
 
 export function minutesToTime(min: number): string {
-  if (min < 0) min += 24 * 60;
-  if (min >= 24 * 60) min -= 24 * 60;
-  const h = Math.floor(min / 60);
-  const m = Math.floor(min % 60);
+  if (!Number.isFinite(min)) return '--:--';
+  let total = Math.round(min) % 1440;
+  if (total < 0) total += 1440;
+  const h = Math.floor(total / 60);
+  const m = total % 60;
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
@@ -117,21 +198,27 @@ export function getLocalDateString(date: Date = new Date(), timezone?: string): 
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-type MethodParams = { fajrAngle: number; ishaAngle: number; maghribAngle?: number; ishaMinutesAfterMaghrib?: number };
+type MethodParams = {
+  fajrAngle: number;
+  ishaAngle: number;
+  maghribAngle?: number;
+  ishaMinutesAfterMaghrib?: number;
+  midnightMode: 'jafari' | 'standard';
+};
 
 const METHODS: Record<string, MethodParams> = {
-  jafari: { fajrAngle: 16, ishaAngle: 14, maghribAngle: 4 },
-  tehran: { fajrAngle: 17.7, ishaAngle: 14, maghribAngle: 4.5 },
-  mwl: { fajrAngle: 18, ishaAngle: 17 },
-  egyptian: { fajrAngle: 19.5, ishaAngle: 17.5 },
-  karachi: { fajrAngle: 18, ishaAngle: 18 },
-  umm_al_qura: { fajrAngle: 18.5, ishaAngle: 0, ishaMinutesAfterMaghrib: 90 },
+  tehran: { fajrAngle: 17.7, ishaAngle: 14, maghribAngle: 4.5, midnightMode: 'jafari' },
+  jafari: { fajrAngle: 16, ishaAngle: 14, maghribAngle: 4, midnightMode: 'jafari' },
+  mwl: { fajrAngle: 18, ishaAngle: 17, midnightMode: 'standard' },
+  egyptian: { fajrAngle: 19.5, ishaAngle: 17.5, midnightMode: 'standard' },
+  karachi: { fajrAngle: 18, ishaAngle: 18, midnightMode: 'standard' },
+  umm_al_qura: { fajrAngle: 18.5, ishaAngle: 0, ishaMinutesAfterMaghrib: 90, midnightMode: 'standard' },
 };
 
 export function getAvailableMethods(): { id: string; name: string }[] {
   return [
-    { id: 'jafari', name: 'جعفری (شیعه)' },
-    { id: 'tehran', name: 'تهران (ژئوفیزیک)' },
+    { id: 'tehran', name: 'تهران — مؤسسه ژئوفیزیک (رسمی ایران)' },
+    { id: 'jafari', name: 'جعفری — مؤسسه لواء قم' },
     { id: 'mwl', name: 'اتحادیه اسلامی جهانی' },
     { id: 'egyptian', name: 'مصری' },
     { id: 'karachi', name: 'کراچی' },
@@ -139,123 +226,143 @@ export function getAvailableMethods(): { id: string; name: string }[] {
   ];
 }
 
+// الگوریتم دقیق نجومی USNO / PrayTimes (معادله زمان و میل خورشید بدون تقریب)
+function sunPosition(jd: number): { decl: number; eqt: number } {
+  const D = jd - 2451545.0;
+  const g = normalizeDeg(357.529 + 0.98560028 * D);
+  const q = normalizeDeg(280.459 + 0.98564736 * D);
+  const L = normalizeDeg(q + 1.915 * Math.sin(deg2rad(g)) + 0.020 * Math.sin(deg2rad(2 * g)));
+  const e = 23.439 - 0.00000036 * D;
+
+  const RA =
+    rad2deg(Math.atan2(Math.cos(deg2rad(e)) * Math.sin(deg2rad(L)), Math.cos(deg2rad(L)))) / 15;
+  let eqt = q / 15 - normalizeHour(RA);
+  if (eqt > 12) eqt -= 24;
+  if (eqt < -12) eqt += 24;
+
+  const decl = rad2deg(Math.asin(Math.sin(deg2rad(e)) * Math.sin(deg2rad(L))));
+  return { decl, eqt };
+}
+
 export function calculatePrayerTimes(
   date: Date,
   lat: number,
   lng: number,
   timezone: number | string = 'Asia/Tehran',
-  method: string = 'jafari',
+  method: string = 'tehran',
 ): PrayerTimes {
   const tzOffset = typeof timezone === 'string'
     ? getTimezoneOffsetHours(timezone, date)
     : timezone;
 
-  const params = METHODS[method] ?? METHODS.jafari;
+  const params = METHODS[method] ?? METHODS.tehran;
 
   const tzName = typeof timezone === 'string' ? timezone : undefined;
   const localDateStr = getLocalDateString(date, tzName);
   const [calcYear, calcMonth, calcDay] = localDateStr.split('-').map(Number);
-  const calcDate = new Date(calcYear, calcMonth - 1, calcDay);
 
-  const j = julianDate(calcDate.getFullYear(), calcDate.getMonth() + 1, calcDate.getDate()) - 2451545;
+  // روز ژولین اصلاح‌شده بر اساس طول جغرافیایی شهر
+  const jDate = julianDate(calcYear, calcMonth, calcDay) - lng / (15 * 24);
 
-  const sunLng = normalizeDeg(280.46 + 0.9856474 * j);
-  const M = normalizeDeg(357.528 + 0.9856003 * j);
-  const ec = 1.915 * Math.sin(deg2rad(M)) + 0.02 * Math.sin(deg2rad(2 * M));
-  const trueLng = sunLng + ec;
-  const omega = normalizeDeg(125.04 - 0.052954 * j);
-  const lambda = trueLng - 0.00569 - 0.00478 * Math.sin(deg2rad(omega));
+  function midDay(dayFrac: number): number {
+    const { eqt } = sunPosition(jDate + dayFrac);
+    return normalizeHour(12 - eqt);
+  }
 
-  const declination = rad2deg(Math.asin(
-    Math.sin(deg2rad(23.44)) * Math.sin(deg2rad(lambda))
-  ));
-
-  const dayOfYear = Math.floor(
-    (Date.UTC(calcDate.getFullYear(), calcDate.getMonth(), calcDate.getDate()) -
-      Date.UTC(calcDate.getFullYear(), 0, 0)) / 86400000
-  );
-  const B = deg2rad(360 * (dayOfYear - 81) / 364);
-  const eotMin = 9.87 * Math.sin(2 * B) - 7.53 * Math.cos(B) - 1.5 * Math.sin(B);
-
-  const tzMeridian = tzOffset * 15;
-  const solarNoonMin = 720 + 4 * (tzMeridian - lng) - eotMin;
-  const noonMinutes = solarNoonMin;
-
-  function sunAngleTime(angle: number, isRising: boolean, baseMin: number): string {
+  function sunAngleHours(angleDeg: number, dayFrac: number, isRising: boolean): number {
+    const { decl } = sunPosition(jDate + dayFrac);
+    const noon = midDay(dayFrac);
     const latRad = deg2rad(lat);
-    const decRad = deg2rad(declination);
-    const cosH = (-Math.sin(deg2rad(angle)) - Math.sin(latRad) * Math.sin(decRad)) /
+    const decRad = deg2rad(decl);
+    const cosH =
+      (-Math.sin(deg2rad(angleDeg)) - Math.sin(latRad) * Math.sin(decRad)) /
       (Math.cos(latRad) * Math.cos(decRad));
-    if (cosH < -1 || cosH > 1) return '--:--';
-    const H = rad2deg(Math.acos(cosH));
-    const hourAngleMin = (isRising ? -H : H) / 15 * 60;
-    return minutesToTime(baseMin + hourAngleMin);
+    if (cosH < -1 || cosH > 1) return NaN;
+    const H = rad2deg(Math.acos(cosH)) / 15;
+    return noon + (isRising ? -H : H);
   }
 
-  function asrTime(factor: number, baseMin: number): string {
-    const latRad = deg2rad(lat);
-    const decRad = deg2rad(declination);
-    const tanAlpha = 1 / (factor + Math.tan(Math.abs(latRad - decRad)));
-    const alphaRad = Math.atan(tanAlpha);
-    const sinAlpha = Math.sin(alphaRad);
-    const cosH = (sinAlpha - Math.sin(latRad) * Math.sin(decRad)) /
-      (Math.cos(latRad) * Math.cos(decRad));
-    if (cosH < -1 || cosH > 1) return '--:--';
-    const H = rad2deg(Math.acos(cosH));
-    return minutesToTime(baseMin + H / 15 * 60);
+  function asrHours(factor: number, dayFrac: number): number {
+    const { decl } = sunPosition(jDate + dayFrac);
+    const elevationDeg = rad2deg(Math.atan(1 / (factor + Math.tan(Math.abs(deg2rad(lat - decl))))));
+    return sunAngleHours(-elevationDeg, dayFrac, false);
   }
 
-  const fajr = sunAngleTime(params.fajrAngle, true, noonMinutes);
-  const sunrise = sunAngleTime(0.833, true, noonMinutes);
-  const sunset = sunAngleTime(0.833, false, noonMinutes);
-  const dhuhr = minutesToTime(noonMinutes + 2);
-  const asr = asrTime(1, noonMinutes);
-  const maghribAngle = params.maghribAngle ?? 0.833;
-  const maghrib = sunAngleTime(maghribAngle, false, noonMinutes);
+  // ۲ مرحله تکرار برای محاسبه دقیق موقعیت خورشید در لحظه واقعی هر نماز
+  let tFajr = 5 / 24;
+  let tSunrise = 6 / 24;
+  let tDhuhr = 12 / 24;
+  let tAsr = 13 / 24;
+  let tSunset = 18 / 24;
+  let tMaghrib = 18 / 24;
+  let tIsha = 18 / 24;
 
-  let isha: string;
-  if (params.ishaMinutesAfterMaghrib) {
-    isha = minutesToTime(timeToMinutes(maghrib) + params.ishaMinutesAfterMaghrib);
-  } else {
-    isha = sunAngleTime(params.ishaAngle, false, noonMinutes);
+  let fajrH = NaN;
+  let sunriseH = NaN;
+  let dhuhrH = NaN;
+  let asrH = NaN;
+  let sunsetH = NaN;
+  let maghribH = NaN;
+  let ishaH = NaN;
+
+  for (let iter = 0; iter < 2; iter++) {
+    fajrH = sunAngleHours(params.fajrAngle, tFajr, true);
+    sunriseH = sunAngleHours(0.833, tSunrise, true);
+    dhuhrH = midDay(tDhuhr);
+    asrH = asrHours(1, tAsr);
+    sunsetH = sunAngleHours(0.833, tSunset, false);
+    maghribH = sunAngleHours(params.maghribAngle ?? 0.833, tMaghrib, false);
+    ishaH = params.ishaMinutesAfterMaghrib
+      ? maghribH + params.ishaMinutesAfterMaghrib / 60
+      : sunAngleHours(params.ishaAngle, tIsha, false);
+
+    if (Number.isFinite(fajrH)) tFajr = fajrH / 24;
+    if (Number.isFinite(sunriseH)) tSunrise = sunriseH / 24;
+    if (Number.isFinite(dhuhrH)) tDhuhr = dhuhrH / 24;
+    if (Number.isFinite(asrH)) tAsr = asrH / 24;
+    if (Number.isFinite(sunsetH)) tSunset = sunsetH / 24;
+    if (Number.isFinite(maghribH)) tMaghrib = maghribH / 24;
+    if (Number.isFinite(ishaH)) tIsha = ishaH / 24;
   }
 
-  const sunsetMin = timeToMinutes(sunset);
-  const sunriseMin = timeToMinutes(sunrise);
-  let midnightMin: number;
-  if (!isNaN(sunsetMin) && !isNaN(sunriseMin)) {
-    const nextSunriseMin = sunriseMin + 24 * 60;
-    midnightMin = (sunsetMin + nextSunriseMin) / 2;
-    if (midnightMin >= 24 * 60) midnightMin -= 24 * 60;
-  } else {
-    midnightMin = 0;
-  }
-  const midnight = minutesToTime(midnightMin);
+  const tzAdjustHours = tzOffset - lng / 15;
+  const toLocalMin = (h: number) => (Number.isFinite(h) ? (h + tzAdjustHours) * 60 : NaN);
 
-  const hijri = gregorianToHijri(calcDate.getFullYear(), calcDate.getMonth() + 1, calcDate.getDate());
+  const manual = getPrayerManualOffsets();
+
+  const fajrMin = toLocalMin(fajrH) + manual.fajr;
+  const sunriseMin = toLocalMin(sunriseH);
+  const dhuhrMin = toLocalMin(dhuhrH) + manual.dhuhr;
+  const asrMin = toLocalMin(asrH) + manual.asr;
+  const sunsetMin = toLocalMin(sunsetH);
+  const maghribMin = toLocalMin(maghribH) + manual.maghrib;
+  const ishaMin = toLocalMin(ishaH) + manual.isha;
+
+  // نیمه‌شب شرعی: برای شیعه (ژئوفیزیک تهران و جعفری) میانه غروب تا اذان صبح؛ برای اهل‌سنت میانه غروب تا طلوع
+  const morningRefMin = params.midnightMode === 'jafari' ? fajrMin : sunriseMin;
+  let midnightMin = NaN;
+  if (Number.isFinite(sunsetMin) && Number.isFinite(morningRefMin)) {
+    let nightLen = morningRefMin - sunsetMin;
+    if (nightLen < 0) nightLen += 1440;
+    midnightMin = sunsetMin + nightLen / 2;
+  }
+
+  const hijri = gregorianToHijri(calcYear, calcMonth, calcDay);
   const hijriDate = `${hijri.day} ${hijriMonthsFa[hijri.month - 1]} ${hijri.year}`;
 
-  const dateStr = localDateStr;
-
   return {
-    fajr,
-    sunrise,
-    dhuhr,
-    asr,
-    maghrib,
-    isha,
-    midnight,
-    date: dateStr,
+    fajr: minutesToTime(fajrMin),
+    sunrise: minutesToTime(sunriseMin),
+    dhuhr: minutesToTime(dhuhrMin),
+    asr: minutesToTime(asrMin),
+    maghrib: minutesToTime(maghribMin),
+    isha: minutesToTime(ishaMin),
+    midnight: minutesToTime(midnightMin),
+    date: localDateStr,
     hijri: `${hijri.year}/${String(hijri.month).padStart(2, '0')}/${String(hijri.day).padStart(2, '0')}`,
     hijriDate,
     location: '',
   };
-}
-
-function normalizeDeg(deg: number): number {
-  deg = deg % 360;
-  if (deg < 0) deg += 360;
-  return deg;
 }
 
 export function getNextPrayer(
@@ -319,7 +426,7 @@ export function getNightPrayerConfig(): NightPrayerConfig {
     const raw = localStorage.getItem(NIGHT_PRAYER_CONFIG_KEY);
     if (!raw) {
       return {
-        enabled: false, // به صورت پیش‌فرض غیرفعال طبق دستورالعمل
+        enabled: false,
         alarmEnabled: false,
         timingMode: 'last_third_start',
         customTime: '03:45',
@@ -354,7 +461,6 @@ export function saveNightPrayerConfig(cfg: NightPrayerConfig): void {
   } catch {}
 }
 
-// محاسبه دقیق وقت فضیلت نماز شب (ثلث آخر شب: از نیمه‌شب شرعی تا اذان صبح) بر اساس موقعیت جغرافیایی و تاریخ
 export function calculateNightPrayerWindow(times: PrayerTimes, cfg: NightPrayerConfig = getNightPrayerConfig()): {
   startTime: string;
   endTime: string;

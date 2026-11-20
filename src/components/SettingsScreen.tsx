@@ -25,7 +25,7 @@ import {
 } from '@/lib/adhans';
 import { CITIES, getCityById, getGuestCityId, setGuestCityId, type City } from '@/lib/cities';
 import { NoorAlarm, cancelAllScheduledNotifications, rescheduleAllReminders, checkPermission, requestPermission } from '@/lib/reminderService';
-import { getAvailableMethods, getNightPrayerConfig, saveNightPrayerConfig, type NightPrayerConfig } from '@/lib/prayerTimes';
+import { getAvailableMethods, getNightPrayerConfig, saveNightPrayerConfig, getPrayerManualOffsets, savePrayerManualOffsets, hasNonZeroManualOffsets, type NightPrayerConfig, type PrayerManualOffsets } from '@/lib/prayerTimes';
 import { getSpiritualDashboardStats, type PeriodRange } from '@/lib/tasbihStorage';
 import { getDhikr } from '@/lib/dhikrLibrary';
 import { getQuranDisplayMode, setQuranDisplayMode, type QuranDisplayMode } from '@/lib/quranCatalog';
@@ -415,6 +415,8 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   const [guestMethod, setGuestMethod] = useState(() => {
     try { return localStorage.getItem('noor_guest_calc_method') || 'tehran'; } catch { return 'tehran'; }
   });
+  const [manualOffsets, setManualOffsets] = useState<PrayerManualOffsets>(() => getPrayerManualOffsets());
+  const [showManualOffsets, setShowManualOffsets] = useState(false);
 
   const dash = getSpiritualDashboardStats(period);
   const topDhikrObj = getDhikr(dash.topDhikrId);
@@ -941,9 +943,37 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
 
   // ۷. زیرصفحه روش محاسبه
   if (section === 'method') {
+    const updateOffset = (key: keyof PrayerManualOffsets, delta: number) => {
+      const next: PrayerManualOffsets = {
+        ...manualOffsets,
+        [key]: Math.max(-5, Math.min(5, manualOffsets[key] + delta)),
+      };
+      setManualOffsets(next);
+      savePrayerManualOffsets(next);
+      void rescheduleAllReminders(notifEnabled);
+    };
+
+    const resetOffsets = () => {
+      const zero: PrayerManualOffsets = { fajr: 0, dhuhr: 0, asr: 0, maghrib: 0, isha: 0 };
+      setManualOffsets(zero);
+      savePrayerManualOffsets(zero);
+      void rescheduleAllReminders(notifEnabled);
+    };
+
     return (
       <div className="w-full max-w-xl mx-auto px-3.5 pt-4 pb-28 animate-fade-in" dir="rtl">
         <SubHeader title="روش محاسبه اوقات شرعی" />
+
+        <div
+          className="rounded-2xl p-3.5 border mb-4 text-[11px] text-muted leading-relaxed"
+          style={{
+            background: 'color-mix(in srgb, ' + theme.primary + ' 10%, ' + theme.surface + ')',
+            borderColor: 'color-mix(in srgb, ' + theme.primary + ' 35%, ' + theme.border + ')',
+          }}
+        >
+          محاسبه اوقات شرعی در نور <strong className="text-app">کاملاً آفلاین و نجومی</strong> است و هر روز بدون نیاز به اینترنت دقیق به‌روزرسانی می‌شود. برای تطابق کامل با تقویم رسمی ایران و صداوسیما، روش <strong className="text-primary">«تهران — مؤسسه ژئوفیزیک»</strong> پیشنهاد می‌شود.
+        </div>
+
         <div className="space-y-2">
           {methods.map((m) => (
             <button
@@ -952,10 +982,102 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
               className="w-full card-flat p-4 flex items-center justify-between"
               style={{ borderColor: currentMethod === m.id ? theme.primary : theme.border }}
             >
-              <p className="text-app font-medium text-sm">{m.name}</p>
+              <div className="text-right">
+                <p className="text-app font-bold text-sm">{m.name}</p>
+                {m.id === 'tehran' && (
+                  <p className="text-[10.5px] text-primary mt-0.5">مرجع رسمی تقویم ایران (فجر ۱۷/۷° · مغرب ۴/۵°)</p>
+                )}
+                {m.id === 'jafari' && (
+                  <p className="text-[10.5px] text-muted mt-0.5">مؤسسه پژوهشی لواء قم (فجر ۱۶° · مغرب ۴°)</p>
+                )}
+              </div>
               {currentMethod === m.id && <Check size={18} color={theme.primary} />}
             </button>
           ))}
+        </div>
+
+        {/* کشوی اختیاری تنظیم احتیاط شرعی دستی (بسته به صورت پیش‌فرض) */}
+        <div className="mt-5 rounded-3xl border overflow-hidden" style={{ background: theme.surface, borderColor: theme.border }}>
+          <button
+            type="button"
+            onClick={() => setShowManualOffsets((v) => !v)}
+            className="w-full px-4 py-3.5 flex items-center justify-between text-right"
+          >
+            <div>
+              <p className="text-xs font-black text-app">تنظیم دستی احتیاط شرعی (اختیاری)</p>
+              <p className="text-[10.5px] text-muted mt-0.5">
+                {hasNonZeroManualOffsets(manualOffsets)
+                  ? 'تغییر دستی روی برخی نمازها فعال است'
+                  : 'پیش‌فرض: ۰ دقیقه (توصیه‌شده برای محاسبه استاندارد)'}
+              </p>
+            </div>
+            <span className="text-xs font-bold text-primary shrink-0">
+              {showManualOffsets ? 'بستن ▲' : 'تنظیم ▼'}
+            </span>
+          </button>
+
+          {showManualOffsets && (
+            <div className="px-4 pb-4 pt-2 border-t space-y-2.5" style={{ borderColor: theme.border }}>
+              <p className="text-[10.5px] text-muted leading-relaxed">
+                در حالت عادی نیازی به تغییر این بخش نیست؛ این گزینه فقط در صورت تمایل به اعمال ۱ تا ۵ دقیقه احتیاط یا هماهنگی با مسجد محله است.
+              </p>
+              {(
+                [
+                  { key: 'fajr', label: 'اذان صبح' },
+                  { key: 'dhuhr', label: 'اذان ظهر' },
+                  { key: 'asr', label: 'اذان عصر' },
+                  { key: 'maghrib', label: 'اذان مغرب' },
+                  { key: 'isha', label: 'اذان عشاء' },
+                ] as const
+              ).map((item) => {
+                const v = manualOffsets[item.key];
+                return (
+                  <div
+                    key={item.key}
+                    className="flex items-center justify-between py-1.5 px-3 rounded-xl border"
+                    style={{ background: theme.bg, borderColor: theme.border }}
+                  >
+                    <span className="text-xs font-bold text-app">{item.label}</span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => updateOffset(item.key, -1)}
+                        className="w-7 h-7 rounded-lg border text-xs font-black text-app"
+                        style={{ borderColor: theme.border }}
+                      >
+                        −
+                      </button>
+                      <span
+                        dir="ltr"
+                        className="w-14 text-center text-xs font-black"
+                        style={{ color: v === 0 ? theme.textMuted : theme.primary }}
+                      >
+                        {v > 0 ? '+' + toFaDigits(v) : toFaDigits(v)} دقیقه
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => updateOffset(item.key, 1)}
+                        className="w-7 h-7 rounded-lg border text-xs font-black text-app"
+                        style={{ borderColor: theme.border }}
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+              {hasNonZeroManualOffsets(manualOffsets) && (
+                <button
+                  type="button"
+                  onClick={resetOffsets}
+                  className="w-full py-2 rounded-xl text-[11px] font-black border"
+                  style={{ borderColor: theme.primary, color: theme.primary }}
+                >
+                  بازگردانی همه به صفر (حالت استاندارد)
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
     );
