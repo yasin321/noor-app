@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
+import { useI18n, type TranslationKey } from '@/i18n';
 import {
   getCachedInboxMessages,
   getReadMessageIds,
@@ -28,16 +29,15 @@ import {
   type InboxMessage,
   type InboxCategory,
 } from '@/lib/inboxService';
-import { toJalaliShort } from '@/lib/jalali';
 
-const CAT_META: Record<InboxCategory, { label: string; color: string; Icon: typeof Bell }> = {
-  update: { label: 'نسخه جدید', color: '#38bdf8', Icon: Download },
-  dhikr: { label: 'ذکر جدید', color: '#34d399', Icon: Sparkles },
-  audio: { label: 'نوای جدید', color: '#fbbf24', Icon: Volume2 },
-  occasion: { label: 'مناسبت', color: '#c084fc', Icon: Sparkles },
-  news: { label: 'اطلاعیه نور', color: '#34d399', Icon: Megaphone },
-  tip: { label: 'نکته معنوی', color: '#60a5fa', Icon: BookOpen },
-  birthday: { label: 'تبریک تولد', color: '#f472b6', Icon: Gift },
+const CAT_META: Record<InboxCategory, { labelKey: TranslationKey; color: string; Icon: typeof Bell }> = {
+  update: { labelKey: 'inbox.catUpdate', color: '#38bdf8', Icon: Download },
+  dhikr: { labelKey: 'inbox.catDhikr', color: '#34d399', Icon: Sparkles },
+  audio: { labelKey: 'inbox.catAudio', color: '#fbbf24', Icon: Volume2 },
+  occasion: { labelKey: 'inbox.catOccasion', color: '#c084fc', Icon: Sparkles },
+  news: { labelKey: 'inbox.catNews', color: '#34d399', Icon: Megaphone },
+  tip: { labelKey: 'inbox.catTip', color: '#60a5fa', Icon: BookOpen },
+  birthday: { labelKey: 'inbox.catBirthday', color: '#f472b6', Icon: Gift },
 };
 
 export function executeInboxAction(
@@ -45,18 +45,18 @@ export function executeInboxAction(
   onNavigate?: (tab: 'home' | 'tasbih' | 'library' | 'reminders' | 'settings') => void,
   onClose?: () => void
 ) {
-  const t = (target || '').trim();
-  if (!t) return;
-  if (t.startsWith('http://') || t.startsWith('https://')) {
-    window.open(t, '_blank', 'noopener,noreferrer');
+  const tr = (target || '').trim();
+  if (!tr) return;
+  if (tr.startsWith('http://') || tr.startsWith('https://')) {
+    window.open(tr, '_blank', 'noopener,noreferrer');
     return;
   }
-  if (t === 'tasbih' || t === 'library' || t === 'reminders' || t === 'settings' || t === 'home') {
-    onNavigate?.(t);
+  if (tr === 'tasbih' || tr === 'library' || tr === 'reminders' || tr === 'settings' || tr === 'home') {
+    onNavigate?.(tr);
     onClose?.();
     return;
   }
-  if (t === 'sync_hub') {
+  if (tr === 'sync_hub') {
     onNavigate?.('settings');
     onClose?.();
   }
@@ -71,6 +71,7 @@ export function InboxModal({
 }) {
   const { theme } = useTheme();
   const { profile } = useAuth();
+  const { dir, isRtl, t, formatDate } = useI18n();
   const [messages, setMessages] = useState<InboxMessage[]>(() =>
     getCachedInboxMessages(profile?.display_name)
   );
@@ -107,7 +108,7 @@ export function InboxModal({
     <div
       className="fixed inset-0 z-[9999] flex items-stretch sm:items-center justify-center p-0 sm:p-4 animate-fade-in"
       style={{ background: 'rgba(0,0,0,0.88)', backdropFilter: 'blur(10px)' }}
-      dir="rtl"
+      dir={dir}
       onClick={onClose}
     >
       <div
@@ -130,9 +131,9 @@ export function InboxModal({
               <Bell size={19} />
             </div>
             <div>
-              <h2 className="text-base font-black text-app">صندوق پیام‌ها و اعلانات نور</h2>
+              <h2 className="text-base font-black text-app">{t('inbox.title')}</h2>
               <p className="text-[11px] text-muted mt-0.5">
-                {unreadCount > 0 ? 'پیام‌های جدید در انتظار مشاهده شماست' : 'همه پیام‌ها خوانده شده‌اند ✓'}
+                {unreadCount > 0 ? t('inbox.unreadHint') : t('inbox.allReadHint')}
               </p>
             </div>
           </div>
@@ -141,7 +142,7 @@ export function InboxModal({
             <button
               type="button"
               onClick={() => void handleRefresh()}
-              aria-label="بروزرسانی پیام‌ها"
+              aria-label="Refresh inbox"
               className="w-8 h-8 rounded-xl border flex items-center justify-center text-muted"
               style={{ borderColor: theme.border }}
             >
@@ -150,7 +151,7 @@ export function InboxModal({
             <button
               type="button"
               onClick={onClose}
-              aria-label="بستن صندوق پیام"
+              aria-label={t('common.close')}
               className="w-8 h-8 rounded-xl border flex items-center justify-center text-muted"
               style={{ borderColor: theme.border }}
             >
@@ -171,7 +172,7 @@ export function InboxModal({
             }}
           >
             <CheckCheck size={14} />
-            <span>علامت‌گذاری همه به‌عنوان خوانده‌شده</span>
+            <span>{t('inbox.markAllRead')}</span>
           </button>
         )}
 
@@ -179,19 +180,17 @@ export function InboxModal({
           {messages.length === 0 ? (
             <div className="py-12 text-center space-y-2">
               <Bell size={34} color={theme.textMuted} className="mx-auto opacity-35" />
-              <p className="text-xs font-bold text-app">هنوز پیامی در صندوق نیست</p>
-              <p className="text-[11px] text-muted">
-                خبر نسخه‌های جدید، نواهای تازه و پیام‌های مناسبتی نور اینجا ثبت می‌شوند.
-              </p>
+              <p className="text-xs font-bold text-app">{t('inbox.emptyTitle')}</p>
+              <p className="text-[11px] text-muted">{t('inbox.emptyDesc')}</p>
             </div>
           ) : (
             messages.map((msg) => {
               const isRead = readIds.includes(msg.id);
               const meta = CAT_META[msg.category] || CAT_META.news;
               const IconComp = meta.Icon;
-              const dateFa = (() => {
+              const dateLabel = (() => {
                 try {
-                  return toJalaliShort(new Date(msg.created_at));
+                  return formatDate(new Date(msg.created_at));
                 } catch {
                   return '';
                 }
@@ -224,7 +223,7 @@ export function InboxModal({
                           className="text-[9.5px] font-black px-2 py-0.5 rounded-full inline-block"
                           style={{ background: meta.color + '20', color: meta.color }}
                         >
-                          {meta.label}
+                          {t(meta.labelKey)}
                         </span>
                         <h3 className="text-xs font-black text-app mt-1 leading-snug">
                           {msg.title_fa}
@@ -232,18 +231,18 @@ export function InboxModal({
                       </div>
                     </div>
 
-                    <div className="text-left shrink-0">
+                    <div className={(isRtl ? 'text-left' : 'text-right') + ' shrink-0'}>
                       {isRead ? (
-                        <span className="text-[10px] font-bold text-emerald-400 flex items-center gap-0.5">
-                          <Check size={12} /> خوانده شد
+                        <span className="text-[10px] font-bold text-emerald-400 inline-flex items-center gap-0.5">
+                          <Check size={12} /> {t('inbox.read')}
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 text-[10px] font-black text-amber-300">
                           <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-                          جدید
+                          {t('inbox.new')}
                         </span>
                       )}
-                      {dateFa && <p className="text-[9.5px] text-muted mt-0.5">{dateFa}</p>}
+                      {dateLabel && <p className="text-[9.5px] text-muted mt-0.5">{dateLabel}</p>}
                     </div>
                   </div>
 
@@ -276,7 +275,7 @@ export function InboxModal({
           className="w-full mt-3.5 py-2.5 rounded-2xl text-xs font-bold border shrink-0"
           style={{ borderColor: theme.border, color: theme.text }}
         >
-          بستن صندوق پیام
+          {t('inbox.closeBtn')}
         </button>
       </div>
     </div>
@@ -295,6 +294,7 @@ export function LiveNotificationPopup({
   onNavigate?: (tab: 'home' | 'tasbih' | 'library' | 'reminders' | 'settings') => void;
 }) {
   const { theme } = useTheme();
+  const { dir, t } = useI18n();
   const meta = CAT_META[message.category] || CAT_META.news;
   const IconComp = meta.Icon;
 
@@ -308,7 +308,7 @@ export function LiveNotificationPopup({
     <div
       className="fixed inset-0 z-[10000] flex items-center justify-center p-4 animate-fade-in"
       style={{ background: 'rgba(0,0,0,0.82)', backdropFilter: 'blur(8px)' }}
-      dir="rtl"
+      dir={dir}
       onClick={dismiss}
     >
       <div
@@ -336,7 +336,7 @@ export function LiveNotificationPopup({
           className="text-[10.5px] font-black px-3 py-1 rounded-full inline-block"
           style={{ background: meta.color + '22', color: meta.color }}
         >
-          {meta.label}
+          {t(meta.labelKey)}
         </span>
         <h3 className="text-base font-black text-app leading-snug">{message.title_fa}</h3>
         <p className="text-xs text-muted leading-relaxed">{message.body_fa}</p>
@@ -370,7 +370,7 @@ export function LiveNotificationPopup({
                 : { background: theme.primary, color: theme.bg }
             }
           >
-            متوجه شدم ✓
+            {t('inbox.gotIt')}
           </button>
         </div>
       </div>
@@ -388,7 +388,8 @@ export function BirthdayCelebrationModal({
   onClose: () => void;
 }) {
   const { theme } = useTheme();
-  const name = displayName?.trim() || 'همراه عزیز نور';
+  const { dir, t } = useI18n();
+  const name = displayName?.trim() || t('birthday.defaultName');
 
   const handleClose = () => {
     markBirthdayCelebratedThisYear();
@@ -399,7 +400,7 @@ export function BirthdayCelebrationModal({
     <div
       className="fixed inset-0 z-[10001] flex items-center justify-center p-4 animate-fade-in"
       style={{ background: 'rgba(0,0,0,0.86)', backdropFilter: 'blur(10px)' }}
-      dir="rtl"
+      dir={dir}
       onClick={handleClose}
     >
       <div
@@ -417,17 +418,17 @@ export function BirthdayCelebrationModal({
         >
           <Gift size={32} />
         </div>
-        <h2 className="text-xl font-black text-app">تولدت مبارک {name} جان! 🎂</h2>
-        <p className="text-xs text-muted leading-relaxed">
-          سال جدید عمرت پر از نور، تندرستی، آرامش دل، توفیق بندگی و بهترین اتفاق‌ها باشد. همراه معنوی نور این روز زیبا را از صمیم قلب به تو تبریک می‌گوید.
-        </p>
+        <h2 className="text-xl font-black text-app">
+          {t('birthday.titlePrefix')} {name} {t('birthday.titleSuffix')}
+        </h2>
+        <p className="text-xs text-muted leading-relaxed">{t('birthday.body')}</p>
         <button
           type="button"
           onClick={handleClose}
           className="w-full py-3.5 rounded-2xl text-xs font-black shadow-lg"
           style={{ background: 'linear-gradient(135deg, #f472b6, #fbbf24)', color: '#0b131e' }}
         >
-          ممنونم، آمین ✨
+          {t('birthday.btn')}
         </button>
       </div>
     </div>

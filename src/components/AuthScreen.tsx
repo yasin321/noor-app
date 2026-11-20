@@ -5,6 +5,7 @@ import {
   User,
   AlertCircle,
   ArrowRight,
+  ArrowLeft,
   Eye,
   EyeOff,
   CheckCircle2,
@@ -15,21 +16,23 @@ import {
 } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
+import { useI18n } from '@/i18n';
 import {
-  normalizeIranPhone,
-  isValidIranPhone,
-  formatIranPhoneDisplay,
+  normalizeGlobalPhone,
+  isValidGlobalPhone,
+  formatGlobalPhoneDisplay,
   evaluatePasswordStrength,
   requestPasswordResetOtp,
   verifyOtpAndResetPassword,
   toEnglishDigits,
 } from '@/lib/authService';
 import { isSupabaseConfigured } from '@/lib/supabase';
-import { toFaDigits } from '@/lib/jalali';
 
 export function AuthScreen({ onBack }: { onBack?: () => void }) {
   const { theme } = useTheme();
   const { signIn, signUp } = useAuth();
+  const { lang, dir, isRtl, t, formatDigits } = useI18n();
+
   const [mode, setMode] = useState<'signin' | 'signup' | 'forgot'>('signin');
   const [phoneInput, setPhoneInput] = useState('');
   const [password, setPassword] = useState('');
@@ -37,7 +40,6 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
   const [displayName, setDisplayName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
-  // وضعیت فراموشی رمز ۲ مرحله‌ای (ارسال کد پیامکی -> تایید کد و رمز جدید)
   const [forgotStep, setForgotStep] = useState<'phone' | 'verify'>('phone');
   const [otpCode, setOtpCode] = useState('');
   const [resendSeconds, setResendSeconds] = useState(0);
@@ -46,38 +48,59 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const normalizedPhone = normalizeIranPhone(phoneInput);
-  const phoneReady = isValidIranPhone(normalizedPhone);
+  const normalizedPhone = normalizeGlobalPhone(phoneInput);
+  const phoneReady = isValidGlobalPhone(normalizedPhone);
   const strength = evaluatePasswordStrength(password);
+
+  const strengthLabel =
+    strength.score === 1
+      ? t('auth.strengthWeak')
+      : strength.score === 2
+      ? t('auth.strengthMedium')
+      : strength.score === 3
+      ? t('auth.strengthStrong')
+      : '';
 
   useEffect(() => {
     if (resendSeconds <= 0) return;
-    const t = window.setTimeout(() => setResendSeconds((s) => Math.max(0, s - 1)), 1000);
-    return () => window.clearTimeout(t);
+    const timer = window.setTimeout(() => setResendSeconds((s) => Math.max(0, s - 1)), 1000);
+    return () => window.clearTimeout(timer);
   }, [resendSeconds]);
 
   const handlePhoneChange = (val: string) => {
-    const clean = normalizeIranPhone(val);
-    setPhoneInput(formatIranPhoneDisplay(clean));
+    const trimmed = toEnglishDigits(val);
+    if (trimmed === '+') {
+      setPhoneInput('+');
+      return;
+    }
+    const clean = normalizeGlobalPhone(trimmed);
+    setPhoneInput(formatGlobalPhoneDisplay(clean));
     if (error) setError(null);
+  };
+
+  const translateErr = (err: string): string => {
+    if (err.includes('Invalid login credentials')) return t('auth.errCredentials');
+    if (err.includes('User already registered')) return t('auth.errExists');
+    if (err.includes('Password should be at least')) return t('auth.errPassLen');
+    return err;
   };
 
   const handleSendResetOtp = async () => {
     setError(null);
     setSuccessMsg(null);
     if (!phoneReady) {
-      setError('لطفاً شماره موبایل معتبر ۱۱ رقمی وارد کنید (مثال: 09157331216)');
+      setError(t('auth.errPhone'));
       return;
     }
     setLoading(true);
     try {
       const res = await requestPasswordResetOtp(normalizedPhone);
       if (!res.ok) {
-        setError(res.error || 'ارسال کد پیامکی انجام نشد.');
+        setError(res.error || t('auth.errGeneric'));
       } else {
         setForgotStep('verify');
         setResendSeconds(res.cooldownSec || 120);
-        setSuccessMsg('کد تایید به شماره ' + formatIranPhoneDisplay(normalizedPhone) + ' پیامک شد.');
+        setSuccessMsg(formatGlobalPhoneDisplay(normalizedPhone));
       }
     } finally {
       setLoading(false);
@@ -95,20 +118,20 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
         return;
       }
       if (password.length < 6) {
-        setError('رمز عبور جدید باید حداقل ۶ کاراکتر باشد');
+        setError(t('auth.errPassLen'));
         return;
       }
       if (password !== confirmPassword) {
-        setError('رمز عبور جدید و تکرار آن یکسان نیستند');
+        setError(t('auth.errMismatch'));
         return;
       }
       setLoading(true);
       try {
         const res = await verifyOtpAndResetPassword(normalizedPhone, otpCode, password);
         if (!res.ok) {
-          setError(res.error || 'تغییر رمز عبور ناموفق بود');
+          setError(res.error || t('auth.errGeneric'));
         } else {
-          setSuccessMsg('✅ رمز عبور با موفقیت تغییر کرد! اکنون با رمز جدید وارد شوید.');
+          setSuccessMsg(t('auth.okReset'));
           setMode('signin');
           setForgotStep('phone');
           setOtpCode('');
@@ -121,22 +144,22 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
     }
 
     if (!phoneReady) {
-      setError('لطفاً شماره موبایل معتبر ۱۱ رقمی وارد کنید (مثال: 09123456789)');
+      setError(t('auth.errPhone'));
       return;
     }
 
     if (password.length < 6) {
-      setError('رمز عبور باید حداقل ۶ کاراکتر باشد');
+      setError(t('auth.errPassLen'));
       return;
     }
 
     if (mode === 'signup') {
       if (!displayName.trim()) {
-        setError('لطفاً نام نمایشی خود را وارد کنید');
+        setError(t('auth.errName'));
         return;
       }
       if (password !== confirmPassword) {
-        setError('رمز عبور و تکرار آن یکسان نیستند');
+        setError(t('auth.errMismatch'));
         return;
       }
     }
@@ -145,25 +168,22 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
     try {
       if (mode === 'signup') {
         const { error: err } = await signUp(normalizedPhone, password, displayName.trim());
-        if (err) {
-          setError(translateError(err));
-        } else {
-          onBack?.();
-        }
+        if (err) setError(translateErr(err));
+        else onBack?.();
       } else {
         const { error: err } = await signIn(normalizedPhone, password);
-        if (err) {
-          setError(translateError(err));
-        } else {
-          onBack?.();
-        }
+        if (err) setError(translateErr(err));
+        else onBack?.();
       }
     } catch {
-      setError('ارتباط برقرار نشد. لطفاً دوباره تلاش کنید.');
+      setError(t('auth.errGeneric'));
     } finally {
       setLoading(false);
     }
   };
+
+  const phonePlaceholder =
+    lang === 'fa' ? '0912 345 6789' : lang === 'es' ? '+34 612 345 678' : '+1 212 555 0199';
 
   return (
     <div
@@ -178,7 +198,7 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
           theme.bg +
           ' 62%)',
       }}
-      dir="rtl"
+      dir={dir}
     >
       <div className="w-full max-w-sm relative z-10">
         {onBack && (
@@ -188,8 +208,8 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
             className="inline-flex items-center gap-1.5 text-xs font-bold text-muted mb-5 px-3 py-1.5 rounded-full border transition-opacity hover:opacity-90"
             style={{ borderColor: theme.border, background: 'rgba(255,255,255,0.03)' }}
           >
-            <ArrowRight size={15} />
-            <span>بازگشت به برنامه</span>
+            {isRtl ? <ArrowRight size={15} /> : <ArrowLeft size={15} />}
+            <span>{t('auth.backToApp')}</span>
           </button>
         )}
 
@@ -228,13 +248,13 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
             </svg>
           </div>
 
-          <h1 className="text-2xl font-black text-app tracking-tight">حساب همراه معنوی نور</h1>
+          <h1 className="text-2xl font-black text-app tracking-tight">{t('auth.title')}</h1>
           <p className="text-muted text-xs mt-1 text-center">
             {mode === 'forgot'
-              ? 'بازیابی رمز عبور با ارسال کد تایید پیامکی'
+              ? t('auth.subForgot')
               : mode === 'signin'
-              ? 'با شماره موبایل و رمز عبور وارد حساب خود شوید'
-              : 'ساخت حساب سریع برای ذخیره و همگام‌سازی اذکار و تنظیمات'}
+              ? t('auth.subSignin')
+              : t('auth.subSignup')}
           </p>
         </div>
 
@@ -263,7 +283,7 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
                   color: mode === 'signin' ? theme.bg : theme.textMuted,
                 }}
               >
-                ورود با موبایل
+                {t('auth.tabSignin')}
               </button>
               <button
                 type="button"
@@ -278,14 +298,14 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
                   color: mode === 'signup' ? theme.bg : theme.textMuted,
                 }}
               >
-                ایجاد حساب جدید
+                {t('auth.tabSignup')}
               </button>
             </div>
           ) : (
             <div className="flex items-center justify-between pb-2 border-b" style={{ borderColor: theme.border }}>
               <div className="flex items-center gap-2">
                 <KeyRound size={16} color={theme.accent} />
-                <span className="text-xs font-black text-app">بازیابی رمز با پیامک</span>
+                <span className="text-xs font-black text-app">{t('auth.forgotHeader')}</span>
               </div>
               <button
                 type="button"
@@ -297,7 +317,7 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
                 }}
                 className="text-[11px] font-bold text-primary"
               >
-                بازگشت به ورود ←
+                {t('auth.backToSignin')}
               </button>
             </div>
           )}
@@ -305,32 +325,33 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
           <form onSubmit={handleSubmit} className="space-y-3">
             {mode === 'signup' && (
               <div>
-                <label className="block text-[11px] font-bold text-muted mb-1 pr-1">نام نمایشی</label>
+                <label className="block text-[11px] font-bold text-muted mb-1 px-1">
+                  {t('auth.displayName')}
+                </label>
                 <div className="relative">
                   <User
                     size={16}
                     color={theme.textMuted}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
+                    className={'absolute top-1/2 -translate-y-1/2 pointer-events-none ' + (isRtl ? 'right-3.5' : 'left-3.5')}
                   />
                   <input
                     type="text"
-                    placeholder="مثلاً: یاسین"
+                    placeholder={t('auth.displayNamePh')}
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
-                    className="w-full pr-10 pl-3.5 py-3 rounded-2xl text-sm text-app border outline-none transition-colors"
+                    className={'w-full py-3 rounded-2xl text-sm text-app border outline-none transition-colors ' + (isRtl ? 'pr-10 pl-3.5' : 'pl-10 pr-3.5')}
                     style={{ borderColor: theme.border, background: theme.bg }}
                   />
                 </div>
               </div>
             )}
 
-            {/* شماره موبایل */}
             <div>
               <div className="flex items-center justify-between mb-1 px-1">
-                <label className="text-[11px] font-bold text-muted">شماره موبایل</label>
+                <label className="text-[11px] font-bold text-muted">{t('auth.phoneLabel')}</label>
                 {phoneReady && (
                   <span className="text-[10px] font-bold text-emerald-400 flex items-center gap-1">
-                    <CheckCircle2 size={12} /> معتبر
+                    <CheckCircle2 size={12} /> {t('auth.phoneValid')}
                   </span>
                 )}
               </div>
@@ -345,7 +366,7 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
                   inputMode="tel"
                   autoComplete="tel"
                   dir="ltr"
-                  placeholder="0912 345 6789"
+                  placeholder={phonePlaceholder}
                   value={phoneInput}
                   onChange={(e) => handlePhoneChange(e.target.value)}
                   disabled={mode === 'forgot' && forgotStep === 'verify'}
@@ -364,19 +385,18 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
                     color: theme.primary,
                   }}
                 >
-                  IR
+                  {normalizedPhone.startsWith('+') ? '🌍' : lang === 'fa' ? 'IR' : '🌍'}
                 </span>
               </div>
             </div>
 
-            {/* کد تایید پیامکی در مرحله ۲ فراموشی رمز */}
             {mode === 'forgot' && forgotStep === 'verify' && (
               <div>
                 <div className="flex items-center justify-between mb-1 px-1">
-                  <label className="text-[11px] font-bold text-muted">کد تایید پیامکی</label>
+                  <label className="text-[11px] font-bold text-muted">{t('auth.otpLabel')}</label>
                   {resendSeconds > 0 ? (
                     <span className="text-[10px] text-muted">
-                      ارسال مجدد تا {toFaDigits(resendSeconds)} ثانیه
+                      {t('auth.otpResendIn')} {formatDigits(resendSeconds)} {t('auth.seconds')}
                     </span>
                   ) : (
                     <button
@@ -384,7 +404,7 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
                       onClick={() => void handleSendResetOtp()}
                       className="text-[10.5px] font-bold text-accent"
                     >
-                      ارسال مجدد کد
+                      {t('auth.otpResendNow')}
                     </button>
                   )}
                 </div>
@@ -392,7 +412,7 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
                   <MessageSquare
                     size={16}
                     color={theme.accent}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
+                    className={'absolute top-1/2 -translate-y-1/2 pointer-events-none ' + (isRtl ? 'right-3.5' : 'left-3.5')}
                   />
                   <input
                     type="text"
@@ -405,19 +425,18 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
                       setOtpCode(toEnglishDigits(e.target.value).replace(/[^0-9]/g, '').slice(0, 6))
                     }
                     required
-                    className="w-full pr-10 pl-4 py-3 rounded-2xl text-base font-black tracking-[0.35em] text-center text-app border outline-none"
+                    className="w-full px-10 py-3 rounded-2xl text-base font-black tracking-[0.35em] text-center text-app border outline-none"
                     style={{ borderColor: theme.accent, background: theme.bg }}
                   />
                 </div>
               </div>
             )}
 
-            {/* فیلد رمز عبور (ورود، ثبت‌نام، یا مرحله ۲ فراموشی) */}
             {(mode !== 'forgot' || forgotStep === 'verify') && (
               <div>
                 <div className="flex items-center justify-between mb-1 px-1">
                   <label className="text-[11px] font-bold text-muted">
-                    {mode === 'forgot' ? 'رمز عبور جدید' : 'رمز عبور'}
+                    {mode === 'forgot' ? t('auth.newPasswordLabel') : t('auth.passwordLabel')}
                   </label>
                   {mode === 'signin' && (
                     <button
@@ -432,7 +451,7 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
                       }}
                       className="text-[10.5px] font-bold text-primary"
                     >
-                      فراموشی رمز عبور؟
+                      {t('auth.forgotBtn')}
                     </button>
                   )}
                 </div>
@@ -440,24 +459,24 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
                   <Lock
                     size={16}
                     color={theme.textMuted}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
+                    className={'absolute top-1/2 -translate-y-1/2 pointer-events-none ' + (isRtl ? 'right-3.5' : 'left-3.5')}
                   />
                   <input
                     type={showPassword ? 'text' : 'password'}
                     autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
-                    placeholder="حداقل ۶ کاراکتر"
+                    placeholder={t('auth.passwordPh')}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     minLength={6}
-                    className="w-full pr-10 pl-11 py-3 rounded-2xl text-sm text-app border outline-none transition-colors"
+                    className={'w-full py-3 rounded-2xl text-sm text-app border outline-none transition-colors ' + (isRtl ? 'pr-10 pl-11' : 'pl-10 pr-11')}
                     style={{ borderColor: theme.border, background: theme.bg }}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword((v) => !v)}
-                    aria-label={showPassword ? 'مخفی کردن رمز عبور' : 'نمایش رمز عبور'}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-muted p-1"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    className={'absolute top-1/2 -translate-y-1/2 text-muted p-1 ' + (isRtl ? 'left-3' : 'right-3')}
                   >
                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
@@ -477,7 +496,7 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
                       ))}
                     </div>
                     <p className="text-[10px] font-bold" style={{ color: strength.color }}>
-                      {strength.label}
+                      {strengthLabel}
                     </p>
                   </div>
                 )}
@@ -486,8 +505,8 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
 
             {(mode === 'signup' || (mode === 'forgot' && forgotStep === 'verify')) && (
               <div>
-                <label className="block text-[11px] font-bold text-muted mb-1 pr-1">
-                  {mode === 'forgot' ? 'تکرار رمز عبور جدید' : 'تکرار رمز عبور'}
+                <label className="block text-[11px] font-bold text-muted mb-1 px-1">
+                  {mode === 'forgot' ? t('auth.confirmNewLabel') : t('auth.confirmLabel')}
                 </label>
                 <div className="relative">
                   <ShieldCheck
@@ -495,17 +514,17 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
                     color={
                       confirmPassword && confirmPassword === password ? '#34d399' : theme.textMuted
                     }
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
+                    className={'absolute top-1/2 -translate-y-1/2 pointer-events-none ' + (isRtl ? 'right-3.5' : 'left-3.5')}
                   />
                   <input
                     type={showPassword ? 'text' : 'password'}
                     autoComplete="new-password"
-                    placeholder="رمز عبور را دوباره وارد کنید"
+                    placeholder={t('auth.confirmPh')}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     required
                     minLength={6}
-                    className="w-full pr-10 pl-4 py-3 rounded-2xl text-sm text-app border outline-none transition-colors"
+                    className={'w-full py-3 rounded-2xl text-sm text-app border outline-none transition-colors ' + (isRtl ? 'pr-10 pl-4' : 'pl-10 pr-4')}
                     style={{
                       borderColor:
                         confirmPassword && confirmPassword === password ? '#34d399' : theme.border,
@@ -554,14 +573,14 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
               }}
             >
               {loading
-                ? 'در حال بررسی...'
+                ? t('auth.submitChecking')
                 : mode === 'forgot'
                 ? forgotStep === 'phone'
-                  ? 'ارسال کد تایید پیامکی'
-                  : 'تایید کد و ثبت رمز جدید'
+                  ? t('auth.submitSendOtp')
+                  : t('auth.submitReset')
                 : mode === 'signin'
-                ? 'ورود به حساب نور'
-                : 'ساخت حساب کاربری'}
+                ? t('auth.submitSignin')
+                : t('auth.submitSignup')}
             </button>
           </form>
 
@@ -570,11 +589,7 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
             style={{ borderColor: theme.border }}
           >
             <Sparkles size={12} color={theme.accent} />
-            <span>
-              {isSupabaseConfigured
-                ? 'اطلاعات شما با رمزنگاری امن همگام‌سازی می‌شود'
-                : 'ذخیره امن محلی · آماده انتقال به دیتابیس ابری'}
-            </span>
+            <span>{isSupabaseConfigured ? t('auth.cloudReady') : t('auth.localReady')}</span>
           </div>
         </div>
 
@@ -585,12 +600,12 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
             borderColor: theme.border,
           }}
         >
-          <p className="text-[11.5px] font-black text-primary">چرا حساب کاربری نور؟</p>
+          <p className="text-[11.5px] font-black text-primary">{t('auth.whyTitle')}</p>
           <div className="grid grid-cols-1 gap-1.5 text-[11px] text-muted leading-relaxed">
-            <p>• <strong className="text-app">پشتیبان‌گیری همیشگی:</strong> با تعویض گوشی، آمار ذکرها، قضا و نشانک‌های قرآن حفظ می‌شود.</p>
-            <p>• <strong className="text-app">همگام‌سازی چنددستگاهی:</strong> آماده اتصال بین اندروید، آیفون (وب) و اکستنشن کروم.</p>
-            <p>• <strong className="text-app">حفظ تنظیمات شخصی:</strong> شهر، مؤذن، پوسته حرم و تعقیبات خودکار بازیابی می‌شود.</p>
-            <p>• <strong className="text-app">حریم خصوصی واقعی:</strong> یادداشت‌های «محاسبه نفس» فقط روی حافظه گوشی شما می‌ماند.</p>
+            <p>• <strong className="text-app">{t('auth.why1Head')}</strong> {t('auth.why1Body')}</p>
+            <p>• <strong className="text-app">{t('auth.why2Head')}</strong> {t('auth.why2Body')}</p>
+            <p>• <strong className="text-app">{t('auth.why3Head')}</strong> {t('auth.why3Body')}</p>
+            <p>• <strong className="text-app">{t('auth.why4Head')}</strong> {t('auth.why4Body')}</p>
           </div>
         </div>
 
@@ -600,17 +615,10 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
             onClick={onBack}
             className="w-full mt-3.5 py-2.5 rounded-2xl text-xs font-bold text-muted hover:text-app transition-colors"
           >
-            ادامه بدون حساب کاربری (حالت مهمان)
+            {t('auth.continueGuest')}
           </button>
         )}
       </div>
     </div>
   );
-}
-
-function translateError(err: string): string {
-  if (err.includes('Invalid login credentials')) return 'شماره موبایل یا رمز عبور اشتباه است';
-  if (err.includes('User already registered')) return 'این شماره موبایل قبلاً ثبت شده است';
-  if (err.includes('Password should be at least')) return 'رمز عبور باید حداقل ۶ کاراکتر باشد';
-  return err;
 }

@@ -4,6 +4,8 @@ import {
   normalizeIranPhone,
   formatIranPhoneDisplay,
   evaluatePasswordStrength,
+  isValidGlobalPhone,
+  phoneToSyntheticEmail,
 } from '@/lib/authService';
 import { getAdhanDurationSeconds } from '@/lib/adhans';
 import { computeSurahClock } from '@/lib/surahAlarmService';
@@ -16,6 +18,15 @@ describe('Iran phone auth validation & formatting', () => {
     expect(isValidIranPhone('+989157331216')).toBe(true);
     expect(normalizeIranPhone('0915 733 1216')).toBe('09157331216');
     expect(formatIranPhoneDisplay('09157331216')).toBe('0915 733 1216');
+  });
+
+  it('accepts international E.164 mobile numbers (Spain, US, UK) alongside Iran', () => {
+    expect(isValidGlobalPhone('0915 733 1216')).toBe(true);
+    expect(isValidGlobalPhone('+34 612 345 678')).toBe(true);
+    expect(isValidGlobalPhone('+1 212 555 0199')).toBe(true);
+    expect(isValidGlobalPhone('+44 7700 900077')).toBe(true);
+    expect(phoneToSyntheticEmail('09157331216')).toBe('989157331216@phone.noor.app');
+    expect(phoneToSyntheticEmail('+34 612 345 678')).toBe('34612345678@phone.noor.app');
   });
 
   it('rejects invalid or incomplete mobile numbers', () => {

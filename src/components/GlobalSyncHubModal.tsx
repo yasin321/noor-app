@@ -21,6 +21,7 @@ import {
 import { Capacitor } from '@capacitor/core';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
+import { useI18n, type TranslationKey } from '@/i18n';
 import {
   getCachedGlobalSyncSnapshot,
   getCurrentAppVersion,
@@ -41,7 +42,6 @@ import {
 import { saveHeroConfig, loadHeroConfig } from '@/components/HeroHorizon30Gallery';
 import { rescheduleAllReminders } from '@/lib/reminderService';
 import { isSupabaseConfigured } from '@/lib/supabase';
-import { toFaDigits } from '@/lib/jalali';
 
 interface Props {
   onClose: () => void;
@@ -49,29 +49,20 @@ interface Props {
   onAppliedAdhan?: (adhanId: string) => void;
 }
 
-const CATEGORY_LABELS: Record<'all' | OtaMediaCategory, string> = {
-  all: 'همه',
-  adhan: 'اذان جدید',
-  pre_adhan: 'پیش‌اذان',
-  post_adhan: 'تعقیبات',
-  dua: 'دعا و مناجات',
-  surah: 'تلاوت سوره',
+const CATEGORY_KEYS: Record<'all' | OtaMediaCategory, TranslationKey> = {
+  all: 'sync.catAll',
+  adhan: 'sync.catAdhan',
+  pre_adhan: 'sync.catPreAdhan',
+  post_adhan: 'sync.catPostAdhan',
+  dua: 'sync.catDua',
+  surah: 'sync.catSurah',
 };
-
-function formatSyncTimeFa(iso: string | null): string {
-  if (!iso) return 'هنوز انجام نشده';
-  try {
-    const d = new Date(iso);
-    const time = d.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
-    return 'امروز ساعت ' + time;
-  } catch {
-    return 'انجام شده';
-  }
-}
 
 export function GlobalSyncHubModal({ onClose, onOpenAuth, onAppliedAdhan }: Props) {
   const { theme, themeId, setThemeId } = useTheme();
   const { user, profile, updateProfile } = useAuth();
+  const { lang, dir, isRtl, t, formatDigits } = useI18n();
+
   const [snap, setSnap] = useState<GlobalSyncSnapshot>(() => getCachedGlobalSyncSnapshot());
   const [cloudStatus, setCloudStatus] = useState<CloudSyncStatus>(() => getLastCloudSyncStatus());
   const [syncing, setSyncing] = useState(false);
@@ -91,6 +82,18 @@ export function GlobalSyncHubModal({ onClose, onOpenAuth, onAppliedAdhan }: Prop
   });
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const currentVer = getCurrentAppVersion();
+
+  const formatSyncTime = (iso: string | null): string => {
+    if (!iso) return t('sync.never');
+    try {
+      const d = new Date(iso);
+      const locale = lang === 'fa' ? 'fa-IR' : lang === 'es' ? 'es-ES' : 'en-US';
+      const time = d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
+      return t('sync.todayAt') + ' ' + time;
+    } catch {
+      return t('sync.done');
+    }
+  };
 
   const stopPreview = () => {
     if (audioRef.current) {
@@ -130,23 +133,15 @@ export function GlobalSyncHubModal({ onClose, onOpenAuth, onAppliedAdhan }: Prop
       }
 
       if (!globalRes.ok) {
-        flashBanner('⚠️ ' + (globalRes.error || 'اتصال اینترنت را بررسی کنید و دوباره تلاش نمایید.'));
+        flashBanner('⚠️ ' + (globalRes.error || t('auth.errGeneric')));
       } else {
-        const parts: string[] = [];
         const totalNew =
           globalRes.newTracksCount + globalRes.newWallpapersCount + globalRes.newThemesCount;
-        if (totalNew > 0) {
-          parts.push(toFaDigits(totalNew) + ' محتوای جدید دریافت شد');
-        } else {
-          parts.push('نواها، والپیپرها، تم‌ها و نسخه بررسی شد');
-        }
-        if (globalRes.snapshot.updateAvailable && globalRes.snapshot.latestRelease) {
-          parts.push('نسخه جدید ' + globalRes.snapshot.latestRelease.version_name + ' آماده نصب است');
-        }
-        if (cloudOk) {
-          parts.push('پشتیبان ابری حساب همگام شد');
-        }
-        flashBanner('✅ ' + parts.join(' · '));
+        const msg =
+          totalNew > 0
+            ? '✅ +' + formatDigits(totalNew) + ' · ' + t('sync.done')
+            : '✅ ' + t('sync.syncedBadge') + (cloudOk ? ' (Cloud ✓)' : '');
+        flashBanner(msg);
       }
     } finally {
       setSyncing(false);
@@ -165,7 +160,7 @@ export function GlobalSyncHubModal({ onClose, onOpenAuth, onAppliedAdhan }: Prop
     audio.onended = () => setPlayingId(null);
     audio.onerror = () => {
       setPlayingId(null);
-      flashBanner('⚠️ پخش آنلاین این فایل ممکن نشد؛ اتصال اینترنت را بررسی کنید.');
+      flashBanner('⚠️ ' + t('auth.errGeneric'));
     };
     audio.play().catch(() => {
       setPlayingId(null);
@@ -180,7 +175,7 @@ export function GlobalSyncHubModal({ onClose, onOpenAuth, onAppliedAdhan }: Prop
         const ids = await listOfflineOtaMediaIds();
         setOfflineIds(ids);
         if (!ok) {
-          flashBanner('⚠️ دریافت آفلاین کامل نشد؛ اینترنت را بررسی کنید.');
+          flashBanner('⚠️ ' + t('auth.errGeneric'));
           return;
         }
       }
@@ -195,9 +190,9 @@ export function GlobalSyncHubModal({ onClose, onOpenAuth, onAppliedAdhan }: Prop
         }
         await rescheduleAllReminders(profile?.notif_enabled ?? true);
         onAppliedAdhan?.(item.id);
-        flashBanner('✅ «' + item.title_fa + '» دانلود و به عنوان مؤذن اصلی گوشی فعال شد!');
+        flashBanner('✅ ' + item.title_fa + ' — ' + t('sync.activeMuezzin'));
       } else {
-        flashBanner('✅ «' + item.title_fa + '» ذخیره شد و داخل کشوی تعقیبات هم در دسترس است.');
+        flashBanner('✅ ' + item.title_fa + ' — ' + t('sync.savedOffline'));
       }
     } finally {
       setDownloadingId(null);
@@ -208,7 +203,7 @@ export function GlobalSyncHubModal({ onClose, onOpenAuth, onAppliedAdhan }: Prop
     const heroId = 'ota_wp_' + wp.id;
     saveHeroConfig({ mode: 'manual', selectedId: heroId });
     setActiveHeroId(heroId);
-    flashBanner('✅ منظره «' + wp.title_fa + '» روی بالای صفحه خانه اعمال شد!');
+    flashBanner('✅ ' + wp.title_fa + ' — ' + t('sync.applied'));
   };
 
   const handleApplyRemoteTheme = async (rt: RemoteThemeItem) => {
@@ -221,11 +216,7 @@ export function GlobalSyncHubModal({ onClose, onOpenAuth, onAppliedAdhan }: Prop
     if (profile) {
       await updateProfile({ theme_id: rt.id });
     }
-    flashBanner(
-      rt.wallpaper_url
-        ? '✨ تم مناسبتی «' + rt.name_fa + '» به همراه والپیپر هماهنگش فعال شد!'
-        : '✨ پوسته «' + rt.name_fa + '» روی کل برنامه فعال شد!'
-    );
+    flashBanner('✨ ' + (lang === 'fa' ? rt.name_fa : rt.name_en || rt.name_fa) + ' — ' + t('sync.applied'));
   };
 
   const filteredItems = snap.mediaItems.filter(
@@ -236,7 +227,7 @@ export function GlobalSyncHubModal({ onClose, onOpenAuth, onAppliedAdhan }: Prop
     <div
       className="fixed inset-0 z-[999] overflow-y-auto flex items-stretch sm:items-center justify-center p-0 sm:p-4 animate-fade-in"
       style={{ background: 'rgba(0,0,0,0.88)', backdropFilter: 'blur(10px)' }}
-      dir="rtl"
+      dir={dir}
       onClick={() => {
         stopPreview();
         onClose();
@@ -247,7 +238,6 @@ export function GlobalSyncHubModal({ onClose, onOpenAuth, onAppliedAdhan }: Prop
         style={{ background: theme.surface, borderColor: theme.border }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* هدر مرکز همگام‌سازی */}
         <div
           className="flex items-start justify-between gap-3 pb-3.5 border-b"
           style={{ borderColor: theme.border }}
@@ -263,15 +253,13 @@ export function GlobalSyncHubModal({ onClose, onOpenAuth, onAppliedAdhan }: Prop
               <Cloud size={20} />
             </div>
             <div>
-              <h2 className="text-base font-black text-app">مرکز سینک گلوبال و محتوای زنده</h2>
-              <p className="text-[11px] text-muted mt-0.5">
-                اذان و تواشیح جدید · والپیپر حرم · تم‌های مناسبتی و بکاپ ابری
-              </p>
+              <h2 className="text-base font-black text-app">{t('sync.title')}</h2>
+              <p className="text-[11px] text-muted mt-0.5">{t('sync.subtitle')}</p>
             </div>
           </div>
           <button
             type="button"
-            aria-label="بستن"
+            aria-label={t('common.close')}
             onClick={() => {
               stopPreview();
               onClose();
@@ -292,7 +280,6 @@ export function GlobalSyncHubModal({ onClose, onOpenAuth, onAppliedAdhan }: Prop
           </div>
         )}
 
-        {/* کارت دکمه جادویی سینک گلوبال تک‌لمسی */}
         <div
           className="rounded-3xl p-4 border space-y-3"
           style={{
@@ -311,10 +298,10 @@ export function GlobalSyncHubModal({ onClose, onOpenAuth, onAppliedAdhan }: Prop
             <div>
               <p className="text-xs font-black text-app flex items-center gap-1.5">
                 <Sparkles size={14} color={theme.accent} />
-                <span>سینک گلوبال نور</span>
+                <span>{t('sync.cardTitle')}</span>
               </p>
               <p className="text-[10.5px] text-muted mt-0.5">
-                آخرین بررسی: {formatSyncTimeFa(snap.syncedAtIso)} · کاتالوگ نسخه {toFaDigits(snap.catalogVersion || 1)}
+                {t('sync.lastCheck')} {formatSyncTime(snap.syncedAtIso)} · {t('sync.catalogVer')} {formatDigits(snap.catalogVersion || 1)}
               </p>
             </div>
             <span
@@ -325,7 +312,7 @@ export function GlobalSyncHubModal({ onClose, onOpenAuth, onAppliedAdhan }: Prop
                 color: isSupabaseConfigured ? '#34d399' : theme.textMuted,
               }}
             >
-              {isSupabaseConfigured ? 'متصل به سرور' : 'حالت آفلاین'}
+              {isSupabaseConfigured ? t('sync.online') : t('sync.offline')}
             </span>
           </div>
 
@@ -340,11 +327,7 @@ export function GlobalSyncHubModal({ onClose, onOpenAuth, onAppliedAdhan }: Prop
             }}
           >
             <RefreshCw size={15} className={syncing ? 'animate-spin' : ''} />
-            <span>
-              {syncing
-                ? 'در حال همگام‌سازی با سرور نور...'
-                : 'بررسی نواها، والپیپرها، تم‌ها و همگام‌سازی حساب'}
-            </span>
+            <span>{syncing ? t('sync.syncingBtn') : t('sync.syncNowBtn')}</span>
           </button>
 
           <div
@@ -355,20 +338,20 @@ export function GlobalSyncHubModal({ onClose, onOpenAuth, onAppliedAdhan }: Prop
               <>
                 <div className="min-w-0">
                   <p className="font-bold text-app truncate">
-                    حساب فعال: {profile?.display_name || 'کاربر نور'}
-                    {user.phone ? ' (' + toFaDigits(user.phone) + ')' : ''}
+                    {t('sync.activeAccount')} {profile?.display_name || t('common.noorUser')}
+                    {user.phone ? ' (' + formatDigits(user.phone) + ')' : ''}
                   </p>
                   <p className="text-[10px] text-muted">
-                    آخرین بکاپ ابری: {formatSyncTimeFa(cloudStatus.lastSyncedAtIso)}
+                    {t('sync.lastCloudBackup')} {formatSyncTime(cloudStatus.lastSyncedAtIso)}
                   </p>
                 </div>
                 <span className="text-[10px] font-bold text-emerald-400 flex items-center gap-1 shrink-0">
-                  <ShieldCheck size={13} /> همگام
+                  <ShieldCheck size={13} /> {t('sync.syncedBadge')}
                 </span>
               </>
             ) : (
               <>
-                <span className="text-muted">برای پشتیبان‌گیری ابری و سینک بین دستگاه‌ها وارد شوید:</span>
+                <span className="text-muted">{t('sync.guestPrompt')}</span>
                 {onOpenAuth && (
                   <button
                     type="button"
@@ -380,7 +363,7 @@ export function GlobalSyncHubModal({ onClose, onOpenAuth, onAppliedAdhan }: Prop
                     className="px-3 py-1.5 rounded-xl text-[10.5px] font-black flex items-center gap-1 shrink-0"
                     style={{ background: theme.primary, color: theme.bg }}
                   >
-                    <LogIn size={12} /> ورود / ثبت‌نام
+                    <LogIn size={12} /> {t('sync.signInBtn')}
                   </button>
                 )}
               </>
@@ -388,7 +371,6 @@ export function GlobalSyncHubModal({ onClose, onOpenAuth, onAppliedAdhan }: Prop
           </div>
         </div>
 
-        {/* کارت نسخه و بروزرسانی برنامه */}
         <div
           className="rounded-2xl p-3.5 border flex items-center justify-between gap-3"
           style={{
@@ -401,14 +383,14 @@ export function GlobalSyncHubModal({ onClose, onOpenAuth, onAppliedAdhan }: Prop
               <ArrowUpCircle size={15} color={snap.updateAvailable ? theme.accent : theme.primary} />
               <span>
                 {snap.updateAvailable && snap.latestRelease
-                  ? 'نسخه جدید ' + snap.latestRelease.version_name + ' آماده نصب است'
-                  : 'نسخه فعلی شما به‌روز است (' + currentVer.versionName + ')'}
+                  ? t('sync.updateReadyPrefix') + ' ' + snap.latestRelease.version_name + ' ' + t('sync.updateReadySuffix')
+                  : t('sync.upToDate') + ' (' + currentVer.versionName + ')'}
               </span>
             </p>
             <p className="text-[10.5px] text-muted mt-0.5 leading-relaxed">
               {snap.updateAvailable && snap.latestRelease?.changelog_fa
                 ? snap.latestRelease.changelog_fa
-                : 'به‌محض انتشار نسخه جدید، دکمه دانلود مستقیم همین‌جا ظاهر می‌شود.'}
+                : t('sync.upToDateDesc')}
             </p>
           </div>
           {snap.updateAvailable && snap.latestRelease && (
@@ -419,20 +401,19 @@ export function GlobalSyncHubModal({ onClose, onOpenAuth, onAppliedAdhan }: Prop
               className="px-3 py-2 rounded-xl text-[11px] font-black shrink-0"
               style={{ background: theme.accent, color: theme.bg }}
             >
-              دانلود APK
+              {t('sync.downloadApk')}
             </a>
           )}
         </div>
 
-        {/* تب‌های ۳گانه محتوای زنده (نواها / والپیپرها / تم‌های مناسبتی) */}
         <div
           className="grid grid-cols-3 gap-1.5 p-1 rounded-2xl border"
           style={{ background: theme.bg, borderColor: theme.border }}
         >
           {[
-            { id: 'audio' as const, label: 'نواها', count: snap.mediaItems.length, Icon: Volume2 },
-            { id: 'wallpapers' as const, label: 'والپیپرها', count: snap.wallpapers.length, Icon: ImageIcon },
-            { id: 'themes' as const, label: 'تم مناسبتی', count: snap.themes.length, Icon: Palette },
+            { id: 'audio' as const, label: t('sync.tabAudio'), count: snap.mediaItems.length, Icon: Volume2 },
+            { id: 'wallpapers' as const, label: t('sync.tabWallpapers'), count: snap.wallpapers.length, Icon: ImageIcon },
+            { id: 'themes' as const, label: t('sync.tabThemes'), count: snap.themes.length, Icon: Palette },
           ].map((tabItem) => {
             const active = hubTab === tabItem.id;
             const IconComp = tabItem.Icon;
@@ -452,18 +433,17 @@ export function GlobalSyncHubModal({ onClose, onOpenAuth, onAppliedAdhan }: Prop
               >
                 <IconComp size={13} />
                 <span>
-                  {tabItem.label} ({toFaDigits(tabItem.count)})
+                  {tabItem.label} ({formatDigits(tabItem.count)})
                 </span>
               </button>
             );
           })}
         </div>
 
-        {/* محتوای تب انتخاب‌شده */}
         {hubTab === 'audio' ? (
           <div className="space-y-2.5">
             <div className="flex gap-1.5 overflow-x-auto pb-1">
-              {(Object.keys(CATEGORY_LABELS) as Array<'all' | OtaMediaCategory>).map((cat) => (
+              {(Object.keys(CATEGORY_KEYS) as Array<'all' | OtaMediaCategory>).map((cat) => (
                 <button
                   key={cat}
                   type="button"
@@ -475,7 +455,7 @@ export function GlobalSyncHubModal({ onClose, onOpenAuth, onAppliedAdhan }: Prop
                     color: selectedCat === cat ? theme.bg : theme.textMuted,
                   }}
                 >
-                  {CATEGORY_LABELS[cat]}
+                  {t(CATEGORY_KEYS[cat])}
                 </button>
               ))}
             </div>
@@ -485,10 +465,8 @@ export function GlobalSyncHubModal({ onClose, onOpenAuth, onAppliedAdhan }: Prop
                 className="rounded-2xl p-5 border text-center space-y-1.5"
                 style={{ background: theme.bg, borderColor: theme.border }}
               >
-                <p className="text-xs font-bold text-app">فعلاً نوای آنلاین تازه‌ای در این دسته نیست</p>
-                <p className="text-[10.5px] text-muted leading-relaxed">
-                  هر اذان، تواشیح یا دعایی که منتشر شود، خودکار اینجا و در لیست مؤذنان/تعقیبات اضافه می‌شود.
-                </p>
+                <p className="text-xs font-bold text-app">{t('sync.emptyAudioTitle')}</p>
+                <p className="text-[10.5px] text-muted leading-relaxed">{t('sync.emptyAudioDesc')}</p>
               </div>
             ) : (
               <div className="space-y-2 max-h-60 overflow-y-auto pr-0.5">
@@ -523,7 +501,7 @@ export function GlobalSyncHubModal({ onClose, onOpenAuth, onAppliedAdhan }: Prop
                             color: theme.accent,
                           }}
                         >
-                          {CATEGORY_LABELS[item.category]}
+                          {t(CATEGORY_KEYS[item.category])}
                         </span>
                       </div>
 
@@ -538,7 +516,7 @@ export function GlobalSyncHubModal({ onClose, onOpenAuth, onAppliedAdhan }: Prop
                           }}
                         >
                           {isPlaying ? <Square size={11} /> : <Play size={11} />}
-                          <span>{isPlaying ? 'توقف' : 'شنیدن'}</span>
+                          <span>{isPlaying ? t('sync.stop') : t('sync.listen')}</span>
                         </button>
 
                         <button
@@ -555,17 +533,17 @@ export function GlobalSyncHubModal({ onClose, onOpenAuth, onAppliedAdhan }: Prop
                         >
                           {isSelectedAdhan ? (
                             <>
-                              <Check size={13} /> مؤذن فعال شما
+                              <Check size={13} /> {t('sync.activeMuezzin')}
                             </>
                           ) : isDownloading ? (
-                            'در حال دریافت...'
+                            t('sync.downloading')
                           ) : item.category === 'adhan' ? (
                             <>
-                              <Download size={12} /> {isOffline ? 'انتخاب مؤذن' : 'دانلود و انتخاب مؤذن'}
+                              <Download size={12} /> {isOffline ? t('sync.selectMuezzin') : t('sync.downloadMuezzin')}
                             </>
                           ) : (
                             <>
-                              <Download size={12} /> {isOffline ? 'ذخیره‌شده روی گوشی ✓' : 'ذخیره آفلاین'}
+                              <Download size={12} /> {isOffline ? t('sync.savedOffline') : t('sync.saveOffline')}
                             </>
                           )}
                         </button>
@@ -582,10 +560,8 @@ export function GlobalSyncHubModal({ onClose, onOpenAuth, onAppliedAdhan }: Prop
               className="rounded-2xl p-5 border text-center space-y-1.5"
               style={{ background: theme.bg, borderColor: theme.border }}
             >
-              <p className="text-xs font-bold text-app">فعلاً والپیپر آنلاین جدیدی ثبت نشده</p>
-              <p className="text-[10.5px] text-muted leading-relaxed">
-                به‌محض انتشار تصاویر جدید حرم‌ها و مناظر مناسبتی، اینجا و در گالری صفحه خانه نمایش داده می‌شوند.
-              </p>
+              <p className="text-xs font-bold text-app">{t('sync.emptyWpTitle')}</p>
+              <p className="text-[10.5px] text-muted leading-relaxed">{t('sync.emptyWpDesc')}</p>
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-2.5 max-h-64 overflow-y-auto pr-0.5">
@@ -596,7 +572,7 @@ export function GlobalSyncHubModal({ onClose, onOpenAuth, onAppliedAdhan }: Prop
                     key={wp.id}
                     type="button"
                     onClick={() => handleApplyRemoteWallpaper(wp)}
-                    className="rounded-2xl overflow-hidden border text-right transition-transform active:scale-[0.98]"
+                    className={'rounded-2xl overflow-hidden border transition-transform active:scale-[0.98] ' + (isRtl ? 'text-right' : 'text-left')}
                     style={{
                       background: theme.bg,
                       borderColor: isSelected ? theme.primary : theme.border,
@@ -620,7 +596,7 @@ export function GlobalSyncHubModal({ onClose, onOpenAuth, onAppliedAdhan }: Prop
                     <div className="p-2.5">
                       <p className="text-xs font-black text-app truncate">{wp.title_fa}</p>
                       <p className="text-[10px] text-muted truncate mt-0.5">
-                        {wp.occasion_tag || wp.subtitle_fa || 'لمس برای اعمال در صفحه خانه'}
+                        {wp.occasion_tag || wp.subtitle_fa}
                       </p>
                     </div>
                   </button>
@@ -633,10 +609,8 @@ export function GlobalSyncHubModal({ onClose, onOpenAuth, onAppliedAdhan }: Prop
             className="rounded-2xl p-5 border text-center space-y-1.5"
             style={{ background: theme.bg, borderColor: theme.border }}
           >
-            <p className="text-xs font-bold text-app">فعلاً تم مناسبتی آنلاین جدیدی منتشر نشده</p>
-            <p className="text-[10.5px] text-muted leading-relaxed">
-              پوسته‌های مناسبتی جدید (رمضان، محرم، غدیر، نوروز...) بدون آپدیت اپ همین‌جا و در بخش پوسته اضافه می‌شوند.
-            </p>
+            <p className="text-xs font-bold text-app">{t('sync.emptyThemeTitle')}</p>
+            <p className="text-[10.5px] text-muted leading-relaxed">{t('sync.emptyThemeDesc')}</p>
           </div>
         ) : (
           <div className="space-y-2 max-h-64 overflow-y-auto pr-0.5">
@@ -647,7 +621,7 @@ export function GlobalSyncHubModal({ onClose, onOpenAuth, onAppliedAdhan }: Prop
                   key={rt.id}
                   type="button"
                   onClick={() => void handleApplyRemoteTheme(rt)}
-                  className="w-full rounded-2xl p-3 border flex items-center justify-between gap-3 text-right transition-transform active:scale-[0.99]"
+                  className={'w-full rounded-2xl p-3 border flex items-center justify-between gap-3 transition-transform active:scale-[0.99] ' + (isRtl ? 'text-right' : 'text-left')}
                   style={{
                     background: rt.surface_color || theme.bg,
                     borderColor: active ? rt.primary_color : theme.border,
@@ -666,11 +640,10 @@ export function GlobalSyncHubModal({ onClose, onOpenAuth, onAppliedAdhan }: Prop
                     </div>
                     <div className="min-w-0">
                       <p className="text-xs font-black truncate" style={{ color: rt.text_color || '#fff' }}>
-                        {rt.name_fa}
+                        {lang === 'fa' ? rt.name_fa : rt.name_en || rt.name_fa}
                       </p>
                       <p className="text-[10px] truncate mt-0.5" style={{ color: rt.text_muted_color || '#cbd5e1' }}>
-                        {rt.occasion_fa || 'پوسته مناسبتی ویژه'}
-                        {rt.wallpaper_url ? ' · همراه با والپیپر هماهنگ' : ''}
+                        {rt.occasion_fa || t('sync.tabThemes')}
                       </p>
                     </div>
                   </div>
@@ -678,7 +651,7 @@ export function GlobalSyncHubModal({ onClose, onOpenAuth, onAppliedAdhan }: Prop
                     className="px-2.5 py-1 rounded-xl text-[10.5px] font-black shrink-0"
                     style={{ background: rt.primary_color, color: rt.bg_color }}
                   >
-                    {active ? 'فعال ✓' : 'اعمال'}
+                    {active ? t('sync.applied') : t('sync.apply')}
                   </span>
                 </button>
               );
@@ -686,7 +659,6 @@ export function GlobalSyncHubModal({ onClose, onOpenAuth, onAppliedAdhan }: Prop
           </div>
         )}
 
-        {/* نقشه اکوسیستم چندپلتفرمه نور */}
         <div
           className="rounded-2xl p-3 border flex items-center justify-between gap-2 text-[10.5px] text-muted"
           style={{ background: theme.bg, borderColor: theme.border }}
@@ -694,9 +666,9 @@ export function GlobalSyncHubModal({ onClose, onOpenAuth, onAppliedAdhan }: Prop
           <div className="flex items-center gap-2">
             <Smartphone size={14} color={theme.primary} />
             <Globe size={14} color={theme.accent} />
-            <span>آماده همگام‌سازی بین اندروید، نسخه وب آیفون و افزونه کروم</span>
+            <span>{t('sync.ecosystemNote')}</span>
           </div>
-          <span className="font-bold text-primary shrink-0">۲۰۲۶</span>
+          <span className="font-bold text-primary shrink-0">{formatDigits(2026)}</span>
         </div>
 
         <button
@@ -708,7 +680,7 @@ export function GlobalSyncHubModal({ onClose, onOpenAuth, onAppliedAdhan }: Prop
           className="w-full py-2.5 rounded-2xl text-xs font-bold border"
           style={{ borderColor: theme.border, color: theme.text }}
         >
-          بستن
+          {t('common.close')}
         </button>
       </div>
     </div>

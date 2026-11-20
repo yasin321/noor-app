@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Download, Sparkles, X, Megaphone } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
+import { useI18n } from '@/i18n';
 import {
   getCachedGlobalSyncSnapshot,
   GLOBAL_SYNC_UPDATED_EVENT,
@@ -13,6 +14,7 @@ import {
 
 export function GlobalUpdateBanner() {
   const { theme } = useTheme();
+  const { dir, t } = useI18n();
   const [snap, setSnap] = useState<GlobalSyncSnapshot>(() => getCachedGlobalSyncSnapshot());
   const [dismissedTick, setDismissedTick] = useState(0);
 
@@ -40,7 +42,7 @@ export function GlobalUpdateBanner() {
   if (showUpdate && snap.latestRelease) {
     const rel = snap.latestRelease;
     return (
-      <div className="max-w-lg mx-auto px-3.5 pt-3 relative z-40 animate-fade-in" dir="rtl">
+      <div className="max-w-lg mx-auto px-3.5 pt-3 relative z-40 animate-fade-in" dir={dir}>
         <div
           className="rounded-3xl p-3.5 border shadow-xl space-y-2.5"
           style={{
@@ -65,7 +67,7 @@ export function GlobalUpdateBanner() {
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-black text-app">
-                  نسخه جدید همراه معنوی نور ({rel.version_name}) آماده است
+                  {t('banner.updateTitle')} ({rel.version_name})
                 </p>
                 {rel.changelog_fa && (
                   <p className="text-[11px] text-muted mt-0.5 leading-relaxed">{rel.changelog_fa}</p>
@@ -75,10 +77,10 @@ export function GlobalUpdateBanner() {
             {!snap.forceUpdate && (
               <button
                 type="button"
-                aria-label="بستن اعلان بروزرسانی"
+                aria-label={t('common.close')}
                 onClick={() => {
                   dismissReleaseBanner(rel.version_code);
-                  setDismissedTick((t) => t + 1);
+                  setDismissedTick((v) => v + 1);
                 }}
                 className="text-muted p-1 shrink-0"
               >
@@ -95,7 +97,7 @@ export function GlobalUpdateBanner() {
             style={{ background: theme.primary, color: theme.bg }}
           >
             <Download size={14} />
-            <span>دانلود و نصب نسخه جدید</span>
+            <span>{t('banner.updateBtn')}</span>
           </a>
         </div>
       </div>
@@ -103,7 +105,7 @@ export function GlobalUpdateBanner() {
   }
 
   return (
-    <div className="max-w-lg mx-auto px-3.5 pt-3 relative z-40 animate-fade-in" dir="rtl">
+    <div className="max-w-lg mx-auto px-3.5 pt-3 relative z-40 animate-fade-in" dir={dir}>
       <div
         className="rounded-2xl px-3.5 py-2.5 border flex items-center justify-between gap-2.5 shadow-md"
         style={{
@@ -117,10 +119,10 @@ export function GlobalUpdateBanner() {
         </div>
         <button
           type="button"
-          aria-label="بستن پیام"
+          aria-label={t('common.close')}
           onClick={() => {
             dismissAnnouncementBanner(snap.announcementFa);
-            setDismissedTick((t) => t + 1);
+            setDismissedTick((v) => v + 1);
           }}
           className="text-muted p-1 shrink-0"
         >

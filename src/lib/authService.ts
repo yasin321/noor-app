@@ -44,9 +44,47 @@ export function formatIranPhoneDisplay(raw: string): string {
   return n.slice(0, 4) + ' ' + n.slice(4, 7) + ' ' + n.slice(7);
 }
 
+export function normalizeGlobalPhone(raw: string): string {
+  const trimmed = toEnglishDigits(raw).trim();
+  const digits = trimmed.replace(/[^0-9]/g, '');
+  if (!digits) return '';
+  if (digits.startsWith('0098') && digits.length >= 13) return '0' + digits.slice(4, 14);
+  if (digits.startsWith('989') && digits.length >= 12) return '0' + digits.slice(2, 12);
+  if (digits.startsWith('09') && digits.length <= 11) return digits;
+  if (trimmed.startsWith('+') || trimmed.startsWith('00')) {
+    const cleanIntl = trimmed.startsWith('00') ? digits.slice(2) : digits;
+    return '+' + cleanIntl.slice(0, 15);
+  }
+  if (digits.startsWith('9') && digits.length === 10) return '0' + digits;
+  return digits.slice(0, 15);
+}
+
+export function isValidGlobalPhone(raw: string): boolean {
+  const n = normalizeGlobalPhone(raw);
+  if (/^09[0-9]{9}$/.test(n)) return true;
+  return /^\+[1-9][0-9]{7,14}$/.test(n);
+}
+
+export function formatGlobalPhoneDisplay(raw: string): string {
+  const n = normalizeGlobalPhone(raw);
+  if (!n) return '';
+  if (n.startsWith('09')) return formatIranPhoneDisplay(n);
+  if (n.startsWith('+')) {
+    const d = n.slice(1);
+    if (d.length <= 2) return '+' + d;
+    if (d.length <= 5) return '+' + d.slice(0, 2) + ' ' + d.slice(2);
+    if (d.length <= 8) return '+' + d.slice(0, 2) + ' ' + d.slice(2, 5) + ' ' + d.slice(5);
+    return '+' + d.slice(0, 2) + ' ' + d.slice(2, 5) + ' ' + d.slice(5, 8) + ' ' + d.slice(8);
+  }
+  return n;
+}
+
 export function phoneToSyntheticEmail(rawPhone: string): string {
-  const n = normalizeIranPhone(rawPhone);
-  return '98' + n.slice(1) + '@phone.noor.app';
+  const n = normalizeGlobalPhone(rawPhone);
+  if (n.startsWith('09') && n.length === 11) {
+    return '98' + n.slice(1) + '@phone.noor.app';
+  }
+  return n.replace(/[^0-9]/g, '') + '@phone.noor.app';
 }
 
 export function evaluatePasswordStrength(password: string): {
