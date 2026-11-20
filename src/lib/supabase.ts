@@ -43,4 +43,5 @@ export type Profile = {
   notif_enabled: boolean;
   theme_id: string;
   adhan_id: string;
+  phone?: string | null;
 };

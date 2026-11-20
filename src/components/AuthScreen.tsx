@@ -420,6 +420,23 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
           </div>
         </div>
 
+        {/* نمایش شفاف مزایای واقعی ورود برای کاربر */}
+        <div
+          className="mt-3.5 rounded-3xl p-4 border space-y-2"
+          style={{
+            background: 'color-mix(in srgb, ' + theme.surface + ' 75%, transparent)',
+            borderColor: theme.border,
+          }}
+        >
+          <p className="text-[11.5px] font-black text-primary">چرا حساب کاربری نور؟</p>
+          <div className="grid grid-cols-1 gap-1.5 text-[11px] text-muted leading-relaxed">
+            <p>• <strong className="text-app">پشتیبان‌گیری همیشگی:</strong> با تعویض گوشی، آمار ذکرها، قضا و نشانک‌های قرآن حفظ می‌شود.</p>
+            <p>• <strong className="text-app">همگام‌سازی چنددستگاهی:</strong> آماده اتصال بین اندروید، آیفون (وب) و اکستنشن کروم.</p>
+            <p>• <strong className="text-app">حفظ تنظیمات شخصی:</strong> شهر، مؤذن، پوسته حرم و تعقیبات خودکار بازیابی می‌شود.</p>
+            <p>• <strong className="text-app">حریم خصوصی واقعی:</strong> یادداشت‌های «محاسبه نفس» فقط روی حافظه گوشی شما می‌ماند.</p>
+          </div>
+        </div>
+
         {onBack && (
           <button
             type="button"

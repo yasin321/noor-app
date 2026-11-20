@@ -64,6 +64,11 @@ jobs:
           du -sh public/adhans
 
       - name: Build Production Web Bundle
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_APP_VERSION_CODE: ${{ github.run_number }}
+          VITE_APP_VERSION_NAME: v3.0.${{ github.run_number }}
         run: npm run build
 
       - name: Sync Capacitor Android

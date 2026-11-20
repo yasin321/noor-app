@@ -13,6 +13,9 @@ import { AppTutorialModal } from '@/components/AppTutorialModal';
 import { rescheduleAll, purgeLegacyPrePostAdhanReminders } from '@/lib/reminderService';
 import { loadTawashihConfig, syncAllTawashihNativeAlarms } from '@/components/TawashihAndAdhanReminderSection';
 import { syncAllSurahNativeAlarms } from '@/lib/surahAlarmService';
+import { runGlobalSync } from '@/lib/globalSyncService';
+import { runFullUserCloudSync } from '@/lib/cloudSyncService';
+import { GlobalUpdateBanner } from '@/components/GlobalUpdateBanner';
 import { logEvent } from '@/lib/logger';
 import { Capacitor } from '@capacitor/core';
 
@@ -121,6 +124,18 @@ function AppContent() {
     }
   }, [loading, user?.id, notifEnabled]);
 
+  // همگام‌سازی غیربلاکه و سبک با سرور (سینک گلوبال محتوا/نسخه + بکاپ ابری کاربر)
+  useEffect(() => {
+    if (loading) return;
+    const timer = window.setTimeout(() => {
+      void runGlobalSync();
+      if (user?.id) {
+        void runFullUserCloudSync(user.id);
+      }
+    }, 900);
+    return () => window.clearTimeout(timer);
+  }, [loading, user?.id]);
+
   if (showAuth && !user) {
     return <AuthScreen onBack={() => setShowAuth(false)} />;
   }
@@ -135,6 +150,7 @@ function AppContent() {
     >
       {showFirstTimeGuide && <AppTutorialModal onClose={() => setShowFirstTimeGuide(false)} />}
       <NotificationPermissionModal />
+      <GlobalUpdateBanner />
       <main key={tab} className={`page-transition page-transition-${navigationDirection}`} aria-live="polite">
         {tab === 'home' && <HomeScreen onNavigate={navigateTo} />}
         {tab === 'tasbih' && <TasbihCounter onNavigate={navigateTo} />}

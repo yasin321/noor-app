@@ -45,3 +45,11 @@ android/gradle-info.txt
 # Temporary audit & script files
 notification-audit-dump.txt
 *.cjs
+
+# Local secrets & audit snapshots
+.env.local
+.env*.local
+anon.txt
+noor_snapshot*.txt
+noor_db_audit.txt
+noor_settings_snap.txt
