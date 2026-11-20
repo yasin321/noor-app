@@ -23,9 +23,9 @@ import {
   playAdhanPreview, stopAdhanPreview, getAdhanDurationMode, setAdhanDurationMode,
   getAdhanDurationSeconds, type Adhan, type AdhanPlaybackDurationMode
 } from '@/lib/adhans';
-import { CITIES, getCityById, getGuestCityId, setGuestCityId, type City } from '@/lib/cities';
+import { CITIES, getCityById, getGuestCityId, setGuestCityId, findNearestCity, saveCustomGpsCoords, getCustomGpsCoords, clearCustomGpsCoords, type City, type CityRegion } from '@/lib/cities';
 import { NoorAlarm, cancelAllScheduledNotifications, rescheduleAllReminders, checkPermission, requestPermission } from '@/lib/reminderService';
-import { getAvailableMethods, getNightPrayerConfig, saveNightPrayerConfig, getPrayerManualOffsets, savePrayerManualOffsets, hasNonZeroManualOffsets, type NightPrayerConfig, type PrayerManualOffsets } from '@/lib/prayerTimes';
+import { getAvailableMethods, getRecommendedMethodForCountry, getAsrMadhab, saveAsrMadhab, getNightPrayerConfig, saveNightPrayerConfig, getPrayerManualOffsets, savePrayerManualOffsets, hasNonZeroManualOffsets, type AsrMadhab, type NightPrayerConfig, type PrayerManualOffsets } from '@/lib/prayerTimes';
 import { getSpiritualDashboardStats, type PeriodRange } from '@/lib/tasbihStorage';
 import { getDhikr } from '@/lib/dhikrLibrary';
 import { getQuranDisplayMode, setQuranDisplayMode, type QuranDisplayMode } from '@/lib/quranCatalog';
@@ -377,6 +377,11 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
 
   const [guestCityId, setGuestCityIdState] = useState(getGuestCityId());
   const [citySearch, setCitySearch] = useState('');
+  const [cityRegion, setCityRegion] = useState<'all' | CityRegion>('all');
+  const [gpsDetecting, setGpsDetecting] = useState(false);
+  const [gpsStatusMsg, setGpsStatusMsg] = useState<string | null>(null);
+  const [customGps, setCustomGps] = useState(() => getCustomGpsCoords());
+  const [asrMadhab, setAsrMadhabState] = useState<AsrMadhab>(() => getAsrMadhab());
   const [guestNotif, setGuestNotif] = useState(getGuestNotifEnabled());
   const [guestAdhanId, setGuestAdhanId] = useState(getGuestAdhanId());
   const [downloadedAdhans, setDownloadedAdhans] = useState<string[]>(() => getDownloadedAdhanIds());
@@ -560,12 +565,59 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   const selectedFontObj = FONT_OPTIONS.find((f) => f.id === fontFamily) ?? FONT_OPTIONS[0];
 
   const applyCity = async (id: string) => {
+    clearCustomGpsCoords();
+    setCustomGps(null);
+    setGuestCityId(id);
+    setGuestCityIdState(id);
     if (profile) await updateProfile({ city_id: id });
-    else {
-      setGuestCityId(id);
-      setGuestCityIdState(id);
-    }
+    window.dispatchEvent(new Event('noor-city-changed'));
+    await rescheduleAllReminders(notifEnabled);
     setSection('main');
+  };
+
+  const handleDetectGpsLocation = () => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setGpsStatusMsg('⚠️ دستگاه یا مرورگر شما از مکان‌یابی GPS پشتیبانی نمی‌کند.');
+      return;
+    }
+    setGpsDetecting(true);
+    setGpsStatusMsg('در حال دریافت مختصات دقیق GPS...');
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const lat = Number(pos.coords.latitude.toFixed(5));
+          const lng = Number(pos.coords.longitude.toFixed(5));
+          const { city: nearest, distanceKm } = findNearestCity(lat, lng);
+          const label = distanceKm <= 35 ? nearest.nameFa + ' (مکان دقیق GPS)' : 'مکان دقیق GPS (نزدیک ' + nearest.nameFa + ')';
+          saveCustomGpsCoords(lat, lng, label);
+          setCustomGps({ lat, lng, labelFa: label });
+          setGuestCityId(nearest.id);
+          setGuestCityIdState(nearest.id);
+          if (profile) await updateProfile({ city_id: nearest.id });
+
+          const recMethod = getRecommendedMethodForCountry(nearest.countryCode);
+          if (recMethod !== currentMethod && nearest.countryCode !== 'IR') {
+            setGpsStatusMsg(
+              '✅ مکان دقیق ثبت شد: ' +
+                label +
+                ' · روش پیشنهادی این منطقه: ' +
+                (methods.find((m) => m.id === recMethod)?.name || recMethod)
+            );
+          } else {
+            setGpsStatusMsg('✅ مکان دقیق GPS روی ' + label + ' تنظیم و اوقات شرعی به‌روزرسانی شد.');
+          }
+          window.dispatchEvent(new Event('noor-city-changed'));
+          await rescheduleAllReminders(notifEnabled);
+        } finally {
+          setGpsDetecting(false);
+        }
+      },
+      () => {
+        setGpsDetecting(false);
+        setGpsStatusMsg('⚠️ دسترسی مکان (GPS) داده نشد یا لوکیشن گوشی خاموش است.');
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+    );
   };
 
   const applyTheme = async (id: string) => {
@@ -892,51 +944,151 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
     );
   }
 
-  // ۶. زیرصفحه انتخاب شهر
+  // ۶. زیرصفحه انتخاب شهر و مکان‌یابی جهانی
   if (section === 'city') {
-    const filteredCities = CITIES.filter(
-      (c) =>
-        !citySearch.trim() ||
-        c.nameFa.includes(citySearch.trim()) ||
-        c.name.toLowerCase().includes(citySearch.trim().toLowerCase())
-    );
+    const q = citySearch.trim().toLowerCase();
+    const filteredCities = CITIES.filter((c) => {
+      if (cityRegion !== 'all' && c.region !== cityRegion) return false;
+      if (!q) return true;
+      return (
+        c.nameFa.includes(q) ||
+        c.countryFa.includes(q) ||
+        c.name.toLowerCase().includes(q) ||
+        c.country.toLowerCase().includes(q) ||
+        (c.nameEs || '').toLowerCase().includes(q) ||
+        (c.countryEs || '').toLowerCase().includes(q)
+      );
+    });
     const grouped = filteredCities.reduce<Record<string, City[]>>((acc, c) => {
       (acc[c.countryFa] ??= []).push(c);
       return acc;
     }, {});
 
+    const regionTabs: { id: 'all' | CityRegion; label: string }[] = [
+      { id: 'all', label: 'همه جهان (' + toFaDigits(CITIES.length) + ')' },
+      { id: 'iran', label: 'ایران' },
+      { id: 'middle_east', label: 'خاورمیانه' },
+      { id: 'europe', label: 'اروپا و اسپانیا' },
+      { id: 'north_america', label: 'آمریکا و کانادا' },
+      { id: 'latin_america', label: 'آمریکای لاتین' },
+      { id: 'asia_oceania', label: 'آسیا و اقیانوسیه' },
+      { id: 'africa', label: 'آفریقا' },
+    ];
+
     return (
       <div className="w-full max-w-xl mx-auto px-3.5 pt-4 pb-28 animate-fade-in" dir="rtl">
-        <SubHeader title="انتخاب شهر و افق شرعی" />
+        <SubHeader title="انتخاب شهر و مکان‌یابی جهانی" />
+
+        {/* کارت مکان‌یابی سریع GPS برای دقت ۱۰۰٪ روی مختصات واقعی کاربر در کل دنیا */}
+        <div
+          className="rounded-3xl p-4 border mb-4 space-y-2.5 shadow-lg"
+          style={{
+            background: 'radial-gradient(circle at top left, color-mix(in srgb, ' + theme.primary + ' 18%, ' + theme.surface + '), ' + theme.surface + ')',
+            borderColor: 'color-mix(in srgb, ' + theme.primary + ' 45%, ' + theme.border + ')',
+          }}
+        >
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <p className="text-xs font-black text-app">📍 یافتن خودکار مکان دقیق من (GPS)</p>
+              <p className="text-[10.5px] text-muted mt-0.5">
+                {customGps
+                  ? 'فعال روی: ' + (customGps.labelFa || currentCity.nameFa)
+                  : 'محاسبه اوقات شرعی دقیقاً روی مختصات فعلی شما در هر نقطه از جهان'}
+              </p>
+            </div>
+            {customGps && (
+              <button
+                type="button"
+                onClick={() => {
+                  clearCustomGpsCoords();
+                  setCustomGps(null);
+                  setGpsStatusMsg('مختصات GPS پاک شد و روی مرکز شهر انتخابی برگشت.');
+                  window.dispatchEvent(new Event('noor-city-changed'));
+                }}
+                className="px-2.5 py-1 rounded-xl text-[10px] font-bold border text-muted shrink-0"
+                style={{ borderColor: theme.border }}
+              >
+                حذف GPS
+              </button>
+            )}
+          </div>
+
+          <button
+            type="button"
+            disabled={gpsDetecting}
+            onClick={handleDetectGpsLocation}
+            className="w-full py-2.5 rounded-2xl text-xs font-black flex items-center justify-center gap-2 transition-transform active:scale-[0.99] disabled:opacity-60"
+            style={{ background: theme.primary, color: theme.bg }}
+          >
+            <Navigation size={14} />
+            <span>{gpsDetecting ? 'در حال دریافت مکان از GPS...' : 'پیدا کردن سریع مکان من با GPS'}</span>
+          </button>
+
+          {gpsStatusMsg && (
+            <p className="text-[11px] font-bold text-primary leading-relaxed">{gpsStatusMsg}</p>
+          )}
+        </div>
+
         <input
           type="text"
           value={citySearch}
           onChange={(e) => setCitySearch(e.target.value)}
-          placeholder="🔍 جستجوی نام شهر (مثلاً: مشهد، تهران، قم، کربلا...)"
-          className="w-full px-4 py-3 rounded-2xl text-xs text-app border outline-none mb-4"
+          placeholder="🔍 جستجوی شهر یا کشور (تهران، مشهد، Madrid، London، New York...)"
+          className="w-full px-4 py-3 rounded-2xl text-xs text-app border outline-none mb-3"
           style={{ borderColor: theme.border, background: theme.surface }}
         />
-        {Object.entries(grouped).map(([country, cities]) => (
-          <div key={country} className="mb-5">
-            <p className="text-muted text-xs font-semibold mb-2">{country}</p>
-            <div className="space-y-2">
-              {cities.map((c) => (
-                <button
-                  key={c.id}
-                  onClick={() => void applyCity(c.id)}
-                  className="w-full card-flat p-4 flex items-center justify-between"
-                  style={{ borderColor: currentCityId === c.id ? theme.primary : theme.border }}
-                >
-                  <div className="text-right">
-                    <p className="text-app font-medium text-sm">{c.nameFa}</p>
-                    <p className="text-muted text-xs" dir="ltr">{c.timezone}</p>
-                  </div>
-                  {currentCityId === c.id && <Check size={18} color={theme.primary} />}
-                </button>
-              ))}
+
+        {/* فیلتر سریع مناطق جهان */}
+        <div className="flex gap-1.5 overflow-x-auto pb-3 mb-2">
+          {regionTabs.map((rt) => {
+            const active = cityRegion === rt.id;
+            return (
+              <button
+                key={rt.id}
+                type="button"
+                onClick={() => setCityRegion(rt.id)}
+                className="px-3 py-1.5 rounded-full text-[10.5px] font-bold border shrink-0 transition-all"
+                style={{
+                  borderColor: active ? theme.primary : theme.border,
+                  background: active ? theme.primary : theme.surface,
+                  color: active ? theme.bg : theme.textMuted,
+                }}
+              >
+                {rt.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {Object.keys(grouped).length === 0 ? (
+          <p className="text-xs text-muted text-center py-8">
+            شهری با این نام پیدا نشد؛ از دکمه GPS بالا برای ثبت مستقیم مختصات خود استفاده کنید.
+          </p>
+        ) : (
+          Object.entries(grouped).map(([country, cities]) => (
+            <div key={country} className="mb-5">
+              <p className="text-muted text-xs font-semibold mb-2">
+                {country} ({toFaDigits(cities.length)})
+              </p>
+              <div className="space-y-2">
+                {cities.map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => void applyCity(c.id)}
+                    className="w-full card-flat p-4 flex items-center justify-between"
+                    style={{ borderColor: currentCityId === c.id && !customGps ? theme.primary : theme.border }}
+                  >
+                    <div className="text-right">
+                      <p className="text-app font-bold text-sm">{c.nameFa} <span className="text-[11px] font-normal text-muted">({c.name})</span></p>
+                      <p className="text-muted text-[11px]" dir="ltr">{c.timezone}</p>
+                    </div>
+                    {currentCityId === c.id && !customGps && <Check size={18} color={theme.primary} />}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
     );
   }
@@ -984,16 +1136,52 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
             >
               <div className="text-right">
                 <p className="text-app font-bold text-sm">{m.name}</p>
-                {m.id === 'tehran' && (
-                  <p className="text-[10.5px] text-primary mt-0.5">مرجع رسمی تقویم ایران (فجر ۱۷/۷° · مغرب ۴/۵°)</p>
-                )}
-                {m.id === 'jafari' && (
-                  <p className="text-[10.5px] text-muted mt-0.5">مؤسسه پژوهشی لواء قم (فجر ۱۶° · مغرب ۴°)</p>
-                )}
+                <p className="text-[10.5px] mt-0.5" style={{ color: m.id === 'tehran' ? theme.primary : theme.textMuted }}>
+                  {m.regionFa}
+                </p>
               </div>
               {currentMethod === m.id && <Check size={18} color={theme.primary} />}
             </button>
           ))}
+        </div>
+
+        {/* انتخابگر فقه وقت عصر (استاندارد / حنفی برای کاربران جهانی) */}
+        <div className="mt-5 rounded-3xl p-4 border space-y-2.5" style={{ background: theme.surface, borderColor: theme.border }}>
+          <div>
+            <p className="text-xs font-black text-app">فقه محاسبه وقت عصر</p>
+            <p className="text-[10.5px] text-muted mt-0.5">
+              برای ایران و اکثریت جهان روی «استاندارد» بماند؛ برای پیروان مذهب حنفی گزینه «حنفی» را انتخاب کنید.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {(
+              [
+                { id: 'standard' as AsrMadhab, label: 'استاندارد (جعفری / شافعی)' },
+                { id: 'hanafi' as AsrMadhab, label: 'حنفی (سایه دو برابر)' },
+              ]
+            ).map((opt) => {
+              const active = asrMadhab === opt.id;
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => {
+                    setAsrMadhabState(opt.id);
+                    saveAsrMadhab(opt.id);
+                    void rescheduleAllReminders(notifEnabled);
+                  }}
+                  className="py-2.5 px-2 rounded-2xl text-[11px] font-black border transition-all"
+                  style={{
+                    borderColor: active ? theme.primary : theme.border,
+                    background: active ? theme.primary : theme.bg,
+                    color: active ? theme.bg : theme.textMuted,
+                  }}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* کشوی اختیاری تنظیم احتیاط شرعی دستی (بسته به صورت پیش‌فرض) */}

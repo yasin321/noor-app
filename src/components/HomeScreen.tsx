@@ -1335,7 +1335,10 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
     }
   };
 
-  const times = calculatePrayerTimes(now, city.lat, city.lng, city.timezone || 'Asia/Tehran', calcMethod);
+  const exactGps = getCustomGpsCoords();
+  const effectiveLat = exactGps ? exactGps.lat : city.lat;
+  const effectiveLng = exactGps ? exactGps.lng : city.lng;
+  const times = calculatePrayerTimes(now, effectiveLat, effectiveLng, city.timezone || 'Asia/Tehran', calcMethod);
   const nextPrayerInfo = times ? getNextPrayer(times) : null;
   const nextPrayer = {
     key: nextPrayerInfo?.key ?? 'fajr',

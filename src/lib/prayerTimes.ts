@@ -19,6 +19,9 @@ export type PrayerTimes = {
   location: string;
 };
 
+export type AsrMadhab = 'standard' | 'hanafi';
+export type HighLatitudeRule = 'angle_based' | 'one_seventh' | 'middle_of_night';
+
 export type PrayerManualOffsets = {
   fajr: number;
   dhuhr: number;
@@ -28,6 +31,7 @@ export type PrayerManualOffsets = {
 };
 
 const MANUAL_OFFSETS_KEY = 'noor_prayer_manual_offsets_v1';
+const ASR_MADHAB_KEY = 'noor_prayer_asr_madhab_v1';
 
 const DEFAULT_OFFSETS: PrayerManualOffsets = {
   fajr: 0,
@@ -41,6 +45,23 @@ function clampOffset(val: unknown): number {
   const n = Number(val);
   if (!Number.isFinite(n)) return 0;
   return Math.max(-5, Math.min(5, Math.round(n)));
+}
+
+export function getAsrMadhab(): AsrMadhab {
+  try {
+    return localStorage.getItem(ASR_MADHAB_KEY) === 'hanafi' ? 'hanafi' : 'standard';
+  } catch {
+    return 'standard';
+  }
+}
+
+export function saveAsrMadhab(madhab: AsrMadhab): void {
+  try {
+    localStorage.setItem(ASR_MADHAB_KEY, madhab === 'hanafi' ? 'hanafi' : 'standard');
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('noor-calc-method-changed'));
+    }
+  } catch {}
 }
 
 export function getPrayerManualOffsets(): PrayerManualOffsets {
@@ -147,6 +168,10 @@ function normalizeHour(h: number): number {
   return r < 0 ? r + 24 : r;
 }
 
+function timeDiffHours(t1: number, t2: number): number {
+  return normalizeHour(t2 - t1);
+}
+
 export function timeToMinutes(t: string): number {
   const [h, m] = t.split(':').map(Number);
   if (isNaN(h) || isNaN(m)) return NaN;
@@ -159,7 +184,7 @@ export function minutesToTime(min: number): string {
   if (total < 0) total += 1440;
   const h = Math.floor(total / 60);
   const m = total % 60;
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
 }
 
 export function getTimezoneOffsetHours(timezone: string, date: Date = new Date()): number {
@@ -195,7 +220,7 @@ export function getLocalDateString(date: Date = new Date(), timezone?: string): 
     }
   }
   const d = date;
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
 
 type MethodParams = {
@@ -210,23 +235,133 @@ const METHODS: Record<string, MethodParams> = {
   tehran: { fajrAngle: 17.7, ishaAngle: 14, maghribAngle: 4.5, midnightMode: 'jafari' },
   jafari: { fajrAngle: 16, ishaAngle: 14, maghribAngle: 4, midnightMode: 'jafari' },
   mwl: { fajrAngle: 18, ishaAngle: 17, midnightMode: 'standard' },
+  isna: { fajrAngle: 15, ishaAngle: 15, midnightMode: 'standard' },
+  diyanet: { fajrAngle: 18, ishaAngle: 17, midnightMode: 'standard' },
   egyptian: { fajrAngle: 19.5, ishaAngle: 17.5, midnightMode: 'standard' },
   karachi: { fajrAngle: 18, ishaAngle: 18, midnightMode: 'standard' },
   umm_al_qura: { fajrAngle: 18.5, ishaAngle: 0, ishaMinutesAfterMaghrib: 90, midnightMode: 'standard' },
+  singapore: { fajrAngle: 20, ishaAngle: 18, midnightMode: 'standard' },
+  moonsighting: { fajrAngle: 18, ishaAngle: 18, midnightMode: 'standard' },
 };
 
-export function getAvailableMethods(): { id: string; name: string }[] {
+export interface CalculationMethodOption {
+  id: string;
+  name: string;
+  nameEn: string;
+  nameEs: string;
+  regionFa: string;
+  regionEn: string;
+  regionEs: string;
+}
+
+export function getAvailableMethods(): CalculationMethodOption[] {
   return [
-    { id: 'tehran', name: 'تهران — مؤسسه ژئوفیزیک (رسمی ایران)' },
-    { id: 'jafari', name: 'جعفری — مؤسسه لواء قم' },
-    { id: 'mwl', name: 'اتحادیه اسلامی جهانی' },
-    { id: 'egyptian', name: 'مصری' },
-    { id: 'karachi', name: 'کراچی' },
-    { id: 'umm_al_qura', name: 'ام‌القری' },
+    {
+      id: 'tehran',
+      name: 'تهران — مؤسسه ژئوفیزیک (رسمی ایران)',
+      nameEn: 'Tehran — Institute of Geophysics',
+      nameEs: 'Teherán — Instituto de Geofísica',
+      regionFa: 'مرجع رسمی ایران (فجر ۱۷/۷° · مغرب ۴/۵°)',
+      regionEn: 'Official Iran standard (Fajr 17.7° · Maghrib 4.5°)',
+      regionEs: 'Estándar oficial de Irán (Fajr 17.7° · Magrib 4.5°)',
+    },
+    {
+      id: 'jafari',
+      name: 'جعفری — مؤسسه لواء قم',
+      nameEn: 'Shia Ithna-Ashari (Leva, Qum)',
+      nameEs: 'Chií Yafarí (Instituto Leva, Qom)',
+      regionFa: 'مؤسسه لواء قم (فجر ۱۶° · مغرب ۴°)',
+      regionEn: 'Shia global reference (Fajr 16° · Maghrib 4°)',
+      regionEs: 'Referencia chií global (Fajr 16° · Magrib 4°)',
+    },
+    {
+      id: 'mwl',
+      name: 'اتحادیه اسلامی جهانی (اروپا و جهانی)',
+      nameEn: 'Muslim World League (Europe & Global)',
+      nameEs: 'Liga Mundial Musulmana (Europa y Global)',
+      regionFa: 'مناسب اروپا، اسپانیا، بریتانیا و آمریکای لاتین (۱۸° / ۱۷°)',
+      regionEn: 'Recommended for Europe, Spain, UK & Latin America (18° / 17°)',
+      regionEs: 'Recomendado para Europa, España y Latinoamérica (18° / 17°)',
+    },
+    {
+      id: 'isna',
+      name: 'ISNA — آمریکای شمالی و کانادا',
+      nameEn: 'ISNA — North America',
+      nameEs: 'ISNA — Norteamérica y Canadá',
+      regionFa: 'مناسب آمریکا، کانادا و مکزیک (۱۵° / ۱۵°)',
+      regionEn: 'Standard for USA, Canada & Mexico (15° / 15°)',
+      regionEs: 'Estándar para EE. UU., Canadá y México (15° / 15°)',
+    },
+    {
+      id: 'diyanet',
+      name: 'دیانت ترکیه (ترکیه و اروپای مرکزی)',
+      nameEn: 'Diyanet (Turkey & Central Europe)',
+      nameEs: 'Diyanet (Turquía y Europa Central)',
+      regionFa: 'استاندارد رسمی ترکیه و آلمان (۱۸° / ۱۷°)',
+      regionEn: 'Official Turkey & Central Europe (18° / 17°)',
+      regionEs: 'Oficial en Turquía y Europa Central (18° / 17°)',
+    },
+    {
+      id: 'umm_al_qura',
+      name: 'ام‌القری (مکه و کشورهای خلیج فارس)',
+      nameEn: 'Umm al-Qura (Makkah & Gulf)',
+      nameEs: 'Umm al-Qura (La Meca y Golfo)',
+      regionFa: 'عربستان و خلیج فارس (فجر ۱۸/۵° · عشاء ۹۰ دقیقه)',
+      regionEn: 'Saudi Arabia & Gulf region (18.5° / +90 min)',
+      regionEs: 'Arabia Saudita y Golfo (18.5° / +90 min)',
+    },
+    {
+      id: 'egyptian',
+      name: 'مصری (خاورمیانه و شمال آفریقا)',
+      nameEn: 'Egyptian General Authority',
+      nameEs: 'Autoridad General de Egipto',
+      regionFa: 'مصر، سوریه، لبنان و شمال آفریقا (۱۹/۵° / ۱۷/۵°)',
+      regionEn: 'Egypt, Levant & North Africa (19.5° / 17.5°)',
+      regionEs: 'Egipto, Levante y Norte de África (19.5° / 17.5°)',
+    },
+    {
+      id: 'karachi',
+      name: 'کراچی (پاکستان، هند و افغانستان)',
+      nameEn: 'University of Islamic Sciences, Karachi',
+      nameEs: 'Universidad de Ciencias Islámicas, Karachi',
+      regionFa: 'پاکستان، هند و بنگلادش (۱۸° / ۱۸°)',
+      regionEn: 'Pakistan, India & South Asia (18° / 18°)',
+      regionEs: 'Pakistán, India y sur de Asia (18° / 18°)',
+    },
+    {
+      id: 'singapore',
+      name: 'سنگاپور و جنوب شرق آسیا',
+      nameEn: 'MUIS — Singapore & SE Asia',
+      nameEs: 'MUIS — Singapur y Sudeste Asiático',
+      regionFa: 'سنگاپور، مالزی و اندونزی (۲۰° / ۱۸°)',
+      regionEn: 'Singapore, Malaysia & Indonesia (20° / 18°)',
+      regionEs: 'Singapur, Malasia e Indonesia (20° / 18°)',
+    },
+    {
+      id: 'moonsighting',
+      name: 'Moonsighting (کمیته بین‌المللی)',
+      nameEn: 'Moonsighting Committee Worldwide',
+      nameEs: 'Comité Internacional Moonsighting',
+      regionFa: 'مناسب مناطق با عرض جغرافیایی بالا (۱۸° / ۱۸°)',
+      regionEn: 'High-latitude aware global standard (18° / 18°)',
+      regionEs: 'Estándar global para latitudes altas (18° / 18°)',
+    },
   ];
 }
 
-// الگوریتم دقیق نجومی USNO / PrayTimes (معادله زمان و میل خورشید بدون تقریب)
+export function getRecommendedMethodForCountry(countryCode?: string): string {
+  const cc = String(countryCode || '').toUpperCase();
+  if (cc === 'IR') return 'tehran';
+  if (cc === 'IQ') return 'jafari';
+  if (cc === 'US' || cc === 'CA' || cc === 'MX') return 'isna';
+  if (cc === 'TR') return 'diyanet';
+  if (cc === 'SA' || cc === 'AE' || cc === 'QA' || cc === 'KW' || cc === 'BH' || cc === 'OM') return 'umm_al_qura';
+  if (cc === 'EG' || cc === 'LB' || cc === 'SY' || cc === 'JO' || cc === 'PS' || cc === 'MA' || cc === 'DZ' || cc === 'TN') return 'egyptian';
+  if (cc === 'PK' || cc === 'IN' || cc === 'AF' || cc === 'BD') return 'karachi';
+  if (cc === 'SG' || cc === 'MY' || cc === 'ID') return 'singapore';
+  return 'mwl';
+}
+
 function sunPosition(jd: number): { decl: number; eqt: number } {
   const D = jd - 2451545.0;
   const g = normalizeDeg(357.529 + 0.98560028 * D);
@@ -244,24 +379,33 @@ function sunPosition(jd: number): { decl: number; eqt: number } {
   return { decl, eqt };
 }
 
+function nightPortion(angle: number, nightHours: number, rule: HighLatitudeRule): number {
+  if (rule === 'middle_of_night') return 0.5 * nightHours;
+  if (rule === 'one_seventh') return (1 / 7) * nightHours;
+  return (angle / 60) * nightHours;
+}
+
 export function calculatePrayerTimes(
   date: Date,
   lat: number,
   lng: number,
   timezone: number | string = 'Asia/Tehran',
   method: string = 'tehran',
+  opts?: { madhab?: AsrMadhab; highLatRule?: HighLatitudeRule },
 ): PrayerTimes {
   const tzOffset = typeof timezone === 'string'
     ? getTimezoneOffsetHours(timezone, date)
     : timezone;
 
   const params = METHODS[method] ?? METHODS.tehran;
+  const madhab = opts?.madhab ?? getAsrMadhab();
+  const highLatRule = opts?.highLatRule ?? 'angle_based';
+  const asrFactor = madhab === 'hanafi' ? 2 : 1;
 
   const tzName = typeof timezone === 'string' ? timezone : undefined;
   const localDateStr = getLocalDateString(date, tzName);
   const [calcYear, calcMonth, calcDay] = localDateStr.split('-').map(Number);
 
-  // روز ژولین اصلاح‌شده بر اساس طول جغرافیایی شهر
   const jDate = julianDate(calcYear, calcMonth, calcDay) - lng / (15 * 24);
 
   function midDay(dayFrac: number): number {
@@ -288,7 +432,6 @@ export function calculatePrayerTimes(
     return sunAngleHours(-elevationDeg, dayFrac, false);
   }
 
-  // ۲ مرحله تکرار برای محاسبه دقیق موقعیت خورشید در لحظه واقعی هر نماز
   let tFajr = 5 / 24;
   let tSunrise = 6 / 24;
   let tDhuhr = 12 / 24;
@@ -309,7 +452,7 @@ export function calculatePrayerTimes(
     fajrH = sunAngleHours(params.fajrAngle, tFajr, true);
     sunriseH = sunAngleHours(0.833, tSunrise, true);
     dhuhrH = midDay(tDhuhr);
-    asrH = asrHours(1, tAsr);
+    asrH = asrHours(asrFactor, tAsr);
     sunsetH = sunAngleHours(0.833, tSunset, false);
     maghribH = sunAngleHours(params.maghribAngle ?? 0.833, tMaghrib, false);
     ishaH = params.ishaMinutesAfterMaghrib
@@ -325,6 +468,31 @@ export function calculatePrayerTimes(
     if (Number.isFinite(ishaH)) tIsha = ishaH / 24;
   }
 
+  // پشتیبانی جهانی عرض‌های جغرافیایی بالا (لندن، برلین، استکهلم، اسلو، تورنتو در اوج تابستان)
+  if (Number.isFinite(sunriseH) && Number.isFinite(sunsetH)) {
+    const nightHours = timeDiffHours(sunsetH, sunriseH);
+    const fajrPortion = nightPortion(params.fajrAngle, nightHours, highLatRule);
+    if (!Number.isFinite(fajrH) || timeDiffHours(fajrH, sunriseH) > fajrPortion) {
+      fajrH = sunriseH - fajrPortion;
+    }
+
+    if (params.maghribAngle) {
+      const maghribPortion = nightPortion(params.maghribAngle, nightHours, highLatRule);
+      if (!Number.isFinite(maghribH) || timeDiffHours(sunsetH, maghribH) > maghribPortion) {
+        maghribH = sunsetH + maghribPortion;
+      }
+    }
+
+    if (!params.ishaMinutesAfterMaghrib) {
+      const ishaPortion = nightPortion(params.ishaAngle, nightHours, highLatRule);
+      if (!Number.isFinite(ishaH) || timeDiffHours(sunsetH, ishaH) > ishaPortion) {
+        ishaH = sunsetH + ishaPortion;
+      }
+    } else if (Number.isFinite(maghribH)) {
+      ishaH = maghribH + params.ishaMinutesAfterMaghrib / 60;
+    }
+  }
+
   const tzAdjustHours = tzOffset - lng / 15;
   const toLocalMin = (h: number) => (Number.isFinite(h) ? (h + tzAdjustHours) * 60 : NaN);
 
@@ -338,7 +506,6 @@ export function calculatePrayerTimes(
   const maghribMin = toLocalMin(maghribH) + manual.maghrib;
   const ishaMin = toLocalMin(ishaH) + manual.isha;
 
-  // نیمه‌شب شرعی: برای شیعه (ژئوفیزیک تهران و جعفری) میانه غروب تا اذان صبح؛ برای اهل‌سنت میانه غروب تا طلوع
   const morningRefMin = params.midnightMode === 'jafari' ? fajrMin : sunriseMin;
   let midnightMin = NaN;
   if (Number.isFinite(sunsetMin) && Number.isFinite(morningRefMin)) {
@@ -348,7 +515,7 @@ export function calculatePrayerTimes(
   }
 
   const hijri = gregorianToHijri(calcYear, calcMonth, calcDay);
-  const hijriDate = `${hijri.day} ${hijriMonthsFa[hijri.month - 1]} ${hijri.year}`;
+  const hijriDate = hijri.day + ' ' + hijriMonthsFa[hijri.month - 1] + ' ' + hijri.year;
 
   return {
     fajr: minutesToTime(fajrMin),
@@ -359,7 +526,7 @@ export function calculatePrayerTimes(
     isha: minutesToTime(ishaMin),
     midnight: minutesToTime(midnightMin),
     date: localDateStr,
-    hijri: `${hijri.year}/${String(hijri.month).padStart(2, '0')}/${String(hijri.day).padStart(2, '0')}`,
+    hijri: hijri.year + '/' + String(hijri.month).padStart(2, '0') + '/' + String(hijri.day).padStart(2, '0'),
     hijriDate,
     location: '',
   };
@@ -399,7 +566,7 @@ export function getNextPrayer(
       const diff = pMin - nowMin;
       const hours = Math.floor(diff / 60);
       const mins = diff % 60;
-      return { ...p, remaining: `${hours.toLocaleString('fa-IR')}س ${mins.toLocaleString('fa-IR')}د` };
+      return { ...p, remaining: hours.toLocaleString('fa-IR') + 'س ' + mins.toLocaleString('fa-IR') + 'د' };
     }
   }
   const fMin = timeToMinutes(times.fajr);
@@ -408,7 +575,7 @@ export function getNextPrayer(
   const diff = nextFajrMin - nowMin;
   const hours = Math.floor(diff / 60);
   const mins = diff % 60;
-  return { name: 'Fajr', nameFa: 'صبح', time: times.fajr, key: 'fajr', remaining: `${hours.toLocaleString('fa-IR')}س ${mins.toLocaleString('fa-IR')}د` };
+  return { name: 'Fajr', nameFa: 'صبح', time: times.fajr, key: 'fajr', remaining: hours.toLocaleString('fa-IR') + 'س ' + mins.toLocaleString('fa-IR') + 'د' };
 }
 
 export interface NightPrayerConfig {
