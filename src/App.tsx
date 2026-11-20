@@ -16,6 +16,13 @@ import { syncAllSurahNativeAlarms } from '@/lib/surahAlarmService';
 import { runGlobalSync } from '@/lib/globalSyncService';
 import { runFullUserCloudSync } from '@/lib/cloudSyncService';
 import { GlobalUpdateBanner } from '@/components/GlobalUpdateBanner';
+import { LiveNotificationPopup, BirthdayCelebrationModal } from '@/components/InboxAndBirthdayModal';
+import {
+  fetchInboxMessages,
+  subscribeLiveInbox,
+  shouldShowBirthdayPopupToday,
+  type InboxMessage,
+} from '@/lib/inboxService';
 import { logEvent } from '@/lib/logger';
 import { Capacitor } from '@capacitor/core';
 
@@ -34,6 +41,8 @@ function AppContent() {
   const [navigationDirection, setNavigationDirection] = useState<'forward' | 'backward'>('forward');
   const [showAuth, setShowAuth] = useState(false);
   const [showFirstTimeGuide, setShowFirstTimeGuide] = useState<boolean>(false);
+  const [livePopupMsg, setLivePopupMsg] = useState<InboxMessage | null>(null);
+  const [showBirthdayModal, setShowBirthdayModal] = useState<boolean>(false);
 
   const touchStartRef = useRef<{ x: number; y: number; id: number; multi: boolean } | null>(null);
   const tabOrder: Tab[] = ['tasbih', 'library', 'home', 'reminders', 'settings'];
@@ -136,6 +145,26 @@ function AppContent() {
     return () => window.clearTimeout(timer);
   }, [loading, user?.id]);
 
+  useEffect(() => {
+    if (loading) return;
+    const timer = window.setTimeout(() => {
+      void fetchInboxMessages(profile?.display_name).then((res) => {
+        if (res.pendingPopup) setLivePopupMsg(res.pendingPopup);
+      });
+      if (shouldShowBirthdayPopupToday()) {
+        setShowBirthdayModal(true);
+      }
+    }, 1100);
+    return () => window.clearTimeout(timer);
+  }, [loading, profile?.display_name]);
+
+  useEffect(() => {
+    const unsub = subscribeLiveInbox((msg) => {
+      if (msg.show_popup) setLivePopupMsg(msg);
+    });
+    return unsub;
+  }, []);
+
   if (showAuth && !user) {
     return <AuthScreen onBack={() => setShowAuth(false)} />;
   }
@@ -151,6 +180,19 @@ function AppContent() {
       {showFirstTimeGuide && <AppTutorialModal onClose={() => setShowFirstTimeGuide(false)} />}
       <NotificationPermissionModal />
       <GlobalUpdateBanner />
+      {livePopupMsg && (
+        <LiveNotificationPopup
+          message={livePopupMsg}
+          onClose={() => setLivePopupMsg(null)}
+          onNavigate={navigateTo}
+        />
+      )}
+      {showBirthdayModal && (
+        <BirthdayCelebrationModal
+          displayName={profile?.display_name}
+          onClose={() => setShowBirthdayModal(false)}
+        />
+      )}
       <main key={tab} className={`page-transition page-transition-${navigationDirection}`} aria-live="polite">
         {tab === 'home' && <HomeScreen onNavigate={navigateTo} />}
         {tab === 'tasbih' && <TasbihCounter onNavigate={navigateTo} />}

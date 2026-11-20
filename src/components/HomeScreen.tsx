@@ -28,6 +28,8 @@ import { QiblaCompassModal } from '@/components/QiblaCompassModal';
 import { CalendarModal } from '@/components/CalendarModal';
 import { WeatherCuteHeaderWidget } from '@/components/WeatherCuteCard';
 import { AppTutorialModal, TUTORIAL_SEEN_KEY } from '@/components/AppTutorialModal';
+import { InboxModal } from '@/components/InboxAndBirthdayModal';
+import { getUnreadInboxCount, INBOX_UPDATED_EVENT } from '@/lib/inboxService';
 import type { Tab } from '@/components/BottomNav';
 
 export interface HomeModulesVisibility {
@@ -1208,6 +1210,8 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
     const syncCity = () => setCity(resolveCurrentCity());
     const syncTasbih = () => setLiveTasbihSession(getSession());
     window.addEventListener('noor-tasbih-session-changed', syncTasbih);
+    const syncInbox = () => setUnreadInboxCount(getUnreadInboxCount());
+    window.addEventListener(INBOX_UPDATED_EVENT, syncInbox);
     const timer = setInterval(() => setNow(new Date()), 30000);
     window.addEventListener('storage', syncCity);
     window.addEventListener('noor-city-changed', syncCity);
@@ -1217,6 +1221,7 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
       window.removeEventListener('storage', syncCity);
       window.removeEventListener('noor-city-changed', syncCity);
       window.removeEventListener('noor-tasbih-session-changed', syncTasbih);
+      window.removeEventListener(INBOX_UPDATED_EVENT, syncInbox);
     };
   }, []);
 
@@ -1246,6 +1251,8 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
   const [showQibla, setShowQibla] = useState(false);
   const [showBiModal, setShowBiModal] = useState(false);
   const [showQuickGuide, setShowQuickGuide] = useState(false);
+  const [showInbox, setShowInbox] = useState(false);
+  const [unreadInboxCount, setUnreadInboxCount] = useState(() => getUnreadInboxCount());
   const [showCityPicker, setShowCityPicker] = useState(false);
   const [modulesVis] = useState(() => getHomeModulesVisibility());
 
@@ -1500,12 +1507,36 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
               <span className="text-xs opacity-80">⌄</span>
             </button>
 
-            <CompactHeaderWeatherPill
-              cityName={city.nameFa}
-              lat={city.lat}
-              lng={city.lng}
-              onOpenCalendar={() => setShowCalendar(true)}
-            />
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setShowInbox(true)}
+                aria-label="صندوق پیام‌ها و اعلانات"
+                title="صندوق پیام‌ها و اعلانات نور"
+                className="relative w-9 h-9 rounded-full border flex items-center justify-center transition-transform active:scale-95 shadow-lg"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(14, 58, 47, 0.92) 0%, rgba(7, 32, 26, 0.96) 100%)',
+                  borderColor: unreadInboxCount > 0 ? '#FBBF24' : 'rgba(52, 211, 153, 0.45)',
+                  color: unreadInboxCount > 0 ? '#FDE047' : '#ECFDF5',
+                }}
+              >
+                <Bell size={16} />
+                {unreadInboxCount > 0 && (
+                  <span
+                    className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-black flex items-center justify-center shadow-md animate-pulse"
+                    style={{ background: '#EF4444', color: '#FFFFFF' }}
+                  >
+                    {toFaDigits(unreadInboxCount > 9 ? '۹+' : unreadInboxCount)}
+                  </span>
+                )}
+              </button>
+              <CompactHeaderWeatherPill
+                cityName={city.nameFa}
+                lat={city.lat}
+                lng={city.lng}
+                onOpenCalendar={() => setShowCalendar(true)}
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -1522,6 +1553,7 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
       )}
 
       {showQuickGuide && <AppTutorialModal onClose={() => setShowQuickGuide(false)} />}
+      {showInbox && <InboxModal onClose={() => setShowInbox(false)} onNavigate={onNavigate} />}
       {showBiModal && <VipAnalyticsModal onClose={() => setShowBiModal(false)} />}
 
       {/* ۲. بدنه اصلی صفحه خانه */}

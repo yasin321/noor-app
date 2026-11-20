@@ -1,3 +1,5 @@
+import { reportCloudError } from '@/lib/errorTelemetry';
+
 export type LogLevel = 'info' | 'warn' | 'error';
 
 export interface AppLogEntry {
@@ -26,7 +28,10 @@ export function logEvent(
   };
 
   const formatted = `[Noor][${entry.timestamp}][${level.toUpperCase()}][${scope}] ${message}`;
-  if (level === 'error') console.error(formatted, meta ?? '');
+  if (level === 'error') {
+    console.error(formatted, meta ?? '');
+    void reportCloudError({ level: 'error', scope, message, meta });
+  }
   else if (level === 'warn') console.warn(formatted, meta ?? '');
   else console.info(formatted, meta ?? '');
 
