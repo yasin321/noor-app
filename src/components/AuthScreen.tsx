@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Phone,
   Lock,
@@ -10,6 +10,8 @@ import {
   CheckCircle2,
   ShieldCheck,
   Sparkles,
+  KeyRound,
+  MessageSquare,
 } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
@@ -18,25 +20,41 @@ import {
   isValidIranPhone,
   formatIranPhoneDisplay,
   evaluatePasswordStrength,
+  requestPasswordResetOtp,
+  verifyOtpAndResetPassword,
+  toEnglishDigits,
 } from '@/lib/authService';
 import { isSupabaseConfigured } from '@/lib/supabase';
+import { toFaDigits } from '@/lib/jalali';
 
 export function AuthScreen({ onBack }: { onBack?: () => void }) {
   const { theme } = useTheme();
   const { signIn, signUp } = useAuth();
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+  const [mode, setMode] = useState<'signin' | 'signup' | 'forgot'>('signin');
   const [phoneInput, setPhoneInput] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [showForgotHint, setShowForgotHint] = useState(false);
+
+  // وضعیت فراموشی رمز ۲ مرحله‌ای (ارسال کد پیامکی -> تایید کد و رمز جدید)
+  const [forgotStep, setForgotStep] = useState<'phone' | 'verify'>('phone');
+  const [otpCode, setOtpCode] = useState('');
+  const [resendSeconds, setResendSeconds] = useState(0);
+
   const [error, setError] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const normalizedPhone = normalizeIranPhone(phoneInput);
   const phoneReady = isValidIranPhone(normalizedPhone);
   const strength = evaluatePasswordStrength(password);
+
+  useEffect(() => {
+    if (resendSeconds <= 0) return;
+    const t = window.setTimeout(() => setResendSeconds((s) => Math.max(0, s - 1)), 1000);
+    return () => window.clearTimeout(t);
+  }, [resendSeconds]);
 
   const handlePhoneChange = (val: string) => {
     const clean = normalizeIranPhone(val);
@@ -44,9 +62,63 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
     if (error) setError(null);
   };
 
+  const handleSendResetOtp = async () => {
+    setError(null);
+    setSuccessMsg(null);
+    if (!phoneReady) {
+      setError('لطفاً شماره موبایل معتبر ۱۱ رقمی وارد کنید (مثال: 09157331216)');
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await requestPasswordResetOtp(normalizedPhone);
+      if (!res.ok) {
+        setError(res.error || 'ارسال کد پیامکی انجام نشد.');
+      } else {
+        setForgotStep('verify');
+        setResendSeconds(res.cooldownSec || 120);
+        setSuccessMsg('کد تایید به شماره ' + formatIranPhoneDisplay(normalizedPhone) + ' پیامک شد.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setSuccessMsg(null);
+
+    if (mode === 'forgot') {
+      if (forgotStep === 'phone') {
+        await handleSendResetOtp();
+        return;
+      }
+      if (password.length < 6) {
+        setError('رمز عبور جدید باید حداقل ۶ کاراکتر باشد');
+        return;
+      }
+      if (password !== confirmPassword) {
+        setError('رمز عبور جدید و تکرار آن یکسان نیستند');
+        return;
+      }
+      setLoading(true);
+      try {
+        const res = await verifyOtpAndResetPassword(normalizedPhone, otpCode, password);
+        if (!res.ok) {
+          setError(res.error || 'تغییر رمز عبور ناموفق بود');
+        } else {
+          setSuccessMsg('✅ رمز عبور با موفقیت تغییر کرد! اکنون با رمز جدید وارد شوید.');
+          setMode('signin');
+          setForgotStep('phone');
+          setOtpCode('');
+          setConfirmPassword('');
+        }
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
 
     if (!phoneReady) {
       setError('لطفاً شماره موبایل معتبر ۱۱ رقمی وارد کنید (مثال: 09123456789)');
@@ -158,7 +230,9 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
 
           <h1 className="text-2xl font-black text-app tracking-tight">حساب همراه معنوی نور</h1>
           <p className="text-muted text-xs mt-1 text-center">
-            {mode === 'signin'
+            {mode === 'forgot'
+              ? 'بازیابی رمز عبور با ارسال کد تایید پیامکی'
+              : mode === 'signin'
               ? 'با شماره موبایل و رمز عبور وارد حساب خود شوید'
               : 'ساخت حساب سریع برای ذخیره و همگام‌سازی اذکار و تنظیمات'}
           </p>
@@ -171,41 +245,62 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
             borderColor: theme.border,
           }}
         >
-          <div
-            className="grid grid-cols-2 gap-1.5 p-1 rounded-2xl border"
-            style={{ background: theme.bg, borderColor: theme.border }}
-          >
-            <button
-              type="button"
-              onClick={() => {
-                setMode('signin');
-                setError(null);
-                setShowForgotHint(false);
-              }}
-              className="py-2.5 rounded-xl text-xs font-black transition-all"
-              style={{
-                background: mode === 'signin' ? theme.primary : 'transparent',
-                color: mode === 'signin' ? theme.bg : theme.textMuted,
-              }}
+          {mode !== 'forgot' ? (
+            <div
+              className="grid grid-cols-2 gap-1.5 p-1 rounded-2xl border"
+              style={{ background: theme.bg, borderColor: theme.border }}
             >
-              ورود با موبایل
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMode('signup');
-                setError(null);
-                setShowForgotHint(false);
-              }}
-              className="py-2.5 rounded-xl text-xs font-black transition-all"
-              style={{
-                background: mode === 'signup' ? theme.primary : 'transparent',
-                color: mode === 'signup' ? theme.bg : theme.textMuted,
-              }}
-            >
-              ایجاد حساب جدید
-            </button>
-          </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('signin');
+                  setError(null);
+                  setSuccessMsg(null);
+                }}
+                className="py-2.5 rounded-xl text-xs font-black transition-all"
+                style={{
+                  background: mode === 'signin' ? theme.primary : 'transparent',
+                  color: mode === 'signin' ? theme.bg : theme.textMuted,
+                }}
+              >
+                ورود با موبایل
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('signup');
+                  setError(null);
+                  setSuccessMsg(null);
+                }}
+                className="py-2.5 rounded-xl text-xs font-black transition-all"
+                style={{
+                  background: mode === 'signup' ? theme.primary : 'transparent',
+                  color: mode === 'signup' ? theme.bg : theme.textMuted,
+                }}
+              >
+                ایجاد حساب جدید
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between pb-2 border-b" style={{ borderColor: theme.border }}>
+              <div className="flex items-center gap-2">
+                <KeyRound size={16} color={theme.accent} />
+                <span className="text-xs font-black text-app">بازیابی رمز با پیامک</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('signin');
+                  setForgotStep('phone');
+                  setError(null);
+                  setSuccessMsg(null);
+                }}
+                className="text-[11px] font-bold text-primary"
+              >
+                بازگشت به ورود ←
+              </button>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-3">
             {mode === 'signup' && (
@@ -229,6 +324,7 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
               </div>
             )}
 
+            {/* شماره موبایل */}
             <div>
               <div className="flex items-center justify-between mb-1 px-1">
                 <label className="text-[11px] font-bold text-muted">شماره موبایل</label>
@@ -252,8 +348,9 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
                   placeholder="0912 345 6789"
                   value={phoneInput}
                   onChange={(e) => handlePhoneChange(e.target.value)}
+                  disabled={mode === 'forgot' && forgotStep === 'verify'}
                   required
-                  className="w-full pr-10 pl-14 py-3 rounded-2xl text-sm font-bold tracking-wider text-app border outline-none transition-colors text-left"
+                  className="w-full pr-10 pl-14 py-3 rounded-2xl text-sm font-bold tracking-wider text-app border outline-none transition-colors text-left disabled:opacity-65"
                   style={{
                     borderColor: phoneReady ? '#34d399' : theme.border,
                     background: theme.bg,
@@ -272,69 +369,126 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
               </div>
             </div>
 
-            <div>
-              <div className="flex items-center justify-between mb-1 px-1">
-                <label className="text-[11px] font-bold text-muted">رمز عبور</label>
-                {mode === 'signin' && (
+            {/* کد تایید پیامکی در مرحله ۲ فراموشی رمز */}
+            {mode === 'forgot' && forgotStep === 'verify' && (
+              <div>
+                <div className="flex items-center justify-between mb-1 px-1">
+                  <label className="text-[11px] font-bold text-muted">کد تایید پیامکی</label>
+                  {resendSeconds > 0 ? (
+                    <span className="text-[10px] text-muted">
+                      ارسال مجدد تا {toFaDigits(resendSeconds)} ثانیه
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => void handleSendResetOtp()}
+                      className="text-[10.5px] font-bold text-accent"
+                    >
+                      ارسال مجدد کد
+                    </button>
+                  )}
+                </div>
+                <div className="relative">
+                  <MessageSquare
+                    size={16}
+                    color={theme.accent}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
+                  />
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    dir="ltr"
+                    maxLength={6}
+                    placeholder="-----"
+                    value={otpCode}
+                    onChange={(e) =>
+                      setOtpCode(toEnglishDigits(e.target.value).replace(/[^0-9]/g, '').slice(0, 6))
+                    }
+                    required
+                    className="w-full pr-10 pl-4 py-3 rounded-2xl text-base font-black tracking-[0.35em] text-center text-app border outline-none"
+                    style={{ borderColor: theme.accent, background: theme.bg }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* فیلد رمز عبور (ورود، ثبت‌نام، یا مرحله ۲ فراموشی) */}
+            {(mode !== 'forgot' || forgotStep === 'verify') && (
+              <div>
+                <div className="flex items-center justify-between mb-1 px-1">
+                  <label className="text-[11px] font-bold text-muted">
+                    {mode === 'forgot' ? 'رمز عبور جدید' : 'رمز عبور'}
+                  </label>
+                  {mode === 'signin' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMode('forgot');
+                        setForgotStep('phone');
+                        setError(null);
+                        setSuccessMsg(null);
+                        setPassword('');
+                        setConfirmPassword('');
+                      }}
+                      className="text-[10.5px] font-bold text-primary"
+                    >
+                      فراموشی رمز عبور؟
+                    </button>
+                  )}
+                </div>
+                <div className="relative">
+                  <Lock
+                    size={16}
+                    color={theme.textMuted}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
+                  />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
+                    placeholder="حداقل ۶ کاراکتر"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    minLength={6}
+                    className="w-full pr-10 pl-11 py-3 rounded-2xl text-sm text-app border outline-none transition-colors"
+                    style={{ borderColor: theme.border, background: theme.bg }}
+                  />
                   <button
                     type="button"
-                    onClick={() => setShowForgotHint((v) => !v)}
-                    className="text-[10.5px] font-bold text-primary"
+                    onClick={() => setShowPassword((v) => !v)}
+                    aria-label={showPassword ? 'مخفی کردن رمز عبور' : 'نمایش رمز عبور'}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-muted p-1"
                   >
-                    فراموشی رمز؟
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
+                </div>
+
+                {(mode === 'signup' || mode === 'forgot') && password.length > 0 && (
+                  <div className="mt-2 px-1 space-y-1">
+                    <div className="grid grid-cols-3 gap-1">
+                      {[1, 2, 3].map((lvl) => (
+                        <div
+                          key={lvl}
+                          className="h-1 rounded-full transition-all"
+                          style={{
+                            background: strength.score >= lvl ? strength.color : 'rgba(255,255,255,0.1)',
+                          }}
+                        />
+                      ))}
+                    </div>
+                    <p className="text-[10px] font-bold" style={{ color: strength.color }}>
+                      {strength.label}
+                    </p>
+                  </div>
                 )}
               </div>
-              <div className="relative">
-                <Lock
-                  size={16}
-                  color={theme.textMuted}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
-                />
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
-                  placeholder="حداقل ۶ کاراکتر"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  minLength={6}
-                  className="w-full pr-10 pl-11 py-3 rounded-2xl text-sm text-app border outline-none transition-colors"
-                  style={{ borderColor: theme.border, background: theme.bg }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  aria-label={showPassword ? 'مخفی کردن رمز عبور' : 'نمایش رمز عبور'}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted p-1"
-                >
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
+            )}
 
-              {mode === 'signup' && password.length > 0 && (
-                <div className="mt-2 px-1 space-y-1">
-                  <div className="grid grid-cols-3 gap-1">
-                    {[1, 2, 3].map((lvl) => (
-                      <div
-                        key={lvl}
-                        className="h-1 rounded-full transition-all"
-                        style={{
-                          background: strength.score >= lvl ? strength.color : 'rgba(255,255,255,0.1)',
-                        }}
-                      />
-                    ))}
-                  </div>
-                  <p className="text-[10px] font-bold" style={{ color: strength.color }}>
-                    {strength.label}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {mode === 'signup' && (
+            {(mode === 'signup' || (mode === 'forgot' && forgotStep === 'verify')) && (
               <div>
-                <label className="block text-[11px] font-bold text-muted mb-1 pr-1">تکرار رمز عبور</label>
+                <label className="block text-[11px] font-bold text-muted mb-1 pr-1">
+                  {mode === 'forgot' ? 'تکرار رمز عبور جدید' : 'تکرار رمز عبور'}
+                </label>
                 <div className="relative">
                   <ShieldCheck
                     size={16}
@@ -362,16 +516,16 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
               </div>
             )}
 
-            {showForgotHint && (
+            {successMsg && (
               <div
-                className="p-3 rounded-2xl border text-[11px] leading-relaxed"
+                className="flex items-start gap-2 p-3 rounded-2xl border"
                 style={{
-                  background: 'color-mix(in srgb, ' + theme.accent + ' 10%, ' + theme.bg + ')',
-                  borderColor: 'color-mix(in srgb, ' + theme.accent + ' 40%, ' + theme.border + ')',
-                  color: theme.text,
+                  background: 'rgba(16,185,129,0.14)',
+                  borderColor: 'rgba(52,211,153,0.45)',
                 }}
               >
-                بازیابی پیامکی (کد تایید OTP) در فاز اتصال به سرور ابری فعال می‌شود. تا آن زمان می‌توانید حساب جدید بسازید یا بدون حساب ادامه دهید.
+                <CheckCircle2 size={16} color="#34d399" className="shrink-0 mt-0.5" />
+                <p className="text-xs font-bold leading-relaxed text-emerald-200">{successMsg}</p>
               </div>
             )}
 
@@ -401,6 +555,10 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
             >
               {loading
                 ? 'در حال بررسی...'
+                : mode === 'forgot'
+                ? forgotStep === 'phone'
+                  ? 'ارسال کد تایید پیامکی'
+                  : 'تایید کد و ثبت رمز جدید'
                 : mode === 'signin'
                 ? 'ورود به حساب نور'
                 : 'ساخت حساب کاربری'}
@@ -415,12 +573,11 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
             <span>
               {isSupabaseConfigured
                 ? 'اطلاعات شما با رمزنگاری امن همگام‌سازی می‌شود'
-                : 'ذخیره امن محلی · آماده انتقال به دیتابیس ابری در فاز بعدی'}
+                : 'ذخیره امن محلی · آماده انتقال به دیتابیس ابری'}
             </span>
           </div>
         </div>
 
-        {/* نمایش شفاف مزایای واقعی ورود برای کاربر */}
         <div
           className="mt-3.5 rounded-3xl p-4 border space-y-2"
           style={{

@@ -1,3 +1,5 @@
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+
 export interface LocalPhoneAccount {
   id: string;
   phone: string;
@@ -32,7 +34,7 @@ export function normalizeIranPhone(raw: string): string {
 }
 
 export function isValidIranPhone(raw: string): boolean {
-  return /^09d{9}$/.test(normalizeIranPhone(raw));
+  return /^09[0-9]{9}$/.test(normalizeIranPhone(raw));
 }
 
 export function formatIranPhoneDisplay(raw: string): string {
@@ -56,7 +58,7 @@ export function evaluatePasswordStrength(password: string): {
   let pts = 0;
   if (password.length >= 6) pts += 1;
   if (password.length >= 8 && /[0-9]/.test(password)) pts += 1;
-  if (/[a-zA-Z]/.test(password) && /[^a-zA-Z0-9s]/.test(password)) pts += 1;
+  if (/[a-zA-Z]/.test(password) && /[^a-zA-Z0-9 \t\n\r]/.test(password)) pts += 1;
   else if (password.length >= 10 && /[a-zA-Z]/.test(password) && /[0-9]/.test(password)) pts += 1;
 
   if (pts <= 1) return { score: 1, label: 'ضعیف (حداقل ۶ کاراکتر و ترجیحاً عدد و حرف)', color: '#f87171' };
@@ -205,5 +207,78 @@ export function updateLocalAccountDisplayName(userId: string, displayName: strin
     try {
       localStorage.setItem(SESSION_KEY, JSON.stringify({ ...sess, displayName }));
     } catch {}
+  }
+}
+
+// =========================================================================
+// بازیابی رمز عبور با کد تایید پیامکی (متصل به Supabase Edge Function: sms-otp)
+// =========================================================================
+export async function requestPasswordResetOtp(
+  rawPhone: string
+): Promise<{ ok: boolean; error?: string; cooldownSec?: number }> {
+  const phone = normalizeIranPhone(rawPhone);
+  if (!isValidIranPhone(phone)) {
+    return { ok: false, error: 'شماره موبایل معتبر ۱۱ رقمی وارد کنید (مثال: 09157331216)' };
+  }
+  if (!isSupabaseConfigured) {
+    return { ok: false, error: 'اتصال سرور ابری در این نسخه فعال نیست.' };
+  }
+
+  try {
+    const { data, error } = await supabase.functions.invoke('sms-otp', {
+      body: { action: 'send', phone },
+    });
+    if (error) {
+      return {
+        ok: false,
+        error:
+          'سرویس پیامک بازیابی رمز (پنل پیامکی ایران) هنوز روی سرور فعال نشده است. پس از ثبت کلید کاوه‌نگار یا SMS.ir در Supabase، پیامک کد تایید خودکار ارسال می‌شود.',
+      };
+    }
+    if (data && data.error) {
+      return { ok: false, error: String(data.error) };
+    }
+    return { ok: true, cooldownSec: Number(data?.cooldownSec || 120) };
+  } catch {
+    return {
+      ok: false,
+      error: 'ارتباط با سرویس پیامک برقرار نشد؛ اینترنت خود را بررسی کنید یا از بخش ارتباط با سازنده پیام دهید.',
+    };
+  }
+}
+
+export async function verifyOtpAndResetPassword(
+  rawPhone: string,
+  rawCode: string,
+  newPassword: string
+): Promise<{ ok: boolean; error?: string }> {
+  const phone = normalizeIranPhone(rawPhone);
+  const code = toEnglishDigits(rawCode).replace(/[^0-9]/g, '');
+  if (!isValidIranPhone(phone)) {
+    return { ok: false, error: 'شماره موبایل معتبر نیست' };
+  }
+  if (code.length < 4 || code.length > 6) {
+    return { ok: false, error: 'کد تایید پیامکی را به‌درستی وارد کنید' };
+  }
+  if (!newPassword || newPassword.length < 6) {
+    return { ok: false, error: 'رمز عبور جدید باید حداقل ۶ کاراکتر باشد' };
+  }
+  if (!isSupabaseConfigured) {
+    return { ok: false, error: 'اتصال سرور ابری فعال نیست.' };
+  }
+
+  try {
+    const { data, error } = await supabase.functions.invoke('sms-otp', {
+      body: { action: 'verify_and_reset', phone, code, newPassword },
+    });
+    if (error) {
+      return { ok: false, error: 'کد تایید نامعتبر یا منقضی است؛ دوباره درخواست کد دهید.' };
+    }
+    if (data && data.error) {
+      return { ok: false, error: String(data.error) };
+    }
+    return { ok: true };
+  } catch {
+    return { ok: false, error: 'خطا در برقراری ارتباط با سرور برای تغییر رمز عبور.' };
   }
 }

@@ -1159,6 +1159,12 @@ function getDynamicDailyHourlySuggestion(now: Date): DailyHourlySuggestion {
 // === START_2026_MASTER_HOMESCREEN ===
 export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
   const { theme } = useTheme();
+  const { profile } = useAuth();
+  const [guestCalcMethod, setGuestCalcMethod] = useState<string>(() => {
+    try { return localStorage.getItem('noor_guest_calc_method') || 'tehran'; } catch { return 'tehran'; }
+  });
+  const [adhanConfigTick, setAdhanConfigTick] = useState(0);
+  const calcMethod = profile?.calculation_method || guestCalcMethod;
   const [now, setNow] = useState(() => new Date());
   const [locatingGps, setLocatingGps] = useState(false);
   const [statusBanner, setStatusBanner] = useState<string | null>(null);
@@ -1212,6 +1218,13 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
     window.addEventListener('noor-tasbih-session-changed', syncTasbih);
     const syncInbox = () => setUnreadInboxCount(getUnreadInboxCount());
     window.addEventListener(INBOX_UPDATED_EVENT, syncInbox);
+    const syncMethod = () => {
+      try { setGuestCalcMethod(localStorage.getItem('noor_guest_calc_method') || 'tehran'); } catch {}
+      setAdhanConfigTick((v) => v + 1);
+    };
+    const syncAdhanCfg = () => setAdhanConfigTick((v) => v + 1);
+    window.addEventListener('noor-calc-method-changed', syncMethod);
+    window.addEventListener('noor-adhan-config-changed', syncAdhanCfg);
     const timer = setInterval(() => setNow(new Date()), 30000);
     window.addEventListener('storage', syncCity);
     window.addEventListener('noor-city-changed', syncCity);
@@ -1222,6 +1235,8 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
       window.removeEventListener('noor-city-changed', syncCity);
       window.removeEventListener('noor-tasbih-session-changed', syncTasbih);
       window.removeEventListener(INBOX_UPDATED_EVENT, syncInbox);
+      window.removeEventListener('noor-calc-method-changed', syncMethod);
+      window.removeEventListener('noor-adhan-config-changed', syncAdhanCfg);
     };
   }, []);
 
@@ -1320,7 +1335,7 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
     }
   };
 
-  const times = calculatePrayerTimes(now, city.lat, city.lng);
+  const times = calculatePrayerTimes(now, city.lat, city.lng, city.timezone || 'Asia/Tehran', calcMethod);
   const nextPrayerInfo = times ? getNextPrayer(times) : null;
   const nextPrayer = {
     key: nextPrayerInfo?.key ?? 'fajr',
@@ -1405,7 +1420,7 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
       void syncAllActivePrayerAlarms();
     }, 600);
     return () => clearTimeout(t);
-  }, [city.lat, city.lng, adhanBells]);
+  }, [city.lat, city.lng, adhanBells, calcMethod, adhanConfigTick]);
 
   const togglePrayerBell = async (key: string, labelFa: string, timeStr: string) => {
     const currentVal = Boolean(adhanBells[key]);

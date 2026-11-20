@@ -199,7 +199,7 @@ function stripArabicDiacritics(s: string): string {
 function stripLeadingBasmala(arabicText: string, surahNum: number, ayahNum: number): string {
   if (surahNum === 1 || surahNum === 9 || ayahNum !== 1) return arabicText;
   const trimmed = arabicText.trim();
-  const words = trimmed.split(/s+/);
+  const words = trimmed.split(/[ \t\n\r]+/);
   if (words.length > 4) {
     const firstFour = stripArabicDiacritics(words.slice(0, 4).join(' '));
     if (firstFour === 'بسم الله الرحمن الرحيم') {

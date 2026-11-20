@@ -352,7 +352,7 @@ public class AdhanForegroundService extends Service {
 
                 // اگر کاربر حالت پخش کامل (durationSeconds <= 0) را انتخاب کرده یا اعلان قبل/بعد از اذان کامل است،
                 // اجازه بده تا انتهای فایل صوتی (OnCompletionListener) به طور کامل پخش شود و زود قطع نشود!
-                if (!isPreOrPostChantOrSurah && durationSeconds > 0 && "short_10s".equals(soundType)) {
+                if (!isPreOrPostChantOrSurah && durationSeconds > 0) {
                     stopRunnable = () -> {
                         killActivePlayer(AdhanForegroundService.this);
                         sendBroadcast(new Intent(AdhanAlarmActivity.ACTION_CLOSE_UI));

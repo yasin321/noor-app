@@ -147,7 +147,7 @@ export function computeSurahClock(
   customTime: string
 ): { clock: string; descFa: string } {
   if (anchor === 'custom') {
-    const safe = /^d{1,2}:d{2}$/.test(customTime) ? customTime : '21:00';
+    const safe = /^[0-9]{1,2}:[0-9]{2}$/.test(customTime) ? customTime : '21:00';
     return { clock: safe, descFa: 'ساعت ' + toFaDigits(safe) };
   }
   const city = getCityById(getGuestCityId());

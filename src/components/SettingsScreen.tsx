@@ -579,6 +579,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
     try { localStorage.setItem(GUEST_ADHAN_KEY, id); } catch {}
     setGuestAdhanId(id);
     if (profile) await updateProfile({ adhan_id: id });
+    window.dispatchEvent(new Event('noor-adhan-config-changed'));
     await rescheduleAllReminders(notifEnabled);
   };
 
@@ -586,6 +587,8 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
     try { localStorage.setItem('noor_guest_calc_method', id); } catch {}
     setGuestMethod(id);
     if (profile) await updateProfile({ calculation_method: id });
+    window.dispatchEvent(new Event('noor-calc-method-changed'));
+    await rescheduleAllReminders(notifEnabled);
     setSection('main');
   };
 
@@ -963,6 +966,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
     const handleChangeDurationMode = (m: AdhanPlaybackDurationMode) => {
       setDurationModeState(m);
       setAdhanDurationMode(m);
+      window.dispatchEvent(new Event('noor-adhan-config-changed'));
       void rescheduleAllReminders(notifEnabled);
       const label = m === '10s' ? '۱۰ ثانیه اول (خلاصه)' : m === '30s' ? '۳۰ ثانیه اول (ملایم)' : 'پخش کامل اذان';
       setAdhanNotice(`✨ مدت پخش اذان روی «${label}» تنظیم شد.`);
@@ -989,12 +993,9 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
       setPreviewingId(a.id);
       const dur = getAdhanDurationSeconds(durationMode);
       try {
-        await playAdhanPreview(a, 0, 100);
-        if (dur > 0) {
-          setTimeout(() => {
-            setPreviewingId((prev) => (prev === a.id ? null : prev));
-          }, dur * 1000);
-        }
+        await playAdhanPreview(a, dur, 100, () => {
+          setPreviewingId((prev) => (prev === a.id ? null : prev));
+        });
       } catch {
         setPreviewingId(null);
       }
@@ -1013,21 +1014,25 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
               type="button"
               onClick={async () => {
                 const chosenId = localStorage.getItem('noor_guest_adhan_id') || 'moazenzadeh_ardabili';
+                const chosenObj = allAdhans.find((a) => a.id === chosenId) || adhans[0];
+                const durSec = getAdhanDurationSeconds(durationMode);
+                const durLabel = durSec === 10 ? '۱۰ ثانیه اول' : durSec === 30 ? '۳۰ ثانیه اول' : 'اذان کامل';
                 if (Capacitor.isNativePlatform()) {
                   await NoorAlarm.scheduleNativeAlarm({
                     id: 70998,
                     triggerAtMillis: Date.now() + 5000,
                     title: '🕌 تست پخش اذان روی صفحه قفل',
-                    body: `همراه معنوی نور — ${(adhans.find((a) => a.id === chosenId)?.nameFa || 'اذان انتخابی شما')}`,
+                    body: `همراه معنوی نور — ${chosenObj?.nameFa || 'اذان انتخابی شما'} (${durLabel})`,
                     soundType: 'adhan',
                     adhanId: chosenId,
-                    audioUrl: (Object.values((adhans.find((a: any) => a.id === chosenId) || {}) as Record<string, unknown>).find((v): v is string => typeof v === 'string' && v.includes('/adhans/')) || ''),
-                    durationSeconds: 30,
+                    audioUrl: chosenObj?.audioUrl || '',
+                    durationSeconds: durSec,
                     volumePercent: 100,
                   });
-                  alert('⏱️ آلارم اذان برای ۵ ثانیه دیگر کوک شد! همین الان صفحه گوشی را قفل کنید.');
+                  setAdhanNotice(`⏱️ تست اذان (${durLabel}) برای ۵ ثانیه دیگر کوک شد! همین الان صفحه گوشی را قفل کنید.`);
                 } else {
-                  void playAdhanPreview(adhans.find((a) => a.id === chosenId) || adhans[0]);
+                  void playAdhanPreview(chosenObj, durSec, 100);
+                  setAdhanNotice(`🔊 در حال پخش پیش‌نمایش (${durLabel})...`);
                 }
               }}
               className="w-full py-2.5 rounded-2xl text-xs font-black shadow-md transition-transform active:scale-95"
