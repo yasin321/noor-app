@@ -8,11 +8,12 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   Palette, Volume2, Bell, LogOut, User, Check, LogIn, MapPin,
   AlertCircle, Type, LayoutGrid, Crown, HelpCircle, ChevronLeft,
-  Navigation, BookOpen, Shield, Download, Upload, CloudUpload, Database, RefreshCw
+  Navigation, BookOpen, Shield, Download, Upload, CloudUpload, Database, RefreshCw, Globe, ChevronRight
 } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { useTheme } from '@/hooks/useTheme';
+import { useI18n, LANGUAGE_OPTIONS } from '@/i18n';
 
 import { OCCASION_MOTIFS, getSelectedOccasionMotif, setSelectedOccasionMotif, type OccasionMotifId } from '@/components/ThemeBackdropPattern';
 
@@ -23,7 +24,7 @@ import {
   playAdhanPreview, stopAdhanPreview, getAdhanDurationMode, setAdhanDurationMode,
   getAdhanDurationSeconds, type Adhan, type AdhanPlaybackDurationMode
 } from '@/lib/adhans';
-import { CITIES, getCityById, getGuestCityId, setGuestCityId, findNearestCity, saveCustomGpsCoords, getCustomGpsCoords, clearCustomGpsCoords, type City, type CityRegion } from '@/lib/cities';
+import { CITIES, getCityById, getCityDisplayName, getCountryDisplayName, getGuestCityId, setGuestCityId, findNearestCity, saveCustomGpsCoords, getCustomGpsCoords, clearCustomGpsCoords, type City, type CityRegion } from '@/lib/cities';
 import { NoorAlarm, cancelAllScheduledNotifications, rescheduleAllReminders, checkPermission, requestPermission } from '@/lib/reminderService';
 import { getAvailableMethods, getRecommendedMethodForCountry, getAsrMadhab, saveAsrMadhab, getNightPrayerConfig, saveNightPrayerConfig, getPrayerManualOffsets, savePrayerManualOffsets, hasNonZeroManualOffsets, type AsrMadhab, type NightPrayerConfig, type PrayerManualOffsets } from '@/lib/prayerTimes';
 import { getSpiritualDashboardStats, type PeriodRange } from '@/lib/tasbihStorage';
@@ -56,7 +57,7 @@ function setGuestNotifEnabled(enabled: boolean): void {
   try { localStorage.setItem(GUEST_NOTIF_KEY, enabled ? 'true' : 'false'); } catch {}
 }
 
-type SettingsSection = 'main' | 'typography' | 'adhan' | 'city' | 'method' | 'theme' | 'customize' | 'neshan' | 'backup' | 'logs';
+type SettingsSection = 'main' | 'language' | 'typography' | 'adhan' | 'city' | 'method' | 'theme' | 'customize' | 'neshan' | 'backup' | 'logs';
 
 const FONT_OPTIONS = [
   { id: 'Vazirmatn', nameFa: 'وزیرمتن (پیش‌فرض)', desc: 'بهترین خوانایی در رابط کاربری مدرن', sample: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ — همراه معنوی نور' },
@@ -367,6 +368,7 @@ function ContactYasinModal({ onClose }: { onClose: () => void }) {
 
 export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   const { theme, themeId, setThemeId } = useTheme();
+  const { lang, dir, isRtl, setLang, t, formatDigits } = useI18n();
   const [showContactDeveloperModal, setShowContactDeveloperModal] = useState(false);
   const [contactSubject, setContactSubject] = useState('پیشنهاد یا گزارش درباره اپلیکیشن همراه معنوی نور');
   const [contactBody, setContactBody] = useState('');
@@ -444,11 +446,13 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
       Samim: "'Samim', 'Vazirmatn', sans-serif",
       AmiriQuran: "'Amiri', 'Amiri Quran', 'Parastoo', serif",
     };
-    const chosen = mapFont[fontFamily] ?? mapFont.Vazirmatn;
-    document.documentElement.style.setProperty('--app-font', chosen);
-    document.body.style.fontFamily = chosen;
     try { localStorage.setItem('noor_font_family', fontFamily); } catch {}
-  }, [fontFamily]);
+    if (lang === 'fa') {
+      const chosen = mapFont[fontFamily] ?? mapFont.Vazirmatn;
+      document.documentElement.style.setProperty('--app-font', chosen);
+      document.body.style.fontFamily = chosen;
+    }
+  }, [fontFamily, lang]);
 
   useEffect(() => {
     const sizeMap: Record<string, string> = {
@@ -660,15 +664,79 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
         className="px-3.5 py-2 rounded-xl text-xs font-bold border"
         style={{ borderColor: theme.border, color: theme.primary }}
       >
-        بازگشت →
+        {isRtl ? t('common.back') + ' →' : '← ' + t('common.back')}
       </button>
     </div>
   );
 
+  // ۰. زیرصفحه انتخاب زبان برنامه (فارسی / English / Español)
+  if (section === 'language') {
+    return (
+      <div className="w-full max-w-xl mx-auto px-3.5 pt-4 pb-28 animate-fade-in" dir={dir}>
+        <SubHeader title={t('lang.title')} />
+
+        <div
+          className="rounded-2xl p-3.5 border mb-4 text-xs text-muted leading-relaxed"
+          style={{
+            background: 'color-mix(in srgb, ' + theme.primary + ' 10%, ' + theme.surface + ')',
+            borderColor: 'color-mix(in srgb, ' + theme.primary + ' 35%, ' + theme.border + ')',
+          }}
+        >
+          {t('lang.intro')}
+        </div>
+
+        <div className="space-y-3">
+          {LANGUAGE_OPTIONS.map((opt) => {
+            const active = lang === opt.id;
+            return (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => {
+                  setLang(opt.id);
+                }}
+                className="w-full card-flat p-4 flex items-center justify-between gap-3 transition-all active:scale-[0.99]"
+                style={{
+                  borderColor: active ? theme.primary : theme.border,
+                  background: active
+                    ? 'color-mix(in srgb, ' + theme.primary + ' 14%, ' + theme.surface + ')'
+                    : theme.surface,
+                }}
+              >
+                <div className={isRtl ? 'text-right' : 'text-left'}>
+                  <div className="flex items-center gap-2">
+                    <span className="text-base font-black text-app">{opt.nativeName}</span>
+                    <span className="text-[11px] font-bold text-muted">({opt.englishName})</span>
+                  </div>
+                  <p className="text-[11px] text-muted mt-1">{opt.regionNote}</p>
+                </div>
+                {active ? (
+                  <span
+                    className="px-2.5 py-1 rounded-full text-[10px] font-black flex items-center gap-1 shrink-0"
+                    style={{ background: theme.primary, color: theme.bg }}
+                  >
+                    <Check size={12} /> {t('lang.currentBadge')}
+                  </span>
+                ) : (
+                  <span
+                    className="px-2.5 py-1 rounded-full text-[10px] font-bold border text-muted shrink-0"
+                    style={{ borderColor: theme.border }}
+                  >
+                    {opt.dir.toUpperCase()}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
   // ۱. زیرصفحه فونت، اندازه نوشته و حالت نمایش قرآن
   if (section === 'typography') {
     return (
-      <div className="w-full max-w-xl mx-auto px-3.5 pt-4 pb-28 animate-fade-in" dir="rtl">
+      <div className="w-full max-w-xl mx-auto px-3.5 pt-4 pb-28 animate-fade-in" dir={dir}>
         <SubHeader title="فونت، اندازه متن و نمایش قرآن" />
 
         <div className="space-y-5">
@@ -766,7 +834,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
     };
 
     return (
-      <div className="w-full max-w-xl mx-auto px-3.5 pt-4 pb-28 animate-fade-in" dir="rtl">
+      <div className="w-full max-w-xl mx-auto px-3.5 pt-4 pb-28 animate-fade-in" dir={dir}>
         <SubHeader title="شخصی‌سازی بخش‌های صفحه اول" />
         <p className="text-xs text-muted mb-4 leading-relaxed">
           اگر دوست دارید صفحهٔ اول برنامه خلوت‌تر باشد یا فقط اوقات شرعی را ببینید، می‌توانید هر یک از بخش‌های زیر را به دلخواه روشن یا خاموش کنید:
@@ -821,7 +889,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   // ۳. زیرصفحه پشتیبان‌گیری و بازیابی اطلاعات (Backup & Restore)
   if (section === 'backup') {
     return (
-      <div className="w-full max-w-xl mx-auto px-3.5 pt-4 pb-28 animate-fade-in" dir="rtl">
+      <div className="w-full max-w-xl mx-auto px-3.5 pt-4 pb-28 animate-fade-in" dir={dir}>
         <SubHeader title="پشتیبان‌گیری و حفظ اطلاعات" />
 
         {backupNotice && (
@@ -907,7 +975,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   // ۵. زیرصفحه پوسته‌ها
   if (section === 'theme') {
     return (
-      <div className="w-full max-w-xl mx-auto px-3.5 pt-4 pb-28 animate-fade-in" dir="rtl">
+      <div className="w-full max-w-xl mx-auto px-3.5 pt-4 pb-28 animate-fade-in" dir={dir}>
         <SubHeader title="پوسته و ظاهر" />
           <ThemeHeroSelectorCard theme={theme} />
         <div className="grid grid-cols-2 gap-3">
@@ -960,24 +1028,25 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
       );
     });
     const grouped = filteredCities.reduce<Record<string, City[]>>((acc, c) => {
-      (acc[c.countryFa] ??= []).push(c);
+      const cName = getCountryDisplayName(c, lang);
+      (acc[cName] ??= []).push(c);
       return acc;
     }, {});
 
     const regionTabs: { id: 'all' | CityRegion; label: string }[] = [
-      { id: 'all', label: 'همه جهان (' + toFaDigits(CITIES.length) + ')' },
-      { id: 'iran', label: 'ایران' },
-      { id: 'middle_east', label: 'خاورمیانه' },
-      { id: 'europe', label: 'اروپا و اسپانیا' },
-      { id: 'north_america', label: 'آمریکا و کانادا' },
-      { id: 'latin_america', label: 'آمریکای لاتین' },
-      { id: 'asia_oceania', label: 'آسیا و اقیانوسیه' },
-      { id: 'africa', label: 'آفریقا' },
+      { id: 'all', label: t('city.regionAll') + ' (' + formatDigits(CITIES.length) + ')' },
+      { id: 'iran', label: t('city.regionIran') },
+      { id: 'middle_east', label: t('city.regionMiddleEast') },
+      { id: 'europe', label: t('city.regionEurope') },
+      { id: 'north_america', label: t('city.regionNorthAmerica') },
+      { id: 'latin_america', label: t('city.regionLatinAmerica') },
+      { id: 'asia_oceania', label: t('city.regionAsiaOceania') },
+      { id: 'africa', label: t('city.regionAfrica') },
     ];
 
     return (
-      <div className="w-full max-w-xl mx-auto px-3.5 pt-4 pb-28 animate-fade-in" dir="rtl">
-        <SubHeader title="انتخاب شهر و مکان‌یابی جهانی" />
+      <div className="w-full max-w-xl mx-auto px-3.5 pt-4 pb-28 animate-fade-in" dir={dir}>
+        <SubHeader title={t('city.title')} />
 
         {/* کارت مکان‌یابی سریع GPS برای دقت ۱۰۰٪ روی مختصات واقعی کاربر در کل دنیا */}
         <div
@@ -989,11 +1058,11 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
         >
           <div className="flex items-center justify-between gap-2">
             <div>
-              <p className="text-xs font-black text-app">📍 یافتن خودکار مکان دقیق من (GPS)</p>
+              <p className="text-xs font-black text-app">{t('city.gpsTitle')}</p>
               <p className="text-[10.5px] text-muted mt-0.5">
                 {customGps
-                  ? 'فعال روی: ' + (customGps.labelFa || currentCity.nameFa)
-                  : 'محاسبه اوقات شرعی دقیقاً روی مختصات فعلی شما در هر نقطه از جهان'}
+                  ? t('city.gpsActivePrefix') + ' ' + (customGps.labelFa || getCityDisplayName(currentCity, lang))
+                  : t('city.gpsDesc')}
               </p>
             </div>
             {customGps && (
@@ -1021,7 +1090,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
             style={{ background: theme.primary, color: theme.bg }}
           >
             <Navigation size={14} />
-            <span>{gpsDetecting ? 'در حال دریافت مکان از GPS...' : 'پیدا کردن سریع مکان من با GPS'}</span>
+            <span>{gpsDetecting ? t('city.gpsDetecting') : t('city.gpsBtn')}</span>
           </button>
 
           {gpsStatusMsg && (
@@ -1033,7 +1102,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
           type="text"
           value={citySearch}
           onChange={(e) => setCitySearch(e.target.value)}
-          placeholder="🔍 جستجوی شهر یا کشور (تهران، مشهد، Madrid، London، New York...)"
+          placeholder={t('city.searchPlaceholder')}
           className="w-full px-4 py-3 rounded-2xl text-xs text-app border outline-none mb-3"
           style={{ borderColor: theme.border, background: theme.surface }}
         />
@@ -1062,7 +1131,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
 
         {Object.keys(grouped).length === 0 ? (
           <p className="text-xs text-muted text-center py-8">
-            شهری با این نام پیدا نشد؛ از دکمه GPS بالا برای ثبت مستقیم مختصات خود استفاده کنید.
+            {t('city.empty')}
           </p>
         ) : (
           Object.entries(grouped).map(([country, cities]) => (
@@ -1079,7 +1148,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
                     style={{ borderColor: currentCityId === c.id && !customGps ? theme.primary : theme.border }}
                   >
                     <div className="text-right">
-                      <p className="text-app font-bold text-sm">{c.nameFa} <span className="text-[11px] font-normal text-muted">({c.name})</span></p>
+                      <p className="text-app font-bold text-sm">{getCityDisplayName(c, lang)} {lang === 'fa' && <span className="text-[11px] font-normal text-muted">({c.name})</span>}</p>
                       <p className="text-muted text-[11px]" dir="ltr">{c.timezone}</p>
                     </div>
                     {currentCityId === c.id && !customGps && <Check size={18} color={theme.primary} />}
@@ -1113,8 +1182,8 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
     };
 
     return (
-      <div className="w-full max-w-xl mx-auto px-3.5 pt-4 pb-28 animate-fade-in" dir="rtl">
-        <SubHeader title="روش محاسبه اوقات شرعی" />
+      <div className="w-full max-w-xl mx-auto px-3.5 pt-4 pb-28 animate-fade-in" dir={dir}>
+        <SubHeader title={t('method.title')} />
 
         <div
           className="rounded-2xl p-3.5 border mb-4 text-[11px] text-muted leading-relaxed"
@@ -1123,7 +1192,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
             borderColor: 'color-mix(in srgb, ' + theme.primary + ' 35%, ' + theme.border + ')',
           }}
         >
-          محاسبه اوقات شرعی در نور <strong className="text-app">کاملاً آفلاین و نجومی</strong> است و هر روز بدون نیاز به اینترنت دقیق به‌روزرسانی می‌شود. برای تطابق کامل با تقویم رسمی ایران و صداوسیما، روش <strong className="text-primary">«تهران — مؤسسه ژئوفیزیک»</strong> پیشنهاد می‌شود.
+          {t('method.intro')}
         </div>
 
         <div className="space-y-2">
@@ -1135,9 +1204,9 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
               style={{ borderColor: currentMethod === m.id ? theme.primary : theme.border }}
             >
               <div className="text-right">
-                <p className="text-app font-bold text-sm">{m.name}</p>
+                <p className="text-app font-bold text-sm">{lang === 'en' ? m.nameEn : lang === 'es' ? m.nameEs : m.name}</p>
                 <p className="text-[10.5px] mt-0.5" style={{ color: m.id === 'tehran' ? theme.primary : theme.textMuted }}>
-                  {m.regionFa}
+                  {lang === 'en' ? m.regionEn : lang === 'es' ? m.regionEs : m.regionFa}
                 </p>
               </div>
               {currentMethod === m.id && <Check size={18} color={theme.primary} />}
@@ -1148,16 +1217,16 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
         {/* انتخابگر فقه وقت عصر (استاندارد / حنفی برای کاربران جهانی) */}
         <div className="mt-5 rounded-3xl p-4 border space-y-2.5" style={{ background: theme.surface, borderColor: theme.border }}>
           <div>
-            <p className="text-xs font-black text-app">فقه محاسبه وقت عصر</p>
+            <p className="text-xs font-black text-app">{t('method.asrTitle')}</p>
             <p className="text-[10.5px] text-muted mt-0.5">
-              برای ایران و اکثریت جهان روی «استاندارد» بماند؛ برای پیروان مذهب حنفی گزینه «حنفی» را انتخاب کنید.
+              {t('method.asrDesc')}
             </p>
           </div>
           <div className="grid grid-cols-2 gap-2">
             {(
               [
-                { id: 'standard' as AsrMadhab, label: 'استاندارد (جعفری / شافعی)' },
-                { id: 'hanafi' as AsrMadhab, label: 'حنفی (سایه دو برابر)' },
+                { id: 'standard' as AsrMadhab, label: t('method.asrStandard') },
+                { id: 'hanafi' as AsrMadhab, label: t('method.asrHanafi') },
               ]
             ).map((opt) => {
               const active = asrMadhab === opt.id;
@@ -1192,22 +1261,22 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
             className="w-full px-4 py-3.5 flex items-center justify-between text-right"
           >
             <div>
-              <p className="text-xs font-black text-app">تنظیم دستی احتیاط شرعی (اختیاری)</p>
+              <p className="text-xs font-black text-app">{t('method.manualTitle')}</p>
               <p className="text-[10.5px] text-muted mt-0.5">
                 {hasNonZeroManualOffsets(manualOffsets)
-                  ? 'تغییر دستی روی برخی نمازها فعال است'
-                  : 'پیش‌فرض: ۰ دقیقه (توصیه‌شده برای محاسبه استاندارد)'}
+                  ? t('method.manualActive')
+                  : t('method.manualDefault')}
               </p>
             </div>
             <span className="text-xs font-bold text-primary shrink-0">
-              {showManualOffsets ? 'بستن ▲' : 'تنظیم ▼'}
+              {showManualOffsets ? t('method.manualClose') : t('method.manualOpen')}
             </span>
           </button>
 
           {showManualOffsets && (
             <div className="px-4 pb-4 pt-2 border-t space-y-2.5" style={{ borderColor: theme.border }}>
               <p className="text-[10.5px] text-muted leading-relaxed">
-                در حالت عادی نیازی به تغییر این بخش نیست؛ این گزینه فقط در صورت تمایل به اعمال ۱ تا ۵ دقیقه احتیاط یا هماهنگی با مسجد محله است.
+                {t('method.manualHint')}
               </p>
               {(
                 [
@@ -1261,7 +1330,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
                   className="w-full py-2 rounded-xl text-[11px] font-black border"
                   style={{ borderColor: theme.primary, color: theme.primary }}
                 >
-                  بازگردانی همه به صفر (حالت استاندارد)
+                  {t('method.manualReset')}
                 </button>
               )}
             </div>
@@ -1312,7 +1381,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
     };
 
     return (
-      <div className="w-full max-w-xl mx-auto px-3.5 pt-4 pb-28 animate-fade-in" dir="rtl">
+      <div className="w-full max-w-xl mx-auto px-3.5 pt-4 pb-28 animate-fade-in" dir={dir}>
         {/* بنر تست واقعی ۵ ثانیه بعد اذان در حالت قفل صفحه */}
         <div className="max-w-lg mx-auto px-4 pt-3">
           <div className="p-4 rounded-3xl border space-y-2" style={{ background: 'rgba(16, 185, 129, 0.14)', borderColor: '#34D399' }}>
@@ -1494,7 +1563,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   // ۹. زیرصفحه لاگ‌های فنی
   if (section === 'logs') {
     return (
-      <div className="w-full max-w-xl mx-auto px-3.5 pt-4 pb-28 animate-fade-in" dir="rtl">
+      <div className="w-full max-w-xl mx-auto px-3.5 pt-4 pb-28 animate-fade-in" dir={dir}>
         <SubHeader title="گزارش فنی و وضعیت سیستم" />
         <div className="flex gap-2 mb-3">
           <button
@@ -1572,13 +1641,13 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
       </div>
       <div className="flex items-center gap-1.5 shrink-0">
         <span className="text-muted text-xs truncate max-w-[135px]">{value}</span>
-        <ChevronLeft size={16} color={theme.textMuted} />
+        {isRtl ? <ChevronLeft size={16} color={theme.textMuted} /> : <ChevronRight size={16} color={theme.textMuted} />}
       </div>
     </button>
   );
 
   return (
-    <div className="w-full max-w-xl mx-auto px-3.5 pt-4 pb-28 animate-fade-in" dir="rtl">
+    <div className="w-full max-w-xl mx-auto px-3.5 pt-4 pb-28 animate-fade-in" dir={dir}>
       {showGuide && <AppTutorialModal onClose={() => setShowGuide(false)} />}
       {showPreAdhanModal && <AdhanStudioAndTravelModal initialSection="studio" onClose={() => setShowPreAdhanModal(false)} />}
       {showVipModal && <VipAndAnalyticsModal initialTab="vip" onClose={() => setShowVipModal(false)} />}
@@ -1591,7 +1660,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
       )}
 
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-black text-app">تنظیمات</h1>
+        <h1 className="text-2xl font-black text-app">{t('settings.title')}</h1>
         <button
           type="button"
           onClick={() => setShowGuide(true)}
@@ -1599,7 +1668,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
           style={{ background: `color-mix(in srgb, ${theme.primary} 15%, transparent)`, color: theme.primary }}
         >
           <HelpCircle size={14} />
-          <span>راهنمای برنامه</span>
+          <span>{t('settings.guide')}</span>
         </button>
       </div>
 
@@ -1611,7 +1680,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
               <User size={20} color={theme.bg} />
             </div>
             <div>
-              <p className="text-app font-bold text-sm">{profile?.display_name || (user ? 'کاربر نور' : 'کاربر مهمان')}</p>
+              <p className="text-app font-bold text-sm">{profile?.display_name || (user ? t('common.noorUser') : t('common.guest'))}</p>
               <p className="text-xs font-bold text-primary">{dash.levelTitle}</p>
             </div>
           </div>
@@ -1627,7 +1696,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
                   color: period === d ? theme.bg : theme.textMuted,
                 }}
               >
-                {d === 7 ? '۷ روز' : d === 30 ? '۱ ماه' : 'فصلی'}
+                {d === 7 ? t('settings.period7') : d === 30 ? t('settings.period30') : t('settings.period90')}
               </button>
             ))}
           </div>
@@ -1636,15 +1705,15 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
         <div className="grid grid-cols-3 gap-2 text-center pt-1">
           <div className="card-flat p-2">
             <p className="text-base font-black text-primary">{dash.totalCount.toLocaleString('fa-IR')}</p>
-            <p className="text-[10px] text-muted">کل اذکار</p>
+            <p className="text-[10px] text-muted">{t('settings.statTotalDhikr')}</p>
           </div>
           <div className="card-flat p-2">
             <p className="text-base font-black text-accent">{dash.totalRounds.toLocaleString('fa-IR')}</p>
-            <p className="text-[10px] text-muted">دور تسبیح</p>
+            <p className="text-[10px] text-muted">{t('settings.statRounds')}</p>
           </div>
           <div className="card-flat p-2">
             <p className="text-base font-black text-primary">{dash.streakDays.toLocaleString('fa-IR')} روز</p>
-            <p className="text-[10px] text-muted">زنجیره تداوم 🔥</p>
+            <p className="text-[10px] text-muted">{t('settings.statStreak')}</p>
           </div>
         </div>
         {topDhikrObj && (
@@ -1656,7 +1725,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
         {/* تنظیم تاریخ تولد شمسی برای تبریک ویژه روز تولد */}
         <div className="pt-2.5 border-t space-y-2" style={{ borderColor: theme.border }}>
           <div className="flex items-center justify-between text-xs">
-            <span className="text-muted font-bold">🎂 تاریخ تولد من:</span>
+            <span className="text-muted font-bold">{t('settings.birthdayLabel')}</span>
             <button
               type="button"
               onClick={() => setShowBirthdayEditor((v) => !v)}
@@ -1722,63 +1791,74 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
         </div>
       </div>
 
-      {/* دسته‌بندی ۱: ظاهر، فونت و شخصی‌سازی */}
-      <p className="text-xs font-bold text-muted mb-2 px-1">ظاهر، فونت و شخصی‌سازی</p>
+      {/* دسته‌بندی ۱: زبان، ظاهر و شخصی‌سازی */}
+      <p className="text-xs font-bold text-muted mb-2 px-1">{t('settings.catAppearance')}</p>
       <div className="space-y-2 mb-5">
         <RowItem
+          icon={Globe}
+          title={t('settings.rowLanguage')}
+          value={LANGUAGE_OPTIONS.find((l) => l.id === lang)?.nativeName ?? 'فارسی'}
+          onClick={() => setSection('language')}
+          accent
+        />
+        <RowItem
           icon={Type}
-          title="فونت، اندازه متن و نمایش قرآن"
+          title={t('settings.rowTypography')}
           value={selectedFontObj.nameFa.replace('فونت ', '').split(' ')[0]}
           onClick={() => setSection('typography')}
         />
         <RowItem
           icon={Palette}
-          title="پوسته و رنگ‌بندی"
-          value={allThemes.find((t) => t.id === themeId)?.nameFa ?? 'زمردی'}
+          title={t('settings.rowTheme')}
+          value={allThemes.find((th) => th.id === themeId)?.[lang === 'fa' ? 'nameFa' : 'nameEn'] ?? 'Emerald'}
           onClick={() => setSection('theme')}
         />
         <RowItem
           icon={LayoutGrid}
-          title="شخصی‌سازی بخش‌های صفحه اول"
-          value="کم یا زیاد کردن کارت‌ها"
+          title={t('settings.rowCustomize')}
+          value={t('settings.rowCustomizeVal')}
           onClick={() => setSection('customize')}
         />
       </div>
 
-      {/* دسته‌بندی ۲: اذان، اوقات شرعی و مسجدیاب نشان */}
-      <p className="text-xs font-bold text-muted mb-2 px-1">اذان، اوقات شرعی و مکان‌یابی</p>
+      {/* دسته‌بندی ۲: اذان، اوقات شرعی و مکان‌یابی جهانی */}
+      <p className="text-xs font-bold text-muted mb-2 px-1">{t('settings.catPrayer')}</p>
       <div className="space-y-2 mb-5">
         <RowItem
           icon={Volume2}
-          title="صدای مؤذن و مدت پخش اذان"
+          title={t('settings.rowAdhan')}
           value={selectedAdhanObj.reciter.replace('مرحوم ', '').replace('استاد ', '')}
           onClick={() => setSection('adhan')}
         />
         <RowItem
           icon={MapPin}
-          title="شهر و موقعیت اوقات شرعی"
-          value={currentCity.nameFa}
+          title={t('settings.rowCity')}
+          value={customGps ? 'GPS · ' + getCityDisplayName(currentCity, lang) : getCityDisplayName(currentCity, lang)}
           onClick={() => setSection('city')}
         />
         <RowItem
           icon={BookOpen}
-          title="روش محاسبه اوقات شرعی"
-          value={methods.find((m) => m.id === currentMethod)?.name ?? 'جعفری'}
+          title={t('settings.rowMethod')}
+          value={(() => {
+            const m = methods.find((x) => x.id === currentMethod);
+            if (!m) return 'Tehran';
+            return lang === 'en' ? m.nameEn : lang === 'es' ? m.nameEs : m.name;
+          })()}
           onClick={() => setSection('method')}
         />
         
       </div>
 
       {/* دسته‌بندی ۳: سینک گلوبال، گزارش معنوی، پشتیبان‌گیری و اعلان‌ها */}
-      <p className="text-xs font-bold text-muted mb-2 px-1">همگام‌سازی ابری، گزارش معنوی و اعلان‌ها</p>
+      <p className="text-xs font-bold text-muted mb-2 px-1">{t('settings.catCloud')}</p>
       <div className="space-y-2 mb-5">
         <RowItem
           icon={RefreshCw}
-          title="سینک گلوبال و نواهای جدید"
+          title={t('settings.rowGlobalSync')}
           value={
             getCachedGlobalSyncSnapshot().updateAvailable
-              ? 'نسخه جدید آماده است'
-              : toFaDigits(getCachedGlobalSyncSnapshot().mediaItems.length) + ' نوای آنلاین'
+              ? t('settings.rowGlobalSyncUpdate')
+              : formatDigits(getCachedGlobalSyncSnapshot().mediaItems.length) + ' ' + t('settings.rowGlobalSyncCount')
           }
           onClick={() => setShowGlobalSyncHub(true)}
           accent
@@ -1786,15 +1866,15 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
 
         <RowItem
           icon={Crown}
-          title="گزارش معنوی، آمار و دفترچه قضا"
-          value="مشاهده کامل"
+          title={t('settings.rowAnalytics')}
+          value={t('settings.rowAnalyticsVal')}
           onClick={() => setShowVipModal(true)}
         />
 
         <RowItem
           icon={Database}
-          title="پشتیبان‌گیری و بازیابی اطلاعات"
-          value="ذخیره در گوشی / ابر"
+          title={t('settings.rowBackup')}
+          value={t('settings.rowBackupVal')}
           onClick={() => {
             setBackupNotice(null);
             setSection('backup');
@@ -1810,7 +1890,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
               >
                 <Bell size={18} color={theme.primary} />
               </div>
-              <span className="text-app font-bold text-sm">اعلان‌ها و یادآوری‌های هوشمند</span>
+              <span className="text-app font-bold text-sm">{t('settings.rowNotifications')}</span>
             </div>
             <button
               type="button"
@@ -1830,7 +1910,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
           {!notifSupported && (
             <div className="flex items-center gap-2 mt-2 pt-2 border-t text-muted text-[11px]" style={{ borderColor: theme.border }}>
               <AlertCircle size={13} color={theme.accent} />
-              <span>آلارم قفل صفحه در نسخه اندروید فعال است.</span>
+              <span>{t('settings.notifAndroidOnly')}</span>
             </div>
           )}
         </div>
@@ -1839,7 +1919,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
       </div>
 
         {/* دسته‌بندی ویژه: ارتباط با سازنده و پشتیبانی مستقیم */}
-        <p className="text-xs font-bold text-muted mb-2 mt-5 px-1">ارتباط با سازنده و پشتیبانی</p>
+        <p className="text-xs font-bold text-muted mb-2 mt-5 px-1">{t('settings.catSupport')}</p>
         <div
           onClick={() => setShowContactDeveloperModal(true)}
           role="button"
@@ -1858,12 +1938,12 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
               ✉️
             </div>
             <div className="min-w-0">
-              <p className="text-xs sm:text-sm font-black text-white">ارتباط مستقیم با سازنده برنامه</p>
+              <p className="text-xs sm:text-sm font-black text-white">{t('settings.supportTitle')}</p>
               <p className="text-[11px] text-emerald-200/90 mt-0.5 truncate" dir="ltr">
                 ycnakbari@gmail.com
               </p>
               <p className="text-[10px] text-muted mt-0.5">
-                ارسال نظر، پیشنهاد، انتقاد یا گزارش مشکل فنی
+                {t('settings.supportSubtitle')}
               </p>
             </div>
           </div>
@@ -1871,7 +1951,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
             className="px-3 py-1.5 rounded-xl text-xs font-black shrink-0"
             style={{ background: theme.primary, color: theme.bg }}
           >
-            ارسال پیام ←
+            {isRtl ? t('settings.supportBtn') + ' ←' : t('settings.supportBtn') + ' →'}
           </span>
         </div>
 
@@ -1885,7 +1965,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
           className="w-full mt-4 py-3.5 rounded-2xl flex items-center justify-center gap-2 text-xs font-bold"
           style={{ background: 'rgba(239,68,68,0.12)', color: '#fca5a5' }}
         >
-          <LogOut size={16} /> خروج از حساب کاربری
+          <LogOut size={16} /> {t('settings.signOut')}
         </button>
       ) : onExitGuest ? (
         <button
@@ -1893,7 +1973,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
           className="w-full mt-4 py-3.5 rounded-2xl flex items-center justify-center gap-2 text-xs font-bold"
           style={{ background: theme.primary, color: theme.bg }}
         >
-          <LogIn size={16} /> ورود یا ساخت حساب پشتیبان ابری
+          <LogIn size={16} /> {t('settings.signInCta')}
         </button>
       ) : null}
     </div>

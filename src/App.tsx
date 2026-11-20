@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { AuthProvider, useAuth } from '@/hooks/useAuth';
 import { ThemeProvider } from '@/hooks/useTheme';
+import { LanguageProvider, useI18n } from '@/i18n';
 import { AuthScreen } from '@/components/AuthScreen';
 import { BottomNav, type Tab } from '@/components/BottomNav';
 import { HomeScreen } from '@/components/HomeScreen';
@@ -37,6 +38,7 @@ export function getGuestNotifEnabled(): boolean {
 
 function AppContent() {
   const { user, profile, loading } = useAuth();
+  const { isRtl } = useI18n();
   const [tab, setTab] = useState<Tab>('home');
   const [navigationDirection, setNavigationDirection] = useState<'forward' | 'backward'>('forward');
   const [showAuth, setShowAuth] = useState(false);
@@ -107,9 +109,10 @@ function AppContent() {
     if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.45) {
       const currentIndex = tabOrder.indexOf(tab);
       if (currentIndex === -1) return;
-      if (dx > 0 && currentIndex < tabOrder.length - 1) {
+      const moveNext = isRtl ? dx > 0 : dx < 0;
+      if (moveNext && currentIndex < tabOrder.length - 1) {
         navigateTo(tabOrder[currentIndex + 1]);
-      } else if (dx < 0 && currentIndex > 0) {
+      } else if (!moveNext && currentIndex > 0) {
         navigateTo(tabOrder[currentIndex - 1]);
       }
     }
@@ -207,10 +210,12 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <ThemeProvider>
-        <AppContent />
-      </ThemeProvider>
-    </AuthProvider>
+    <LanguageProvider>
+      <AuthProvider>
+        <ThemeProvider>
+          <AppContent />
+        </ThemeProvider>
+      </AuthProvider>
+    </LanguageProvider>
   );
 }
