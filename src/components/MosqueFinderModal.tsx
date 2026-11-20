@@ -49,7 +49,7 @@ export function MosqueFinderModal({ cityName, defaultLat, defaultLng, onClose, o
   const [mapZoom, setMapZoom] = useState<number>(16);
   const [gpsStatus, setGpsStatus] = useState<'searching' | 'locked' | 'fallback'>('searching');
   const [accuracyMeters, setAccuracyMeters] = useState<number | null>(null);
-  const [providerLabel, setProviderLabel] = useState<string>('Fused GPS');
+  const [providerLabel, setProviderLabel] = useState<string>('موقعیت‌یاب دقیق');
   const [loading, setLoading] = useState<boolean>(true);
   const [mosques, setMosques] = useState<NearbyMosque[]>([]);
   const [userAddress, setUserAddress] = useState<string>('در حال مکان‌یابی دقیق...');
@@ -100,7 +100,7 @@ export function MosqueFinderModal({ cityName, defaultLat, defaultLng, onClose, o
     clearReverseGeocodeCache();
     clearCustomGpsCoords();
     setGpsStatus('searching');
-    setUserAddress('در حال قفل کردن رادار Fused GPS روی کوچه و خیابان شما...');
+    setUserAddress('در حال یافتن موقعیت دقیق کوچه و خیابان شما...');
     setLoading(true);
 
     let bestAccuracy = Infinity;
@@ -119,7 +119,7 @@ export function MosqueFinderModal({ cityName, defaultLat, defaultLng, onClose, o
         const res = await NoorAlarm.requestAndGetLocation();
         if (res.hasCoords && typeof res.lat === 'number' && typeof res.lng === 'number') {
           const nativeAcc = typeof res.accuracy === 'number' ? res.accuracy : 15;
-          await onCandidateFix(res.lat, res.lng, nativeAcc, 'Fused GPS نیتیو', res.nativeAddress);
+          await onCandidateFix(res.lat, res.lng, nativeAcc, 'موقعیت‌یاب دقیق خودکار', res.nativeAddress);
         }
       } catch {}
     }
@@ -131,7 +131,7 @@ export function MosqueFinderModal({ cityName, defaultLat, defaultLng, onClose, o
         (pos) => {
           const acc = pos.coords.accuracy || 18;
           if (acc <= 180 || !lockedAny) {
-            void onCandidateFix(pos.coords.latitude, pos.coords.longitude, acc, 'رادار زنده GPS');
+            void onCandidateFix(pos.coords.latitude, pos.coords.longitude, acc, 'مکان‌یاب زنده');
           }
         },
         () => {},
@@ -254,7 +254,7 @@ export function MosqueFinderModal({ cityName, defaultLat, defaultLng, onClose, o
             </div>
             <div>
               <h2 className="text-base font-black text-app">مسجدیاب نزدیک من</h2>
-              <p className="text-[11px] text-muted font-medium">موتور ترکیبی Fused GPS + نشان + Maps.me + گوگل</p>
+              <p className="text-[11px] text-muted font-medium">مسیریاب هوشمند و دقیق مساجد اطراف شما</p>
             </div>
           </div>
           <div className="flex items-center gap-1.5">
@@ -280,7 +280,7 @@ export function MosqueFinderModal({ cityName, defaultLat, defaultLng, onClose, o
 
         {showGoogleKeyBox && (
           <div className="mb-3 p-3 rounded-2xl border space-y-2" style={{ borderColor: theme.primary, background: theme.bg }}>
-            <p className="text-[11px] font-bold text-app">🔑 کلید Google Maps API (اختیاری — در کنار نشان و Maps.me):</p>
+            <p className="text-[11px] font-bold text-app">🔑 کلید اختصاصی نقشه گوگل (اختیاری — برای دقت و جزئیات بیشتر):</p>
             <div className="flex gap-1.5">
               <input
                 type="text"
@@ -308,7 +308,7 @@ export function MosqueFinderModal({ cityName, defaultLat, defaultLng, onClose, o
           </div>
         )}
 
-        {/* نوار وضعیت آدرس خیابان و دکمه رادار Fused GPS */}
+        {/* نوار وضعیت آدرس خیابان و دکمه رادار موقعیت‌یاب دقیق */}
         <div
           className="mb-3 p-3 rounded-2xl border flex items-center justify-between gap-2.5"
           style={{
@@ -349,7 +349,7 @@ export function MosqueFinderModal({ cityName, defaultLat, defaultLng, onClose, o
             style={{ background: theme.primary, color: theme.bg }}
           >
             <LocateFixed size={13} />
-            <span>رادار GPS</span>
+            <span>مکان‌یابی</span>
           </button>
         </div>
 
@@ -462,7 +462,7 @@ export function MosqueFinderModal({ cityName, defaultLat, defaultLng, onClose, o
               );
             })}
 
-            {/* دایره آبی تپنده موقعیت فعلی کاربر در مرکز نقشه (مشابه اپ نشان و Maps.me) */}
+            {/* دایره آبی تپنده موقعیت فعلی کاربر در مرکز نقشه (مشابه اپ نشان و نقشه) */}
             <div
               className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-30 pointer-events-none flex items-center justify-center"
             >
@@ -586,7 +586,7 @@ export function MosqueFinderModal({ cityName, defaultLat, defaultLng, onClose, o
                 style={{ borderColor: theme.accent, color: theme.accent }}
               >
                 <Route size={13} />
-                <span>مسیر پیشنهادی نشان: {routeDetail.summary} ({routeDetail.distanceText})</span>
+                <span>مسیر پیشنهادی: {routeDetail.summary} ({routeDetail.distanceText})</span>
               </div>
             )}
 
@@ -608,7 +608,7 @@ export function MosqueFinderModal({ cityName, defaultLat, defaultLng, onClose, o
                 style={{ borderColor: theme.accent, color: theme.accent }}
               >
                 <Compass size={14} />
-                <span>نقشه گوگل / Maps.me</span>
+                <span>مسیریابی در نقشه گوگل</span>
               </button>
             </div>
 

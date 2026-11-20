@@ -992,52 +992,87 @@ export const NOOR_UI_BUILD_STAMP = '2026-v3-1794029488910';
 
 
 
-function getDynamicDailyHourlySuggestion(now: Date) {
+interface DailyHourlySuggestion {
+  badgeFa: string;
+  titleFa: string;
+  arabicFa: string;
+  actionType: 'dhikr' | 'surah';
+  dhikrId?: string;
+  targetCount?: number;
+  surahNumber?: number;
+  ctaLabel: string;
+}
+
+function getDynamicDailyHourlySuggestion(now: Date): DailyHourlySuggestion {
   const day = now.getDay();
   const hour = now.getHours();
 
-  const dayNamesFa: Record<number, { dayFa: string; masoomFa: string; dayDhikrAr: string; dayDhikrTitle: string }> = {
+  const dayNamesFa: Record<
+    number,
+    {
+      dayFa: string;
+      masoomFa: string;
+      dayDhikrAr: string;
+      dayDhikrTitle: string;
+      dayDhikrId: string;
+      dayTarget: number;
+    }
+  > = {
     6: {
       dayFa: 'شنبه',
       masoomFa: 'متعلق به پیامبر رحمت حضرت محمد مصطفی (ص)',
       dayDhikrAr: 'يَا رَبَّ الْعَالَمِينَ',
-      dayDhikrTitle: 'ذکر روز شنبه (۱۰۰ مرتبه یا رب العالمین) و صلوات',
+      dayDhikrTitle: 'ذکر روز شنبه (۱۰۰ مرتبه یا رب العالمین)',
+      dayDhikrId: 'day_saturday_dhikr',
+      dayTarget: 100,
     },
     0: {
       dayFa: 'یکشنبه',
       masoomFa: 'متعلق به امیرالمؤمنین علی (ع) و حضرت زهرا (س)',
       dayDhikrAr: 'يَا ذَا الْجَلَالِ وَ الْإِكْرَامِ',
-      dayDhikrTitle: 'ذکر روز یکشنبه (یا ذالجلال و الاکرام) و تسبیحات حضرت زهرا (س)',
+      dayDhikrTitle: 'ذکر روز یکشنبه (۱۰۰ مرتبه یا ذالجلال و الاکرام)',
+      dayDhikrId: 'day_sunday_dhikr',
+      dayTarget: 100,
     },
     1: {
       dayFa: 'دوشنبه',
       masoomFa: 'متعلق به امام حسن مجتبی (ع) و امام حسین (ع)',
       dayDhikrAr: 'يَا قَاضِيَ الْحَاجَاتِ',
-      dayDhikrTitle: 'ذکر روز دوشنبه (یا قاضی الحاجات) و زیارت عاشورا',
+      dayDhikrTitle: 'ذکر روز دوشنبه (۱۰۰ مرتبه یا قاضی الحاجات)',
+      dayDhikrId: 'day_monday_dhikr',
+      dayTarget: 100,
     },
     2: {
       dayFa: 'سه‌شنبه',
       masoomFa: 'متعلق به امام سجاد (ع)، امام باقر (ع) و امام صادق (ع)',
       dayDhikrAr: 'يَا أَرْحَمَ الرَّاحِمِينَ',
-      dayDhikrTitle: 'ذکر روز سه‌شنبه (یا ارحم الراحمین) و دعای توسل',
+      dayDhikrTitle: 'ذکر روز سه‌شنبه (۱۰۰ مرتبه یا ارحم الراحمین)',
+      dayDhikrId: 'day_tuesday_dhikr',
+      dayTarget: 100,
     },
     3: {
       dayFa: 'چهارشنبه',
       masoomFa: 'متعلق به امام موسی کاظم (ع) و امام علی بن موسی الرضا (ع)',
       dayDhikrAr: 'يَا حَيُّ يَا قَيُّومُ',
-      dayDhikrTitle: 'ذکر روز چهارشنبه (یا حی یا قیوم) و صلوات خاصه امام رضا (ع)',
+      dayDhikrTitle: 'ذکر روز چهارشنبه (۱۰۰ مرتبه یا حی یا قیوم)',
+      dayDhikrId: 'day_wednesday_dhikr',
+      dayTarget: 100,
     },
     4: {
       dayFa: 'پنجشنبه',
       masoomFa: 'متعلق به امام حسن عسکری (ع) و یاد درگذشتگان و شهدا',
-      dayDhikrAr: 'لَا إِلَهَ إِلَّا اللَّهُ الْمَلِكُ الْحَقُّ الْمُبِينُ',
-      dayDhikrTitle: 'ذکر روز پنجشنبه، استغفار و هدیه صلوات و فاتحه',
+      dayDhikrAr: 'لَا إِلَٰهَ إِلَّا اللَّهُ الْمَلِكُ الْحَقُّ الْمُبِينُ',
+      dayDhikrTitle: 'ذکر روز پنجشنبه (۱۰۰ مرتبه لا اله الا الله الملک الحق المبین)',
+      dayDhikrId: 'day_thursday_dhikr',
+      dayTarget: 100,
     },
     5: {
       dayFa: 'جمعه',
       masoomFa: 'متعلق به قطب عالم امکان حضرت بقیةالله الاعظم (عج)',
-      dayDhikrAr: 'اللَّهُمَّ صَلِّ عَلَى مُحَمَّدٍ وَ آلِ مُحَمَّدٍ وَ عَجِّلْ فَرَجَهُمْ',
-      dayDhikrTitle: 'ذکر روز جمعه (صلوات مهدوی)، دعای ندبه و زیارت آل‌یاسین',
+      dayDhikrAr: 'اللَّهُمَّ صَلِّ عَلَى مُحَمَّدٍ وَآلِ مُحَمَّدٍ وَعَجِّلْ فَرَجَهُمْ',
+      dayDhikrTitle: 'ذکر روز جمعه (۱۰۰ مرتبه صلوات مهدوی)',
+      dayDhikrId: 'salawat',
+      dayTarget: 100,
     },
   };
 
@@ -1046,42 +1081,76 @@ function getDynamicDailyHourlySuggestion(now: Date) {
   if (hour >= 3 && hour < 6) {
     return {
       badgeFa: `پیشنهاد سحرگاه ${dInfo.dayFa} · ${dInfo.masoomFa}`,
-      titleFa: `مناجات سحرگاهی و ${dInfo.dayDhikrTitle}`,
-      arabicFa: `أَسْتَغْفِرُ اللَّهَ رَبِّي وَ أَتُوبُ إِلَيْهِ · ${dInfo.dayDhikrAr}`,
+      titleFa: 'استغفار سحرگاهی (۷۰ مرتبه) و مناجات',
+      arabicFa: 'أَسْتَغْفِرُ اللَّهَ رَبِّي وَأَتُوبُ إِلَيْهِ',
+      actionType: 'dhikr',
+      dhikrId: 'asr_istighfar_70',
+      targetCount: 70,
+      ctaLabel: '▶ شروع ذکر',
+    };
+  }
+  if (day === 5 && hour >= 6 && hour < 11) {
+    return {
+      badgeFa: `پیشنهاد صبح جمعه · ${dInfo.masoomFa}`,
+      titleFa: 'تلاوت سوره مبارکه صافات (وسعت رزق و ایمنی از بلا)',
+      arabicFa: 'وَالصَّافَّاتِ صَفًّا ۝ فَالزَّاجِرَاتِ زَجْرًا',
+      actionType: 'surah',
+      surahNumber: 37,
+      ctaLabel: '📖 تلاوت سوره',
     };
   }
   if (hour >= 6 && hour < 11) {
     return {
       badgeFa: `پیشنهاد صبح ${dInfo.dayFa} · ${dInfo.masoomFa}`,
-      titleFa: `عهد صبحگاهی و ${dInfo.dayDhikrTitle}`,
-      arabicFa: `${dInfo.dayDhikrAr} — اللَّهُمَّ عَجِّلْ لِوَلِيِّكَ الْفَرَجَ`,
+      titleFa: dInfo.dayDhikrTitle,
+      arabicFa: dInfo.dayDhikrAr,
+      actionType: 'dhikr',
+      dhikrId: dInfo.dayDhikrId,
+      targetCount: dInfo.dayTarget,
+      ctaLabel: '▶ شروع ذکر',
     };
   }
   if (hour >= 11 && hour < 15) {
     return {
       badgeFa: `پیشنهاد ظهر ${dInfo.dayFa} · ${dInfo.masoomFa}`,
       titleFa: `تعقیبات ظهر و ${dInfo.dayDhikrTitle}`,
-      arabicFa: `${dInfo.dayDhikrAr} — أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ`,
+      arabicFa: dInfo.dayDhikrAr,
+      actionType: 'dhikr',
+      dhikrId: dInfo.dayDhikrId,
+      targetCount: dInfo.dayTarget,
+      ctaLabel: '▶ شروع ذکر',
     };
   }
   if (hour >= 15 && hour < 18) {
     return {
       badgeFa: `پیشنهاد عصر ${dInfo.dayFa} · ${dInfo.masoomFa}`,
-      titleFa: `استغفار عصرگاهی (۷۰ مرتبه) و ${dInfo.dayDhikrTitle}`,
-      arabicFa: `${dInfo.dayDhikrAr} — أَسْتَغْفِرُ اللَّهَ وَ أَسْأَلُهُ التَّوْبَةَ`,
+      titleFa: day === 5
+        ? 'استغفار عصرگاهی (۷۰ مرتبه) — ویژه عصر جمعه'
+        : `استغفار عصرگاهی (۷۰ مرتبه) · ${dInfo.dayFa}`,
+      arabicFa: 'أَسْتَغْفِرُ اللَّهَ رَبِّي وَأَتُوبُ إِلَيْهِ',
+      actionType: 'dhikr',
+      dhikrId: 'asr_istighfar_70',
+      targetCount: 70,
+      ctaLabel: '▶ شروع ذکر',
     };
   }
   if (hour >= 18 && hour < 21) {
     return {
-      badgeFa: `پیشنهاد شامگاه ${dInfo.dayFa} · ${dInfo.masoomFa}`,
-      titleFa: `تلاوت سوره واقعه و ${dInfo.dayDhikrTitle}`,
-      arabicFa: `${dInfo.dayDhikrAr} — وَمَنْ يَتَّقِ اللَّهَ يَجْعَلْ لَهُ مَخْرَجًا`,
+      badgeFa: `پیشنهاد شامگاه ${dInfo.dayFa} · برکت و وسعت رزق`,
+      titleFa: 'تلاوت سوره مبارکه واقعه (توصیه هر شب امام صادق ع)',
+      arabicFa: 'إِذَا وَقَعَتِ الْوَاقِعَةُ ۝ لَيْسَ لِوَقْعَتِهَا كَاذِبَةٌ',
+      actionType: 'surah',
+      surahNumber: 56,
+      ctaLabel: '📖 تلاوت سوره',
     };
   }
   return {
-    badgeFa: `پیشنهاد شبانگاه ${dInfo.dayFa} · ${dInfo.masoomFa}`,
-    titleFa: `تلاوت سوره ملک، محاسبه نفس و ${dInfo.dayDhikrTitle}`,
-    arabicFa: `${dInfo.dayDhikrAr} — بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ`,
+    badgeFa: `پیشنهاد شبانگاه ${dInfo.dayFa} · آرامش پیش از خواب`,
+    titleFa: 'تلاوت سوره مبارکه ملک (تبارک) و محاسبه نفس',
+    arabicFa: 'تَبَارَكَ الَّذِي بِيَدِهِ الْمُلْكُ وَهُوَ عَلَىٰ كُلِّ شَيْءٍ قَدِيرٌ',
+    actionType: 'surah',
+    surahNumber: 67,
+    ctaLabel: '📖 تلاوت سوره',
   };
 }
 
@@ -1137,6 +1206,8 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
 
   useEffect(() => {
     const syncCity = () => setCity(resolveCurrentCity());
+    const syncTasbih = () => setLiveTasbihSession(getSession());
+    window.addEventListener('noor-tasbih-session-changed', syncTasbih);
     const timer = setInterval(() => setNow(new Date()), 30000);
     window.addEventListener('storage', syncCity);
     window.addEventListener('noor-city-changed', syncCity);
@@ -1145,6 +1216,7 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
       clearInterval(timer);
       window.removeEventListener('storage', syncCity);
       window.removeEventListener('noor-city-changed', syncCity);
+      window.removeEventListener('noor-tasbih-session-changed', syncTasbih);
     };
   }, []);
 
@@ -1168,6 +1240,8 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
   const [showCalendar, setShowCalendar] = useState(false);
   const [showMosqueFinder, setShowMosqueFinder] = useState(false);
   const [showQuranAndMuhasaba, setShowQuranAndMuhasaba] = useState(false);
+  const [initialQuranSurah, setInitialQuranSurah] = useState<number | undefined>(undefined);
+  const [liveTasbihSession, setLiveTasbihSession] = useState(() => getSession());
   const [showStudioAndTravel, setShowStudioAndTravel] = useState(false);
   const [showQibla, setShowQibla] = useState(false);
   const [showBiModal, setShowBiModal] = useState(false);
@@ -1485,7 +1559,10 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
         <div className="grid grid-cols-4 gap-2.5">
           <button
             type="button"
-            onClick={() => setShowQuranAndMuhasaba(true)}
+            onClick={() => {
+              setInitialQuranSurah(undefined);
+              setShowQuranAndMuhasaba(true);
+            }}
             className="rounded-3xl p-3 border flex flex-col items-center justify-center gap-1.5 transition-transform active:scale-95 shadow-md"
             style={{ background: theme.card, borderColor: theme.border }}
           >
@@ -1623,40 +1700,65 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
           onToast={showQuickToast}
         />
 
-        <div
-          onClick={() => onNavigate('tasbih')}
-          role="button"
-          tabIndex={0}
-          className="rounded-3xl p-4 border cursor-pointer transition-transform active:scale-[0.99] relative overflow-hidden shadow-lg"
-          style={{ background: theme.card, borderColor: theme.border }}
-        >
-          <ThemePatternWatermark themeId={theme.id} className="opacity-55" />
-          <svg className="pointer-events-none absolute left-2 bottom-0 w-28 h-24 opacity-85" viewBox="0 0 120 100" fill="none">
-            <circle cx="48" cy="52" r="26" stroke={theme.accent} strokeWidth="5" strokeDasharray="4 7" strokeLinecap="round" />
-            <path d="M22 52 L8 68" stroke={theme.primary} strokeWidth="3.5" strokeLinecap="round" />
-            <circle cx="22" cy="52" r="4.5" fill={theme.primary} />
-          </svg>
-          <div className="relative z-10 flex items-center justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5 mb-1">
-                <Sparkles size={14} color={theme.accent} />
-                <span className="text-[11px] font-black" style={{ color: theme.accent }}>{getDynamicDailyHourlySuggestion(now).badgeFa}</span>
-              </div>
-              <h3 className="text-xs sm:text-sm font-black leading-snug" style={{ color: theme.text }}>
-                {getDynamicDailyHourlySuggestion(now).titleFa}
-              </h3>
-              <p className="text-[11px] truncate mt-1 font-bold" style={{ color: theme.textMuted }}>
-                {getDynamicDailyHourlySuggestion(now).arabicFa}
-              </p>
-            </div>
-            <span
-              className="px-3.5 py-2 rounded-2xl text-xs font-black shrink-0 shadow-md"
-              style={{ background: theme.accent, color: theme.bg }}
+        {(() => {
+          const suggestion = getDynamicDailyHourlySuggestion(now);
+          const handleOpenSuggestion = () => {
+            if (suggestion.actionType === 'surah' && typeof suggestion.surahNumber === 'number') {
+              setInitialQuranSurah(suggestion.surahNumber);
+              setShowQuranAndMuhasaba(true);
+              return;
+            }
+            if (suggestion.dhikrId) {
+              const found = dhikrLibrary.find((d) => d.id === suggestion.dhikrId);
+              const target = suggestion.targetCount || found?.count || 100;
+              startSession(suggestion.dhikrId, target);
+              window.dispatchEvent(new Event('noor-tasbih-session-changed'));
+            }
+            onNavigate('tasbih');
+          };
+          return (
+            <div
+              onClick={handleOpenSuggestion}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  handleOpenSuggestion();
+                }
+              }}
+              role="button"
+              tabIndex={0}
+              className="rounded-3xl p-4 border cursor-pointer transition-transform active:scale-[0.99] relative overflow-hidden shadow-lg"
+              style={{ background: theme.card, borderColor: theme.border }}
             >
-              ▶ شروع ذکر
-            </span>
-          </div>
-        </div>
+              <ThemePatternWatermark themeId={theme.id} className="opacity-55" />
+              <svg className="pointer-events-none absolute left-2 bottom-0 w-28 h-24 opacity-85" viewBox="0 0 120 100" fill="none">
+                <circle cx="48" cy="52" r="26" stroke={theme.accent} strokeWidth="5" strokeDasharray="4 7" strokeLinecap="round" />
+                <path d="M22 52 L8 68" stroke={theme.primary} strokeWidth="3.5" strokeLinecap="round" />
+                <circle cx="22" cy="52" r="4.5" fill={theme.primary} />
+              </svg>
+              <div className="relative z-10 flex items-center justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <Sparkles size={14} color={theme.accent} />
+                    <span className="text-[11px] font-black" style={{ color: theme.accent }}>{suggestion.badgeFa}</span>
+                  </div>
+                  <h3 className="text-xs sm:text-sm font-black leading-snug" style={{ color: theme.text }}>
+                    {suggestion.titleFa}
+                  </h3>
+                  <p className="text-[11px] truncate mt-1 font-bold" style={{ color: theme.textMuted }}>
+                    {suggestion.arabicFa}
+                  </p>
+                </div>
+                <span
+                  className="px-3.5 py-2 rounded-2xl text-xs font-black shrink-0 shadow-md"
+                  style={{ background: theme.accent, color: theme.bg }}
+                >
+                  {suggestion.ctaLabel}
+                </span>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* ۶. ردیف دوتایی پایین: «خلاصه فعالیت امروز (گزارش معنوی)» + «تسبیح روزانه» */}
         <div className="grid grid-cols-2 gap-2.5">
@@ -1685,7 +1787,7 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
           >
             <div className="min-w-0">
               <span className="text-[11px] font-black block" style={{ color: theme.accent }}>📿 تسبیح روزانه</span>
-              <strong className="text-base font-black block mt-0.5 truncate" style={{ color: theme.text }}>۳۳ از ۱۰۰</strong>
+              <strong className="text-base font-black block mt-0.5 truncate" style={{ color: theme.text }}>{toFaDigits(liveTasbihSession.count)} از {toFaDigits(liveTasbihSession.target || 100)}</strong>
               <span className="text-[10px] font-bold block" style={{ color: theme.primary }}>ادامه شمارش ←</span>
             </div>
             <div
@@ -1797,7 +1899,11 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
 
       {showQuranAndMuhasaba && (
         <QuranAndMuhasabaModal
-          onClose={() => setShowQuranAndMuhasaba(false)}
+          initialSurahNumber={initialQuranSurah}
+          onClose={() => {
+            setShowQuranAndMuhasaba(false);
+            setInitialQuranSurah(undefined);
+          }}
         />
       )}
 

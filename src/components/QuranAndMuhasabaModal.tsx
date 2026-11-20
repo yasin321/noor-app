@@ -21,6 +21,7 @@ import { toFaDigits, toJalaliShort } from '@/lib/jalali';
 
 interface Props {
   initialMode?: 'quran' | 'muhasaba';
+  initialSurahNumber?: number;
   onClose: () => void;
   onUpdated?: () => void;
 }
@@ -180,10 +181,28 @@ function stripLeadingBasmala(arabicText: string, surahNum: number, ayahNum: numb
   return cleaned;
 }
 
-export function QuranAndMuhasabaModal({ initialMode = 'quran', onClose, onUpdated }: Props) {
+export function QuranAndMuhasabaModal({ initialMode = 'quran', initialSurahNumber, onClose, onUpdated }: Props) {
   const { theme } = useTheme();
   const [mode, setMode] = useState<'quran' | 'bookmarks' | 'muhasaba'>(initialMode);
-  const [qState, setQState] = useState(() => loadQuranContinuity());
+  const [qState, setQState] = useState(() => {
+    const loaded = loadQuranContinuity();
+    if (typeof initialSurahNumber === 'number') {
+      const matched = CURATED_SURAHS.find((s) => s.number === initialSurahNumber);
+      if (matched) {
+        const next = {
+          ...loaded,
+          surahIndex: matched.number,
+          surahNameFa: matched.nameFa,
+          ayahNumber: 1,
+          totalAyahs: matched.ayahCount,
+          lastReadIso: new Date().toISOString(),
+        };
+        saveQuranContinuity(next);
+        return next;
+      }
+    }
+    return loaded;
+  });
   const [ayahs, setAyahs] = useState<QuranAyahItem[]>([]);
   const [loadingSurah, setLoadingSurah] = useState(false);
   const [isPlayingParhizgar, setIsPlayingParhizgar] = useState(false);
