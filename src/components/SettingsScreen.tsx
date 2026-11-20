@@ -8,7 +8,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   Palette, Volume2, Bell, LogOut, User, Check, LogIn, MapPin,
   AlertCircle, Type, LayoutGrid, Crown, HelpCircle, ChevronLeft,
-  Navigation, BookOpen, Shield, Download, Upload, CloudUpload, Database
+  Navigation, BookOpen, Shield, Download, Upload, CloudUpload, Database, RefreshCw
 } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
@@ -31,7 +31,9 @@ import { getDhikr } from '@/lib/dhikrLibrary';
 import { getQuranDisplayMode, setQuranDisplayMode, type QuranDisplayMode } from '@/lib/quranCatalog';
 import { getHomeModulesVisibility, setHomeModulesVisibility, type HomeModulesVisibility } from '@/components/HomeScreen';
 import { getNeshanApiKey, setNeshanApiKey } from '@/lib/neshanMosqueService';
-import { syncLocalStateToCloud } from '@/lib/cloudSyncService';
+import { runFullUserCloudSync } from '@/lib/cloudSyncService';
+import { getCachedGlobalSyncSnapshot } from '@/lib/globalSyncService';
+import { GlobalSyncHubModal } from '@/components/GlobalSyncHubModal';
 import { AppTutorialModal } from '@/components/AppTutorialModal';
 import { AdhanStudioAndTravelModal } from '@/components/AdhanStudioAndTravelModal';
 import { VipAndAnalyticsModal } from '@/components/VipAndAnalyticsModal';
@@ -396,6 +398,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   const [showVipModal, setShowVipModal] = useState(false);
   const [showPreAdhanModal, setShowPreAdhanModal] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
+  const [showGlobalSyncHub, setShowGlobalSyncHub] = useState(false);
   const [notifSupported, setNotifSupported] = useState(true);
   const [notifMessage, setNotifMessage] = useState<string | null>(null);
   const [backupNotice, setBackupNotice] = useState<string | null>(null);
@@ -533,9 +536,9 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
       setBackupNotice('برای پشتیبان‌گیری ابری، ابتدا وارد حساب کاربری شوید یا از دانلود فایل پشتیبان در گوشی استفاده کنید.');
       return;
     }
-    setBackupNotice('در حال همگام‌سازی با سرور ابری...');
-    const ok = await syncLocalStateToCloud(user.id);
-    setBackupNotice(ok ? '✅ تمام چله‌ها، موضع قرآن و تنظیمات در حساب ابری شما ذخیره شد.' : '⚠️ خطا در ارتباط با سرور ابری.');
+    setBackupNotice('در حال همگام‌سازی دوطرفه با سرور ابری نور...');
+    const { ok } = await runFullUserCloudSync(user.id);
+    setBackupNotice(ok ? '✅ آمار ذکرها، چله‌ها، نشانک‌های قرآن و تنظیمات شما با ابر همگام شد.' : '⚠️ خطا در ارتباط با سرور ابری؛ اتصال اینترنت را بررسی کنید.');
   };
 
   const currentCityId = profile?.city_id ?? guestCityId;
@@ -1244,6 +1247,13 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
       {showGuide && <AppTutorialModal onClose={() => setShowGuide(false)} />}
       {showPreAdhanModal && <AdhanStudioAndTravelModal initialSection="studio" onClose={() => setShowPreAdhanModal(false)} />}
       {showVipModal && <VipAndAnalyticsModal initialTab="vip" onClose={() => setShowVipModal(false)} />}
+      {showGlobalSyncHub && (
+        <GlobalSyncHubModal
+          onClose={() => setShowGlobalSyncHub(false)}
+          onOpenAuth={onExitGuest}
+          onAppliedAdhan={(id) => setGuestAdhanId(id)}
+        />
+      )}
 
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-black text-app">تنظیمات</h1>
@@ -1356,20 +1366,31 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
         
       </div>
 
-      {/* دسته‌بندی ۳: داشبورد تحلیلی، پشتیبان‌گیری و اعلان‌ها */}
-      <p className="text-xs font-bold text-muted mb-2 px-1">پشتیبان‌گیری، داشبورد و اعلان‌ها</p>
+      {/* دسته‌بندی ۳: سینک گلوبال، گزارش معنوی، پشتیبان‌گیری و اعلان‌ها */}
+      <p className="text-xs font-bold text-muted mb-2 px-1">همگام‌سازی ابری، گزارش معنوی و اعلان‌ها</p>
       <div className="space-y-2 mb-5">
         <RowItem
-          icon={Crown}
-          title="داشبورد تحلیلی BI، نشان‌ها و امکانات VIP"
-          value="مشاهده کامل (باز)"
-          onClick={() => setShowVipModal(true)}
+          icon={RefreshCw}
+          title="سینک گلوبال و نواهای جدید"
+          value={
+            getCachedGlobalSyncSnapshot().updateAvailable
+              ? 'نسخه جدید آماده است'
+              : toFaDigits(getCachedGlobalSyncSnapshot().mediaItems.length) + ' نوای آنلاین'
+          }
+          onClick={() => setShowGlobalSyncHub(true)}
           accent
         />
 
         <RowItem
+          icon={Crown}
+          title="گزارش معنوی، آمار و دفترچه قضا"
+          value="مشاهده کامل"
+          onClick={() => setShowVipModal(true)}
+        />
+
+        <RowItem
           icon={Database}
-          title="پشتیبان‌گیری و بازیابی اطلاعات (Backup)"
+          title="پشتیبان‌گیری و بازیابی اطلاعات"
           value="ذخیره در گوشی / ابر"
           onClick={() => {
             setBackupNotice(null);
