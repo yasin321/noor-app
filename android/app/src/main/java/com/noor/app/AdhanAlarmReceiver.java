@@ -42,8 +42,9 @@ public class AdhanAlarmReceiver extends BroadcastReceiver {
             try {
                 PowerManager pm = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
                 if (pm != null) {
+                    @SuppressWarnings("deprecation")
                     PowerManager.WakeLock wl = pm.newWakeLock(
-                            PowerManager.PARTIAL_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP,
+                            PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP | PowerManager.ON_AFTER_RELEASE,
                             "noor:ReceiverTransitionWakeLock"
                     );
                     wl.acquire(10000L);
@@ -51,7 +52,9 @@ public class AdhanAlarmReceiver extends BroadcastReceiver {
             } catch (Exception ignored) {}
 
             int alarmId = intent.getIntExtra("id", -1);
-            if (alarmId != -1) {
+            if (alarmId >= 73001 && alarmId <= 73114) {
+                NoorAlarmPlugin.rescheduleDailyAlarmTomorrow(context, alarmId);
+            } else if (alarmId != -1) {
                 NoorAlarmPlugin.removePersistedAlarm(context, alarmId);
             }
 

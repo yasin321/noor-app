@@ -1,7 +1,8 @@
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { calculatePrayerTimes } from '@/lib/prayerTimes';
-import { getCityById, getGuestCityId } from '@/lib/cities';
+import { getCityById, getGuestCityId, getCustomGpsCoords } from '@/lib/cities';
 import { addMinutesToTimeStr } from '@/lib/deenIntelligenceStore';
+import { toEnglishDigits } from '@/lib/authService';
 import { toFaDigits } from '@/lib/jalali';
 
 interface SurahNativeAlarmBridge {
@@ -16,7 +17,7 @@ interface SurahNativeAlarmBridge {
     durationSeconds?: number;
     volumePercent?: number;
     playbackRate?: number;
-  }): Promise<void>;
+  }): Promise<{ scheduled?: boolean; exactAlarmGranted?: boolean }>;
   cancelNativeAlarm(opts: { id: number }): Promise<void>;
   downloadAdhanAudio(opts: {
     adhanId: string;
@@ -54,55 +55,50 @@ export interface SurahAudioDescriptor {
   fallbackUrl: string;
 }
 
+// شناسه اختصاصی full_surah_XXX برای دانلود و پخش «کامل» تلاوت سوره (نه فایل ۱۸ ثانیه‌ای تعقیبات)
 export const SURAH_NATIVE_AUDIO_MAP: Record<number, SurahAudioDescriptor> = {
   56: {
-    adhanId: 'post_waqiah',
-    bundledPath: '/adhans/post_waqiah.mp3',
+    adhanId: 'full_surah_056',
     remoteUrl: 'https://server8.mp3quran.net/afs/056.mp3',
     fallbackUrl: 'https://download.quranicaudio.com/quran/mishaari_raashid_al_3afaasee/056.mp3',
   },
   36: {
-    adhanId: 'post_yasin',
-    bundledPath: '/adhans/post_yasin.mp3',
+    adhanId: 'full_surah_036',
     remoteUrl: 'https://server8.mp3quran.net/afs/036.mp3',
     fallbackUrl: 'https://download.quranicaudio.com/quran/mishaari_raashid_al_3afaasee/036.mp3',
   },
   67: {
-    adhanId: 'post_mulk',
-    bundledPath: '/adhans/post_mulk.mp3',
+    adhanId: 'full_surah_067',
     remoteUrl: 'https://server8.mp3quran.net/afs/067.mp3',
     fallbackUrl: 'https://download.quranicaudio.com/quran/mishaari_raashid_al_3afaasee/067.mp3',
   },
   55: {
-    adhanId: 'post_rahman',
-    bundledPath: '/adhans/post_rahman.mp3',
+    adhanId: 'full_surah_055',
     remoteUrl: 'https://server8.mp3quran.net/afs/055.mp3',
     fallbackUrl: 'https://download.quranicaudio.com/quran/mishaari_raashid_al_3afaasee/055.mp3',
   },
   51: {
-    adhanId: 'post_dhariyat',
-    bundledPath: '/adhans/post_dhariyat.mp3',
+    adhanId: 'full_surah_051',
     remoteUrl: 'https://server8.mp3quran.net/afs/051.mp3',
     fallbackUrl: 'https://download.quranicaudio.com/quran/mishaari_raashid_al_3afaasee/051.mp3',
   },
   37: {
-    adhanId: 'post_saffat',
-    bundledPath: '/adhans/post_saffat.mp3',
+    adhanId: 'full_surah_037',
     remoteUrl: 'https://server8.mp3quran.net/afs/037.mp3',
     fallbackUrl: 'https://download.quranicaudio.com/quran/mishaari_raashid_al_3afaasee/037.mp3',
   },
   62: {
-    adhanId: 'surah_062',
+    adhanId: 'full_surah_062',
     remoteUrl: 'https://server8.mp3quran.net/afs/062.mp3',
     fallbackUrl: 'https://download.quranicaudio.com/quran/mishaari_raashid_al_3afaasee/062.mp3',
   },
   97: {
-    adhanId: 'surah_097',
+    adhanId: 'full_surah_097',
     remoteUrl: 'https://server8.mp3quran.net/afs/097.mp3',
     fallbackUrl: 'https://download.quranicaudio.com/quran/mishaari_raashid_al_3afaasee/097.mp3',
   },
   112: {
-    adhanId: 'surah_112',
+    adhanId: 'full_surah_112',
     remoteUrl: 'https://server8.mp3quran.net/afs/112.mp3',
     fallbackUrl: 'https://download.quranicaudio.com/quran/mishaari_raashid_al_3afaasee/112.mp3',
   },
@@ -114,7 +110,7 @@ export function getSurahAudioDescriptor(surahNumber: number): SurahAudioDescript
   }
   const pad = String(surahNumber).padStart(3, '0');
   return {
-    adhanId: 'surah_' + pad,
+    adhanId: 'full_surah_' + pad,
     remoteUrl: 'https://server8.mp3quran.net/afs/' + pad + '.mp3',
     fallbackUrl: 'https://download.quranicaudio.com/quran/mishaari_raashid_al_3afaasee/' + pad + '.mp3',
   };
@@ -138,7 +134,19 @@ export function loadSurahAlarms(): Record<number, SurahAlarmRecord> {
 function saveSurahAlarms(map: Record<number, SurahAlarmRecord>): void {
   try {
     localStorage.setItem(SURAH_ALARMS_KEY, JSON.stringify(map));
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('noor-surah-alarm-changed'));
+    }
   } catch {}
+}
+
+export function normalizeCustomClock(raw: string): string {
+  const ascii = toEnglishDigits(raw || '').trim();
+  const m = ascii.match(/^([0-9]{1,2}):([0-9]{1,2})$/);
+  if (!m) return '21:00';
+  const hh = Math.max(0, Math.min(23, parseInt(m[1], 10)));
+  const mm = Math.max(0, Math.min(59, parseInt(m[2], 10)));
+  return String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0');
 }
 
 export function computeSurahClock(
@@ -147,11 +155,22 @@ export function computeSurahClock(
   customTime: string
 ): { clock: string; descFa: string } {
   if (anchor === 'custom') {
-    const safe = /^[0-9]{1,2}:[0-9]{2}$/.test(customTime) ? customTime : '21:00';
+    const safe = normalizeCustomClock(customTime);
     return { clock: safe, descFa: 'ساعت ' + toFaDigits(safe) };
   }
   const city = getCityById(getGuestCityId());
-  const pTimes = calculatePrayerTimes(new Date(), city.lat, city.lng, city.timezone, 'tehran');
+  const gps = getCustomGpsCoords();
+  let method = 'tehran';
+  try {
+    method = localStorage.getItem('noor_guest_calc_method') || 'tehran';
+  } catch {}
+  const pTimes = calculatePrayerTimes(
+    new Date(),
+    gps ? gps.lat : city.lat,
+    gps ? gps.lng : city.lng,
+    city.timezone || 'Asia/Tehran',
+    method
+  );
   const base =
     anchor === 'fajr' ? pTimes.fajr : anchor === 'dhuhr' ? pTimes.dhuhr : pTimes.maghrib;
   const label = anchor === 'fajr' ? 'اذان صبح' : anchor === 'dhuhr' ? 'اذان ظهر' : 'اذان مغرب';
@@ -162,18 +181,19 @@ export function computeSurahClock(
   };
 }
 
-function clockToNextTriggerMillis(clock: string): number {
-  const [hh, mm] = clock.split(':').map((n) => parseInt(n, 10));
-  const target = new Date();
-  target.setHours(Number.isFinite(hh) ? hh : 21, Number.isFinite(mm) ? mm : 0, 0, 0);
-  if (target.getTime() <= Date.now() + 1500) {
+export function clockToNextTriggerMillis(clock: string, nowMs = Date.now()): number {
+  const norm = normalizeCustomClock(clock);
+  const [hh, mm] = norm.split(':').map((n) => parseInt(n, 10));
+  const target = new Date(nowMs);
+  target.setHours(hh, mm, 0, 0);
+  if (target.getTime() <= nowMs + 1500) {
     target.setDate(target.getDate() + 1);
   }
   return target.getTime();
 }
 
 async function ensureNativeSurahAudioCached(desc: SurahAudioDescriptor): Promise<void> {
-  if (!Capacitor.isNativePlatform() || desc.bundledPath) return;
+  if (!Capacitor.isNativePlatform()) return;
   try {
     await NoorAlarm.downloadAdhanAudio({
       adhanId: desc.adhanId,
@@ -191,9 +211,12 @@ export async function scheduleSurahNativeAlarm(input: {
   offsetMinutes: number;
   customTime: string;
   speed: number;
-}): Promise<{ record: SurahAlarmRecord; descFa: string }> {
+}): Promise<{ record: SurahAlarmRecord; descFa: string; isTomorrow: boolean }> {
   const { clock, descFa } = computeSurahClock(input.anchor, input.offsetMinutes, input.customTime);
   const safeSpeed = Number.isFinite(input.speed) && input.speed >= 0.5 && input.speed <= 3.0 ? input.speed : 1.0;
+  const nowMs = Date.now();
+  const triggerAtMillis = clockToNextTriggerMillis(clock, nowMs);
+  const isTomorrow = new Date(triggerAtMillis).getDate() !== new Date(nowMs).getDate();
 
   const record: SurahAlarmRecord = {
     surahNumber: input.surahNumber,
@@ -201,7 +224,7 @@ export async function scheduleSurahNativeAlarm(input: {
     virtueFa: input.virtueFa,
     anchor: input.anchor,
     offsetMinutes: input.offsetMinutes,
-    customTime: input.customTime,
+    customTime: normalizeCustomClock(input.customTime),
     speed: safeSpeed,
     enabled: true,
     resolvedClock: clock,
@@ -216,23 +239,24 @@ export async function scheduleSurahNativeAlarm(input: {
     const alarmId = getSurahAlarmNativeId(input.surahNumber);
     const desc = getSurahAudioDescriptor(input.surahNumber);
     await NoorAlarm.requestNotificationPermission().catch(() => {});
+    // دانلود کامل فایل صوتی سوره در پس‌زمینه برای پخش آفلاین بدون قطعی
     void ensureNativeSurahAudioCached(desc);
     await NoorAlarm.cancelNativeAlarm({ id: alarmId }).catch(() => {});
     await NoorAlarm.scheduleNativeAlarm({
       id: alarmId,
-      triggerAtMillis: clockToNextTriggerMillis(clock),
+      triggerAtMillis,
       title: 'تلاوت ' + input.surahNameFa,
       body: input.virtueFa + ' · ' + descFa,
       soundType: 'surah_chant',
       adhanId: desc.adhanId,
-      audioUrl: desc.bundledPath || desc.remoteUrl,
+      audioUrl: desc.remoteUrl,
       durationSeconds: 0,
       volumePercent: 100,
       playbackRate: safeSpeed,
     }).catch(() => {});
   }
 
-  return { record, descFa };
+  return { record, descFa, isTomorrow };
 }
 
 export async function cancelSurahNativeAlarm(surahNumber: number): Promise<void> {
@@ -257,7 +281,7 @@ export async function triggerSurahAlarmTest10s(input: {
   const safeSpeed = Number.isFinite(input.speed) && input.speed >= 0.5 && input.speed <= 3.0 ? input.speed : 1.0;
 
   await NoorAlarm.requestNotificationPermission().catch(() => {});
-  await ensureNativeSurahAudioCached(desc);
+  void ensureNativeSurahAudioCached(desc);
   await NoorAlarm.cancelNativeAlarm({ id: SURAH_TEST_ALARM_ID }).catch(() => {});
   await NoorAlarm.scheduleNativeAlarm({
     id: SURAH_TEST_ALARM_ID,
@@ -266,7 +290,7 @@ export async function triggerSurahAlarmTest10s(input: {
     body: input.virtueFa,
     soundType: 'surah_chant',
     adhanId: desc.adhanId,
-    audioUrl: desc.bundledPath || desc.remoteUrl,
+    audioUrl: desc.remoteUrl,
     durationSeconds: 0,
     volumePercent: 100,
     playbackRate: safeSpeed,
@@ -296,7 +320,7 @@ export async function syncAllSurahNativeAlarms(): Promise<void> {
       body: rec.virtueFa + ' · ' + descFa,
       soundType: 'surah_chant',
       adhanId: desc.adhanId,
-      audioUrl: desc.bundledPath || desc.remoteUrl,
+      audioUrl: desc.remoteUrl,
       durationSeconds: 0,
       volumePercent: 100,
       playbackRate: rec.speed || 1.0,

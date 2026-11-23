@@ -15,7 +15,7 @@ import { rescheduleAll, purgeLegacyPrePostAdhanReminders } from '@/lib/reminderS
 import { loadTawashihConfig, syncAllTawashihNativeAlarms } from '@/components/TawashihAndAdhanReminderSection';
 import { syncAllSurahNativeAlarms } from '@/lib/surahAlarmService';
 import { runGlobalSync } from '@/lib/globalSyncService';
-import { runFullUserCloudSync } from '@/lib/cloudSyncService';
+import { runFullUserCloudSync, installAutoCloudSync } from '@/lib/cloudSyncService';
 import { GlobalUpdateBanner } from '@/components/GlobalUpdateBanner';
 import { LiveNotificationPopup, BirthdayCelebrationModal } from '@/components/InboxAndBirthdayModal';
 import {
@@ -146,6 +146,12 @@ function AppContent() {
       }
     }, 900);
     return () => window.clearTimeout(timer);
+  }, [loading, user?.id]);
+
+  // سینک خودکار استاندارد (Debounce 8s + پس‌زمینه + بازگشت اینترنت)
+  useEffect(() => {
+    if (loading || !user?.id) return;
+    return installAutoCloudSync(user.id);
   }, [loading, user?.id]);
 
   useEffect(() => {

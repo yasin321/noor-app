@@ -11,6 +11,8 @@ import {
   updateLocalAccountDisplayName,
 } from '@/lib/authService';
 import { getGuestCityId } from '@/lib/cities';
+import { syncLocalStateToCloud } from '@/lib/cloudSyncService';
+import { saveUserBirthday, type UserBirthday } from '@/lib/inboxService';
 
 type AuthUser = {
   id: string;
@@ -24,7 +26,7 @@ type AuthContextType = {
   profile: Profile | null;
   loading: boolean;
   signIn: (phoneOrEmail: string, password: string) => Promise<{ error: string | null }>;
-  signUp: (phoneOrEmail: string, password: string, displayName: string) => Promise<{ error: string | null }>;
+  signUp: (phoneOrEmail: string, password: string, displayName: string, birthday?: UserBirthday | null) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<Profile>) => Promise<void>;
 };
@@ -160,7 +162,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: null };
   }, []);
 
-  const signUp = useCallback(async (phoneOrEmail: string, password: string, displayName: string) => {
+  const signUp = useCallback(async (phoneOrEmail: string, password: string, displayName: string, birthday?: UserBirthday | null) => {
     const isPhone = isValidGlobalPhone(phoneOrEmail);
     const normalizedPhone = isPhone ? normalizeGlobalPhone(phoneOrEmail) : null;
 
@@ -174,6 +176,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLocalAccount: true,
       });
       setProfile(buildLocalProfile(res.session.userId, res.session.displayName));
+      if (birthday) await saveUserBirthday(birthday, null);
       return { error: null };
     }
 
@@ -190,20 +193,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     if (error) return { error: error.message };
     if (data.user) {
-      await supabase.from('profiles').upsert({
+      const profilePayload: Record<string, unknown> = {
         id: data.user.id,
         display_name: displayName,
-      });
+        phone: normalizedPhone,
+      };
+      if (birthday) {
+        profilePayload.birth_month = birthday.month;
+        profilePayload.birth_day = birthday.day;
+        if (birthday.year) profilePayload.birth_year = birthday.year;
+      }
+      await supabase.from('profiles').upsert(profilePayload);
+      if (birthday) {
+        await saveUserBirthday(birthday, data.user.id);
+      }
+      void syncLocalStateToCloud(data.user.id);
     }
     return { error: null };
   }, []);
 
   const signOut = useCallback(async () => {
+    if (user?.id && isSupabaseConfigured && !user.isLocalAccount) {
+      try {
+        await Promise.race([
+          syncLocalStateToCloud(user.id),
+          new Promise((resolve) => setTimeout(resolve, 4500)),
+        ]);
+      } catch {}
+    }
     clearLocalAuthSession();
     if (isSupabaseConfigured) await supabase.auth.signOut();
     setUser(null);
     setProfile(null);
-  }, []);
+  }, [user]);
 
   const updateProfile = useCallback(
     async (updates: Partial<Profile>) => {

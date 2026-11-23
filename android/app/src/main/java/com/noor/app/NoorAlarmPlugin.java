@@ -166,6 +166,36 @@ public class NoorAlarmPlugin extends Plugin {
         } catch (Exception ignored) {}
     }
 
+    // تکرار خودکار روزانه آلارم سوره‌های قرآن برای ۲۴ ساعت بعد (حتی بدون باز کردن اپلیکیشن)
+    public static void rescheduleDailyAlarmTomorrow(Context ctx, int alarmId) {
+        try {
+            SharedPreferences prefs = ctx.getSharedPreferences(ALARM_STORE_PREFS, Context.MODE_PRIVATE);
+            String rawJson = prefs.getString("alarm_" + alarmId, null);
+            if (rawJson == null || rawJson.isEmpty()) return;
+            JSONObject obj = new JSONObject(rawJson);
+            long prevTrigger = obj.optLong("triggerAtMillis", System.currentTimeMillis());
+            long nextTrigger = prevTrigger + (24L * 60L * 60L * 1000L);
+            long now = System.currentTimeMillis();
+            while (nextTrigger <= now + 60_000L) {
+                nextTrigger += (24L * 60L * 60L * 1000L);
+            }
+            obj.put("triggerAtMillis", nextTrigger);
+            prefs.edit().putString("alarm_" + alarmId, obj.toString()).apply();
+
+            scheduleExactWithSystem(
+                    ctx,
+                    alarmId,
+                    nextTrigger,
+                    obj.optString("title", "تلاوت قرآن کریم"),
+                    obj.optString("body", "وقت تلاوت روزانه سوره"),
+                    obj.optString("soundType", "surah_chant"),
+                    obj.optString("adhanId", "full_surah_056"),
+                    obj.optInt("durationSeconds", 0),
+                    obj.optInt("volumePercent", 100)
+            );
+        } catch (Exception ignored) {}
+    }
+
     public static void removePersistedAlarm(Context ctx, int alarmId) {
         try {
             SharedPreferences prefs = ctx.getSharedPreferences(ALARM_STORE_PREFS, Context.MODE_PRIVATE);

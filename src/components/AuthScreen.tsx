@@ -27,6 +27,8 @@ import {
   toEnglishDigits,
 } from '@/lib/authService';
 import { isSupabaseConfigured } from '@/lib/supabase';
+import { jalaliMonths } from '@/lib/jalali';
+import type { UserBirthday } from '@/lib/inboxService';
 
 export function AuthScreen({ onBack }: { onBack?: () => void }) {
   const { theme } = useTheme();
@@ -38,6 +40,9 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [birthDay, setBirthDay] = useState<string>('');
+  const [birthMonth, setBirthMonth] = useState<string>('');
+  const [birthYear, setBirthYear] = useState<string>('');
   const [showPassword, setShowPassword] = useState(false);
 
   const [forgotStep, setForgotStep] = useState<'phone' | 'verify'>('phone');
@@ -167,7 +172,22 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
     setLoading(true);
     try {
       if (mode === 'signup') {
-        const { error: err } = await signUp(normalizedPhone, password, displayName.trim());
+        const dNum = parseInt(birthDay, 10);
+        const mNum = parseInt(birthMonth, 10);
+        const yNum = parseInt(birthYear, 10);
+        const isJalali = lang === 'fa';
+        const validYear = isJalali
+          ? Number.isFinite(yNum) && yNum >= 1300 && yNum <= 1415
+            ? yNum
+            : null
+          : Number.isFinite(yNum) && yNum >= 1920 && yNum <= 2026
+          ? yNum
+          : null;
+        const optBirthday: UserBirthday | null =
+          Number.isFinite(dNum) && dNum >= 1 && dNum <= 31 && Number.isFinite(mNum) && mNum >= 1 && mNum <= 12
+            ? { month: mNum, day: dNum, year: validYear, calendar: isJalali ? 'jalali' : 'gregorian' }
+            : null;
+        const { error: err } = await signUp(normalizedPhone, password, displayName.trim(), optBirthday);
         if (err) setError(translateErr(err));
         else onBack?.();
       } else {
@@ -181,6 +201,13 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
       setLoading(false);
     }
   };
+
+const monthList =
+    lang === 'fa'
+      ? jalaliMonths
+      : lang === 'es'
+      ? ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+      : ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
   const phonePlaceholder =
     lang === 'fa' ? '0912 345 6789' : lang === 'es' ? '+34 612 345 678' : '+1 212 555 0199';
@@ -340,6 +367,48 @@ export function AuthScreen({ onBack }: { onBack?: () => void }) {
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
                     className={'w-full py-3 rounded-2xl text-sm text-app border outline-none transition-colors ' + (isRtl ? 'pr-10 pl-3.5' : 'pl-10 pr-3.5')}
+                    style={{ borderColor: theme.border, background: theme.bg }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {mode === 'signup' && (
+              <div>
+                <label className="block text-[11px] font-bold text-muted mb-1 px-1">
+                  {t('auth.birthdayLabel')}
+                </label>
+                <div className="grid grid-cols-3 gap-1.5">
+                  <select
+                    value={birthDay}
+                    onChange={(e) => setBirthDay(e.target.value)}
+                    className="px-2 py-2.5 rounded-2xl text-xs text-app border outline-none"
+                    style={{ borderColor: theme.border, background: theme.bg }}
+                  >
+                    <option value="">{t('auth.birthdayDayPh')}</option>
+                    {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                      <option key={d} value={d}>{formatDigits(d)}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={birthMonth}
+                    onChange={(e) => setBirthMonth(e.target.value)}
+                    className="px-2 py-2.5 rounded-2xl text-xs text-app border outline-none"
+                    style={{ borderColor: theme.border, background: theme.bg }}
+                  >
+                    <option value="">{t('auth.birthdayMonthPh')}</option>
+                    {monthList.map((mName, idx) => (
+                      <option key={mName} value={idx + 1}>{mName}</option>
+                    ))}
+                  </select>
+                  <input
+                    type="number"
+                    min={lang === 'fa' ? 1300 : 1920}
+                    max={lang === 'fa' ? 1415 : 2026}
+                    value={birthYear}
+                    onChange={(e) => setBirthYear(e.target.value)}
+                    placeholder={t('auth.birthdayYearPh')}
+                    className="px-2.5 py-2.5 rounded-2xl text-xs text-app border outline-none"
                     style={{ borderColor: theme.border, background: theme.bg }}
                   />
                 </div>

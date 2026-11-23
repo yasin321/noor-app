@@ -52,6 +52,7 @@ export interface UserBirthday {
   month: number;
   day: number;
   year?: number | null;
+  calendar?: 'jalali' | 'gregorian';
 }
 
 const INBOX_CACHE_KEY = 'noor_inbox_messages_v1';
@@ -76,7 +77,12 @@ export function getUserBirthday(): UserBirthday | null {
       p.day >= 1 &&
       p.day <= 31
     ) {
-      return { month: p.month, day: p.day, year: typeof p.year === 'number' ? p.year : null };
+      return {
+        month: p.month,
+        day: p.day,
+        year: typeof p.year === 'number' ? p.year : null,
+        calendar: p.calendar === 'gregorian' ? 'gregorian' : 'jalali',
+      };
     }
     return null;
   } catch {
@@ -122,6 +128,11 @@ export function isTodayUserBirthday(
   const b = getUserBirthday();
   const { jy, jm, jd } = getJalaliParts(now);
   if (!b) return { isBirthday: false, jy, birthday: null };
+  if (b.calendar === 'gregorian') {
+    const gm = now.getMonth() + 1;
+    const gd = now.getDate();
+    return { isBirthday: b.month === gm && b.day === gd, jy, birthday: b };
+  }
   return { isBirthday: b.month === jm && b.day === jd, jy, birthday: b };
 }
 

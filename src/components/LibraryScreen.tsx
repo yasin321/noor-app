@@ -11,6 +11,7 @@ import {
   getCustomDhikrCount,
   setCustomDhikrCount,
   type Dhikr,
+  type DhikrCategory,
 } from '@/lib/dhikrLibrary';
 import { loadQuranContinuity, saveQuranContinuity } from '@/lib/deenIntelligenceStore';
 import { createReminder } from '@/lib/reminderService';
@@ -39,7 +40,7 @@ const MACRO_GROUPS: Array<{
     title: 'مفاتیح و زیارات',
     subtitle: 'امام زمان (عج)، امام رضا (ع) و والدین',
     icon: Compass,
-    match: (c) => c === 'mafatih' || c === 'salawat',
+    match: (c) => c === 'mafatih' || c === 'salawat' || c === 'quran',
   },
   {
     key: 'daily',
@@ -52,7 +53,7 @@ const MACRO_GROUPS: Array<{
 
 export function LibraryScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
   const { theme } = useTheme();
-  const [items, setItems] = useState<Dhikr[]>(() => getAllDhikr().filter((d) => d.category !== 'quran'));
+  const [items, setItems] = useState<Dhikr[]>(() => getAllDhikr().filter((d) => d.category !== 'quran' || d.id.startsWith('custom_')));
   const [selected, setSelected] = useState<Dhikr | null>(null);
   const [activeGroup, setActiveGroup] = useState<MacroGroupKey>('all');
   const [favIds, setFavIds] = useState<string[]>(() => getFavoriteDhikrIds());
@@ -67,6 +68,7 @@ export function LibraryScreen({ onNavigate }: { onNavigate?: (t: Tab) => void })
   const [customSource, setCustomSource] = useState('');
   const [customTimeNote, setCustomTimeNote] = useState('');
   const [customCount, setCustomCount] = useState('14');
+  const [customCategory, setCustomCategory] = useState<DhikrCategory>('tasbih');
 
   const filtered = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -126,15 +128,17 @@ export function LibraryScreen({ onNavigate }: { onNavigate?: (t: Tab) => void })
       arabic: customArabic,
       translation: customTranslation,
       count: Number(customCount) || 1,
+      category: customCategory,
       source: customSource,
       recommendedTime: customTimeNote,
     });
-    setItems(getAllDhikr().filter((d) => d.category !== 'quran'));
+    setItems(getAllDhikr().filter((d) => d.category !== 'quran' || d.id.startsWith('custom_')));
     setShowAddCustom(false);
     setCustomArabic('');
     setCustomTranslation('');
     setCustomSource('');
     setCustomTimeNote('');
+    setCustomCategory('tasbih');
     setSelected(item);
   };
 
@@ -326,6 +330,29 @@ export function LibraryScreen({ onNavigate }: { onNavigate?: (t: Tab) => void })
               className="w-full px-3.5 py-3 rounded-2xl text-xs text-app border outline-none"
               style={{ borderColor: theme.border, background: theme.bg }}
             />
+            <div className="space-y-1.5">
+              <p className="text-[11px] font-bold text-muted pr-1">دسته‌بندی (کتگوری):</p>
+              <div className="flex flex-wrap gap-1.5">
+                {(Object.entries(dhikrCategories) as [DhikrCategory, string][]).map(([catKey, catLabel]) => {
+                  const active = customCategory === catKey;
+                  return (
+                    <button
+                      key={catKey}
+                      type="button"
+                      onClick={() => setCustomCategory(catKey)}
+                      className="px-2.5 py-1.5 rounded-xl text-[11px] font-bold border transition-all"
+                      style={{
+                        borderColor: active ? theme.primary : theme.border,
+                        background: active ? theme.primary : theme.bg,
+                        color: active ? theme.bg : theme.textMuted,
+                      }}
+                    >
+                      {catLabel}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
             <div className="grid grid-cols-2 gap-2">
               <input
                 value={customSource}

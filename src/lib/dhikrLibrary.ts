@@ -590,6 +590,7 @@ export function addCustomDhikr(input: {
   arabic: string;
   translation: string;
   count: number;
+  category?: DhikrCategory;
   recommendedTime?: string;
   source?: string;
 }): Dhikr {
@@ -600,7 +601,7 @@ export function addCustomDhikr(input: {
     translation: input.translation.trim() || 'ذکر شخصی ثبت‌شده از سخنرانی یا برنامه فردی',
     virtue: 'ثبت‌شده در دفترچه معنوی شما برای مداومت و عمل',
     count: Math.max(1, Math.floor(input.count)),
-    category: 'tasbih',
+    category: input.category || 'tasbih',
     source: input.source?.trim() || 'دفترچه یادداشت معنوی من',
     recommendedTime: input.recommendedTime?.trim() || 'طبق برنامه روزانه شما',
   };
@@ -610,6 +611,7 @@ export function addCustomDhikr(input: {
   } catch {
     throw new Error('ذکر ذخیره نشد؛ فضای ذخیره‌سازی گوشی را بررسی کنید.');
   }
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event('noor-dhikr-library-changed'));
   return item;
 }
 
@@ -647,6 +649,7 @@ export function toggleFavoriteDhikr(id: string): string[] {
   try {
     localStorage.setItem(FAVORITE_DHIKRS_KEY, JSON.stringify(next));
   } catch {}
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event('noor-dhikr-library-changed'));
   return next;
 }
 

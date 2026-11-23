@@ -629,7 +629,7 @@ export function QuranAndMuhasabaModal({
   };
 
   const handleScheduleSurahReminder = async () => {
-    const { descFa } = await scheduleSurahNativeAlarm({
+    const { descFa, isTomorrow } = await scheduleSurahNativeAlarm({
       surahNumber: currentSurah.number,
       surahNameFa: currentSurah.nameFa,
       virtueFa: currentSurah.virtueFa,
@@ -643,8 +643,9 @@ export function QuranAndMuhasabaModal({
       '🔔 پخش خودکار «' +
         currentSurah.nameFa +
         '» برای ' +
+        (isTomorrow ? 'فردا ' : 'امروز ') +
         descFa +
-        ' با سرعت ' +
+        ' (پخش کامل) با سرعت ' +
         toFaDigits(playbackRate) +
         'x روی صفحه قفل کوک شد!'
     );
@@ -1110,7 +1111,7 @@ export function QuranAndMuhasabaModal({
                       color: '#34d399',
                     }}
                   >
-                    فعال · {toFaDigits(activeSurahAlarm.resolvedClock)}
+                    فعال · {toFaDigits(activeSurahAlarm.resolvedClock)} · {activeSurahAlarm.speed || 1}x
                   </span>
                 )}
               </div>
@@ -1181,6 +1182,34 @@ export function QuranAndMuhasabaModal({
                   />
                 </div>
               )}
+
+              {/* انتخابگر مستقیم سرعت پخش خودکار روی صفحه قفل */}
+              <div className="flex items-center justify-between gap-2 pt-1">
+                <span className="text-[11px] text-muted flex items-center gap-1">
+                  <Gauge size={13} color={theme.accent} />
+                  <span>سرعت پخش خودکار روی صفحه قفل:</span>
+                </span>
+                <div className="flex gap-1" dir="ltr">
+                  {PLAYBACK_SPEEDS.map((spd) => {
+                    const active = Math.abs(playbackRate - spd) < 0.01;
+                    return (
+                      <button
+                        key={spd}
+                        type="button"
+                        onClick={() => setPlaybackRate(spd)}
+                        className="px-2 py-1 rounded-lg text-[11px] font-black border transition-all"
+                        style={{
+                          borderColor: active ? theme.accent : theme.border,
+                          background: active ? theme.accent : theme.bg,
+                          color: active ? theme.bg : theme.textMuted,
+                        }}
+                      >
+                        {spd}x
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
 
               <div className="flex gap-2">
                 <button

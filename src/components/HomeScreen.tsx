@@ -38,23 +38,37 @@ export interface HomeModulesVisibility {
   showDeenWidgets: boolean;
   showContextualTip: boolean;
   showDailySummary: boolean;
+  showAsrPrayer: boolean;
+  showIshaPrayer: boolean;
+  showMidnightTime: boolean;
 }
 
 const HOME_MODULES_KEY = 'noor_home_modules_visibility_v1';
+const DEFAULT_HOME_MODULES: HomeModulesVisibility = {
+  showDeenWidgets: true,
+  showContextualTip: true,
+  showDailySummary: true,
+  showAsrPrayer: true,
+  showIshaPrayer: true,
+  showMidnightTime: true,
+};
 
 export function getHomeModulesVisibility(): HomeModulesVisibility {
   try {
     const raw = localStorage.getItem(HOME_MODULES_KEY);
-    if (!raw) return { showDeenWidgets: true, showContextualTip: true, showDailySummary: true };
-    return { showDeenWidgets: true, showContextualTip: true, showDailySummary: true, ...JSON.parse(raw) };
+    if (!raw) return { ...DEFAULT_HOME_MODULES };
+    return { ...DEFAULT_HOME_MODULES, ...JSON.parse(raw) };
   } catch {
-    return { showDeenWidgets: true, showContextualTip: true, showDailySummary: true };
+    return { ...DEFAULT_HOME_MODULES };
   }
 }
 
 export function setHomeModulesVisibility(v: HomeModulesVisibility): void {
   try {
     localStorage.setItem(HOME_MODULES_KEY, JSON.stringify(v));
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('noor-home-modules-changed'));
+    }
   } catch {}
 }
 
@@ -1221,8 +1235,10 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
       setAdhanConfigTick((v) => v + 1);
     };
     const syncAdhanCfg = () => setAdhanConfigTick((v) => v + 1);
+    const syncModules = () => setModulesVis(getHomeModulesVisibility());
     window.addEventListener('noor-calc-method-changed', syncMethod);
     window.addEventListener('noor-adhan-config-changed', syncAdhanCfg);
+    window.addEventListener('noor-home-modules-changed', syncModules);
     const timer = setInterval(() => setNow(new Date()), 30000);
     window.addEventListener('storage', syncCity);
     window.addEventListener('noor-city-changed', syncCity);
@@ -1236,6 +1252,7 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
       window.removeEventListener(INBOX_UPDATED_EVENT, syncInbox);
       window.removeEventListener('noor-calc-method-changed', syncMethod);
       window.removeEventListener('noor-adhan-config-changed', syncAdhanCfg);
+      window.removeEventListener('noor-home-modules-changed', syncModules);
     };
   }, []);
 
@@ -1296,7 +1313,7 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
   const [showInbox, setShowInbox] = useState(false);
   const [unreadInboxCount, setUnreadInboxCount] = useState(() => getUnreadInboxCount());
   const [showCityPicker, setShowCityPicker] = useState(false);
-  const [modulesVis] = useState(() => getHomeModulesVisibility());
+  const [modulesVis, setModulesVis] = useState(() => getHomeModulesVisibility());
 
   const showQuickToast = (msg: string) => {
     setStatusBanner(msg);
@@ -1481,15 +1498,18 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
   };
 
   const prayerColumns = [
-    { key: 'fajr', nameLabel: prayerName('fajr'), time: times?.fajr ?? '04:45', icon: Sunrise, hasAdhan: true },
-    { key: 'sunrise', nameLabel: prayerName('sunrise'), time: times?.sunrise ?? '06:03', icon: Sun, hasAdhan: false },
-    { key: 'dhuhr', nameLabel: prayerName('dhuhr'), time: times?.dhuhr ?? '11:17', icon: Sun, hasAdhan: true },
-    ...((modulesVis as any).showAsrPrayer !== false
-      ? [{ key: 'asr', nameLabel: prayerName('asr'), time: times?.asr ?? '14:06', icon: Sunset, hasAdhan: true }]
+    { key: 'fajr', nameLabel: prayerName('fajr'), time: times?.fajr ?? '04:45', icon: Sunrise, hasAdhan: true, isMidnight: false },
+    { key: 'sunrise', nameLabel: prayerName('sunrise'), time: times?.sunrise ?? '06:03', icon: Sun, hasAdhan: false, isMidnight: false },
+    { key: 'dhuhr', nameLabel: prayerName('dhuhr'), time: times?.dhuhr ?? '11:17', icon: Sun, hasAdhan: true, isMidnight: false },
+    ...(modulesVis.showAsrPrayer !== false
+      ? [{ key: 'asr', nameLabel: prayerName('asr'), time: times?.asr ?? '14:06', icon: Sunset, hasAdhan: true, isMidnight: false }]
       : []),
-    { key: 'maghrib', nameLabel: prayerName('maghrib'), time: times?.maghrib ?? '16:44', icon: Sunset, hasAdhan: true },
-    ...((modulesVis as any).showIshaPrayer !== false
-      ? [{ key: 'isha', nameLabel: prayerName('isha'), time: times?.isha ?? '17:36', icon: Moon, hasAdhan: true }]
+    { key: 'maghrib', nameLabel: prayerName('maghrib'), time: times?.maghrib ?? '16:44', icon: Sunset, hasAdhan: true, isMidnight: false },
+    ...(modulesVis.showIshaPrayer !== false
+      ? [{ key: 'isha', nameLabel: prayerName('isha'), time: times?.isha ?? '17:36', icon: Moon, hasAdhan: true, isMidnight: false }]
+      : []),
+    ...(modulesVis.showMidnightTime !== false
+      ? [{ key: 'midnight', nameLabel: prayerName('midnight'), time: times?.midnight ?? '23:06', icon: Moon, hasAdhan: false, isMidnight: true }]
       : []),
   ];
 
@@ -1703,30 +1723,44 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
           </div>
 
           <div
-            className="grid gap-1.5 text-center"
+            className="grid gap-1 text-center"
             style={{ gridTemplateColumns: 'repeat(' + prayerColumns.length + ', minmax(0, 1fr))' }}
           >
             {prayerColumns.map((p) => {
               const isNext = nextPrayer.key === p.key;
               const isBellOn = Boolean(adhanBells[p.key]);
               const Icon = p.icon;
+              const compactCols = prayerColumns.length >= 7;
               return (
                 <div
                   key={p.key}
-                  className="py-2.5 px-1 rounded-2xl border flex flex-col items-center justify-between gap-1.5"
+                  className={(compactCols ? 'py-2 px-0.5' : 'py-2.5 px-1') + ' rounded-2xl border flex flex-col items-center justify-between gap-1.5'}
                   style={{
-                    background: isNext ? theme.primaryGlow : 'rgba(255, 255, 255, 0.03)',
-                    borderColor: isNext ? theme.primary : theme.border,
+                    background: p.isMidnight
+                      ? 'rgba(139, 92, 246, 0.10)'
+                      : isNext
+                      ? theme.primaryGlow
+                      : 'rgba(255, 255, 255, 0.03)',
+                    borderColor: p.isMidnight
+                      ? 'rgba(167, 139, 250, 0.35)'
+                      : isNext
+                      ? theme.primary
+                      : theme.border,
                   }}
                 >
-                  <span className="text-[11px] font-black" style={{ color: theme.text }}>{p.nameLabel}</span>
+                  <span
+                    className={(compactCols ? 'text-[9.5px]' : 'text-[11px]') + ' font-black truncate max-w-full'}
+                    style={{ color: p.isMidnight ? '#C4B5FD' : theme.text }}
+                  >
+                    {p.nameLabel}
+                  </span>
                   <strong
-                    className="text-xs font-black tracking-tight"
-                    style={{ color: isNext ? theme.accent : theme.text }}
+                    className={(compactCols ? 'text-[10.5px]' : 'text-xs') + ' font-black tracking-tight tabular-nums'}
+                    style={{ color: p.isMidnight ? '#DDD6FE' : isNext ? theme.accent : theme.text }}
                   >
                     {formatDigits(p.time)}
                   </strong>
-                  <Icon size={14} color={isNext ? theme.accent : theme.primary} />
+                  <Icon size={13} color={p.isMidnight ? '#A78BFA' : isNext ? theme.accent : theme.primary} />
 
                   {p.hasAdhan ? (
                     <button
@@ -1744,6 +1778,14 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
                     >
                       {isBellOn ? <Bell size={13} /> : <BellOff size={13} />}
                     </button>
+                  ) : p.isMidnight ? (
+                    <span
+                      className="h-7 flex items-center justify-center text-[8.5px] font-bold"
+                      style={{ color: '#A78BFA' }}
+                      title={t('home.midnightEndNote')}
+                    >
+                      {t('home.noAdhanTag')}
+                    </span>
                   ) : (
                     <span className="h-7 flex items-center justify-center text-[9px] text-muted">—</span>
                   )}
@@ -1751,16 +1793,33 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
               );
             })}
           </div>
+
+          {modulesVis.showMidnightTime !== false && times?.midnight && (
+            <div
+              className="mt-2.5 pt-2 border-t flex items-center justify-between gap-2 text-[10.5px]"
+              style={{ borderColor: theme.border }}
+            >
+              <span className="flex items-center gap-1.5 font-bold" style={{ color: '#C4B5FD' }}>
+                <Moon size={12} color="#A78BFA" />
+                <span>{prayerName('midnight')}: {t('home.midnightEndNote')}</span>
+              </span>
+              <strong className="font-black tabular-nums" style={{ color: '#DDD6FE' }}>
+                {formatDigits(times.midnight)}
+              </strong>
+            </div>
+          )}
         </div>
 
         {/* ۵. تعقیبات و پیشنهاد هوشمند روزانه */}
-        <TawashihAndAdhanReminderSection
-          times={times}
-          cityNameFa={cityDisplayLabel}
-          onToast={showQuickToast}
-        />
+        {modulesVis.showDeenWidgets !== false && (
+          <TawashihAndAdhanReminderSection
+            times={times}
+            cityNameFa={cityDisplayLabel}
+            onToast={showQuickToast}
+          />
+        )}
 
-        {(() => {
+        {modulesVis.showContextualTip !== false && (() => {
           const suggestion = getDynamicDailyHourlySuggestion(now);
           const handleOpenSuggestion = () => {
             if (suggestion.actionType === 'surah' && typeof suggestion.surahNumber === 'number') {
@@ -1821,6 +1880,7 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
         })()}
 
         {/* ۶. ردیف دوتایی پایین */}
+        {modulesVis.showDailySummary !== false && (
         <div className="grid grid-cols-2 gap-2.5">
           <button
             type="button"
@@ -1860,6 +1920,7 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
             </div>
           </button>
         </div>
+        )}
       </div>
 
       {/* مودال انتخاب شهر جهانی + GPS */}

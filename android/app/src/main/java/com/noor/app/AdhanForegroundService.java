@@ -89,7 +89,7 @@ public class AdhanForegroundService extends Service {
         }
 
         killActivePlayer(this);
-        acquireWakeLock();
+        acquireWakeLock("surah_chant".equals(intent != null ? intent.getStringExtra("soundType") : null));
 
         String title = intent != null && intent.getStringExtra("title") != null
                 ? intent.getStringExtra("title")
@@ -202,7 +202,7 @@ public class AdhanForegroundService extends Service {
         else if (adhanId.equals("munajat_sahar") || adhanId.equals("aqim")) adhanId = "chant_aqim";
         else if (adhanId.equals("rabbana_shajarian") || adhanId.equals("rabbana") || adhanId.equals("chant_fatiha") || adhanId.equals("rabbanaghfir")) adhanId = "rabbana";
         else if (adhanId.equals("nadali_alifani") || adhanId.equals("nadali") || adhanId.equals("nad_ali")) adhanId = "nadali_alifani";
-        boolean isPreOrPostChantOrSurah = adhanId.startsWith("post_") || adhanId.startsWith("chant_") || adhanId.startsWith("surah_") || "surah_chant".equals(soundType);
+        boolean isPreOrPostChantOrSurah = adhanId.startsWith("full_surah_") || adhanId.startsWith("post_") || adhanId.startsWith("chant_") || adhanId.startsWith("surah_") || "surah_chant".equals(soundType);
         synchronized (PLAYER_LOCK) {
             try {
                 MediaPlayer mp = new MediaPlayer();
@@ -253,13 +253,11 @@ public class AdhanForegroundService extends Service {
                             directAssetPath = cleanUrl.startsWith("public/") ? cleanUrl : ("public/" + cleanUrl);
                         }
                     }
-                    String fallbackTrack = isPreOrPostChantOrSurah ? "public/adhans/rabbana.mp3" : "public/adhans/ahlolbait_01.mp3";
                     String[] candidates = new String[] {
                             directAssetPath != null ? directAssetPath : "",
                             mappedAssetPath != null ? mappedAssetPath : "",
                             "public/adhans/" + adhanId + ".mp3",
-                            "public/adhans/" + adhanId + ".ogg",
-                            fallbackTrack
+                            "public/adhans/" + adhanId + ".ogg"
                     };
 // AUTO_ADHAN_MAP_END
                     for (String path : candidates) {
@@ -294,6 +292,16 @@ public class AdhanForegroundService extends Service {
                 }
 
                 if (!loaded) {
+                    String emergencyAsset = isPreOrPostChantOrSurah ? "public/adhans/rabbana.mp3" : "public/adhans/ahlolbait_01.mp3";
+                    try {
+                        AssetFileDescriptor afd = getAssets().openFd(emergencyAsset);
+                        mp.setDataSource(afd.getFileDescriptor(), afd.getStartOffset(), afd.getLength());
+                        afd.close();
+                        loaded = true;
+                    } catch (Exception ignored) {}
+                }
+
+                if (!loaded) {
                     Uri fallbackUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
                     mp.setDataSource(this, fallbackUri);
                 }
@@ -317,7 +325,7 @@ public class AdhanForegroundService extends Service {
                         try {
                             mp.start();
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && safeRate >= 0.5f && safeRate <= 3.0f && Math.abs(safeRate - 1.0f) > 0.04f) {
-                                PlaybackParams params = new PlaybackParams();
+                                PlaybackParams params = mp.getPlaybackParams();
                                 params.setSpeed(safeRate);
                                 params.setPitch(1.0f);
                                 mp.setPlaybackParams(params);
@@ -380,15 +388,22 @@ public class AdhanForegroundService extends Service {
         } catch (Exception ignored) {}
     }
 
-    private void acquireWakeLock() {
+    @SuppressWarnings("deprecation")
+    private void acquireWakeLock(boolean isLongSurah) {
         try {
             PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
             if (pm != null) {
-                wakeLock = pm.newWakeLock(
-                        PowerManager.PARTIAL_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP,
-                        "noor:AdhanAlarmWakeLock"
-                );
-                wakeLock.acquire(4 * 60 * 1000L);
+                long durationMs = isLongSurah ? (35 * 60 * 1000L) : (6 * 60 * 1000L);
+                try {
+                    wakeLock = pm.newWakeLock(
+                            PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP | PowerManager.ON_AFTER_RELEASE,
+                            "noor:AdhanAlarmWakeLock"
+                    );
+                    wakeLock.acquire(durationMs);
+                } catch (Exception e) {
+                    wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "noor:AdhanAlarmWakeLock");
+                    wakeLock.acquire(durationMs);
+                }
             }
         } catch (Exception ignored) {}
     }

@@ -39,8 +39,7 @@ import { AppTutorialModal } from '@/components/AppTutorialModal';
 import { AdhanStudioAndTravelModal } from '@/components/AdhanStudioAndTravelModal';
 import { VipAndAnalyticsModal } from '@/components/VipAndAnalyticsModal';
 import { getDiagnosticLogs, clearDiagnosticLogs, type AppLogEntry } from '@/lib/logger';
-import { toFaDigits, jalaliMonths } from '@/lib/jalali';
-import { getUserBirthday, saveUserBirthday, formatBirthdayFa, type UserBirthday } from '@/lib/inboxService';
+import { toFaDigits } from '@/lib/jalali';
 
 const GUEST_NOTIF_KEY = 'noor_guest_notif_enabled';
 const GUEST_ADHAN_KEY = 'noor_guest_adhan_id';
@@ -407,11 +406,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   const [showPreAdhanModal, setShowPreAdhanModal] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
   const [showGlobalSyncHub, setShowGlobalSyncHub] = useState(false);
-  const [birthday, setBirthday] = useState<UserBirthday | null>(() => getUserBirthday());
-  const [showBirthdayEditor, setShowBirthdayEditor] = useState(false);
-  const [bMonth, setBMonth] = useState<number>(() => getUserBirthday()?.month ?? 1);
-  const [bDay, setBDay] = useState<number>(() => getUserBirthday()?.day ?? 1);
-  const [bYear, setBYear] = useState<string>(() => (getUserBirthday()?.year ? String(getUserBirthday()?.year) : ''));
+  const [signingOut, setSigningOut] = useState(false);
   const [notifSupported, setNotifSupported] = useState(true);
   const [notifMessage, setNotifMessage] = useState<string | null>(null);
   const [backupNotice, setBackupNotice] = useState<string | null>(null);
@@ -825,7 +820,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
     );
   }
 
-  // ۲. زیرصفحه شخصی‌سازی امکانات صفحه اول (کم و زیاد کردن کارت‌ها توسط کاربر)
+  // ۲. زیرصفحه شخصی‌سازی امکانات و ستون‌های اوقات صفحه اول
   if (section === 'customize') {
     const toggleMod = (key: keyof HomeModulesVisibility) => {
       const next = { ...homeModules, [key]: !homeModules[key] };
@@ -833,54 +828,52 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
       setHomeModulesVisibility(next);
     };
 
+    const renderToggleRow = (item: { key: keyof HomeModulesVisibility; title: string; desc: string }) => {
+      const on = homeModules[item.key] !== false;
+      return (
+        <div key={item.key} className="card-flat p-4 flex items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-app">{item.title}</p>
+            <p className="text-[11px] text-muted mt-0.5 leading-relaxed">{item.desc}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => toggleMod(item.key)}
+            aria-pressed={on}
+            className="w-11 h-6 rounded-full transition-all relative shrink-0"
+            style={{
+              background: on ? theme.primary : `color-mix(in srgb, ${theme.textMuted} 25%, transparent)`,
+            }}
+          >
+            <div
+              className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all"
+              style={isRtl ? { right: on ? '2px' : '22px' } : { left: on ? '22px' : '2px' }}
+            />
+          </button>
+        </div>
+      );
+    };
+
     return (
       <div className="w-full max-w-xl mx-auto px-3.5 pt-4 pb-28 animate-fade-in" dir={dir}>
-        <SubHeader title="شخصی‌سازی بخش‌های صفحه اول" />
-        <p className="text-xs text-muted mb-4 leading-relaxed">
-          اگر دوست دارید صفحهٔ اول برنامه خلوت‌تر باشد یا فقط اوقات شرعی را ببینید، می‌توانید هر یک از بخش‌های زیر را به دلخواه روشن یا خاموش کنید:
-        </p>
+        <SubHeader title={t('settings.rowCustomize')} />
 
-        <div className="space-y-3">
+        <p className="text-xs font-black text-primary mb-2 px-1">{t('custom.prayerGroupTitle')}</p>
+        <div className="space-y-2.5 mb-5">
           {[
-            {
-              key: 'showDeenWidgets' as const,
-              title: 'کارت‌های میانبر صفحه خانه',
-              desc: 'نمایش دو کارت میان‌بر وضعیت سفر/مسجد و آخرین آیه خوانده‌شده در صفحه اول',
-            },
-            {
-              key: 'showContextualTip' as const,
-              title: 'پیشنهاد معنوی روزانه',
-              desc: 'پیشنهاد ذکر و سوره متناسب با روز هفته (چهارشنبه امام رضا ع، شب جمعه و...) و ساعت روز',
-            },
-            {
-              key: 'showDailySummary' as const,
-              title: 'خلاصه فعالیت امروز',
-              desc: 'نمایش آمار ذکرهای گفته‌شده امروز در پایین صفحه اول',
-            },
-          ].map((item) => {
-            const on = homeModules[item.key];
-            return (
-              <div key={item.key} className="card-flat p-4 flex items-center justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-bold text-app">{item.title}</p>
-                  <p className="text-[11px] text-muted mt-0.5 leading-relaxed">{item.desc}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => toggleMod(item.key)}
-                  className="w-11 h-6 rounded-full transition-all relative shrink-0"
-                  style={{
-                    background: on ? theme.primary : `color-mix(in srgb, ${theme.textMuted} 25%, transparent)`,
-                  }}
-                >
-                  <div
-                    className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all"
-                    style={{ right: on ? '2px' : '22px' }}
-                  />
-                </button>
-              </div>
-            );
-          })}
+            { key: 'showAsrPrayer' as const, title: t('custom.asrTitle'), desc: t('custom.asrDesc') },
+            { key: 'showIshaPrayer' as const, title: t('custom.ishaTitle'), desc: t('custom.ishaDesc') },
+            { key: 'showMidnightTime' as const, title: t('custom.midnightTitle'), desc: t('custom.midnightDesc') },
+          ].map(renderToggleRow)}
+        </div>
+
+        <p className="text-xs font-black text-muted mb-2 px-1">{t('custom.cardsGroupTitle')}</p>
+        <div className="space-y-2.5">
+          {[
+            { key: 'showDeenWidgets' as const, title: t('custom.deenWidgetsTitle'), desc: t('custom.deenWidgetsDesc') },
+            { key: 'showContextualTip' as const, title: t('custom.tipTitle'), desc: t('custom.tipDesc') },
+            { key: 'showDailySummary' as const, title: t('custom.summaryTitle'), desc: t('custom.summaryDesc') },
+          ].map(renderToggleRow)}
         </div>
       </div>
     );
@@ -1722,73 +1715,6 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
           </p>
         )}
 
-        {/* تنظیم تاریخ تولد شمسی برای تبریک ویژه روز تولد */}
-        <div className="pt-2.5 border-t space-y-2" style={{ borderColor: theme.border }}>
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-muted font-bold">{t('settings.birthdayLabel')}</span>
-            <button
-              type="button"
-              onClick={() => setShowBirthdayEditor((v) => !v)}
-              className="text-primary font-black text-[11px]"
-            >
-              {birthday ? formatBirthdayFa(birthday) + ' (ویرایش)' : 'ثبت تاریخ تولد ←'}
-            </button>
-          </div>
-          {showBirthdayEditor && (
-            <div className="p-3 rounded-2xl border space-y-2" style={{ background: theme.bg, borderColor: theme.border }}>
-              <div className="grid grid-cols-3 gap-1.5">
-                <select
-                  value={bDay}
-                  onChange={(e) => setBDay(Number(e.target.value))}
-                  className="px-2 py-2 rounded-xl text-xs text-app border outline-none"
-                  style={{ background: theme.surface, borderColor: theme.border }}
-                >
-                  {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
-                    <option key={d} value={d}>{toFaDigits(d)}</option>
-                  ))}
-                </select>
-                <select
-                  value={bMonth}
-                  onChange={(e) => setBMonth(Number(e.target.value))}
-                  className="px-2 py-2 rounded-xl text-xs text-app border outline-none"
-                  style={{ background: theme.surface, borderColor: theme.border }}
-                >
-                  {jalaliMonths.map((mName, idx) => (
-                    <option key={mName} value={idx + 1}>{mName}</option>
-                  ))}
-                </select>
-                <input
-                  type="number"
-                  min={1300}
-                  max={1415}
-                  value={bYear}
-                  onChange={(e) => setBYear(e.target.value)}
-                  placeholder="سال (اختیاری)"
-                  className="px-2 py-2 rounded-xl text-xs text-app border outline-none"
-                  style={{ background: theme.surface, borderColor: theme.border }}
-                />
-              </div>
-              <button
-                type="button"
-                onClick={async () => {
-                  const parsedYear = parseInt(bYear, 10);
-                  const nextB: UserBirthday = {
-                    month: bMonth,
-                    day: bDay,
-                    year: Number.isFinite(parsedYear) && parsedYear >= 1300 && parsedYear <= 1415 ? parsedYear : null,
-                  };
-                  await saveUserBirthday(nextB, user?.id);
-                  setBirthday(nextB);
-                  setShowBirthdayEditor(false);
-                }}
-                className="w-full py-2 rounded-xl text-xs font-black"
-                style={{ background: theme.primary, color: theme.bg }}
-              >
-                ذخیره تاریخ تولد 🎂
-              </button>
-            </div>
-          )}
-        </div>
       </div>
 
       {/* دسته‌بندی ۱: زبان، ظاهر و شخصی‌سازی */}

@@ -271,6 +271,21 @@ export async function pullCloudStateToLocal(userId: string | null | undefined): 
       localStorage.setItem('noor_theme_id', data.theme_id);
     }
 
+    if (typeof data.birth_month === 'number' && typeof data.birth_day === 'number') {
+      const existingB = localStorage.getItem('noor_user_birthday_v1');
+      if (!existingB) {
+        localStorage.setItem(
+          'noor_user_birthday_v1',
+          JSON.stringify({
+            month: data.birth_month,
+            day: data.birth_day,
+            year: typeof data.birth_year === 'number' ? data.birth_year : null,
+            calendar: data.birth_year && data.birth_year > 1900 ? 'gregorian' : 'jalali',
+          })
+        );
+      }
+    }
+
     // ۲. ادغام نشانک‌ها و موقعیت قرآن
     if (data.quran_state && typeof data.quran_state === 'object' && 'surahIndex' in data.quran_state) {
       const localQ = loadQuranContinuity();
@@ -355,4 +370,88 @@ export async function runFullUserCloudSync(
     lastError: ok ? null : 'همگام‌سازی ابری کامل نشد',
   });
   return { ok, syncedAtIso };
+}
+
+
+const AUTO_SYNC_EVENTS = [
+  'noor-tasbih-session-changed',
+  'noor-city-changed',
+  'noor-calc-method-changed',
+  'noor-adhan-config-changed',
+  'noor-hero-config-changed',
+  'noor-home-modules-changed',
+  'noor-app-lang-changed',
+  'noor-dhikr-library-changed',
+  'noor-tawashih-config-synced',
+  'noor-surah-alarm-changed',
+];
+
+export function installAutoCloudSync(userId: string | null | undefined): () => void {
+  if (!userId || !isSupabaseConfigured || userId.startsWith('local_') || typeof window === 'undefined') {
+    return () => {};
+  }
+
+  let debounceTimer: number | null = null;
+  let lastPullTs = Date.now();
+  let isSyncing = false;
+
+  const flushUpload = async () => {
+    if (isSyncing) return;
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+    isSyncing = true;
+    try {
+      await syncLocalStateToCloud(userId);
+    } finally {
+      isSyncing = false;
+    }
+  };
+
+  const scheduleUpload = () => {
+    if (debounceTimer !== null) window.clearTimeout(debounceTimer);
+    debounceTimer = window.setTimeout(() => {
+      debounceTimer = null;
+      void flushUpload();
+    }, 8000);
+  };
+
+  const onVisibilityChange = () => {
+    if (document.visibilityState === 'hidden') {
+      if (debounceTimer !== null) {
+        window.clearTimeout(debounceTimer);
+        debounceTimer = null;
+      }
+      void flushUpload();
+    } else if (document.visibilityState === 'visible') {
+      if (Date.now() - lastPullTs > 120_000) {
+        lastPullTs = Date.now();
+        void runFullUserCloudSync(userId);
+      }
+    }
+  };
+
+  const onOnline = () => {
+    lastPullTs = Date.now();
+    void runFullUserCloudSync(userId);
+  };
+
+  const onPageHide = () => {
+    void flushUpload();
+  };
+
+  for (const ev of AUTO_SYNC_EVENTS) {
+    window.addEventListener(ev, scheduleUpload);
+  }
+  document.addEventListener('visibilitychange', onVisibilityChange);
+  window.addEventListener('online', onOnline);
+  window.addEventListener('pagehide', onPageHide);
+
+  return () => {
+    if (debounceTimer !== null) window.clearTimeout(debounceTimer);
+    for (const ev of AUTO_SYNC_EVENTS) {
+      window.removeEventListener(ev, scheduleUpload);
+    }
+    document.removeEventListener('visibilitychange', onVisibilityChange);
+    window.removeEventListener('online', onOnline);
+    window.removeEventListener('pagehide', onPageHide);
+  };
 }
