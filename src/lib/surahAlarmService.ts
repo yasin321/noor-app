@@ -270,6 +270,17 @@ export async function cancelSurahNativeAlarm(surahNumber: number): Promise<void>
   }
 }
 
+export async function deleteSurahNativeAlarm(surahNumber: number): Promise<void> {
+  const all = loadSurahAlarms();
+  if (all[surahNumber]) {
+    delete all[surahNumber];
+    saveSurahAlarms(all);
+  }
+  if (Capacitor.isNativePlatform()) {
+    await NoorAlarm.cancelNativeAlarm({ id: getSurahAlarmNativeId(surahNumber) }).catch(() => {});
+  }
+}
+
 export async function triggerSurahAlarmTest10s(input: {
   surahNumber: number;
   surahNameFa: string;
