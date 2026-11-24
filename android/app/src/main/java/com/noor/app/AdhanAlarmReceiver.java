@@ -32,7 +32,9 @@ public class AdhanAlarmReceiver extends BroadcastReceiver {
             Intent stopService = new Intent(context, AdhanForegroundService.class);
             stopService.setAction(AdhanForegroundService.ACTION_STOP);
             context.stopService(stopService);
-            context.sendBroadcast(new Intent(AdhanAlarmActivity.ACTION_CLOSE_UI));
+            Intent closeUi = new Intent(AdhanAlarmActivity.ACTION_CLOSE_UI);
+            closeUi.setPackage(context.getPackageName());
+            context.sendBroadcast(closeUi);
             return;
         }
 

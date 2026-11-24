@@ -34,6 +34,7 @@ public class AdhanForegroundService extends Service {
     private static final Handler stopHandler = new Handler(Looper.getMainLooper());
     private static Runnable stopRunnable = null;
     private PowerManager.WakeLock wakeLock;
+    private PowerManager.WakeLock screenWakeLock;
 
     public static void killActivePlayer(Context ctx) {
         synchronized (PLAYER_LOCK) {
@@ -81,10 +82,7 @@ public class AdhanForegroundService extends Service {
         }
 
         if (intent != null && (ACTION_STOP.equals(intent.getAction()) || AdhanAlarmReceiver.ACTION_STOP.equals(intent.getAction()))) {
-            killActivePlayer(this);
-            sendBroadcast(new Intent(AdhanAlarmActivity.ACTION_CLOSE_UI));
-            stopForeground(true);
-            stopSelf();
+            stopAlarmAndCloseUi();
             return START_NOT_STICKY;
         }
 
@@ -309,12 +307,7 @@ public class AdhanForegroundService extends Service {
                                 float vol = Math.max(0.05f, Math.min(1.0f, volumePercent / 100.0f));
                 mp.setVolume(vol, vol);
                 mp.setLooping(false);
-                mp.setOnCompletionListener(player -> {
-                    killActivePlayer(AdhanForegroundService.this);
-                    sendBroadcast(new Intent(AdhanAlarmActivity.ACTION_CLOSE_UI));
-                    stopForeground(true);
-                    stopSelf();
-                });
+                mp.setOnCompletionListener(player -> stopAlarmAndCloseUi());
                 final float safeRate = playbackRate;
                 final Runnable applyRateAndStart = () -> {
                     synchronized (PLAYER_LOCK) {
@@ -347,7 +340,7 @@ public class AdhanForegroundService extends Service {
                                 mp.prepare();
                                 applyRateAndStart.run();
                             } catch (Exception ignored) {
-                                killActivePlayer(AdhanForegroundService.this);
+                                stopAlarmAndCloseUi();
                             }
                         }
                         return true;
@@ -361,16 +354,11 @@ public class AdhanForegroundService extends Service {
                 // اگر کاربر حالت پخش کامل (durationSeconds <= 0) را انتخاب کرده یا اعلان قبل/بعد از اذان کامل است،
                 // اجازه بده تا انتهای فایل صوتی (OnCompletionListener) به طور کامل پخش شود و زود قطع نشود!
                 if (!isPreOrPostChantOrSurah && durationSeconds > 0) {
-                    stopRunnable = () -> {
-                        killActivePlayer(AdhanForegroundService.this);
-                        sendBroadcast(new Intent(AdhanAlarmActivity.ACTION_CLOSE_UI));
-                        stopForeground(true);
-                        stopSelf();
-                    };
+                    stopRunnable = () -> stopAlarmAndCloseUi();
                     stopHandler.postDelayed(stopRunnable, durationSeconds * 1000L);
                 }
             } catch (Exception e) {
-                killActivePlayer(this);
+                stopAlarmAndCloseUi();
             }
         }
     }
@@ -388,19 +376,53 @@ public class AdhanForegroundService extends Service {
         } catch (Exception ignored) {}
     }
 
+        private void stopAlarmAndCloseUi() {
+        killActivePlayer(this);
+        releaseWakeLocks();
+        try {
+            Intent closeUi = new Intent(AdhanAlarmActivity.ACTION_CLOSE_UI);
+            closeUi.setPackage(getPackageName());
+            sendBroadcast(closeUi);
+        } catch (Exception ignored) {}
+        try {
+            stopForeground(true);
+        } catch (Exception ignored) {}
+        stopSelf();
+    }
+
+    private void releaseWakeLocks() {
+        try {
+            if (screenWakeLock != null && screenWakeLock.isHeld()) screenWakeLock.release();
+        } catch (Exception ignored) {}
+        screenWakeLock = null;
+        try {
+            if (wakeLock != null && wakeLock.isHeld()) wakeLock.release();
+        } catch (Exception ignored) {}
+        wakeLock = null;
+    }
+
     @SuppressWarnings("deprecation")
     private void acquireWakeLock(boolean isLongSurah) {
+        releaseWakeLocks();
         try {
             PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
             if (pm != null) {
-                long durationMs = isLongSurah ? (35 * 60 * 1000L) : (6 * 60 * 1000L);
+                // قفل CPU برای پخش کامل و بدون قطعی صدا (حتی اگر کاربر دکمه پاور را بزند و صفحه را خاموش کند)
+                long cpuDurationMs = isLongSurah ? (35 * 60 * 1000L) : (6 * 60 * 1000L);
+                wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "noor:AdhanAudioCpuWakeLock");
+                wakeLock.acquire(cpuDurationMs);
+
+                // بیدارکننده کوتاه ۱۲ ثانیه‌ای صرفاً برای روشن کردن صفحه قفل در لحظه شروع آلارم
                 try {
-                    wakeLock = pm.newWakeLock(
-                            PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP | PowerManager.ON_AFTER_RELEASE,
-                            "noor:AdhanAlarmWakeLock"
+                    screenWakeLock = pm.newWakeLock(
+                            PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP,
+                            "noor:AdhanScreenWakeOnce"
                     );
-                    wakeLock.acquire(durationMs);
-                } catch (Exception e) {
+                    screenWakeLock.acquire(12_000L);
+                } catch (Exception ignored) {}
+            }
+        } catch (Exception ignored) {}
+    } catch (Exception e) {
                     wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "noor:AdhanAlarmWakeLock");
                     wakeLock.acquire(durationMs);
                 }
@@ -428,9 +450,7 @@ public class AdhanForegroundService extends Service {
     @Override
     public void onDestroy() {
         killActivePlayer(this);
-        try {
-            if (wakeLock != null && wakeLock.isHeld()) wakeLock.release();
-        } catch (Exception ignored) {}
+        releaseWakeLocks();
         super.onDestroy();
     }
 
