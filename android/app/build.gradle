@@ -1,29 +1,34 @@
 apply plugin: 'com.android.application'
 
+def appVersionCode = (project.hasProperty('versionCode') ? project.property('versionCode').toString().toInteger() : 360)
+def appVersionName = (project.hasProperty('versionName') ? project.property('versionName').toString() : "3.6.0")
+
 android {
     namespace = "com.noor.app"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.noor.app"
+        applicationId "ir.noorcompanion.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 355
-        versionName "3.5.5"
+        versionCode appVersionCode
+        versionName appVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
-             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
-             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
-    
+
     signingConfigs {
-        debug {
-            if (file("noor-release-key.jks").exists()) {
-                storeFile file("noor-release-key.jks")
-                storePassword "noor123456"
-                keyAlias "noor_key"
-                keyPassword "noor123456"
+        release {
+            def ksPath = System.getenv("NOOR_KEYSTORE_PATH") ?: (project.hasProperty("NOOR_KEYSTORE_PATH") ? project.property("NOOR_KEYSTORE_PATH") : null)
+            def ksPass = System.getenv("NOOR_KEYSTORE_PASSWORD") ?: (project.hasProperty("NOOR_KEYSTORE_PASSWORD") ? project.property("NOOR_KEYSTORE_PASSWORD") : null)
+            def kAlias = System.getenv("NOOR_KEY_ALIAS") ?: (project.hasProperty("NOOR_KEY_ALIAS") ? project.property("NOOR_KEY_ALIAS") : null)
+            def kPass  = System.getenv("NOOR_KEY_PASSWORD") ?: (project.hasProperty("NOOR_KEY_PASSWORD") ? project.property("NOOR_KEY_PASSWORD") : null)
+            if (ksPath && file(ksPath).exists() && ksPass && kAlias && kPass) {
+                storeFile file(ksPath)
+                storePassword ksPass
+                keyAlias kAlias
+                keyPassword kPass
                 v1SigningEnabled true
                 v2SigningEnabled true
             }
@@ -33,7 +38,11 @@ android {
     buildTypes {
         release {
             minifyEnabled false
+            shrinkResources false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (signingConfigs.release.storeFile != null) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }
@@ -65,5 +74,5 @@ try {
         apply plugin: 'com.google.gms.google-services'
     }
 } catch(Exception e) {
-    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+    logger.info("google-services.json not found, google-services plugin not applied.")
 }

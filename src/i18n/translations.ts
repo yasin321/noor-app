@@ -415,6 +415,24 @@ const fa = {
   'rem.errTitle': 'لطفاً عنوان یادآوری را وارد کنید',
   'rem.errDays': 'حداقل یک روز از هفته را انتخاب کنید',
   'rem.errDate': 'لطفاً تاریخ را انتخاب کنید',
+
+  // Store Channels, Trust Badge & Privacy/Account Deletion
+  'sync.updateBazaar': 'به‌روزرسانی از کافه‌بازار',
+  'sync.updateMyket': 'به‌روزرسانی از مایکت',
+  'privacy.rowTitle': 'حریم خصوصی، منشور اعتماد و حذف حساب',
+  'privacy.rowVal': '۱۰۰٪ بدون تبلیغ',
+  'privacy.modalTitle': 'منشور اعتماد و حریم خصوصی نور',
+  'privacy.badge': '🛡️ ۱۰۰٪ بدون تبلیغ مزاحم · محاسبه آفلاین · بدون فروش مکان شما',
+  'privacy.p1': 'اوقات شرعی، قبله‌نما و یادداشت‌های «محاسبه نفس» کاملاً روی گوشی شما پردازش و نگهداری می‌شوند و موقعیت GPS هرگز فروخته یا عمومی نمی‌شود.',
+  'privacy.p2': 'ساخت حساب کاربری کاملاً اختیاری است و صرفاً برای همگام‌سازی و بازیابی آمار اذکار و تنظیمات خود شما استفاده می‌شود.',
+  'privacy.openWebBtn': 'مشاهده متن کامل سیاست حریم خصوصی',
+  'privacy.supportLine': 'پشتیبانی رسمی: تلگرام @ak_yacn · ایمیل ycnakbari@gmail.com',
+  'privacy.deleteTitle': 'حذف کامل حساب کاربری و داده‌ها',
+  'privacy.deleteDesc': 'با تایید این گزینه، داده‌های ابری و نشست حساب شما پاک شده و برنامه به حالت مهمان برمی‌گردد.',
+  'privacy.deleteBtn': 'حذف حساب کاربری من',
+  'privacy.deleteConfirmBtn': 'تایید نهایی حذف کامل حساب',
+  'privacy.deleting': 'در حال پاک‌سازی حساب...',
+  'privacy.deletedToast': '✅ حساب و داده‌های مرتبط با موفقیت پاک‌سازی شدند.',
 } as const;
 
 export type TranslationKey = keyof typeof fa;
@@ -804,6 +822,24 @@ const en: Record<TranslationKey, string> = {
   'rem.errDays': 'Select at least one day of the week',
   'rem.errDate': 'Please choose a date',
 
+  // Store Channels, Trust Badge & Privacy/Account Deletion
+  'sync.updateBazaar': 'Update on Cafe Bazaar',
+  'sync.updateMyket': 'Update on Myket',
+  'privacy.rowTitle': 'Privacy Policy, Trust Pledge & Delete Account',
+  'privacy.rowVal': '100% Ad-Free',
+  'privacy.modalTitle': 'Noor Privacy & Trust Charter',
+  'privacy.badge': '🛡️ 100% Ad-Free · Offline Calculation · Zero Location Selling',
+  'privacy.p1': 'Prayer times, Qibla, and private reflection journals run locally on your device. Your GPS coordinates are never sold or shared with advertisers.',
+  'privacy.p2': 'Creating an account is completely optional and is used solely to back up and restore your own dhikr progress and preferences.',
+  'privacy.openWebBtn': 'Read Full Privacy Policy Online',
+  'privacy.supportLine': 'Official Support: Telegram @ak_yacn · Email ycnakbari@gmail.com',
+  'privacy.deleteTitle': 'Delete Account & Cloud Data',
+  'privacy.deleteDesc': 'Confirming permanently removes your cloud data and signs you out back to guest mode.',
+  'privacy.deleteBtn': 'Delete My Account',
+  'privacy.deleteConfirmBtn': 'Confirm Permanent Account Deletion',
+  'privacy.deleting': 'Deleting account...',
+  'privacy.deletedToast': '✅ Your account and associated data have been cleared.',
+
 };
 
 const es: Record<TranslationKey, string> = {
@@ -1190,6 +1226,24 @@ const es: Record<TranslationKey, string> = {
   'rem.errTitle': 'Introduce un título para la alerta',
   'rem.errDays': 'Selecciona al menos un día de la semana',
   'rem.errDate': 'Por favor, selecciona una fecha',
+
+  // Store Channels, Trust Badge & Privacy/Account Deletion
+  'sync.updateBazaar': 'Actualizar en Cafe Bazaar',
+  'sync.updateMyket': 'Actualizar en Myket',
+  'privacy.rowTitle': 'Privacidad, Confianza y Eliminar Cuenta',
+  'privacy.rowVal': '100% Sin anuncios',
+  'privacy.modalTitle': 'Política de Privacidad y Confianza',
+  'privacy.badge': '🛡️ 100% Sin anuncios · Cálculo sin conexión · Sin rastreo GPS',
+  'privacy.p1': 'Los horarios de oración, Qibla y tus notas personales se procesan en tu dispositivo. Nunca vendemos ni compartimos tu ubicación GPS.',
+  'privacy.p2': 'Crear una cuenta es totalmente opcional y solo sirve para respaldar y restaurar tus propios ajustes y registros de dhikr.',
+  'privacy.openWebBtn': 'Ver política de privacidad completa',
+  'privacy.supportLine': 'Soporte oficial: Telegram @ak_yacn · Email ycnakbari@gmail.com',
+  'privacy.deleteTitle': 'Eliminar cuenta y datos en la nube',
+  'privacy.deleteDesc': 'Al confirmar se eliminan tus datos en la nube y volverás al modo invitado.',
+  'privacy.deleteBtn': 'Eliminar mi cuenta',
+  'privacy.deleteConfirmBtn': 'Confirmar eliminación definitiva',
+  'privacy.deleting': 'Eliminando cuenta...',
+  'privacy.deletedToast': '✅ Tu cuenta y datos asociados han sido eliminados.',
 
 };
 

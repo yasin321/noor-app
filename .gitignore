@@ -53,3 +53,10 @@ anon.txt
 noor_snapshot*.txt
 noor_db_audit.txt
 noor_settings_snap.txt
+*.jks
+*.keystore
+keystore.properties
+noor_release_audit.txt
+noor_snapshot_*.txt
+noor_6items_slice.txt
+noor_reminders_snap.txt

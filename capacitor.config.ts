@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.noor.app',
+  appId: 'ir.noorcompanion.app',
   appName: 'نور',
   webDir: 'dist',
   plugins: {

@@ -1,5 +1,5 @@
 {
-	"appId": "com.noor.app",
+	"appId": "ir.noorcompanion.app",
 	"appName": "نور",
 	"webDir": "dist",
 	"plugins": {

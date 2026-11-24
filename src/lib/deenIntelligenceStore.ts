@@ -78,7 +78,7 @@ export const PRE_ADHAN_CHANT_OPTIONS: PreAdhanChantOption[] = [
     categoryFa: 'دعای پیش از اذان',
     arabicText: 'رَبِّ اجْعَلْنِي مُقِيمَ الصَّلَاةِ وَمِنْ ذُرِّيَّتِي ۚ رَبَّنَا وَتَقَبَّلْ دُعَاءِ',
     translationFa: 'پروردگارا مرا و فرزندانم را برپادارندهٔ نماز قرار ده؛ پروردگارا دعایم را بپذیر',
-    audioUrl: '/adhans/chant_rabbanaghfir.mp3',
+    audioUrl: '/adhans/rabbana.mp3',
     fallbackAudioUrl: 'https://cdn.islamic.network/quran/audio/128/ar.alafasy/1790.mp3',
     audioAdhanId: 'chant_rabbanaghfir',
     durationSec: 12,

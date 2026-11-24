@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   build-android:
-    name: Build Android APK & Publish Dynamic Release
+    name: Build Signed Store Releases (CafeBazaar, Myket & Direct)
     runs-on: ubuntu-latest
 
     steps:
@@ -40,7 +40,7 @@ jobs:
           npm run typecheck
           npm test
 
-      - name: Download Full Quran Surahs for Post-Adhan (Waqiah, Mulk, Rahman, Yasin)
+      - name: Download Bundled Audio Assets (Rabbana, Nadali & Surahs)
         run: |
           curl -L -s --connect-timeout 10 --max-time 45 "https://server8.mp3quran.net/afs/056.mp3" -o public/adhans/post_waqiah.mp3 || true
           curl -L -s --connect-timeout 10 --max-time 45 "https://server8.mp3quran.net/afs/067.mp3" -o public/adhans/post_mulk.mp3 || true
@@ -49,9 +49,8 @@ jobs:
           curl -L -s --connect-timeout 10 --max-time 45 "https://server8.mp3quran.net/afs/051.mp3" -o public/adhans/post_dhariyat.mp3 || true
           curl -L -s --connect-timeout 10 --max-time 45 -A "Mozilla/5.0" "https://irsv.upmusics.com/Tracks/Songs/MohammadReza%20Shajryan%20%E2%80%93%20Rabbana128%20(UpMusic).mp3" -o public/adhans/rabbana.mp3 || true
           curl -L -s --connect-timeout 10 --max-time 45 -A "Mozilla/5.0" "https://irsv.upmusics.com/singletracks/2025/12/Doaye%20Nadali%20-%20Ali%20Fani%20UpMusics.mp3" -o public/adhans/nadali_alifani.mp3 || true
-          ls -lh public/adhans/post_*.mp3
 
-      - name: Compress Bundled Speech Audio to 32kbps Mono (Reduce APK Size ~60MB)
+      - name: Compress Bundled Speech Audio to 32kbps Mono
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
           for f in public/adhans/*.mp3; do
@@ -63,62 +62,99 @@ jobs:
           done
           du -sh public/adhans
 
-      - name: Build Production Web Bundle
-        env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          VITE_APP_VERSION_CODE: ${{ github.run_number }}
-          VITE_APP_VERSION_NAME: v3.0.${{ github.run_number }}
-        run: npm run build
-
-      - name: Sync Capacitor Android
-        run: npx cap copy android && npx cap sync android
-
-      - name: Inject Dynamic Version into Gradle & Build APK
-        working-directory: android
-        run: |
-          chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
-
-      - name: Prepare Dynamic Version & Changelog
+      - name: Prepare Dynamic Version & Signing State
         id: meta
+        env:
+          HAS_KS: ${{ secrets.NOOR_KEYSTORE_BASE64 != '' }}
         run: |
-          VERSION_TAG="v3.0.${{ github.run_number }}"
+          VERSION_CODE=$((360 + ${{ github.run_number }}))
+          VERSION_NAME="3.0.${{ github.run_number }}"
+          VERSION_TAG="v${VERSION_NAME}"
+          echo "version_code=$VERSION_CODE" >> $GITHUB_OUTPUT
+          echo "version_name=$VERSION_NAME" >> $GITHUB_OUTPUT
           echo "version_tag=$VERSION_TAG" >> $GITHUB_OUTPUT
+          echo "signed_release=$HAS_KS" >> $GITHUB_OUTPUT
           RECENT_COMMITS=$(git log -n 5 --pretty=format:"- %s (`%h`)" || echo "- بهبود عملکرد و رابط کاربری")
           EOF_MARKER="EOF_$$"
           echo "changelog<<$EOF_MARKER" >> $GITHUB_OUTPUT
           echo "$RECENT_COMMITS" >> $GITHUB_OUTPUT
           echo "$EOF_MARKER" >> $GITHUB_OUTPUT
-          cp android/app/build/outputs/apk/debug/app-debug.apk "Noor-Companion-$VERSION_TAG.apk"
 
-      - name: Upload APK Artifact
+      - name: Decode Release Keystore (when secrets are configured)
+        if: steps.meta.outputs.signed_release == 'true'
+        env:
+          NOOR_KEYSTORE_BASE64: ${{ secrets.NOOR_KEYSTORE_BASE64 }}
+        run: |
+          echo "$NOOR_KEYSTORE_BASE64" | base64 --decode > android/app/noor-upload-release.jks
+          ls -lh android/app/noor-upload-release.jks
+
+      - name: Build Direct Channel (GitHub Release APK)
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_APP_VERSION_CODE: ${{ steps.meta.outputs.version_code }}
+          VITE_APP_VERSION_NAME: ${{ steps.meta.outputs.version_tag }}
+          VITE_STORE_CHANNEL: direct
+          NOOR_KEYSTORE_PATH: ${{ github.workspace }}/android/app/noor-upload-release.jks
+          NOOR_KEYSTORE_PASSWORD: ${{ secrets.NOOR_KEYSTORE_PASSWORD }}
+          NOOR_KEY_ALIAS: ${{ secrets.NOOR_KEY_ALIAS }}
+          NOOR_KEY_PASSWORD: ${{ secrets.NOOR_KEY_PASSWORD }}
+        run: |
+          npm run build
+          npx cap copy android && npx cap sync android
+          cd android
+          chmod +x gradlew
+          if [ "${{ steps.meta.outputs.signed_release }}" = "true" ]; then
+            ./gradlew assembleRelease --no-daemon -PversionCode=${{ steps.meta.outputs.version_code }} -PversionName=${{ steps.meta.outputs.version_name }}
+            cp app/build/outputs/apk/release/app-release.apk "../Noor-Direct-${{ steps.meta.outputs.version_tag }}-release.apk"
+          else
+            ./gradlew assembleDebug --no-daemon -PversionCode=${{ steps.meta.outputs.version_code }} -PversionName=${{ steps.meta.outputs.version_name }}
+            cp app/build/outputs/apk/debug/app-debug.apk "../Noor-Direct-${{ steps.meta.outputs.version_tag }}-debug.apk"
+          fi
+
+      - name: Build CafeBazaar & Myket Signed Release APKs
+        if: steps.meta.outputs.signed_release == 'true'
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_APP_VERSION_CODE: ${{ steps.meta.outputs.version_code }}
+          VITE_APP_VERSION_NAME: ${{ steps.meta.outputs.version_tag }}
+          NOOR_KEYSTORE_PATH: ${{ github.workspace }}/android/app/noor-upload-release.jks
+          NOOR_KEYSTORE_PASSWORD: ${{ secrets.NOOR_KEYSTORE_PASSWORD }}
+          NOOR_KEY_ALIAS: ${{ secrets.NOOR_KEY_ALIAS }}
+          NOOR_KEY_PASSWORD: ${{ secrets.NOOR_KEY_PASSWORD }}
+        run: |
+          for CH in bazaar myket; do
+            VITE_STORE_CHANNEL=$CH npm run build
+            npx cap copy android
+            (cd android && ./gradlew assembleRelease --no-daemon -PversionCode=${{ steps.meta.outputs.version_code }} -PversionName=${{ steps.meta.outputs.version_name }})
+            if [ "$CH" = "bazaar" ]; then
+              cp android/app/build/outputs/apk/release/app-release.apk "Noor-CafeBazaar-${{ steps.meta.outputs.version_tag }}-release.apk"
+            else
+              cp android/app/build/outputs/apk/release/app-release.apk "Noor-Myket-${{ steps.meta.outputs.version_tag }}-release.apk"
+            fi
+          done
+          ls -lh Noor-*.apk
+
+      - name: Upload Store Release APKs (CafeBazaar + Myket + Direct)
         uses: actions/upload-artifact@v4
         with:
-          name: Noor-Companion-${{ steps.meta.outputs.version_tag }}
-          path: Noor-Companion-${{ steps.meta.outputs.version_tag }}.apk
+          name: Noor-Store-APKs-${{ steps.meta.outputs.version_tag }}
+          path: Noor-*.apk
 
-      - name: Publish Official GitHub Release (Dynamic Version)
+      - name: Publish Direct GitHub Release
         uses: softprops/action-gh-release@v2
         if: github.ref == 'refs/heads/main'
         with:
           tag_name: ${{ steps.meta.outputs.version_tag }}
-          name: "🕌 نسخه ${{ steps.meta.outputs.version_tag }} اپلیکیشن همراه معنوی نور (Noor Official Release)"
+          name: "🕌 نسخه ${{ steps.meta.outputs.version_tag }} اپلیکیشن همراه معنوی نور"
           body: |
-            ## ✨ انتشار رسمی نسخه `${{ steps.meta.outputs.version_tag }}` اپلیکیشن همراه معنوی نور
-            **طراحی، معماری و توسعه توسط: یاسین**
+            ## ✨ انتشار رسمی نسخه `${{ steps.meta.outputs.version_tag }}` همراه معنوی نور
+            **شناسه بسته:** `ir.noorcompanion.app`
 
-            ### 🛠️ آخرین تغییرات این نسخه
+            ### 🛠️ آخرین تغییرات
             ${{ steps.meta.outputs.changelog }}
-
-            ---
-            ### 🌟 قابلیت‌های کلیدی این نسخه
-            - 🕌 **اذان‌گوی نیتیو و صفحه قفل کلاسیک ۲۰۲۶:** پخش پایدار اذان، تواشیح و تلاوت سوره روی صفحه قفل با قاب محراب طلایی، اکولایزر زنده و متن اختصاصی هر رویداد.
-            - 📖 **قرآن با صوت آیه‌به‌آیه و ورق‌زدن خودکار:** پخش آیه‌به‌آیه ۹ سوره برگزیده با سرعت دقیق (`1x` تا `3x`)، اسکرول هم‌زمان ترجمه و کوک یادآور نیتیو تلاوت.
-            - 📿 **ذکرشمار چندانگشتی ۲۰۲۶:** شمارش هم‌زمان ۱ تا ۵ انگشت با صدا و ویبره نیتیو اندروید و حالت خلوت تمام‌صفحه OLED.
-            - 🧭 **قبله‌نمای ضدلرزش و مسجدیاب هوشمند:** کالیبراسیون دو‌مرحله‌ای وسط صفحه و نقشه زنده مساجد اطراف با مسیریابی دقیق.
-            - ☁️ **همگام‌سازی ابری، سینک گلوبال و صندوق پیام زنده:** ورود با شماره موبایل، بازیابی کامل اطلاعات پس از نصب مجدد، دریافت اذان/والپیپر/تم مناسبتی جدید بدون آپدیت APK، صندوق پیام لحظه‌ای و تبریک خودکار تولد.
-          files: Noor-Companion-${{ steps.meta.outputs.version_tag }}.apk
+          files: Noor-Direct-*.apk
           draft: false
           prerelease: false
         env:

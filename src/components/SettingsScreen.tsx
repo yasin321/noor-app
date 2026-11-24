@@ -18,6 +18,7 @@ import { useI18n, LANGUAGE_OPTIONS } from '@/i18n';
 import { OCCASION_MOTIFS, getSelectedOccasionMotif, setSelectedOccasionMotif, type OccasionMotifId } from '@/components/ThemeBackdropPattern';
 
 import { useAuth } from '@/hooks/useAuth';
+import { NOOR_PRIVACY_POLICY_URL, NOOR_SUPPORT_EMAIL, NOOR_SUPPORT_TELEGRAM_URL } from '@/lib/storeChannel';
 import { themes, getAllThemes } from '@/lib/themes';
 import {
   adhans, getAllAdhans, getDownloadedAdhanIds, syncNativeDownloadedAdhans, downloadAndCacheAdhan,
@@ -373,7 +374,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   const [contactBody, setContactBody] = useState('');
   const [copiedEmailToast, setCopiedEmailToast] = useState(false);
   const [showAdhanStudioInSettings, setShowAdhanStudioInSettings] = useState(false);
-  const { profile, signOut, updateProfile, user } = useAuth();
+  const { profile, signOut, updateProfile, user, deleteAccount } = useAuth();
   const [section, setSection] = useState<SettingsSection>('main');
 
   const [guestCityId, setGuestCityIdState] = useState(getGuestCityId());
@@ -407,6 +408,9 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   const [showGuide, setShowGuide] = useState(false);
   const [showGlobalSyncHub, setShowGlobalSyncHub] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const [confirmDeleteAccount, setConfirmDeleteAccount] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
   const [notifSupported, setNotifSupported] = useState(true);
   const [notifMessage, setNotifMessage] = useState<string | null>(null);
   const [backupNotice, setBackupNotice] = useState<string | null>(null);
@@ -1845,7 +1849,19 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
       </div>
 
         {/* دسته‌بندی ویژه: ارتباط با سازنده و پشتیبانی مستقیم */}
-        <p className="text-xs font-bold text-muted mb-2 mt-5 px-1">{t('settings.catSupport')}</p>
+              <div className="space-y-2 mb-3">
+        <RowItem
+          icon={Shield}
+          title={t('privacy.rowTitle')}
+          value={t('privacy.rowVal')}
+          onClick={() => {
+            setConfirmDeleteAccount(false);
+            setShowPrivacyModal(true);
+          }}
+        />
+      </div>
+
+      <p className="text-xs font-bold text-muted mb-2 mt-5 px-1">{t('settings.catSupport')}</p>
         <div
           onClick={() => setShowContactDeveloperModal(true)}
           role="button"
@@ -1902,6 +1918,107 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
           <LogIn size={16} /> {t('settings.signInCta')}
         </button>
       ) : null}
+      {showPrivacyModal && (
+        <div
+          className="fixed inset-0 z-[999] flex items-center justify-center p-4 animate-fade-in"
+          style={{ background: 'rgba(0,0,0,0.84)', backdropFilter: 'blur(8px)' }}
+          dir={dir}
+          onClick={() => setShowPrivacyModal(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-3xl p-5 border shadow-2xl space-y-3.5 max-h-[86vh] overflow-y-auto"
+            style={{ background: theme.surface, borderColor: theme.border }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-2 pb-3 border-b" style={{ borderColor: theme.border }}>
+              <div className="flex items-center gap-2">
+                <Shield size={18} color={theme.primary} />
+                <h3 className="text-base font-black text-app">{t('privacy.modalTitle')}</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPrivacyModal(false)}
+                className="text-xs font-bold text-muted px-2 py-1"
+              >
+                {t('common.close')} ✕
+              </button>
+            </div>
+
+            <div
+              className="rounded-2xl p-3 border text-xs font-black text-center leading-relaxed"
+              style={{
+                background: 'rgba(16, 185, 129, 0.14)',
+                borderColor: 'rgba(52, 211, 153, 0.45)',
+                color: '#6EE7B7',
+              }}
+            >
+              {t('privacy.badge')}
+            </div>
+
+            <p className="text-xs text-muted leading-relaxed">{t('privacy.p1')}</p>
+            <p className="text-xs text-muted leading-relaxed">{t('privacy.p2')}</p>
+
+            <a
+              href={NOOR_PRIVACY_POLICY_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full py-2.5 rounded-2xl text-xs font-black flex items-center justify-center border"
+              style={{ borderColor: theme.primary, color: theme.primary, background: 'color-mix(in srgb, ' + theme.primary + ' 12%, transparent)' }}
+            >
+              {t('privacy.openWebBtn')}
+            </a>
+
+            <div className="flex items-center justify-between gap-2 text-[11px] text-muted pt-1">
+              <a href={NOOR_SUPPORT_TELEGRAM_URL} target="_blank" rel="noopener noreferrer" className="underline text-primary font-bold">
+                Telegram: @ak_yacn
+              </a>
+              <a href={'mailto:' + NOOR_SUPPORT_EMAIL} className="underline text-accent font-bold" dir="ltr">
+                {NOOR_SUPPORT_EMAIL}
+              </a>
+            </div>
+
+            {user && (
+              <div
+                className="rounded-2xl p-3.5 border space-y-2 mt-2"
+                style={{ background: 'rgba(239, 68, 68, 0.08)', borderColor: 'rgba(239, 68, 68, 0.35)' }}
+              >
+                <p className="text-xs font-black" style={{ color: '#FCA5A5' }}>{t('privacy.deleteTitle')}</p>
+                <p className="text-[11px] text-muted leading-relaxed">{t('privacy.deleteDesc')}</p>
+                <button
+                  type="button"
+                  disabled={deletingAccount}
+                  onClick={async () => {
+                    if (!confirmDeleteAccount) {
+                      setConfirmDeleteAccount(true);
+                      return;
+                    }
+                    setDeletingAccount(true);
+                    try {
+                      await deleteAccount();
+                      setShowPrivacyModal(false);
+                      setConfirmDeleteAccount(false);
+                    } finally {
+                      setDeletingAccount(false);
+                    }
+                  }}
+                  className="w-full py-2.5 rounded-xl text-xs font-black disabled:opacity-60"
+                  style={{
+                    background: confirmDeleteAccount ? '#DC2626' : 'rgba(239, 68, 68, 0.22)',
+                    color: '#FFFFFF',
+                  }}
+                >
+                  {deletingAccount
+                    ? t('privacy.deleting')
+                    : confirmDeleteAccount
+                    ? t('privacy.deleteConfirmBtn')
+                    : t('privacy.deleteBtn')}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

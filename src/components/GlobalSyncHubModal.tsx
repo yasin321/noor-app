@@ -42,6 +42,7 @@ import {
 import { saveHeroConfig, loadHeroConfig } from '@/components/HeroHorizon30Gallery';
 import { rescheduleAllReminders } from '@/lib/reminderService';
 import { isSupabaseConfigured } from '@/lib/supabase';
+import { getStoreChannel, resolveStoreUpdateLink } from '@/lib/storeChannel';
 
 interface Props {
   onClose: () => void;
@@ -82,6 +83,13 @@ export function GlobalSyncHubModal({ onClose, onOpenAuth, onAppliedAdhan }: Prop
   });
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const currentVer = getCurrentAppVersion();
+  const storeCh = getStoreChannel();
+  const storeUpdateLabel =
+    storeCh === 'bazaar'
+      ? t('sync.updateBazaar')
+      : storeCh === 'myket'
+      ? t('sync.updateMyket')
+      : t('sync.downloadApk');
 
   const formatSyncTime = (iso: string | null): string => {
     if (!iso) return t('sync.never');
@@ -395,13 +403,13 @@ export function GlobalSyncHubModal({ onClose, onOpenAuth, onAppliedAdhan }: Prop
           </div>
           {snap.updateAvailable && snap.latestRelease && (
             <a
-              href={snap.latestRelease.download_url}
+              href={resolveStoreUpdateLink(snap.latestRelease.download_url, storeCh)}
               target="_blank"
               rel="noopener noreferrer"
               className="px-3 py-2 rounded-xl text-[11px] font-black shrink-0"
               style={{ background: theme.accent, color: theme.bg }}
             >
-              {t('sync.downloadApk')}
+              {storeUpdateLabel}
             </a>
           )}
         </div>

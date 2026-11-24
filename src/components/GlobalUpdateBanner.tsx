@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Download, Sparkles, X, Megaphone } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { useI18n } from '@/i18n';
+import { getStoreChannel, resolveStoreUpdateLink } from '@/lib/storeChannel';
 import {
   getCachedGlobalSyncSnapshot,
   GLOBAL_SYNC_UPDATED_EVENT,
@@ -41,6 +42,14 @@ export function GlobalUpdateBanner() {
 
   if (showUpdate && snap.latestRelease) {
     const rel = snap.latestRelease;
+    const storeCh = getStoreChannel();
+    const updateHref = resolveStoreUpdateLink(rel.download_url, storeCh);
+    const updateBtnLabel =
+      storeCh === 'bazaar'
+        ? t('sync.updateBazaar')
+        : storeCh === 'myket'
+        ? t('sync.updateMyket')
+        : t('banner.updateBtn');
     return (
       <div className="max-w-lg mx-auto px-3.5 pt-3 relative z-40 animate-fade-in" dir={dir}>
         <div
@@ -90,14 +99,14 @@ export function GlobalUpdateBanner() {
           </div>
 
           <a
-            href={rel.download_url}
+            href={updateHref}
             target="_blank"
             rel="noopener noreferrer"
             className="w-full py-2.5 rounded-2xl text-xs font-black flex items-center justify-center gap-1.5 shadow-md"
             style={{ background: theme.primary, color: theme.bg }}
           >
             <Download size={14} />
-            <span>{t('banner.updateBtn')}</span>
+            <span>{updateBtnLabel}</span>
           </a>
         </div>
       </div>

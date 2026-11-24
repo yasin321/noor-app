@@ -28,6 +28,7 @@ type AuthContextType = {
   signIn: (phoneOrEmail: string, password: string) => Promise<{ error: string | null }>;
   signUp: (phoneOrEmail: string, password: string, displayName: string, birthday?: UserBirthday | null) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
+  deleteAccount: () => Promise<{ error: string | null }>;
   updateProfile: (updates: Partial<Profile>) => Promise<void>;
 };
 
@@ -227,6 +228,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(null);
   }, [user]);
 
+  const deleteAccount = useCallback(async () => {
+    try {
+      if (user?.id && isSupabaseConfigured && !user.isLocalAccount) {
+        try {
+          await supabase.from('tasbih_logs').delete().eq('user_id', user.id);
+        } catch {}
+        try {
+          await supabase.rpc('delete_my_account');
+        } catch {
+          try {
+            await supabase
+              .from('profiles')
+              .update({
+                display_name: 'کاربر حذف‌شده',
+                phone: null,
+                birth_month: null,
+                birth_day: null,
+                birth_year: null,
+              })
+              .eq('id', user.id);
+          } catch {}
+        }
+        await supabase.auth.signOut();
+      }
+      clearLocalAuthSession();
+      try {
+        localStorage.removeItem('noor_local_accounts_v1');
+        localStorage.removeItem('noor_user_birthday_v1');
+      } catch {}
+      setUser(null);
+      setProfile(null);
+      return { error: null };
+    } catch {
+      return { error: 'خطا در حذف حساب کاربری' };
+    }
+  }, [user]);
+
   const updateProfile = useCallback(
     async (updates: Partial<Profile>) => {
       if (!user) return;
@@ -248,7 +286,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signIn, signUp, signOut, updateProfile }}>
+    <AuthContext.Provider value={{ user, profile, loading, signIn, signUp, signOut, deleteAccount, updateProfile }}>
       {children}
     </AuthContext.Provider>
   );
