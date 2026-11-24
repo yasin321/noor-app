@@ -87,7 +87,6 @@ public class AdhanForegroundService extends Service {
         }
 
         killActivePlayer(this);
-        acquireWakeLock("surah_chant".equals(intent != null ? intent.getStringExtra("soundType") : null));
 
         String title = intent != null && intent.getStringExtra("title") != null
                 ? intent.getStringExtra("title")
@@ -105,6 +104,9 @@ public class AdhanForegroundService extends Service {
         float playbackRate = intent != null ? intent.getFloatExtra("playbackRate", 1.0f) : 1.0f;
         int volumePercent = intent != null ? intent.getIntExtra("volumePercent", 100) : 100;
         String audioUrl = intent != null ? intent.getStringExtra("audioUrl") : "";
+
+        boolean isLongSurah = "surah_chant".equals(soundType) || adhanId.startsWith("full_surah_");
+        acquireWakeLock(isLongSurah);
 
         Intent fullScreenIntent = new Intent(this, AdhanAlarmActivity.class);
         fullScreenIntent.putExtra("title", title);
@@ -163,6 +165,7 @@ public class AdhanForegroundService extends Service {
                 NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
                 if (nm != null) nm.notify(NOTIF_ID + 1, alertNotif);
             } catch (Exception ignored) {}
+            releaseWakeLocks();
             stopForeground(Service.STOP_FOREGROUND_REMOVE);
             stopSelf();
             return START_NOT_STICKY;
@@ -178,14 +181,27 @@ public class AdhanForegroundService extends Service {
         return START_NOT_STICKY;
     }
 
-    private void startAudioPlayback(String soundType, String adhanId, String audioUrl, int durationSeconds, int volumePercent, float playbackRate) {
+    private void startAudioPlayback(
+            String soundType,
+            String adhanId,
+            String audioUrl,
+            int durationSeconds,
+            int volumePercent,
+            float playbackRate
+    ) {
         if ("silent".equals(soundType) || volumePercent <= 0) {
             return;
         }
         if (adhanId == null || adhanId.trim().isEmpty()) {
             adhanId = "mahur_saeed";
         }
-        adhanId = adhanId.replace("/adhans/", "").replace("public/adhans/" /* supports rabbana.mp3 and nadali_alifani.mp3 */ + "" + "", "").replace(".mp3", "").replace(".ogg", "").trim();
+        adhanId = adhanId
+                .replace("/adhans/", "")
+                .replace("public/adhans/", "")
+                .replace(".mp3", "")
+                .replace(".ogg", "")
+                .trim();
+
         if (adhanId.equals("post_surah_waqiah") || adhanId.equals("surah_waqiah") || adhanId.equals("waqiah")) adhanId = "post_waqiah";
         else if (adhanId.equals("post_surah_yasin") || adhanId.equals("surah_yasin") || adhanId.equals("yasin")) adhanId = "post_yasin";
         else if (adhanId.equals("post_surah_mulk") || adhanId.equals("surah_mulk") || adhanId.equals("mulk")) adhanId = "post_mulk";
@@ -200,7 +216,14 @@ public class AdhanForegroundService extends Service {
         else if (adhanId.equals("munajat_sahar") || adhanId.equals("aqim")) adhanId = "chant_aqim";
         else if (adhanId.equals("rabbana_shajarian") || adhanId.equals("rabbana") || adhanId.equals("chant_fatiha") || adhanId.equals("rabbanaghfir")) adhanId = "rabbana";
         else if (adhanId.equals("nadali_alifani") || adhanId.equals("nadali") || adhanId.equals("nad_ali")) adhanId = "nadali_alifani";
-        boolean isPreOrPostChantOrSurah = adhanId.startsWith("full_surah_") || adhanId.startsWith("post_") || adhanId.startsWith("chant_") || adhanId.startsWith("surah_") || "surah_chant".equals(soundType);
+
+        boolean isPreOrPostChantOrSurah =
+                adhanId.startsWith("full_surah_") ||
+                adhanId.startsWith("post_") ||
+                adhanId.startsWith("chant_") ||
+                adhanId.startsWith("surah_") ||
+                "surah_chant".equals(soundType);
+
         synchronized (PLAYER_LOCK) {
             try {
                 MediaPlayer mp = new MediaPlayer();
@@ -227,7 +250,6 @@ public class AdhanForegroundService extends Service {
                 }
 
                 if (!loaded) {
-                    // AUTO_ADHAN_MAP_START
                     String mappedAssetPath = null;
                     if ("moazenzadeh_ardabili".equals(adhanId)) mappedAssetPath = "public/adhans/ahlolbait_01.mp3";
                     if ("ahlolbait_2".equals(adhanId)) mappedAssetPath = "public/adhans/ahlolbait_02.mp3";
@@ -239,10 +261,11 @@ public class AdhanForegroundService extends Service {
                     if ("ahlolbait_24".equals(adhanId)) mappedAssetPath = "public/adhans/ahlolbait_24.mp3";
                     if ("ahlolbait_31".equals(adhanId)) mappedAssetPath = "public/adhans/ahlolbait_31.mp3";
                     if ("mahur_saeed".equals(adhanId)) mappedAssetPath = "public/adhans/ahlolbait_01.mp3";
-                    if (mappedAssetPath == null && adhanId != null && adhanId.startsWith("ahlolbait_")) {
+                    if (mappedAssetPath == null && adhanId.startsWith("ahlolbait_")) {
                         String numPart = adhanId.replace("ahlolbait_", "").trim();
                         if (numPart.length() == 1) mappedAssetPath = "public/adhans/ahlolbait_0" + numPart + ".mp3";
                     }
+
                     String directAssetPath = null;
                     if (audioUrl != null && !audioUrl.trim().isEmpty()) {
                         String cleanUrl = audioUrl.trim();
@@ -251,32 +274,23 @@ public class AdhanForegroundService extends Service {
                             directAssetPath = cleanUrl.startsWith("public/") ? cleanUrl : ("public/" + cleanUrl);
                         }
                     }
+
                     String[] candidates = new String[] {
                             directAssetPath != null ? directAssetPath : "",
                             mappedAssetPath != null ? mappedAssetPath : "",
                             "public/adhans/" + adhanId + ".mp3",
                             "public/adhans/" + adhanId + ".ogg"
                     };
-// AUTO_ADHAN_MAP_END
-                    for (String path : candidates) {
-                        if (path == null || path.isEmpty()) continue;
+
+                    for (String assetPath : candidates) {
+                        if (assetPath == null || assetPath.isEmpty()) continue;
                         try {
-                            AssetFileDescriptor afd = getAssets().openFd(path);
+                            AssetFileDescriptor afd = getAssets().openFd(assetPath);
                             mp.setDataSource(afd.getFileDescriptor(), afd.getStartOffset(), afd.getLength());
                             afd.close();
                             loaded = true;
                             break;
                         } catch (Exception ignored) {}
-                    }
-                }
-
-                if (!loaded) {
-                    int rawId = getResources().getIdentifier("adhan_mahur", "raw", getPackageName());
-                    if (rawId != 0) {
-                        AssetFileDescriptor afd = getResources().openRawResourceFd(rawId);
-                        mp.setDataSource(afd.getFileDescriptor(), afd.getStartOffset(), afd.getLength());
-                        afd.close();
-                        loaded = true;
                     }
                 }
 
@@ -290,7 +304,9 @@ public class AdhanForegroundService extends Service {
                 }
 
                 if (!loaded) {
-                    String emergencyAsset = isPreOrPostChantOrSurah ? "public/adhans/rabbana.mp3" : "public/adhans/ahlolbait_01.mp3";
+                    String emergencyAsset = isPreOrPostChantOrSurah
+                            ? "public/adhans/rabbana.mp3"
+                            : "public/adhans/ahlolbait_01.mp3";
                     try {
                         AssetFileDescriptor afd = getAssets().openFd(emergencyAsset);
                         mp.setDataSource(afd.getFileDescriptor(), afd.getStartOffset(), afd.getLength());
@@ -300,14 +316,25 @@ public class AdhanForegroundService extends Service {
                 }
 
                 if (!loaded) {
+                    int rawId = getResources().getIdentifier("adhan_mahur", "raw", getPackageName());
+                    if (rawId != 0) {
+                        AssetFileDescriptor afd = getResources().openRawResourceFd(rawId);
+                        mp.setDataSource(afd.getFileDescriptor(), afd.getStartOffset(), afd.getLength());
+                        afd.close();
+                        loaded = true;
+                    }
+                }
+
+                if (!loaded) {
                     Uri fallbackUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
                     mp.setDataSource(this, fallbackUri);
                 }
 
-                                float vol = Math.max(0.05f, Math.min(1.0f, volumePercent / 100.0f));
+                float vol = Math.max(0.05f, Math.min(1.0f, volumePercent / 100.0f));
                 mp.setVolume(vol, vol);
                 mp.setLooping(false);
                 mp.setOnCompletionListener(player -> stopAlarmAndCloseUi());
+
                 final float safeRate = playbackRate;
                 final Runnable applyRateAndStart = () -> {
                     synchronized (PLAYER_LOCK) {
@@ -351,8 +378,6 @@ public class AdhanForegroundService extends Service {
                     applyRateAndStart.run();
                 }
 
-                // اگر کاربر حالت پخش کامل (durationSeconds <= 0) را انتخاب کرده یا اعلان قبل/بعد از اذان کامل است،
-                // اجازه بده تا انتهای فایل صوتی (OnCompletionListener) به طور کامل پخش شود و زود قطع نشود!
                 if (!isPreOrPostChantOrSurah && durationSeconds > 0) {
                     stopRunnable = () -> stopAlarmAndCloseUi();
                     stopHandler.postDelayed(stopRunnable, durationSeconds * 1000L);
@@ -376,7 +401,7 @@ public class AdhanForegroundService extends Service {
         } catch (Exception ignored) {}
     }
 
-        private void stopAlarmAndCloseUi() {
+    private void stopAlarmAndCloseUi() {
         killActivePlayer(this);
         releaseWakeLocks();
         try {
@@ -407,12 +432,10 @@ public class AdhanForegroundService extends Service {
         try {
             PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
             if (pm != null) {
-                // قفل CPU برای پخش کامل و بدون قطعی صدا (حتی اگر کاربر دکمه پاور را بزند و صفحه را خاموش کند)
                 long cpuDurationMs = isLongSurah ? (35 * 60 * 1000L) : (6 * 60 * 1000L);
                 wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "noor:AdhanAudioCpuWakeLock");
                 wakeLock.acquire(cpuDurationMs);
 
-                // بیدارکننده کوتاه ۱۲ ثانیه‌ای صرفاً برای روشن کردن صفحه قفل در لحظه شروع آلارم
                 try {
                     screenWakeLock = pm.newWakeLock(
                             PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP,
@@ -420,12 +443,6 @@ public class AdhanForegroundService extends Service {
                     );
                     screenWakeLock.acquire(12_000L);
                 } catch (Exception ignored) {}
-            }
-        } catch (Exception ignored) {}
-    } catch (Exception e) {
-                    wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "noor:AdhanAlarmWakeLock");
-                    wakeLock.acquire(durationMs);
-                }
             }
         } catch (Exception ignored) {}
     }
