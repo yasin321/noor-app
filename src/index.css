@@ -21,7 +21,9 @@
 }
 
 html {
-  font-size: 16.8px;
+  font-size: clamp(13.2px, 3.8vw, 15.6px);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
   min-height: 100%;
   background: var(--bg);
   color-scheme: dark;

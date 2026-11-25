@@ -76,21 +76,14 @@ export function VerticalJalaliDayCounterCard({
       type="button"
       onClick={onClick}
       title="مشاهده تقویم کامل، مناسبت‌ها و پیش‌بینی ۷ روزه آب‌وهوا"
-      className="w-[104px] sm:w-[114px] shrink-0 rounded-[28px] p-3 border flex flex-col items-center justify-between text-center transition-transform active:scale-95 shadow-xl relative overflow-hidden"
+      className="w-[104px] sm:w-[114px] shrink-0 rounded-[28px] px-3 py-4 border flex flex-col items-center justify-center gap-1.5 text-center transition-transform active:scale-95 shadow-xl relative overflow-hidden"
       style={{
         background: `linear-gradient(180deg, color-mix(in srgb, ${theme.surfaceAlt} 94%, #000000) 0%, ${theme.surface} 100%)`,
         borderColor: 'rgba(251, 191, 36, 0.5)',
         boxShadow: 'inset 0 1px 1px rgba(255, 255, 255, 0.16), 0 10px 25px rgba(0, 0, 0, 0.35)',
       }}
     >
-      <div
-        className="w-8 h-8 rounded-xl flex items-center justify-center mb-1"
-        style={{ background: 'rgba(251, 191, 36, 0.14)', border: '1px solid rgba(251, 191, 36, 0.38)' }}
-      >
-        <Calendar size={17} color="#FBBF24" />
-      </div>
-
-      <span className="text-xs font-black text-white leading-tight">{weekdayFa}</span>
+<span className="text-xs font-black text-white leading-tight">{weekdayFa}</span>
       <strong
         className="text-3xl font-black leading-none my-1"
         style={{ color: '#FBBF24', textShadow: '0 2px 12px rgba(251, 191, 36, 0.35)' }}

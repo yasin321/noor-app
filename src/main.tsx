@@ -1,3 +1,5 @@
+import { applySavedDisplayScale } from './lib/displayScale';
+applySavedDisplayScale();
 import { installLegacyColorMixPolyfill } from './lib/legacyCssCompat';
 installLegacyColorMixPolyfill();
 

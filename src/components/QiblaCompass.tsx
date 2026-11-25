@@ -425,9 +425,7 @@ export function QiblaCompass(props: QiblaCompassProps) {
           lng: locationInfo.lng,
         });
         if (disposed) return;
-        if (res && res.available) {
-          nativeStreamActiveRef.current = true;
-        } else if (res && res.mode === 'no_magnetometer') {
+        if (res && (!res.available || res.mode === 'no_magnetometer')) {
           setHardwareUnsupported(true);
           setShowCalibModal(false);
         }

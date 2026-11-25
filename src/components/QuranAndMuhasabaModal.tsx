@@ -785,7 +785,14 @@ export function QuranAndMuhasabaModal({
                 </button>
               </div>
               {!showAllSurahsGrid && (
-                <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5" style={{ scrollbarWidth: 'none' }}>
+                <div
+                  data-no-swipe="true"
+                  onTouchStart={(e) => e.stopPropagation()}
+                  onTouchMove={(e) => e.stopPropagation()}
+                  onTouchEnd={(e) => e.stopPropagation()}
+                  className="flex items-center gap-1.5 overflow-x-auto pb-1.5 touch-pan-x"
+                  style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}
+                >
                   {CURATED_SURAHS.map((s) => {
                     const active = currentSurah.number === s.number;
                     const hasAlarm = Boolean(surahAlarms[s.number]?.enabled);
@@ -801,7 +808,7 @@ export function QuranAndMuhasabaModal({
                           color: active ? theme.bg : theme.text,
                         }}
                       >
-                        <span>{s.nameFa.replace('سوره ', '')}</span>
+                        <span>{s.nameFa.replace(/^سوره\s+(?:مبارکه\s+)?/, '')}</span>
                         {hasAlarm && <span className="text-[10px]">⏰</span>}
                       </button>
                     );

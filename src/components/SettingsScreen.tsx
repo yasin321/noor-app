@@ -19,6 +19,7 @@ import { OCCASION_MOTIFS, getSelectedOccasionMotif, setSelectedOccasionMotif, ty
 
 import { useAuth } from '@/hooks/useAuth';
 import { useBackHandler } from '@/lib/backNavigation';
+import { applyDisplayScale } from '@/lib/displayScale';
 import { checkFullScreenIntentPermission, openFullScreenIntentSettings, type FullScreenPermissionStatus } from '@/lib/nativeAlarmPermissions';
 import { NOOR_PRIVACY_POLICY_URL, NOOR_SUPPORT_EMAIL, NOOR_SUPPORT_TELEGRAM_URL } from '@/lib/storeChannel';
 import { themes, getAllThemes } from '@/lib/themes';
@@ -496,13 +497,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   }, [fontFamily, lang]);
 
   useEffect(() => {
-    const sizeMap: Record<string, string> = {
-      normal: '16.8px',
-      medium: '18.2px',
-      senior: '20px',
-    };
-    document.documentElement.style.fontSize = sizeMap[fontScale] ?? '16px';
-    try { localStorage.setItem('noor_font_scale', fontScale); } catch {}
+    applyDisplayScale(fontScale);
   }, [fontScale]);
 
   const toggleNotifications = async () => {
@@ -812,7 +807,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
           <div className="card-flat p-4 space-y-3">
             <p className="text-xs font-bold text-app">۲. اندازه نوشته‌ها (مناسب گروه‌های سنی مختلف):</p>
             <div className="grid grid-cols-3 gap-2">
-              {[
+              {[{ id: 'compact', label: 'کوچک / فشرده' }, 
                 { id: 'normal', label: 'عادی (استاندارد)' },
                 { id: 'medium', label: 'متوسط (خوانا)' },
                 { id: 'senior', label: 'درشت (سالمندان)' },
@@ -1694,10 +1689,11 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="w-full card-flat px-4 py-3.5 flex items-center justify-between gap-3 transition-transform active:scale-[0.99]"
+      data-row-stacked="true"
+      className="w-full card-flat px-3.5 py-3 flex items-center justify-between gap-2.5 transition-transform active:scale-[0.99]"
       style={{ borderColor: accent ? theme.accent : theme.border }}
     >
-      <div className="flex items-center gap-3 min-w-0">
+      <div className="flex items-center gap-3 min-w-0 flex-1">
         <div
           className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
           style={{
@@ -1708,12 +1704,14 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
         >
           <Icon size={18} color={accent ? theme.accent : theme.primary} />
         </div>
-        <span className="text-app font-bold text-sm truncate">{title}</span>
+        <div className="min-w-0 flex-1 text-right">
+          <div className="text-xs sm:text-sm font-bold text-app leading-snug">{title}</div>
+          {value && (
+            <div className="text-[11px] text-muted mt-0.5 truncate">{value}</div>
+          )}
+        </div>
       </div>
-      <div className="flex items-center gap-1.5 shrink-0">
-        <span className="text-muted text-xs truncate max-w-[135px]">{value}</span>
-        {isRtl ? <ChevronLeft size={16} color={theme.textMuted} /> : <ChevronRight size={16} color={theme.textMuted} />}
-      </div>
+      <ChevronLeft size={16} className="text-muted shrink-0" />
     </button>
   );
 

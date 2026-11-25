@@ -59,6 +59,11 @@ public class MainActivity extends BridgeActivity {
             WebView wv = getBridge() != null ? getBridge().getWebView() : null;
             if (wv != null && wv.getSettings() != null) {
                 wv.getSettings().setMediaPlaybackRequiresUserGesture(false);
+                // قفل کردن زوم فونت سیستم در WebView تا تنظیمات فونت گوشی چیدمان برنامه را به‌هم نریزد
+                wv.getSettings().setTextZoom(100);
+                wv.getSettings().setSupportZoom(false);
+                wv.getSettings().setBuiltInZoomControls(false);
+                wv.getSettings().setDisplayZoomControls(false);
             }
         } catch (Exception ignored) {}
     }

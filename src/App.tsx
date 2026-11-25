@@ -76,9 +76,23 @@ function AppContent() {
       return;
     }
     const target = e.target as HTMLElement | null;
-    if (target && target.closest('input, select, textarea, [data-no-swipe="true"]')) {
-      touchStartRef.current = null;
-      return;
+    if (target) {
+      if (target.closest('input, select, textarea, [data-no-swipe="true"], [role="dialog"], .fixed.inset-0')) {
+        touchStartRef.current = null;
+        return;
+      }
+      // اگر لمس داخل هر لیست یا نوار اسکرول‌شونده افقی شروع شده باشد، سوایپ تعویض تب غیرفعال شود
+      let node: HTMLElement | null = target;
+      while (node && node !== e.currentTarget) {
+        if (node.scrollWidth > node.clientWidth + 4) {
+          const ovx = window.getComputedStyle(node).overflowX;
+          if (ovx === 'auto' || ovx === 'scroll') {
+            touchStartRef.current = null;
+            return;
+          }
+        }
+        node = node.parentElement;
+      }
     }
     const t = e.touches[0];
     if (!t) return;
