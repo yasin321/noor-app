@@ -9,6 +9,9 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  build: {
+    target: ['es2019', 'chrome74'],
+  },
   optimizeDeps: {
     exclude: ['lucide-react'],
   },

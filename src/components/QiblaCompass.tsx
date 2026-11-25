@@ -12,7 +12,32 @@ import {
   RotateCcw,
   ShieldCheck,
 } from 'lucide-react';
+import { Capacitor, registerPlugin, type PluginListenerHandle } from '@capacitor/core';
 import { getCityById, getGuestCityId, getCustomGpsCoords } from '@/lib/cities';
+import { useBackHandler } from '@/lib/backNavigation';
+
+interface NativeCompassEvent {
+  heading: number;
+  pitch: number;
+  roll: number;
+  accuracy?: number;
+  mode?: string;
+}
+
+interface NativeCompassBridge {
+  startCompass(opts: { lat: number; lng: number }): Promise<{
+    available: boolean;
+    mode?: string;
+    declination?: number;
+  }>;
+  stopCompass(): Promise<void>;
+  addListener(
+    eventName: 'compassHeading',
+    listenerFunc: (data: NativeCompassEvent) => void
+  ): Promise<PluginListenerHandle>;
+}
+
+const NoorCompass = registerPlugin<NativeCompassBridge>('NoorAlarm');
 
 const KAABA_LAT = 21.422487;
 const KAABA_LNG = 39.826206;
@@ -163,6 +188,8 @@ export function QiblaCompass(props: QiblaCompassProps) {
   );
 
   const [sensorActive, setSensorActive] = useState(false);
+  const [hardwareUnsupported, setHardwareUnsupported] = useState(false);
+  const nativeStreamActiveRef = useRef(false);
   const [needsIosPermission, setNeedsIosPermission] = useState(false);
   const [isAligned, setIsAligned] = useState(false);
   const [stability, setStability] = useState<'high' | 'medium' | 'low'>('high');
@@ -188,6 +215,8 @@ export function QiblaCompass(props: QiblaCompassProps) {
       props.onClose();
     }
   }, [props]);
+
+  useBackHandler(!props.embedded && localOpen, handleCloseQibla);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -240,8 +269,82 @@ export function QiblaCompass(props: QiblaCompassProps) {
     setShowCalibModal(true);
   }, []);
 
+  const feedCompassSample = useCallback(
+    (rawHeading: number, curPitch: number, curRoll: number, nativeAccuracy?: number) => {
+      if (!Number.isFinite(rawHeading)) return;
+      const cleanHeading = normalize360(rawHeading);
+      setSensorActive(true);
+      setHardwareUnsupported(false);
+
+      // ۱. محاسبه پیشرفت زنده کالیبره ∞ (بر اساس چرخش واقعی سه‌بعدی گوشی)
+      if (showCalibRef.current && !calibDoneRef.current) {
+        const prev = lastOrientationRef.current;
+        if (prev) {
+          const dA = Math.abs(shortestDelta(prev.a, cleanHeading));
+          const dB = Math.abs(curPitch - prev.b);
+          const dG = Math.abs(curRoll - prev.g);
+          const stepMotion = Math.min(32, dA * 0.65 + dB * 1.15 + dG * 1.15);
+          if (stepMotion > 0.7) {
+            calibMotionAccRef.current += stepMotion;
+            const threshold = nativeAccuracy === 3 ? 280 : 360;
+            const pct = Math.min(100, Math.round((calibMotionAccRef.current / threshold) * 100));
+            setCalibProgress(pct);
+            if (pct >= 100) {
+              finishCalibration();
+            }
+          }
+        }
+        lastOrientationRef.current = { a: cleanHeading, b: curPitch, g: curRoll };
+      }
+
+      // ۲. فیلتر برداری دایره‌ای تطبیقی (Adaptive Circular Vector Low-Pass) + Deadband
+      const rad = toRad(cleanHeading);
+      const nx = Math.sin(rad);
+      const ny = Math.cos(rad);
+
+      if (!vecInitRef.current) {
+        vecXRef.current = nx;
+        vecYRef.current = ny;
+        targetHeadingRef.current = cleanHeading;
+        smoothContinuousRef.current = -cleanHeading;
+        vecInitRef.current = true;
+        return;
+      }
+
+      const prevFiltered = targetHeadingRef.current;
+      const diff = Math.abs(shortestDelta(prevFiltered, cleanHeading));
+
+      if (typeof nativeAccuracy === 'number' && nativeAccuracy >= 0) {
+        if (nativeAccuracy <= 1) setStability('low');
+        else if (nativeAccuracy === 2) setStability('medium');
+        else setStability('high');
+      } else {
+        recentDeltasRef.current.push(diff);
+        if (recentDeltasRef.current.length > 20) recentDeltasRef.current.shift();
+        const avgJitter =
+          recentDeltasRef.current.reduce((acc, v) => acc + v, 0) / recentDeltasRef.current.length;
+        if (avgJitter > 10) setStability('low');
+        else if (avgJitter > 4.5) setStability('medium');
+        else setStability('high');
+      }
+
+      if (diff < 0.4) return;
+
+      const alphaFactor =
+        diff < 2.5 ? 0.08 : diff < 8 ? 0.14 : diff < 22 ? 0.22 : 0.34;
+
+      vecXRef.current = vecXRef.current * (1 - alphaFactor) + nx * alphaFactor;
+      vecYRef.current = vecYRef.current * (1 - alphaFactor) + ny * alphaFactor;
+
+      const filteredDeg = normalize360(toDeg(Math.atan2(vecXRef.current, vecYRef.current)));
+      targetHeadingRef.current = filteredDeg;
+    },
+    [finishCalibration]
+  );
+
   const handleOrientationEvent = useCallback(
     (ev: DeviceOrientationWithWebkit, isAbsoluteStream: boolean) => {
+      if (nativeStreamActiveRef.current) return;
       if (isAbsoluteStream && typeof ev.alpha === 'number') {
         hasAbsoluteRef.current = true;
       } else if (!isAbsoluteStream && hasAbsoluteRef.current && typeof ev.webkitCompassHeading !== 'number') {
@@ -259,72 +362,51 @@ export function QiblaCompass(props: QiblaCompassProps) {
       }
 
       if (rawHeading === null) return;
-      setSensorActive(true);
-
-      // ۱. محاسبه پیشرفت زنده کالیبره ∞ در صورت باز بودن پاپ‌آپ
-      if (showCalibRef.current && !calibDoneRef.current) {
-        const curA = ev.alpha ?? rawHeading;
-        const curB = ev.beta ?? 0;
-        const curG = ev.gamma ?? 0;
-        const prev = lastOrientationRef.current;
-        if (prev) {
-          const dA = Math.abs(shortestDelta(prev.a, curA));
-          const dB = Math.abs(curB - prev.b);
-          const dG = Math.abs(curG - prev.g);
-          const stepMotion = Math.min(28, dA * 0.55 + dB * 0.9 + dG * 0.9);
-          if (stepMotion > 0.8) {
-            calibMotionAccRef.current += stepMotion;
-            const pct = Math.min(100, Math.round((calibMotionAccRef.current / 420) * 100));
-            setCalibProgress(pct);
-            if (pct >= 100) {
-              finishCalibration();
-            }
-          }
-        }
-        lastOrientationRef.current = { a: curA, b: curB, g: curG };
-      }
-
-      // ۲. فیلتر برداری دایره‌ای تطبیقی (Adaptive Circular Vector Low-Pass) + Deadband
-      const rad = toRad(rawHeading);
-      const nx = Math.sin(rad);
-      const ny = Math.cos(rad);
-
-      if (!vecInitRef.current) {
-        vecXRef.current = nx;
-        vecYRef.current = ny;
-        targetHeadingRef.current = rawHeading;
-        smoothContinuousRef.current = -rawHeading;
-        vecInitRef.current = true;
-        return;
-      }
-
-      const prevFiltered = targetHeadingRef.current;
-      const diff = Math.abs(shortestDelta(prevFiltered, rawHeading));
-
-      // ثبت پایداری سیگنال مغناطیسی در ۲۰ نمونه اخیر
-      recentDeltasRef.current.push(diff);
-      if (recentDeltasRef.current.length > 20) recentDeltasRef.current.shift();
-      const avgJitter =
-        recentDeltasRef.current.reduce((acc, v) => acc + v, 0) / recentDeltasRef.current.length;
-      if (avgJitter > 10) setStability('low');
-      else if (avgJitter > 4.5) setStability('medium');
-      else setStability('high');
-
-      // ناحیه مرده میکرو-لرزش دست: حرکت‌های زیر ۰.۴۵ درجه نادیده گرفته می‌شوند
-      if (diff < 0.45) return;
-
-      // ضریب میرایی هوشمند: در سکون فوق‌العاده نرم (0.065)، در چرخش سریع پاسخگو (0.28)
-      const alphaFactor =
-        diff < 2.5 ? 0.065 : diff < 8 ? 0.11 : diff < 22 ? 0.18 : 0.28;
-
-      vecXRef.current = vecXRef.current * (1 - alphaFactor) + nx * alphaFactor;
-      vecYRef.current = vecYRef.current * (1 - alphaFactor) + ny * alphaFactor;
-
-      const filteredDeg = normalize360(toDeg(Math.atan2(vecXRef.current, vecYRef.current)));
-      targetHeadingRef.current = filteredDeg;
+      feedCompassSample(rawHeading, ev.beta ?? 0, ev.gamma ?? 0);
     },
-    [finishCalibration]
+    [feedCompassSample]
   );
+
+  // ثبت قطب‌نمای سخت‌افزاری نیتیو اندروید (سازگار با اندروید ۷ تا ۱۶ — بدون محدودیت WebView)
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'android') return;
+    let disposed = false;
+    let listenerHandle: PluginListenerHandle | null = null;
+
+    const bootNativeCompass = async () => {
+      try {
+        listenerHandle = await NoorCompass.addListener('compassHeading', (data) => {
+          if (disposed) return;
+          nativeStreamActiveRef.current = true;
+          feedCompassSample(data.heading, data.pitch ?? 0, data.roll ?? 0, data.accuracy);
+        });
+        const res = await NoorCompass.startCompass({
+          lat: locationInfo.lat,
+          lng: locationInfo.lng,
+        });
+        if (disposed) return;
+        if (res && res.available) {
+          nativeStreamActiveRef.current = true;
+        } else if (res && res.mode === 'no_magnetometer') {
+          setHardwareUnsupported(true);
+          setShowCalibModal(false);
+        }
+      } catch {
+        // در صورت عدم دسترسی به پلاگین، fallback مرورگر فعال می‌ماند
+      }
+    };
+
+    void bootNativeCompass();
+
+    return () => {
+      disposed = true;
+      nativeStreamActiveRef.current = false;
+      if (listenerHandle) {
+        void listenerHandle.remove();
+      }
+      void NoorCompass.stopCompass().catch(() => {});
+    };
+  }, [locationInfo.lat, locationInfo.lng, feedCompassSample]);
 
   // ثبت لیسنرهای سنسور قطب‌نما (اولویت با deviceorientationabsolute در اندروید)
   useEffect(() => {
@@ -765,7 +847,11 @@ export function QiblaCompass(props: QiblaCompassProps) {
           {!sensorActive && (
             <div className="rounded-2xl p-3 border border-white/10 bg-white/[0.03] space-y-2">
               <div className="flex items-center justify-between text-[11px]">
-                <span className="text-amber-200 font-bold">حالت پیش‌نمایش (سنسور فعال نیست)</span>
+                <span className="text-amber-200 font-bold">
+                  {hardwareUnsupported
+                    ? 'این گوشی سنسور مغناطیس‌سنج (قطب‌نما) ندارد'
+                    : 'حالت پیش‌نمایش (در انتظار حرکت سنسور)'}
+                </span>
                 <span className="text-emerald-200 font-black">{toFaDigits(manualPreviewDeg)}°</span>
               </div>
               <input
