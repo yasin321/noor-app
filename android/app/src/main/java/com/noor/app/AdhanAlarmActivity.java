@@ -31,6 +31,9 @@ import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.appcompat.app.AppCompatActivity;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -319,12 +322,7 @@ public class AdhanAlarmActivity extends AppCompatActivity {
                 LinearLayout.LayoutParams.WRAP_CONTENT
         );
         stopLp.bottomMargin = dp(12);
-        stopBtn.setOnClickListener(v -> {
-            Intent stopIntent = new Intent(this, AdhanForegroundService.class);
-            stopIntent.setAction(AdhanForegroundService.ACTION_STOP);
-            startService(stopIntent);
-            finishAndRemoveTask();
-        });
+        stopBtn.setOnClickListener(v -> stopPlaybackAndDismiss());
         container.addView(stopBtn, stopLp);
 
         // دکمه دوم: ورود به اپلیکیشن نور (شیشه‌ای خوانا و بدون هیچ کاراکتر خراب)
@@ -341,10 +339,7 @@ public class AdhanAlarmActivity extends AppCompatActivity {
         openAppBtn.setBackground(openBg);
         openAppBtn.setPadding(dp(24), dp(14), dp(24), dp(14));
         openAppBtn.setOnClickListener(v -> {
-            Intent stopIntent = new Intent(this, AdhanForegroundService.class);
-            stopIntent.setAction(AdhanForegroundService.ACTION_STOP);
-            startService(stopIntent);
-
+            stopPlaybackQuietly();
             Intent mainIntent = new Intent(this, MainActivity.class);
             mainIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
             startActivity(mainIntent);
@@ -369,6 +364,18 @@ public class AdhanAlarmActivity extends AppCompatActivity {
         container.addView(brandFooter, footLp);
 
         scroll.addView(container);
+        ViewCompat.setOnApplyWindowInsetsListener(scroll, (v, insets) -> {
+            Insets bars = insets.getInsets(
+                    WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout()
+            );
+            container.setPadding(
+                    dp(22) + bars.left,
+                    dp(42) + bars.top,
+                    dp(22) + bars.right,
+                    dp(34) + bars.bottom
+            );
+            return insets;
+        });
         root.addView(scroll, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT
@@ -624,6 +631,21 @@ public class AdhanAlarmActivity extends AppCompatActivity {
                 WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON |
                 WindowManager.LayoutParams.FLAG_FULLSCREEN
         );
+    }
+
+    private void stopPlaybackQuietly() {
+        try {
+            getWindow().clearFlags(
+                    WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON |
+                    WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+            );
+        } catch (Exception ignored) {}
+        AdhanForegroundService.killActivePlayer(this);
+        try {
+            Intent stopIntent = new Intent(this, AdhanAlarmReceiver.class);
+            stopIntent.setAction(AdhanAlarmReceiver.ACTION_STOP);
+            sendBroadcast(stopIntent);
+        } catch (Exception ignored) {}
     }
 
     private void stopPlaybackAndDismiss() {

@@ -1,3 +1,5 @@
+import { installLegacyColorMixPolyfill } from './lib/legacyCssCompat';
+installLegacyColorMixPolyfill();
 
 try {
   const savedFont = localStorage.getItem('noor_font_family') || 'Vazirmatn';

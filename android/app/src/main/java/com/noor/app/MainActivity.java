@@ -25,6 +25,13 @@ import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
+import android.graphics.drawable.ClipDrawable;
+import android.graphics.drawable.LayerDrawable;
 import androidx.activity.OnBackPressedCallback;
 import com.getcapacitor.BridgeActivity;
 
@@ -44,6 +51,7 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(NoorAlarmPlugin.class);
         super.onCreate(savedInstanceState);
+        applyAndroid15EdgeToEdgeSafeInsets();
         attachZeroMillisecondNativeSplash();
         requestStartupNotificationPermission();
         setupSystemBackGesture();
@@ -53,6 +61,38 @@ public class MainActivity extends BridgeActivity {
                 wv.getSettings().setMediaPlaybackRequiresUserGesture(false);
             }
         } catch (Exception ignored) {}
+    }
+
+    private void applyAndroid15EdgeToEdgeSafeInsets() {
+        try {
+            View content = findViewById(android.R.id.content);
+            if (content != null) {
+                content.setBackgroundColor(Color.parseColor("#041511"));
+                if (Build.VERSION.SDK_INT >= 35) {
+                    ViewCompat.setOnApplyWindowInsetsListener(content, (v, windowInsets) -> {
+                        Insets bars = windowInsets.getInsets(
+                                WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout()
+                        );
+                        Insets ime = windowInsets.getInsets(WindowInsetsCompat.Type.ime());
+                        v.setPadding(bars.left, bars.top, bars.right, Math.max(bars.bottom, ime.bottom));
+                        return WindowInsetsCompat.CONSUMED;
+                    });
+                    ViewCompat.requestApplyInsets(content);
+                }
+            }
+            WindowInsetsControllerCompat controller =
+                    WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
+            if (controller != null) {
+                controller.setAppearanceLightStatusBars(false);
+                controller.setAppearanceLightNavigationBars(false);
+            }
+        } catch (Exception ignored) {}
+    }
+
+    @Override
+    public void onDestroy() {
+        handler.removeCallbacksAndMessages(null);
+        super.onDestroy();
     }
 
     private void attachZeroMillisecondNativeSplash() {
@@ -208,7 +248,16 @@ public class MainActivity extends BridgeActivity {
             GradientDrawable progTrack = new GradientDrawable();
             progTrack.setColor(Color.parseColor("#33FFFFFF"));
             progTrack.setCornerRadius(dp(6));
-            progressBar.setProgressDrawable(getResources().getDrawable(android.R.drawable.progress_horizontal));
+            GradientDrawable progFill = new GradientDrawable(
+                GradientDrawable.Orientation.LEFT_RIGHT,
+                new int[]{ Color.parseColor("#10B981"), Color.parseColor("#FBBF24") }
+            );
+            progFill.setCornerRadius(dp(6));
+            ClipDrawable progClip = new ClipDrawable(progFill, Gravity.START, ClipDrawable.HORIZONTAL);
+            LayerDrawable progLayers = new LayerDrawable(new android.graphics.drawable.Drawable[]{ progTrack, progClip });
+            progLayers.setId(0, android.R.id.background);
+            progLayers.setId(1, android.R.id.progress);
+            progressBar.setProgressDrawable(progLayers);
             LinearLayout.LayoutParams progLp = new LinearLayout.LayoutParams(dp(160), dp(5));
             progLp.bottomMargin = dp(18);
             bottomWrapper.addView(progressBar, progLp);

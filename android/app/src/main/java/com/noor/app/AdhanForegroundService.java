@@ -149,10 +149,17 @@ public class AdhanForegroundService extends Service {
                 .addAction(android.R.drawable.ic_media_pause, "⏹️ توقف کامل صدا", stopPi)
                 .build();
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(NOTIF_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK);
-        } else {
-            startForeground(NOTIF_ID, notification);
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(NOTIF_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK);
+            } else {
+                startForeground(NOTIF_ID, notification);
+            }
+        } catch (Exception e) {
+            try {
+                NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+                if (nm != null) nm.notify(NOTIF_ID, notification);
+            } catch (Exception ignored) {}
         }
 
         if ("silent".equals(soundType) || "notification_only".equals(soundType) || volumePercent <= 0) {
@@ -460,7 +467,7 @@ public class AdhanForegroundService extends Service {
             sendBroadcast(closeUi);
         } catch (Exception ignored) {}
         try {
-            stopForeground(true);
+            stopForeground(Service.STOP_FOREGROUND_REMOVE);
         } catch (Exception ignored) {}
         stopSelf();
     }

@@ -65,6 +65,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .border-app { border-color: var(--border); }
 
 .card {
+  background: var(--surface);
   background: linear-gradient(145deg, color-mix(in srgb, var(--surface) 98%, white 2%), var(--surface));
   border-radius: 1.35rem;
   border: 1px solid var(--border);
@@ -72,13 +73,16 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 }
 
 .card-flat {
+  background: var(--surface);
   background: color-mix(in srgb, var(--surface) 76%, transparent);
   border-radius: 1.2rem;
+  border: 1px solid var(--border);
   border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
   transition: background-color 180ms ease, border-color 180ms ease, transform 180ms ease;
 }
 
 .glass-card {
+  background: var(--surface);
   background: color-mix(in srgb, var(--surface) 78%, transparent);
   border-radius: 1.35rem;
   border: 1px solid var(--border);
@@ -88,6 +92,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 }
 
 .glass-card-flat {
+  background: var(--surface);
   background: color-mix(in srgb, var(--surface) 58%, transparent);
   border-radius: 1.2rem;
   border: 1px solid var(--border);
@@ -96,10 +101,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 }
 
 .primary-btn {
+  background: var(--primary);
   background: linear-gradient(135deg, var(--primary), color-mix(in srgb, var(--primary) 75%, #f7e8b2));
   color: var(--bg);
   border-radius: 1rem;
   font-weight: 800;
+  box-shadow: 0 6px 18px var(--primary-glow);
   box-shadow: 0 6px 18px color-mix(in srgb, var(--primary) 18%, transparent);
   transition: transform 160ms ease, filter 160ms ease, box-shadow 160ms ease;
 }
