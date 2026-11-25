@@ -217,7 +217,7 @@ export function LibraryScreen({ onNavigate }: { onNavigate?: (t: Tab) => void })
           </div>
 
           <p className="quran-mushaf-text text-app text-2xl font-bold leading-loose text-center my-4">
-            {selected.arabic}
+            {selected.arabic.replace(/ \(عج\)/g, '\u00A0(عج)')}
           </p>
           <p className="text-app text-sm leading-relaxed text-center font-medium mb-4">
             {selected.translation}
@@ -592,16 +592,17 @@ export function LibraryScreen({ onNavigate }: { onNavigate?: (t: Tab) => void })
 
       {/* ۴ دسته‌بندی موضوعی اذکار */}
       <div className="grid grid-cols-2 gap-2.5 mb-4">
-        {MACRO_GROUPS.map((grp) => {
+        {MACRO_GROUPS.map((grp, idx) => {
           const Icon = grp.icon;
           const isSelected = activeGroup === grp.key;
           const count = items.filter((i) => grp.match(i.category)).length;
+          const isLastOdd = MACRO_GROUPS.length % 2 === 1 && idx === MACRO_GROUPS.length - 1;
           return (
             <button
               key={grp.key}
               type="button"
               onClick={() => setActiveGroup(isSelected ? 'all' : grp.key)}
-              className="card-flat p-3.5 text-right transition-all flex flex-col justify-between"
+              className={`card-flat p-3.5 text-right transition-all flex flex-col justify-between${isLastOdd ? ' col-span-2' : ''}`}
               style={{
                 borderColor: isSelected ? theme.primary : theme.border,
                 background: isSelected

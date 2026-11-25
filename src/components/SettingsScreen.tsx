@@ -193,16 +193,24 @@ function ContactYasinModal({ onClose }: { onClose: () => void }) {
     setSending(true);
     setStatusMsg(null);
     try {
-      const resp = await fetch('https://formsubmit.co/ajax/ycnakbari@gmail.com', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({
-          name: cleanName,
-          subject: cleanSubj,
-          message: cleanMsg,
-          _captcha: 'false',
-        }),
-      });
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => controller.abort(), 10000);
+      let resp: Response;
+      try {
+        resp = await fetch('https://formsubmit.co/ajax/ycnakbari@gmail.com', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          signal: controller.signal,
+          body: JSON.stringify({
+            name: cleanName,
+            subject: cleanSubj,
+            message: cleanMsg,
+            _captcha: 'false',
+          }),
+        });
+      } finally {
+        window.clearTimeout(timeoutId);
+      }
       if (resp.ok) {
         setStatusMsg({
           type: 'ok',

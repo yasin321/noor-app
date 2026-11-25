@@ -1,18 +1,17 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { AuthProvider, useAuth } from '@/hooks/useAuth';
 import { ThemeProvider } from '@/hooks/useTheme';
 import { LanguageProvider, useI18n } from '@/i18n';
-import { AuthScreen } from '@/components/AuthScreen';
+const AuthScreen = lazy(() => import('@/components/AuthScreen').then((m) => ({ default: m.AuthScreen })));
 import { BottomNav, type Tab } from '@/components/BottomNav';
 import { HomeScreen } from '@/components/HomeScreen';
-import { TasbihCounter } from '@/components/TasbihCounter';
-import { LibraryScreen } from '@/components/LibraryScreen';
-import { RemindersScreen } from '@/components/RemindersScreen';
-import { SettingsScreen } from '@/components/SettingsScreen';
+const TasbihCounter = lazy(() => import('@/components/TasbihCounter').then((m) => ({ default: m.TasbihCounter })));
+const LibraryScreen = lazy(() => import('@/components/LibraryScreen').then((m) => ({ default: m.LibraryScreen })));
+const RemindersScreen = lazy(() => import('@/components/RemindersScreen').then((m) => ({ default: m.RemindersScreen })));
+const SettingsScreen = lazy(() => import('@/components/SettingsScreen').then((m) => ({ default: m.SettingsScreen })));
 import { NotificationPermissionModal } from '@/components/NotificationPermissionModal';
-import { AppTutorialModal } from '@/components/AppTutorialModal';
+const AppTutorialModal = lazy(() => import('@/components/AppTutorialModal').then((m) => ({ default: m.AppTutorialModal })));
 import { rescheduleAll, purgeLegacyPrePostAdhanReminders } from '@/lib/reminderService';
-import { loadTawashihConfig, syncAllTawashihNativeAlarms } from '@/components/TawashihAndAdhanReminderSection';
 import { syncAllSurahNativeAlarms } from '@/lib/surahAlarmService';
 import { runGlobalSync } from '@/lib/globalSyncService';
 import { runFullUserCloudSync, installAutoCloudSync } from '@/lib/cloudSyncService';
@@ -131,8 +130,9 @@ function AppContent() {
         notifEnabled,
         userId: user?.id ?? 'guest',
       });
-      void purgeLegacyPrePostAdhanReminders().then(() => {
-        void syncAllTawashihNativeAlarms(loadTawashihConfig());
+      void purgeLegacyPrePostAdhanReminders().then(async () => {
+        const tawashih = await import('@/components/TawashihAndAdhanReminderSection');
+        void tawashih.syncAllTawashihNativeAlarms(tawashih.loadTawashihConfig());
         void syncAllSurahNativeAlarms();
       });
       void rescheduleAll(notifEnabled).then((res) => {
@@ -186,7 +186,11 @@ function AppContent() {
   useBackHandler(showAuth && !user, () => setShowAuth(false));
 
   if (showAuth && !user) {
-    return <AuthScreen onBack={() => setShowAuth(false)} />;
+    return (
+      <Suspense fallback={<div className="min-h-screen" style={{ background: 'var(--bg)' }} />}>
+        <AuthScreen onBack={() => setShowAuth(false)} />
+      </Suspense>
+    );
   }
 
   return (
@@ -197,7 +201,7 @@ function AppContent() {
       onTouchMoveCapture={handleTouchMove}
       onTouchEndCapture={handleTouchEnd}
     >
-      {showFirstTimeGuide && <AppTutorialModal onClose={() => setShowFirstTimeGuide(false)} />}
+      {showFirstTimeGuide && <Suspense fallback={null}><AppTutorialModal onClose={() => setShowFirstTimeGuide(false)} /></Suspense>}
       <NotificationPermissionModal />
       <GlobalUpdateBanner />
       {livePopupMsg && (
@@ -214,11 +218,19 @@ function AppContent() {
         />
       )}
       <main key={tab} className={`page-transition page-transition-${navigationDirection}`} aria-live="polite">
-        {tab === 'home' && <HomeScreen onNavigate={navigateTo} />}
-        {tab === 'tasbih' && <TasbihCounter onNavigate={navigateTo} />}
-        {tab === 'library' && <LibraryScreen onNavigate={navigateTo} />}
-        {tab === 'reminders' && <RemindersScreen />}
-        {tab === 'settings' && <SettingsScreen onExitGuest={() => setShowAuth(true)} />}
+        <Suspense
+          fallback={
+            <div className="min-h-[60vh] flex items-center justify-center">
+              <div className="w-7 h-7 rounded-full border-2 border-emerald-400/30 border-t-emerald-400 animate-spin" />
+            </div>
+          }
+        >
+          {tab === 'home' && <HomeScreen onNavigate={navigateTo} />}
+          {tab === 'tasbih' && <TasbihCounter onNavigate={navigateTo} />}
+          {tab === 'library' && <LibraryScreen onNavigate={navigateTo} />}
+          {tab === 'reminders' && <RemindersScreen />}
+          {tab === 'settings' && <SettingsScreen onExitGuest={() => setShowAuth(true)} />}
+        </Suspense>
       </main>
       <BottomNav active={tab} onChange={navigateTo} />
     </div>

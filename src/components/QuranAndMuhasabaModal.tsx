@@ -274,6 +274,7 @@ export function QuranAndMuhasabaModal({
 }: Props) {
   const { theme } = useTheme();
   const { lang, dir, isRtl, t, formatDigits } = useI18n();
+  const [showAllSurahsGrid, setShowAllSurahsGrid] = useState<boolean>(false);
   const [mode, setMode] = useState<'quran' | 'bookmarks' | 'muhasaba'>(initialMode);
   const [qState, setQState] = useState(() => {
     const loaded = loadQuranContinuity();
@@ -772,11 +773,42 @@ export function QuranAndMuhasabaModal({
         {mode === 'quran' ? (
           <div className="space-y-3.5">
             <div>
-              <div className="flex items-center justify-between mb-2 px-1">
-                <span className="text-[11px] font-bold text-muted">انتخاب سوره (🕋 = مکی · 🕌 = مدنی):</span>
-                <span className="text-[10px] font-bold text-primary">لمس هر آیه = پخش از همان آیه</span>
+              <div className="flex items-center justify-between mb-2 px-1 gap-2">
+                <span className="text-[11px] font-bold text-muted">انتخاب سوره:</span>
+                <button
+                  type="button"
+                  onClick={() => setShowAllSurahsGrid((v) => !v)}
+                  className="text-[10px] font-black px-2.5 py-1 rounded-full border"
+                  style={{ borderColor: theme.border, color: theme.primary, background: theme.bg }}
+                >
+                  {showAllSurahsGrid ? 'نمای فشرده ▴' : 'نمایش همه ۹ سوره ▾'}
+                </button>
               </div>
-              <div className="grid grid-cols-3 gap-2">
+              {!showAllSurahsGrid && (
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5" style={{ scrollbarWidth: 'none' }}>
+                  {CURATED_SURAHS.map((s) => {
+                    const active = currentSurah.number === s.number;
+                    const hasAlarm = Boolean(surahAlarms[s.number]?.enabled);
+                    return (
+                      <button
+                        key={s.number}
+                        type="button"
+                        onClick={() => updateQuranPosition(s.number, 1)}
+                        className="shrink-0 px-3 py-1.5 rounded-full border text-xs font-black flex items-center gap-1.5 transition-all"
+                        style={{
+                          borderColor: active ? theme.primary : theme.border,
+                          background: active ? theme.primary : theme.bg,
+                          color: active ? theme.bg : theme.text,
+                        }}
+                      >
+                        <span>{s.nameFa.replace('سوره ', '')}</span>
+                        {hasAlarm && <span className="text-[10px]">⏰</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              <div className={showAllSurahsGrid ? 'grid grid-cols-3 gap-2' : 'hidden'}>
                 {CURATED_SURAHS.map((s) => {
                   const active = currentSurah.number === s.number;
                   const hasAlarm = Boolean(surahAlarms[s.number]?.enabled);

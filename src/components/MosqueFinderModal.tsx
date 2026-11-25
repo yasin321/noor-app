@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Navigation, Footprints, Car, Bus, Compass, X, LocateFixed, Check, ExternalLink, Sparkles, CheckCircle2, AlertTriangle, Route, Search, Map as MapIcon, Plus, Minus, KeyRound } from 'lucide-react';
+import { Navigation, Footprints, Car, Bus, Compass, X, LocateFixed, Check, ExternalLink, Sparkles, CheckCircle2, AlertTriangle, Route, Search, Map as MapIcon, Plus, Minus } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { useTheme } from '@/hooks/useTheme';
 import { NoorAlarm } from '@/lib/reminderService';
@@ -8,12 +8,9 @@ import {
   searchNearbyMosques,
   fetchNeshanExactRoute,
   geocodeSearchQuery,
-  getGoogleMapsApiKey,
-  setGoogleMapsApiKey,
   saveLocationMetrics,
   clearReverseGeocodeCache,
-  type NearbyMosque,
-} from '@/lib/neshanMosqueService';
+  type NearbyMosque } from '@/lib/neshanMosqueService';
 import { saveCustomGpsCoords, clearCustomGpsCoords } from '@/lib/cities';
 import { loadMosqueAndTravel, saveMosqueAndTravel } from '@/lib/deenIntelligenceStore';
 import { toFaDigits } from '@/lib/jalali';
@@ -60,9 +57,6 @@ export function MosqueFinderModal({ cityName, defaultLat, defaultLng, onClose, o
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [searchResults, setSearchResults] = useState<Array<{ title: string; address: string; lat: number; lng: number }>>([]);
   const [searchingPlace, setSearchingPlace] = useState<boolean>(false);
-
-  const [showGoogleKeyBox, setShowGoogleKeyBox] = useState<boolean>(false);
-  const [googleKeyInput, setGoogleKeyInput] = useState<string>(() => getGoogleMapsApiKey());
   const [toast, setToast] = useState<string | null>(null);
   const mapBoxRef = useRef<HTMLDivElement | null>(null);
 
@@ -260,15 +254,6 @@ export function MosqueFinderModal({ cityName, defaultLat, defaultLng, onClose, o
           <div className="flex items-center gap-1.5">
             <button
               type="button"
-              onClick={() => setShowGoogleKeyBox((v) => !v)}
-              title="افزودن کلید Google Maps (اختیاری)"
-              className="w-8 h-8 rounded-xl flex items-center justify-center border"
-              style={{ borderColor: googleKeyInput ? theme.primary : theme.border, color: googleKeyInput ? theme.primary : theme.textMuted }}
-            >
-              <KeyRound size={15} />
-            </button>
-            <button
-              type="button"
               onClick={onClose}
               className="w-8 h-8 rounded-xl flex items-center justify-center border text-muted"
               style={{ borderColor: theme.border }}
@@ -277,36 +262,6 @@ export function MosqueFinderModal({ cityName, defaultLat, defaultLng, onClose, o
             </button>
           </div>
         </div>
-
-        {showGoogleKeyBox && (
-          <div className="mb-3 p-3 rounded-2xl border space-y-2" style={{ borderColor: theme.primary, background: theme.bg }}>
-            <p className="text-[11px] font-bold text-app">🔑 کلید اختصاصی نقشه گوگل (اختیاری — برای دقت و جزئیات بیشتر):</p>
-            <div className="flex gap-1.5">
-              <input
-                type="text"
-                value={googleKeyInput}
-                onChange={(e) => setGoogleKeyInput(e.target.value)}
-                placeholder="AIzaSy..."
-                dir="ltr"
-                className="flex-1 px-3 py-1.5 rounded-xl text-xs text-app border outline-none"
-                style={{ borderColor: theme.border, background: theme.surface }}
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  setGoogleMapsApiKey(googleKeyInput);
-                  setShowGoogleKeyBox(false);
-                  showNotice('✅ کلید Google Maps ذخیره شد!');
-                  void detectLiveGps();
-                }}
-                className="px-3 py-1.5 rounded-xl text-xs font-bold"
-                style={{ background: theme.primary, color: theme.bg }}
-              >
-                ذخیره
-              </button>
-            </div>
-          </div>
-        )}
 
         {/* نوار وضعیت آدرس خیابان و دکمه رادار موقعیت‌یاب دقیق */}
         <div

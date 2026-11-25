@@ -13,7 +13,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { Capacitor, registerPlugin, type PluginListenerHandle } from '@capacitor/core';
-import { getCityById, getGuestCityId, getCustomGpsCoords } from '@/lib/cities';
+import { getCityById, getGuestCityId, getCustomGpsCoords, CITIES } from '@/lib/cities';
 import { useBackHandler } from '@/lib/backNavigation';
 
 interface NativeCompassEvent {
@@ -150,6 +150,45 @@ interface DeviceOrientationWithWebkit extends DeviceOrientationEvent {
   webkitCompassAccuracy?: number;
 }
 
+function approxDistanceKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+export function resolveQiblaLocationLabel(
+  lat: number,
+  lng: number,
+  explicitLabel?: string,
+  fallbackCity?: { lat: number; lng: number; nameFa: string }
+): string {
+  // اگر مختصات فعال با شهر انتخابی همخوانی دارد همان نام شهر نمایش داده شود
+  if (fallbackCity && approxDistanceKm(lat, lng, fallbackCity.lat, fallbackCity.lng) <= 35) {
+    return explicitLabel || fallbackCity.nameFa;
+  }
+  // در غیر این صورت (مثلاً GPS کاربر در شهر دیگری قفل شده)، نزدیک‌ترین شهر واقعی را پیدا کن
+  let nearestName: string | null = null;
+  let nearestDist = Infinity;
+  for (const city of CITIES) {
+    const d = approxDistanceKm(lat, lng, city.lat, city.lng);
+    if (d < nearestDist) {
+      nearestDist = d;
+      nearestName = city.nameFa;
+    }
+  }
+  if (nearestName && nearestDist <= 90) {
+    return nearestName;
+  }
+  if (explicitLabel && fallbackCity && explicitLabel !== fallbackCity.nameFa) {
+    return explicitLabel;
+  }
+  return 'موقعیت GPS شما';
+}
+
 export function QiblaCompass(props: QiblaCompassProps) {
   // موقعیت جغرافیایی مؤثر (اولویت: پراپ ورودی -> GPS دقیق ذخیره‌شده -> شهر انتخابی)
   const locationInfo = useMemo(() => {
@@ -159,8 +198,9 @@ export function QiblaCompass(props: QiblaCompassProps) {
       props.lat ?? props.latitude ?? props.cityLat ?? props.city?.lat ?? gps?.lat ?? savedCity.lat;
     const lng =
       props.lng ?? props.longitude ?? props.cityLng ?? props.city?.lng ?? gps?.lng ?? savedCity.lng;
-    const cityLabel =
-      props.cityNameFa ?? props.cityName ?? props.city?.nameFa ?? props.city?.name ?? savedCity.nameFa;
+    const explicitCityLabel =
+      props.cityNameFa ?? props.cityName ?? props.city?.nameFa ?? props.city?.name;
+    const cityLabel = resolveQiblaLocationLabel(lat, lng, explicitCityLabel, savedCity);
     return { lat, lng, cityLabel };
   }, [
     props.lat,
@@ -802,6 +842,8 @@ export function QiblaCompass(props: QiblaCompassProps) {
                         x="130"
                         y="42"
                         textAnchor="middle"
+                        dominantBaseline="central"
+                        transform={`rotate(${(-(t.angle + continuousDialDeg)).toFixed(1)} 130 42)`}
                         fill={t.angle === 0 ? '#FCA5A5' : '#D1FAE5'}
                         fontSize="13"
                         fontWeight="900"
@@ -838,7 +880,7 @@ export function QiblaCompass(props: QiblaCompassProps) {
                 <circle cx="130" cy="130" r="3" fill={isAligned ? '#34D399' : '#FDE68A'} />
               </svg>
 
-              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full bg-black/55 border border-white/10 text-[10px] font-black text-emerald-100/90 backdrop-blur-sm">
+              <div className="absolute -bottom-3.5 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-[#041511]/95 border border-amber-400/35 text-[10px] font-black text-emerald-100 shadow-lg whitespace-nowrap">
                 جهت فعلی: {toFaDigits(displayHeading)}°
               </div>
             </div>
