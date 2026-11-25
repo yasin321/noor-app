@@ -18,6 +18,8 @@ import { useI18n, LANGUAGE_OPTIONS } from '@/i18n';
 import { OCCASION_MOTIFS, getSelectedOccasionMotif, setSelectedOccasionMotif, type OccasionMotifId } from '@/components/ThemeBackdropPattern';
 
 import { useAuth } from '@/hooks/useAuth';
+import { useBackHandler } from '@/lib/backNavigation';
+import { checkFullScreenIntentPermission, openFullScreenIntentSettings, type FullScreenPermissionStatus } from '@/lib/nativeAlarmPermissions';
 import { NOOR_PRIVACY_POLICY_URL, NOOR_SUPPORT_EMAIL, NOOR_SUPPORT_TELEGRAM_URL } from '@/lib/storeChannel';
 import { themes, getAllThemes } from '@/lib/themes';
 import {
@@ -72,6 +74,7 @@ const FONT_OPTIONS = [
 
 function ThemeHeroSelectorCard({ theme }: { theme: { surface: string; primary: string; bg: string; border: string } }) {
   const [showHeroGalleryModal, setShowHeroGalleryModal] = useState(false);
+  useBackHandler(showHeroGalleryModal, () => setShowHeroGalleryModal(false));
   const [heroCfg, setHeroCfg] = useState(() => loadHeroConfig());
   useEffect(() => {
     const syncHero = () => setHeroCfg(loadHeroConfig());
@@ -423,6 +426,37 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
   });
   const [manualOffsets, setManualOffsets] = useState<PrayerManualOffsets>(() => getPrayerManualOffsets());
   const [showManualOffsets, setShowManualOffsets] = useState(false);
+  const [fullScreenPerm, setFullScreenPerm] = useState<FullScreenPermissionStatus>({
+    granted: true,
+    apiLevel: 0,
+    needsSettings: false,
+  });
+
+  useEffect(() => {
+    const refreshFullScreenPerm = () => {
+      void checkFullScreenIntentPermission().then(setFullScreenPerm);
+    };
+    refreshFullScreenPerm();
+    const onVis = () => {
+      if (document.visibilityState === 'visible') refreshFullScreenPerm();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    window.addEventListener('focus', refreshFullScreenPerm);
+    return () => {
+      document.removeEventListener('visibilitychange', onVis);
+      window.removeEventListener('focus', refreshFullScreenPerm);
+    };
+  }, []);
+
+  useBackHandler(section !== 'main', () => setSection('main'));
+  useBackHandler(showManualOffsets, () => setShowManualOffsets(false));
+  useBackHandler(showContactDeveloperModal, () => setShowContactDeveloperModal(false));
+  useBackHandler(showAdhanStudioInSettings, () => setShowAdhanStudioInSettings(false));
+  useBackHandler(showVipModal, () => setShowVipModal(false));
+  useBackHandler(showPreAdhanModal, () => setShowPreAdhanModal(false));
+  useBackHandler(showGuide, () => setShowGuide(false));
+  useBackHandler(showGlobalSyncHub, () => setShowGlobalSyncHub(false));
+  useBackHandler(showPrivacyModal, () => setShowPrivacyModal(false));
 
   const dash = getSpiritualDashboardStats(period);
   const topDhikrObj = getDhikr(dash.topDhikrId);
@@ -1419,6 +1453,38 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
           </div>
         </div>
         <SubHeader title="انتخاب مؤذن و اذان" />
+        {Capacitor.isNativePlatform() && (fullScreenPerm.needsSettings || fullScreenPerm.apiLevel >= 34) && (
+          <div
+            className="rounded-2xl p-3.5 mb-3 border space-y-2"
+            style={{
+              background: fullScreenPerm.granted ? 'rgba(16, 185, 129, 0.12)' : 'rgba(245, 158, 11, 0.15)',
+              borderColor: fullScreenPerm.granted ? 'rgba(52, 211, 153, 0.45)' : 'rgba(251, 191, 36, 0.6)',
+            }}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-black text-app">
+                {fullScreenPerm.granted
+                  ? '✅ نمایش تمام‌صفحه اذان و سوره روی قفل صفحه فعال است'
+                  : '⚠️ فعال‌سازی صفحه اذان روی قفل گوشی (اندروید ۱۴ و ۱۵)'}
+              </span>
+            </div>
+            <p className="text-[11px] text-muted leading-relaxed">
+              {fullScreenPerm.granted
+                ? 'هنگام پخش اذان یا سوره، صفحه طلایی آلارم روی قفل گوشی نمایش داده می‌شود. همچنین با فشردن هر دکمه ولوم صدا یا دکمه قفل گوشی، پخش فوراً قطع می‌گردد.'
+                : 'در اندروید ۱۴ و ۱۵ برای اینکه صفحه زیبای اذان و دکمه توقف روی قفل گوشی بالا بیاید، باید مجوز «اعلان‌های تمام‌صفحه (Full-screen notifications)» برای نور روشن باشد.'}
+            </p>
+            {!fullScreenPerm.granted && (
+              <button
+                type="button"
+                onClick={() => void openFullScreenIntentSettings()}
+                className="w-full py-2.5 rounded-xl text-xs font-black shadow-md"
+                style={{ background: theme.accent, color: theme.bg }}
+              >
+                باز کردن مجوز نمایش روی قفل صفحه ←
+              </button>
+            )}
+          </div>
+        )}
 
         {adhanNotice && (
           <div

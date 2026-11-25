@@ -24,12 +24,15 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.Toast;
+import androidx.activity.OnBackPressedCallback;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
     private FrameLayout nativeSplashOverlay;
     private boolean splashDismissed = false;
     private final Handler handler = new Handler(Looper.getMainLooper());
+    private long lastRootBackPressMs = 0L;
 
     private int dp(int v) {
         return Math.round(TypedValue.applyDimension(
@@ -43,6 +46,7 @@ public class MainActivity extends BridgeActivity {
         super.onCreate(savedInstanceState);
         attachZeroMillisecondNativeSplash();
         requestStartupNotificationPermission();
+        setupSystemBackGesture();
         try {
             WebView wv = getBridge() != null ? getBridge().getWebView() : null;
             if (wv != null && wv.getSettings() != null) {
@@ -278,6 +282,40 @@ public class MainActivity extends BridgeActivity {
                 } catch (Exception ignored) {}
             }, 300);
         } catch (Exception ignored) {}
+    }
+
+    private void setupSystemBackGesture() {
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                try {
+                    WebView wv = getBridge() != null ? getBridge().getWebView() : null;
+                    if (wv != null) {
+                        wv.evaluateJavascript(
+                                "(function(){ try { return window.__noorHandleNativeBack ? !!window.__noorHandleNativeBack() : false; } catch(e) { return false; } })()",
+                                result -> {
+                                    if ("true".equals(result)) {
+                                        return;
+                                    }
+                                    handleRootBackExit();
+                                }
+                        );
+                        return;
+                    }
+                } catch (Exception ignored) {}
+                handleRootBackExit();
+            }
+        });
+    }
+
+    private void handleRootBackExit() {
+        long now = System.currentTimeMillis();
+        if (now - lastRootBackPressMs < 2000L) {
+            moveTaskToBack(true);
+        } else {
+            lastRootBackPressMs = now;
+            Toast.makeText(this, "برای خروج از نور، یک بار دیگر بازگشت را بزنید", Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void requestStartupNotificationPermission() {

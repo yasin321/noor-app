@@ -8,6 +8,7 @@ import { NastaliqMahdiCrown, CelestialPrayerArcGauge, ThemePatternWatermark, Dyn
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { MapPin, Clock, Sunrise, Sunset, Moon, Sun, CloudSun, ArrowLeft, Hand, Bell, BellOff, Compass, Sparkles, LocateFixed, Navigation, BookOpen, Sliders, Calendar } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
+import { useBackHandler } from '@/lib/backNavigation';
 import { useI18n } from '@/i18n';
 import { getCityDisplayName, getCountryDisplayName, findNearestCity } from '@/lib/cities';
 import { useAuth } from '@/hooks/useAuth';
@@ -1313,6 +1314,19 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
   const [showInbox, setShowInbox] = useState(false);
   const [unreadInboxCount, setUnreadInboxCount] = useState(() => getUnreadInboxCount());
   const [showCityPicker, setShowCityPicker] = useState(false);
+
+  useBackHandler(showCityPicker, () => setShowCityPicker(false));
+  useBackHandler(showQibla, () => setShowQibla(false));
+  useBackHandler(showCalendar, () => setShowCalendar(false));
+  useBackHandler(showMosqueFinder, () => setShowMosqueFinder(false));
+  useBackHandler(showQuranAndMuhasaba, () => {
+    setShowQuranAndMuhasaba(false);
+    setInitialQuranSurah(undefined);
+  });
+  useBackHandler(showStudioAndTravel, () => setShowStudioAndTravel(false));
+  useBackHandler(showBiModal, () => setShowBiModal(false));
+  useBackHandler(showQuickGuide, () => setShowQuickGuide(false));
+  useBackHandler(showInbox, () => setShowInbox(false));
   const [modulesVis, setModulesVis] = useState(() => getHomeModulesVisibility());
 
   const showQuickToast = (msg: string) => {

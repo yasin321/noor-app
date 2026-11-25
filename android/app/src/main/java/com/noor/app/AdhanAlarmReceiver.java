@@ -15,7 +15,7 @@ public class AdhanAlarmReceiver extends BroadcastReceiver {
         if (intent == null) return;
         String action = intent.getAction();
 
-        // ۱. اگر رویداد ریستارت گوشی، آپدیت برنامه یا تغییر ساعت بود، تمام آلارم‌های آینده را در AlarmManager بازنشانی کن
+        // ۱. بازیابی تمام آلارم‌های آینده پس از ریستارت گوشی، آپدیت برنامه یا تغییر ساعت
         if (Intent.ACTION_BOOT_COMPLETED.equals(action) ||
                 Intent.ACTION_LOCKED_BOOT_COMPLETED.equals(action) ||
                 "android.intent.action.QUICKBOOT_POWERON".equals(action) ||
@@ -26,30 +26,31 @@ public class AdhanAlarmReceiver extends BroadcastReceiver {
             return;
         }
 
-        // ۲. اگر دستور توقف آلارم بود
+        // ۲. توقف فوری اذان/سوره و بستن صفحه آلارم (از دکمه نوتیفیکیشن یا کلیدهای سخت‌افزاری)
         if (ACTION_STOP.equals(action) || AdhanForegroundService.ACTION_STOP.equals(action)) {
             AdhanForegroundService.killActivePlayer(context);
             Intent stopService = new Intent(context, AdhanForegroundService.class);
             stopService.setAction(AdhanForegroundService.ACTION_STOP);
-            context.stopService(stopService);
+            try {
+                context.stopService(stopService);
+            } catch (Exception ignored) {}
             Intent closeUi = new Intent(AdhanAlarmActivity.ACTION_CLOSE_UI);
             closeUi.setPackage(context.getPackageName());
             context.sendBroadcast(closeUi);
             return;
         }
 
-        // ۳. اجرای آلارم اذان، پیش از اذان یا تعقیبات (حتی اگر action خالی باشد ولی دارای title یا id باشد)
+        // ۳. اجرای آلارم اذان، تواشیح یا تلاوت سوره
         if (ACTION_TRIGGER.equals(action) || intent.hasExtra("title") || intent.hasExtra("id")) {
-            // گرفتن WakeLock فوری ۱۰ ثانیه‌ای برای تضمین بالا آمدن سرویس روی صفحه قفل خاموش
+            // نکته حیاتی اندروید ۱۴ و ۱۵: فقط PARTIAL_WAKE_LOCK می‌گیریم تا نمایشگر پیش از ثبت FullScreenIntent روشن نشود
             try {
                 PowerManager pm = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
                 if (pm != null) {
-                    @SuppressWarnings("deprecation")
                     PowerManager.WakeLock wl = pm.newWakeLock(
-                            PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP | PowerManager.ON_AFTER_RELEASE,
+                            PowerManager.PARTIAL_WAKE_LOCK,
                             "noor:ReceiverTransitionWakeLock"
                     );
-                    wl.acquire(10000L);
+                    wl.acquire(10_000L);
                 }
             } catch (Exception ignored) {}
 
@@ -67,7 +68,7 @@ public class AdhanAlarmReceiver extends BroadcastReceiver {
             serviceIntent.putExtra("adhanId", intent.getStringExtra("adhanId"));
             serviceIntent.putExtra("audioUrl", intent.getStringExtra("audioUrl"));
             serviceIntent.putExtra("durationSeconds", intent.getIntExtra("durationSeconds", 0));
-        serviceIntent.putExtra("playbackRate", intent.getFloatExtra("playbackRate", 1.0f));
+            serviceIntent.putExtra("playbackRate", intent.getFloatExtra("playbackRate", 1.0f));
             serviceIntent.putExtra("volumePercent", intent.getIntExtra("volumePercent", 100));
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

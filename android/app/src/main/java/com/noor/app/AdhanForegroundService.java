@@ -5,8 +5,10 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.ServiceInfo;
 import android.content.res.AssetFileDescriptor;
 import android.media.AudioAttributes;
@@ -19,13 +21,14 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.PowerManager;
+import android.os.SystemClock;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import androidx.core.app.NotificationCompat;
 import java.io.File;
 
 public class AdhanForegroundService extends Service {
-    public static final String CHANNEL_ID = "noor_fullscreen_alarm_v7";
+    public static final String CHANNEL_ID = "noor_fullscreen_alarm_v8";
     public static final String ACTION_STOP = "com.noor.app.ACTION_STOP_ADHAN";
     private static final int NOTIF_ID = 88001;
 
@@ -34,7 +37,8 @@ public class AdhanForegroundService extends Service {
     private static final Handler stopHandler = new Handler(Looper.getMainLooper());
     private static Runnable stopRunnable = null;
     private PowerManager.WakeLock wakeLock;
-    private PowerManager.WakeLock screenWakeLock;
+    private BroadcastReceiver hardwareStopReceiver = null;
+    private long alarmStartElapsedMs = 0L;
 
     public static void killActivePlayer(Context ctx) {
         synchronized (PLAYER_LOCK) {
@@ -106,7 +110,8 @@ public class AdhanForegroundService extends Service {
         String audioUrl = intent != null ? intent.getStringExtra("audioUrl") : "";
 
         boolean isLongSurah = "surah_chant".equals(soundType) || adhanId.startsWith("full_surah_");
-        acquireWakeLock(isLongSurah);
+        // فقط PARTIAL_WAKE_LOCK می‌گیریم تا پیش از ثبت FullScreenIntent نمایشگر روشن نشود و اندروید ۱۵ صفحه آلارم را بالا بیاورد
+        acquireCpuWakeLock(isLongSurah);
 
         Intent fullScreenIntent = new Intent(this, AdhanAlarmActivity.class);
         fullScreenIntent.putExtra("title", title);
@@ -120,9 +125,10 @@ public class AdhanForegroundService extends Service {
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
 
-        Intent stopIntent = new Intent(this, AdhanForegroundService.class);
-        stopIntent.setAction(ACTION_STOP);
-        PendingIntent stopPi = PendingIntent.getService(
+        // استفاده از Broadcast برای دکمه توقف نوتیفیکیشن (۱۰۰٪ پایدار در اندروید ۱۴، ۱۵ و ۱۶)
+        Intent stopIntent = new Intent(this, AdhanAlarmReceiver.class);
+        stopIntent.setAction(AdhanAlarmReceiver.ACTION_STOP);
+        PendingIntent stopPi = PendingIntent.getBroadcast(
                 this, 202, stopIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
@@ -131,7 +137,7 @@ public class AdhanForegroundService extends Service {
                 .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
                 .setContentTitle(title)
                 .setContentText(body)
-                .setStyle(new NotificationCompat.BigTextStyle().bigText(body))
+                .setStyle(new NotificationCompat.BigTextStyle().bigText(body + "\n(فشردن ولوم یا قفل گوشی = توقف فوری)"))
                 .setPriority(NotificationCompat.PRIORITY_MAX)
                 .setCategory(NotificationCompat.CATEGORY_ALARM)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
@@ -139,6 +145,7 @@ public class AdhanForegroundService extends Service {
                 .setAutoCancel(false)
                 .setFullScreenIntent(fullScreenPi, true)
                 .setContentIntent(fullScreenPi)
+                .setDeleteIntent(stopPi)
                 .addAction(android.R.drawable.ic_media_pause, "⏹️ توقف کامل صدا", stopPi)
                 .build();
 
@@ -171,14 +178,56 @@ public class AdhanForegroundService extends Service {
             return START_NOT_STICKY;
         }
 
-        try {
-            startActivity(fullScreenIntent);
-        } catch (Exception ignored) {}
+        // در اندروید ۹ و پایین‌تر باز کردن مستقیم اکتیویتی؛ در اندروید ۱۰ تا ۱۶ خود FullScreenIntent پس از startForeground آن را باز می‌کند
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            try {
+                startActivity(fullScreenIntent);
+            } catch (Exception ignored) {}
+        }
 
+        alarmStartElapsedMs = SystemClock.elapsedRealtime();
+        registerHardwareStopReceiver();
         triggerShortVibration();
         startAudioPlayback(soundType, adhanId, audioUrl, durationSeconds, volumePercent, playbackRate);
 
         return START_NOT_STICKY;
+    }
+
+    // گوش دادن سراسری به دکمه قفل/پاور (ACTION_SCREEN_OFF) و دکمه‌های ولوم صدا حتی وقتی صفحه آلارم بالا نباشد
+    private void registerHardwareStopReceiver() {
+        unregisterHardwareStopReceiver();
+        hardwareStopReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if (intent == null) return;
+                String action = intent.getAction();
+                long elapsed = SystemClock.elapsedRealtime() - alarmStartElapsedMs;
+                if (Intent.ACTION_SCREEN_OFF.equals(action) && elapsed >= 1200L) {
+                    stopAlarmAndCloseUi();
+                } else if ("android.media.VOLUME_CHANGED_ACTION".equals(action) && elapsed >= 700L) {
+                    stopAlarmAndCloseUi();
+                }
+            }
+        };
+        try {
+            IntentFilter filter = new IntentFilter();
+            filter.addAction(Intent.ACTION_SCREEN_OFF);
+            filter.addAction("android.media.VOLUME_CHANGED_ACTION");
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                registerReceiver(hardwareStopReceiver, filter, Context.RECEIVER_EXPORTED);
+            } else {
+                registerReceiver(hardwareStopReceiver, filter);
+            }
+        } catch (Exception ignored) {}
+    }
+
+    private void unregisterHardwareStopReceiver() {
+        if (hardwareStopReceiver != null) {
+            try {
+                unregisterReceiver(hardwareStopReceiver);
+            } catch (Exception ignored) {}
+            hardwareStopReceiver = null;
+        }
     }
 
     private void startAudioPlayback(
@@ -402,6 +451,7 @@ public class AdhanForegroundService extends Service {
     }
 
     private void stopAlarmAndCloseUi() {
+        unregisterHardwareStopReceiver();
         killActivePlayer(this);
         releaseWakeLocks();
         try {
@@ -417,17 +467,12 @@ public class AdhanForegroundService extends Service {
 
     private void releaseWakeLocks() {
         try {
-            if (screenWakeLock != null && screenWakeLock.isHeld()) screenWakeLock.release();
-        } catch (Exception ignored) {}
-        screenWakeLock = null;
-        try {
             if (wakeLock != null && wakeLock.isHeld()) wakeLock.release();
         } catch (Exception ignored) {}
         wakeLock = null;
     }
 
-    @SuppressWarnings("deprecation")
-    private void acquireWakeLock(boolean isLongSurah) {
+    private void acquireCpuWakeLock(boolean isLongSurah) {
         releaseWakeLocks();
         try {
             PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
@@ -435,14 +480,6 @@ public class AdhanForegroundService extends Service {
                 long cpuDurationMs = isLongSurah ? (35 * 60 * 1000L) : (6 * 60 * 1000L);
                 wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "noor:AdhanAudioCpuWakeLock");
                 wakeLock.acquire(cpuDurationMs);
-
-                try {
-                    screenWakeLock = pm.newWakeLock(
-                            PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP,
-                            "noor:AdhanScreenWakeOnce"
-                    );
-                    screenWakeLock.acquire(12_000L);
-                } catch (Exception ignored) {}
             }
         } catch (Exception ignored) {}
     }
@@ -451,10 +488,10 @@ public class AdhanForegroundService extends Service {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(
                     CHANNEL_ID,
-                    "پخش تمام‌صفحه اذان و تواشیح نور",
+                    "پخش تمام‌صفحه اذان و سوره نور",
                     NotificationManager.IMPORTANCE_HIGH
             );
-            channel.setDescription("روشن شدن صفحه قفل و پخش اذان، تواشیح قبل از اذان و تعقیبات");
+            channel.setDescription("نمایش تمام‌صفحه روی قفل گوشی و پخش اذان، تواشیح و تلاوت سوره‌ها");
             channel.setSound(null, null);
             channel.enableVibration(true);
             channel.setBypassDnd(true);
@@ -466,6 +503,7 @@ public class AdhanForegroundService extends Service {
 
     @Override
     public void onDestroy() {
+        unregisterHardwareStopReceiver();
         killActivePlayer(this);
         releaseWakeLocks();
         super.onDestroy();

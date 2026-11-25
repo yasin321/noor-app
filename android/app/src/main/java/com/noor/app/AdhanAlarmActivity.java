@@ -22,6 +22,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.TypedValue;
 import android.view.Gravity;
+import android.view.KeyEvent;
 import android.view.View;
 import android.view.WindowManager;
 import android.view.animation.LinearInterpolator;
@@ -83,6 +84,7 @@ public class AdhanAlarmActivity extends AppCompatActivity {
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
+        turnScreenOnAndUnlock();
         renderAlarmScreen(intent);
     }
 
@@ -355,7 +357,7 @@ public class AdhanAlarmActivity extends AppCompatActivity {
 
         // امضای بسیار ظریف پایین صفحه
         TextView brandFooter = new TextView(this);
-        brandFooter.setText("همراه معنوی نور");
+        brandFooter.setText("توقف سریع: فشردن دکمه‌های صدا (ولوم) یا قفل گوشی  •  همراه معنوی نور");
         brandFooter.setTextColor(Color.argb(120, 226, 232, 240));
         brandFooter.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f);
         brandFooter.setGravity(Gravity.CENTER);
@@ -622,6 +624,40 @@ public class AdhanAlarmActivity extends AppCompatActivity {
                 WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON |
                 WindowManager.LayoutParams.FLAG_FULLSCREEN
         );
+    }
+
+    private void stopPlaybackAndDismiss() {
+        try {
+            getWindow().clearFlags(
+                    WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON |
+                    WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+            );
+        } catch (Exception ignored) {}
+        AdhanForegroundService.killActivePlayer(this);
+        try {
+            Intent stopIntent = new Intent(this, AdhanAlarmReceiver.class);
+            stopIntent.setAction(AdhanAlarmReceiver.ACTION_STOP);
+            sendBroadcast(stopIntent);
+        } catch (Exception ignored) {}
+        finishAndRemoveTask();
+    }
+
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        int code = event.getKeyCode();
+        if (code == KeyEvent.KEYCODE_VOLUME_UP ||
+                code == KeyEvent.KEYCODE_VOLUME_DOWN ||
+                code == KeyEvent.KEYCODE_VOLUME_MUTE ||
+                code == KeyEvent.KEYCODE_HEADSETHOOK ||
+                code == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE ||
+                code == KeyEvent.KEYCODE_MEDIA_STOP ||
+                code == KeyEvent.KEYCODE_BACK) {
+            if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                stopPlaybackAndDismiss();
+            }
+            return true;
+        }
+        return super.dispatchKeyEvent(event);
     }
 
     @Override

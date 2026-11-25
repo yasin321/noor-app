@@ -1,5 +1,5 @@
 import { createPortal } from 'react-dom';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { BookOpen, Clock, Sparkles, BellPlus, Check, ArrowRight, Quote, Plus, Search, X, ScrollText, Star, Compass, HeartHandshake, Heart, Bookmark, Trash2 } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import {
@@ -17,6 +17,8 @@ import { loadQuranContinuity, saveQuranContinuity } from '@/lib/deenIntelligence
 import { createReminder } from '@/lib/reminderService';
 import { startSession } from '@/lib/tasbihStorage';
 import { toFaDigits } from '@/lib/jalali';
+import { toEnglishDigits } from '@/lib/authService';
+import { useBackHandler } from '@/lib/backNavigation';
 import type { Tab } from '@/components/BottomNav';
 
 type MacroGroupKey = 'all' | 'favorites' | 'bookmarks' | 'scholars' | 'quran' | 'mafatih' | 'daily';
@@ -51,6 +53,18 @@ const MACRO_GROUPS: Array<{
   },
 ];
 
+export function normalizeTargetCountInput(raw: string): string {
+  return toEnglishDigits(raw || '').replace(/[^0-9]/g, '').slice(0, 6);
+}
+
+export function resolveTargetCountInput(raw: string, fallback: number): number {
+  const digits = normalizeTargetCountInput(raw);
+  if (!digits) return Math.max(1, fallback);
+  const parsed = parseInt(digits, 10);
+  if (!Number.isFinite(parsed) || parsed < 1) return Math.max(1, fallback);
+  return Math.min(100000, parsed);
+}
+
 export function LibraryScreen({ onNavigate }: { onNavigate?: (t: Tab) => void }) {
   const { theme } = useTheme();
   const [items, setItems] = useState<Dhikr[]>(() => getAllDhikr().filter((d) => d.category !== 'quran' || d.id.startsWith('custom_')));
@@ -59,6 +73,7 @@ export function LibraryScreen({ onNavigate }: { onNavigate?: (t: Tab) => void })
   const [favIds, setFavIds] = useState<string[]>(() => getFavoriteDhikrIds());
   const [qState, setQState] = useState(() => loadQuranContinuity());
   const [userTargetCount, setUserTargetCount] = useState<number>(33);
+  const [targetCountInput, setTargetCountInput] = useState<string>('33');
   const [searchQuery, setSearchQuery] = useState('');
   const [reminderTime, setReminderTime] = useState('08:00');
   const [scheduleStatus, setScheduleStatus] = useState<string | null>(null);
@@ -69,6 +84,18 @@ export function LibraryScreen({ onNavigate }: { onNavigate?: (t: Tab) => void })
   const [customTimeNote, setCustomTimeNote] = useState('');
   const [customCount, setCustomCount] = useState('14');
   const [customCategory, setCustomCategory] = useState<DhikrCategory>('tasbih');
+
+  useEffect(() => {
+    if (selected) {
+      const initial = getCustomDhikrCount(selected.id, selected.count);
+      setUserTargetCount(initial);
+      setTargetCountInput(String(initial));
+    }
+  }, [selected]);
+
+  useBackHandler(activeGroup !== 'all' && !selected && !showAddCustom, () => setActiveGroup('all'));
+  useBackHandler(Boolean(selected) && !showAddCustom, () => setSelected(null));
+  useBackHandler(showAddCustom, () => setShowAddCustom(false));
 
   const filtered = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -127,7 +154,7 @@ export function LibraryScreen({ onNavigate }: { onNavigate?: (t: Tab) => void })
     const item = addCustomDhikr({
       arabic: customArabic,
       translation: customTranslation,
-      count: Number(customCount) || 1,
+      count: resolveTargetCountInput(customCount, 14),
       category: customCategory,
       source: customSource,
       recommendedTime: customTimeNote,
@@ -244,21 +271,91 @@ export function LibraryScreen({ onNavigate }: { onNavigate?: (t: Tab) => void })
           )}
         </div>
 
-        <div className="card-flat p-4 mb-3 flex items-center justify-between gap-2">
-          <div>
-            <p className="text-xs font-bold text-app">تعداد تکرار دلخواه شما در ذکرشمار:</p>
-            <p className="text-[10px] text-muted">تعداد پیشنهادی: {toFaDigits(selected.count)} مرتبه</p>
+        <div className="card-flat p-4 mb-3 space-y-2.5" data-no-swipe="true">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <p className="text-xs font-bold text-app">تعداد تکرار دلخواه شما در ذکرشمار:</p>
+              <p className="text-[10px] text-muted">تعداد پیشنهادی: {toFaDigits(selected.count)} مرتبه</p>
+            </div>
+            <div className="flex items-center gap-1.5" dir="ltr">
+              <button
+                type="button"
+                aria-label="کاهش تعداد"
+                onClick={() => {
+                  const next = Math.max(1, resolveTargetCountInput(targetCountInput, selected.count) - 1);
+                  setUserTargetCount(next);
+                  setTargetCountInput(String(next));
+                }}
+                className="w-8 h-9 rounded-xl border text-sm font-black flex items-center justify-center"
+                style={{ borderColor: theme.border, background: theme.bg, color: theme.text }}
+              >
+                −
+              </button>
+              <input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                aria-label="تعداد تکرار دلخواه"
+                value={targetCountInput}
+                onFocus={(e) => e.currentTarget.select()}
+                onChange={(e) => {
+                  const cleaned = normalizeTargetCountInput(e.target.value);
+                  setTargetCountInput(cleaned);
+                  if (cleaned) {
+                    const parsed = resolveTargetCountInput(cleaned, selected.count);
+                    setUserTargetCount(parsed);
+                  } else {
+                    setUserTargetCount(0);
+                  }
+                }}
+                onBlur={() => {
+                  const finalVal = resolveTargetCountInput(targetCountInput, selected.count);
+                  setUserTargetCount(finalVal);
+                  setTargetCountInput(String(finalVal));
+                }}
+                placeholder={String(selected.count)}
+                className="w-20 px-2.5 py-2 rounded-xl text-sm font-black text-center text-app border outline-none"
+                style={{ borderColor: theme.primary, background: theme.bg }}
+                dir="ltr"
+              />
+              <button
+                type="button"
+                aria-label="افزایش تعداد"
+                onClick={() => {
+                  const next = Math.min(100000, resolveTargetCountInput(targetCountInput, selected.count) + 1);
+                  setUserTargetCount(next);
+                  setTargetCountInput(String(next));
+                }}
+                className="w-8 h-9 rounded-xl border text-sm font-black flex items-center justify-center"
+                style={{ borderColor: theme.border, background: theme.bg, color: theme.text }}
+              >
+                +
+              </button>
+            </div>
           </div>
-          <input
-            type="number"
-            min={1}
-            max={10000}
-            value={userTargetCount}
-            onChange={(e) => setUserTargetCount(Math.max(1, Number(e.target.value) || selected.count))}
-            className="w-24 px-3 py-2 rounded-xl text-xs font-bold text-center text-app border outline-none"
-            style={{ borderColor: theme.border, background: theme.bg }}
-            dir="ltr"
-          />
+          <div className="flex flex-wrap gap-1.5 justify-end" dir="ltr">
+            {[14, 33, 40, 70, 100, 1000].map((presetNum) => {
+              const active = targetCountInput === String(presetNum);
+              return (
+                <button
+                  key={presetNum}
+                  type="button"
+                  onClick={() => {
+                    setUserTargetCount(presetNum);
+                    setTargetCountInput(String(presetNum));
+                  }}
+                  className="px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all"
+                  style={{
+                    borderColor: active ? theme.primary : theme.border,
+                    background: active ? theme.primary : theme.bg,
+                    color: active ? theme.bg : theme.textMuted,
+                  }}
+                >
+                  {toFaDigits(presetNum)}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <div className="card-flat p-4 mb-4 space-y-3">
@@ -292,7 +389,7 @@ export function LibraryScreen({ onNavigate }: { onNavigate?: (t: Tab) => void })
           style={{ background: theme.primary, color: theme.bg }}
         >
           <Check size={18} />
-          <span>شروع شمارش در تسبیح ({toFaDigits(userTargetCount || selected.count)} مرتبه)</span>
+          <span>شروع شمارش در تسبیح ({toFaDigits(resolveTargetCountInput(targetCountInput, selected.count))} مرتبه)</span>
         </button>
       </div>
     );
@@ -373,10 +470,12 @@ export function LibraryScreen({ onNavigate }: { onNavigate?: (t: Tab) => void })
               <div className="flex items-center gap-1.5">
                 <span className="text-xs text-muted">تعداد:</span>
                 <input
-                  type="number"
-                  min="1"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   value={customCount}
-                  onChange={(e) => setCustomCount(e.target.value)}
+                  onFocus={(e) => e.currentTarget.select()}
+                  onChange={(e) => setCustomCount(normalizeTargetCountInput(e.target.value))}
                   className="w-20 px-3 py-2.5 rounded-2xl text-xs text-app border outline-none text-center"
                   style={{ borderColor: theme.border, background: theme.bg }}
                   dir="ltr"

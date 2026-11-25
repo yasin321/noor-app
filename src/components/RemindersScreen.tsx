@@ -21,6 +21,7 @@ import {
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { useTheme } from '@/hooks/useTheme';
+import { useBackHandler } from '@/lib/backNavigation';
 import { useAuth } from '@/hooks/useAuth';
 import { useI18n, type AppLang } from '@/i18n';
 import {
@@ -213,6 +214,11 @@ export function RemindersScreen() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
   const [showMuhasaba, setShowMuhasaba] = useState(false);
+
+  useBackHandler(showMuhasaba, () => setShowMuhasaba(false));
+  useBackHandler(showAdd, () => setShowAdd(false));
+  useBackHandler(Boolean(editingReminder), () => setEditingReminder(null));
+  useBackHandler(Boolean(editingSurah), () => setEditingSurah(null));
 
   const notifEnabled = profile?.notif_enabled ?? getGuestNotifEnabled();
 

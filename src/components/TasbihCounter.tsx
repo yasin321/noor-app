@@ -21,6 +21,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
+import { useBackHandler } from '@/lib/backNavigation';
 import { useI18n } from '@/i18n';
 import { useAuth } from '@/hooks/useAuth';
 import { useTasbih } from '@/hooks/useTasbih';
@@ -158,6 +159,9 @@ export function TasbihCounter({ onNavigate }: { onNavigate?: (t: Tab) => void })
   const [celebrateBanner, setCelebrateBanner] = useState(false);
   const [sanctuaryMode, setSanctuaryMode] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
+
+  useBackHandler(sanctuaryMode, () => setSanctuaryMode(false));
+  useBackHandler(confirmReset, () => setConfirmReset(false));
   const [ripples, setRipples] = useState<TapRipple[]>([]);
   const [activeFingersCount, setActiveFingersCount] = useState(0);
   const [multiBadge, setMultiBadge] = useState<string | null>(null);

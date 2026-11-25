@@ -26,6 +26,7 @@ import {
 } from '@/lib/inboxService';
 import { logEvent } from '@/lib/logger';
 import { Capacitor } from '@capacitor/core';
+import { useBackHandler } from '@/lib/backNavigation';
 
 export function getGuestNotifEnabled(): boolean {
   try {
@@ -82,6 +83,10 @@ function AppContent() {
     }
     const t = e.touches[0];
     if (!t) return;
+    if (typeof window !== 'undefined' && (t.clientX < 28 || t.clientX > window.innerWidth - 28)) {
+      touchStartRef.current = null;
+      return;
+    }
     touchStartRef.current = { x: t.clientX, y: t.clientY, id: t.identifier, multi: false };
   };
 
@@ -173,6 +178,12 @@ function AppContent() {
     });
     return unsub;
   }, []);
+
+  useBackHandler(tab !== 'home', () => navigateTo('home'));
+  useBackHandler(showFirstTimeGuide, () => setShowFirstTimeGuide(false));
+  useBackHandler(Boolean(livePopupMsg), () => setLivePopupMsg(null));
+  useBackHandler(showBirthdayModal, () => setShowBirthdayModal(false));
+  useBackHandler(showAuth && !user, () => setShowAuth(false));
 
   if (showAuth && !user) {
     return <AuthScreen onBack={() => setShowAuth(false)} />;

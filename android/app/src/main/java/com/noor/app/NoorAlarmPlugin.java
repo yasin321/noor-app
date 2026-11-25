@@ -8,6 +8,7 @@ import android.media.AudioTrack;
 import android.media.AudioFormat;
 import android.media.AudioAttributes;
 import android.app.AlarmManager;
+import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
@@ -571,6 +572,47 @@ public class NoorAlarmPlugin extends Plugin {
         Intent stopIntent = new Intent(ctx, AdhanForegroundService.class);
         stopIntent.setAction(AdhanForegroundService.ACTION_STOP);
         ctx.startService(stopIntent);
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void checkFullScreenIntentPermission(PluginCall call) {
+        JSObject ret = new JSObject();
+        int apiLevel = Build.VERSION.SDK_INT;
+        boolean granted = true;
+        if (apiLevel >= 34) {
+            try {
+                NotificationManager nm = (NotificationManager) getContext().getSystemService(Context.NOTIFICATION_SERVICE);
+                granted = nm != null && nm.canUseFullScreenIntent();
+            } catch (Exception ignored) {
+                granted = false;
+            }
+        }
+        ret.put("granted", granted);
+        ret.put("apiLevel", apiLevel);
+        ret.put("needsSettings", apiLevel >= 34 && !granted);
+        call.resolve(ret);
+    }
+
+    @PluginMethod
+    public void openFullScreenIntentSettings(PluginCall call) {
+        try {
+            Context ctx = getContext();
+            if (Build.VERSION.SDK_INT >= 34) {
+                try {
+                    Intent intent = new Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT);
+                    intent.setData(Uri.parse("package:" + ctx.getPackageName()));
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    ctx.startActivity(intent);
+                    call.resolve();
+                    return;
+                } catch (Exception ignored) {}
+            }
+            Intent fallback = new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS);
+            fallback.putExtra(Settings.EXTRA_APP_PACKAGE, ctx.getPackageName());
+            fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            ctx.startActivity(fallback);
+        } catch (Exception ignored) {}
         call.resolve();
     }
 
