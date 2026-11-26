@@ -6,11 +6,12 @@
     android:background="@drawable/noor_widget_luxury_bg"
     android:layoutDirection="rtl"
     android:orientation="vertical"
-    android:paddingLeft="14dp"
+    android:paddingLeft="12dp"
     android:paddingTop="14dp"
-    android:paddingRight="14dp"
+    android:paddingRight="12dp"
     android:paddingBottom="14dp">
 
+    <!-- ردیف بالا: افق شهر + اذان بعدی بسیار درشت -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -32,7 +33,7 @@
                 android:maxLines="1"
                 android:text="افق شهر شما"
                 android:textColor="#34D399"
-                android:textSize="15dp"
+                android:textSize="19dp"
                 android:textStyle="bold" />
 
             <TextView
@@ -44,7 +45,7 @@
                 android:maxLines="1"
                 android:text="اذان بعدی: در حال محاسبه"
                 android:textColor="#FFFFFF"
-                android:textSize="21dp"
+                android:textSize="28dp"
                 android:textStyle="bold" />
         </LinearLayout>
 
@@ -54,10 +55,10 @@
             android:background="@drawable/noor_widget_pill_bg"
             android:gravity="center"
             android:orientation="vertical"
-            android:paddingLeft="10dp"
-            android:paddingTop="6dp"
-            android:paddingRight="10dp"
-            android:paddingBottom="6dp">
+            android:paddingLeft="12dp"
+            android:paddingTop="7dp"
+            android:paddingRight="12dp"
+            android:paddingBottom="7dp">
 
             <TextView
                 android:id="@+id/widget_day_badge"
@@ -66,7 +67,7 @@
                 android:maxLines="1"
                 android:text="اوقات امروز"
                 android:textColor="#FDE68A"
-                android:textSize="13dp"
+                android:textSize="16dp"
                 android:textStyle="bold" />
 
             <TextView
@@ -78,45 +79,58 @@
                 android:maxLines="1"
                 android:text="همراه معنوی نور"
                 android:textColor="#A7F3D0"
-                android:textSize="12dp" />
+                android:textSize="14dp"
+                android:textStyle="bold" />
         </LinearLayout>
     </LinearLayout>
 
+    <!-- ردیف اول اوقات: صبح · طلوع · ظهر (فونت ۲برابر درشت) -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="13dp"
-        android:layout_marginBottom="13dp"
+        android:layout_marginTop="12dp"
         android:baselineAligned="false"
         android:orientation="horizontal"
-        android:weightSum="5">
+        android:weightSum="3">
 
         <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:orientation="vertical">
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:maxLines="1" android:text="صبح" android:textColor="#A7F3D0" android:textSize="13.5dp" android:textStyle="bold" />
-            <TextView android:id="@+id/widget_time_fajr" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:maxLines="1" android:text="۰۴:۵۵" android:textColor="#FDE68A" android:textSize="17dp" android:textStyle="bold" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:maxLines="1" android:text="اذان صبح" android:textColor="#A7F3D0" android:textSize="17dp" android:textStyle="bold" />
+            <TextView android:id="@+id/widget_time_fajr" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="3dp" android:maxLines="1" android:text="۰۴:۵۵" android:textColor="#FDE68A" android:textSize="24dp" android:textStyle="bold" />
         </LinearLayout>
 
         <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:orientation="vertical">
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:maxLines="1" android:text="طلوع" android:textColor="#A7F3D0" android:textSize="13.5dp" android:textStyle="bold" />
-            <TextView android:id="@+id/widget_time_sunrise" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:maxLines="1" android:text="۰۶:۲۰" android:textColor="#FFFFFF" android:textSize="17dp" android:textStyle="bold" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:maxLines="1" android:text="طلوع آفتاب" android:textColor="#A7F3D0" android:textSize="17dp" android:textStyle="bold" />
+            <TextView android:id="@+id/widget_time_sunrise" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="3dp" android:maxLines="1" android:text="۰۶:۲۰" android:textColor="#FFFFFF" android:textSize="24dp" android:textStyle="bold" />
         </LinearLayout>
 
         <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:orientation="vertical">
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:maxLines="1" android:text="ظهر" android:textColor="#A7F3D0" android:textSize="13.5dp" android:textStyle="bold" />
-            <TextView android:id="@+id/widget_time_dhuhr" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:maxLines="1" android:text="۱۱:۵۰" android:textColor="#FDE68A" android:textSize="17dp" android:textStyle="bold" />
-        </LinearLayout>
-
-        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:orientation="vertical">
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:maxLines="1" android:text="مغرب" android:textColor="#A7F3D0" android:textSize="13.5dp" android:textStyle="bold" />
-            <TextView android:id="@+id/widget_time_maghrib" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:maxLines="1" android:text="۱۷:۲۵" android:textColor="#FDE68A" android:textSize="17dp" android:textStyle="bold" />
-        </LinearLayout>
-
-        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:orientation="vertical">
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:maxLines="1" android:text="نیمه‌شب" android:textColor="#A7F3D0" android:textSize="13dp" android:textStyle="bold" />
-            <TextView android:id="@+id/widget_time_midnight" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:maxLines="1" android:text="۲۳:۰۵" android:textColor="#FFFFFF" android:textSize="17dp" android:textStyle="bold" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:maxLines="1" android:text="اذان ظهر" android:textColor="#A7F3D0" android:textSize="17dp" android:textStyle="bold" />
+            <TextView android:id="@+id/widget_time_dhuhr" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="3dp" android:maxLines="1" android:text="۱۱:۵۰" android:textColor="#FDE68A" android:textSize="24dp" android:textStyle="bold" />
         </LinearLayout>
     </LinearLayout>
 
+    <!-- ردیف دوم اوقات: مغرب · نیمه‌شب شرعی -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:layout_marginBottom="12dp"
+        android:baselineAligned="false"
+        android:orientation="horizontal"
+        android:weightSum="2">
+
+        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:orientation="vertical">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:maxLines="1" android:text="اذان مغرب" android:textColor="#A7F3D0" android:textSize="17dp" android:textStyle="bold" />
+            <TextView android:id="@+id/widget_time_maghrib" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="3dp" android:maxLines="1" android:text="۱۷:۲۵" android:textColor="#FDE68A" android:textSize="24dp" android:textStyle="bold" />
+        </LinearLayout>
+
+        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:orientation="vertical">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:maxLines="1" android:text="نیمه‌شب شرعی" android:textColor="#A7F3D0" android:textSize="17dp" android:textStyle="bold" />
+            <TextView android:id="@+id/widget_time_midnight" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="3dp" android:maxLines="1" android:text="۲۳:۰۵" android:textColor="#FFFFFF" android:textSize="24dp" android:textStyle="bold" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- نوار ذکر هوشمند با فونت درشت -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -124,9 +138,9 @@
         android:gravity="center"
         android:orientation="vertical"
         android:paddingLeft="12dp"
-        android:paddingTop="9dp"
+        android:paddingTop="10dp"
         android:paddingRight="12dp"
-        android:paddingBottom="9dp">
+        android:paddingBottom="10dp">
 
         <TextView
             android:id="@+id/widget_dynamic_dhikr"
@@ -137,7 +151,7 @@
             android:maxLines="2"
             android:text="ذکر امروز: اللَّهُمَّ صَلِّ عَلَى مُحَمَّدٍ وَآلِ مُحَمَّدٍ وَعَجِّلْ فَرَجَهُمْ"
             android:textColor="#FEF08A"
-            android:textSize="14.5dp"
+            android:textSize="18dp"
             android:textStyle="bold" />
     </LinearLayout>
 </LinearLayout>

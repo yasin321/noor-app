@@ -37,11 +37,17 @@ describe('Final Release Gate — Offline Defaults, Quran Zarrab, Large Widget & 
       path.join(process.cwd(), 'android/app/src/main/res/layout/noor_prayer_widget.xml'),
       'utf8'
     );
-    expect(xml).toContain('android:textSize="21dp"');
-    expect(xml).toContain('android:textSize="17dp"');
+    expect(xml).toContain('android:textSize="28dp"');
+    expect(xml).toContain('android:textSize="24dp"');
 
     const home = fs.readFileSync(path.join(process.cwd(), 'src/components/HomeScreen.tsx'), 'utf8');
     expect(home).toContain('NoorAlarm.updatePrayerWidget');
+    const pluginJava = fs.readFileSync(
+      path.join(process.cwd(), 'android/app/src/main/java/com/noor/app/NoorAlarmPlugin.java'),
+      'utf8'
+    );
+    expect(pluginJava).toContain('FusedOrientationProviderClient');
+    expect(pluginJava).toContain('getHeadingDegrees');
   });
 
   it('computes valid offline Sun/Moon azimuth for magnetometer-less phones & keeps medium scale symmetric', () => {

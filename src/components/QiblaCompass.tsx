@@ -30,6 +30,7 @@ interface NativeCompassEvent {
   mode?: string;
   isMagnetic?: boolean;
   isRelativeGyro?: boolean;
+  sensorSummary?: string;
 }
 
 interface NativeCompassBridge {
@@ -46,6 +47,8 @@ interface NativeCompassBridge {
     hasRotVec?: boolean;
     hasGeoRot?: boolean;
     hasGameRot?: boolean;
+    fopActive?: boolean;
+    sensorSummary?: string;
   }>;
   stopCompass(): Promise<void>;
   getCompassSnapshot(): Promise<{
@@ -65,6 +68,8 @@ interface NativeCompassBridge {
     hasRotVec: boolean;
     hasGeoRot?: boolean;
     hasGameRot?: boolean;
+    fopActive?: boolean;
+    sensorSummary?: string;
   }>;
   addListener(
     eventName: 'compassHeading',
@@ -340,6 +345,7 @@ export function QiblaCompass(props: QiblaCompassProps) {
   const [mapZoom, setMapZoom] = useState<number>(16);
   const [sensorMode, setSensorMode] = useState<'magnetic' | 'gyro_relative' | 'celestial_manual'>('celestial_manual');
   const [hardwareNoMag, setHardwareNoMag] = useState(false);
+  const [sensorSummary, setSensorSummary] = useState<string>('');
   const [needsIosPermission, setNeedsIosPermission] = useState(false);
   const [isAligned, setIsAligned] = useState(false);
   const [stability, setStability] = useState<'high' | 'medium' | 'low'>('high');
@@ -609,6 +615,7 @@ export function QiblaCompass(props: QiblaCompassProps) {
         });
         if (disposed) return;
 
+        if (res?.sensorSummary) setSensorSummary(res.sensorSummary);
         if (!res || !res.available || res.mode === 'no_magnetometer') {
           setHardwareNoMag(true);
           setSensorMode('celestial_manual');
@@ -627,6 +634,7 @@ export function QiblaCompass(props: QiblaCompassProps) {
           void NoorCompass.getCompassSnapshot()
             .then((snap) => {
               if (disposed || pushReceived || !snap) return;
+              if (snap.sensorSummary) setSensorSummary(snap.sensorSummary);
               if (snap.hasSample) {
                 nativeStreamActiveRef.current = true;
                 feedCompassSample(
@@ -1387,7 +1395,7 @@ export function QiblaCompass(props: QiblaCompassProps) {
                 {sensorMode === 'gyro_relative'
                   ? 'حالت ژیروسکوپ زنده فعال است: بالای گوشی را به سمت ' + celestial.labelFa + ' بگیرید و دکمه هم‌ترازی را بزنید تا با چرخش دست، قبله دقیق نشان داده شود.'
                   : hardwareNoMag
-                  ? 'این گوشی تراشه مغناطیس‌سنج ندارد — از هم‌ترازی دقیق ' + celestial.labelFa + '، GPS حرکتی یا نقشه قبله استفاده کنید:'
+                  ? 'تراشه مغناطیس‌سنج روی این گوشی وجود ندارد' + (sensorSummary ? ' (سنسور موجود: ' + sensorSummary + ')' : '') + ' — از هم‌ترازی دقیق ' + celestial.labelFa + '، GPS حرکتی یا نقشه قبله استفاده کنید:'
                   : 'با کشیدن انگشت روی قطب‌نما یا هم‌ترازی ' + celestial.labelFa + ' جهت قبله را دقیق ببینید:'}
               </div>
 
