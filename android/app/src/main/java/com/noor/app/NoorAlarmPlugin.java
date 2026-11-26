@@ -819,7 +819,15 @@ public class NoorAlarmPlugin extends Plugin {
             final Sensor rotSensor = sm.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR);
             final Sensor geoRotSensor = sm.getDefaultSensor(Sensor.TYPE_GEOMAGNETIC_ROTATION_VECTOR);
             final Sensor accelSensor = sm.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
-            final Sensor magSensor = sm.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
+            Sensor magSensorTmp = sm.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
+            if (magSensorTmp == null) {
+                try {
+                    java.util.List<Sensor> magList = sm.getSensorList(Sensor.TYPE_MAGNETIC_FIELD);
+                    if (magList != null && !magList.isEmpty()) magSensorTmp = magList.get(0);
+                } catch (Exception ignored) {}
+            }
+            final Sensor magSensor = magSensorTmp;
+            final Sensor gameRotSensor = sm.getDefaultSensor(Sensor.TYPE_GAME_ROTATION_VECTOR);
             final Sensor uncalMagSensor = sm.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD_UNCALIBRATED);
             final Sensor gyroSensor = sm.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
             final Sensor legacyOrientSensor = sm.getDefaultSensor(Sensor.TYPE_ORIENTATION);
@@ -875,7 +883,7 @@ public class NoorAlarmPlugin extends Plugin {
                         headingReady = true;
                     } else {
                         boolean matrixReady = false;
-                        if (type == Sensor.TYPE_ROTATION_VECTOR || type == Sensor.TYPE_GEOMAGNETIC_ROTATION_VECTOR) {
+                        if (type == Sensor.TYPE_ROTATION_VECTOR || type == Sensor.TYPE_GEOMAGNETIC_ROTATION_VECTOR || type == Sensor.TYPE_GAME_ROTATION_VECTOR) {
                             try {
                                 if (event.values.length > 4) {
                                     System.arraycopy(event.values, 0, truncatedRot, 0, 4);

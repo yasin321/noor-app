@@ -38,6 +38,7 @@ import {
   type SurahAlarmRecord,
 } from '@/lib/surahAlarmService';
 import { toFaDigits, toJalaliShort } from '@/lib/jalali';
+import { ZARRAB_SURAH_NUMBER, ZARRAB_ESFAHANI_PHRASES } from '@/lib/zarrabEsfahaniData';
 
 interface Props {
   initialMode?: 'quran' | 'muhasaba';
@@ -60,6 +61,18 @@ export interface SelectedSurahInfo {
 }
 
 export const CURATED_SURAHS: SelectedSurahInfo[] = [
+  {
+    number: ZARRAB_SURAH_NUMBER,
+    nameFa: 'صلوات ابوالحسن ضراب اصفهانی',
+    shortLabel: 'صلوات ضراب',
+    revelationPlace: 'مدنی',
+    revelationIcon: '✨',
+    ayahCount: ZARRAB_ESFAHANI_PHRASES.length,
+    virtueFa: 'عمل ویژه عصر جمعه در مفاتیح‌الجنان (مأثور از امام زمان عج) — با نوای استاد محسن فرهمند آزاد و ترجمه استاد انصاریان',
+    bestTimeFa: 'عصر روز جمعه (پس از نماز عصر تا غروب آفتاب)',
+    hadithSourceFa: 'مفاتیح‌الجنان · اعمال عصر جمعه (مصباح‌المتهجد شیخ طوسی)',
+    parhizgarSurahUrl: '/adhans/post_zarrab_esfahani.mp3',
+  },
   {
     number: 56,
     nameFa: 'سوره مبارکه واقعه',
@@ -342,6 +355,7 @@ export function QuranAndMuhasabaModal({
       audioRef.current.onloadedmetadata = null;
       audioRef.current.oncanplay = null;
       audioRef.current.onplay = null;
+      audioRef.current.ontimeupdate = null;
       try {
         audioRef.current.pause();
       } catch {}
@@ -380,6 +394,11 @@ export function QuranAndMuhasabaModal({
     let active = true;
     stopSurahAudio();
     setLoadingSurah(true);
+    if (currentSurah.number === ZARRAB_SURAH_NUMBER) {
+      setAyahs(ZARRAB_ESFAHANI_PHRASES);
+      setLoadingSurah(false);
+      return () => { active = false; };
+    }
     fetchSurahAyahs(currentSurah.number, undefined, lang).then((list) => {
       if (!active) return;
       const cleaned = list.map((item) => ({
@@ -580,6 +599,71 @@ export function QuranAndMuhasabaModal({
             playAyahStep(ayahNum, urlIndex + 1);
           });
       };
+
+      if (surahNum === ZARRAB_SURAH_NUMBER) {
+        const totalPhrases = Math.max(1, ZARRAB_ESFAHANI_PHRASES.length);
+        const startIdx = Math.max(1, Math.min(totalPhrases, startAyah));
+        setIsOfflineSingleTrack(false);
+        setPlayingAyahNumber(startIdx);
+        updateQuranPosition(surahNum, startIdx);
+
+        player.onended = null;
+        player.onerror = null;
+        player.onloadedmetadata = null;
+        player.oncanplay = null;
+        player.onplay = null;
+        player.ontimeupdate = null;
+
+        player.src = '/adhans/post_zarrab_esfahani.mp3';
+        applyAudioPlaybackRate(player, playbackRateRef.current);
+
+        player.onloadedmetadata = () => {
+          if (playSessionTokenRef.current !== myToken) return;
+          applyAudioPlaybackRate(player, playbackRateRef.current);
+          if (startIdx > 1 && Number.isFinite(player.duration) && player.duration > 0) {
+            try {
+              player.currentTime = ((startIdx - 1) / totalPhrases) * player.duration;
+            } catch {}
+          }
+        };
+        player.onplay = () => {
+          if (playSessionTokenRef.current === myToken) {
+            applyAudioPlaybackRate(player, playbackRateRef.current);
+          }
+        };
+        player.ontimeupdate = () => {
+          if (playSessionTokenRef.current !== myToken || !isPlayingRef.current) return;
+          if (!Number.isFinite(player.duration) || player.duration <= 0) return;
+          const ratio = Math.max(0, Math.min(0.9999, player.currentTime / player.duration));
+          const computedPhrase = Math.min(totalPhrases, Math.max(1, Math.floor(ratio * totalPhrases) + 1));
+          setPlayingAyahNumber((prev) => {
+            if (prev !== computedPhrase) {
+              updateQuranPosition(surahNum, computedPhrase);
+            }
+            return computedPhrase;
+          });
+        };
+        player.onended = () => {
+          if (playSessionTokenRef.current === myToken) {
+            stopSurahAudio();
+            showToast('قرائت صلوات ابوالحسن ضراب اصفهانی به پایان رسید');
+          }
+        };
+        player.onerror = () => {
+          if (playSessionTokenRef.current === myToken) {
+            stopSurahAudio();
+            showToast('پخش صوتی ممکن نشد.');
+          }
+        };
+        player.play().then(() => {
+          if (playSessionTokenRef.current === myToken) {
+            applyAudioPlaybackRate(player, playbackRateRef.current);
+          }
+        }).catch(() => {
+          if (playSessionTokenRef.current === myToken) stopSurahAudio();
+        });
+        return;
+      }
 
       playAyahStep(Math.max(1, startAyah), 0);
     },

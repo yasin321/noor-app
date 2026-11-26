@@ -315,10 +315,9 @@ function getDynamicDailyHourlySuggestion(now: Date): DailyHourlySuggestion {
         badgeFa: 'پیشنهاد ویژه عصر جمعه · مفاتیح‌الجنان (مأثور از امام زمان عج)',
         titleFa: 'صلوات ابوالحسن ضراب اصفهانی (با نوای استاد محسن فرهمند)',
         arabicFa: 'اللَّهُمَّ صَلِّ عَلَى مُحَمَّدٍ سَيِّدِ الْمُرْسَلِينَ وَخَاتَمِ النَّبِيِّينَ',
-        actionType: 'dhikr',
-        dhikrId: 'salawat_zarrab_esfahani',
-        targetCount: 1,
-        ctaLabel: '▶ قرائت و ذکر عصر جمعه',
+        actionType: 'surah',
+        surahNumber: 115,
+        ctaLabel: '📖 قرائت و پخش صوت',
       };
     }
     return {
@@ -512,6 +511,7 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
 
   const cityDisplayLabel = getCityDisplayName(city, lang);
 
+
   // مکان‌یابی دقیق جهانی GPS با الگوریتم Haversine و حفظ منطقه زمانی واقعی شهر
   const autoDetectLocationNow = async () => {
     setLocatingGps(true);
@@ -588,6 +588,31 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
     remaining: nextPrayerInfo?.remaining ?? (lang === 'fa' ? '۱س ۳۰د' : '1h 30m'),
     progress: (nextPrayerInfo as { progress?: number } | null)?.progress ?? 55,
   };
+
+  // همگام‌سازی خودکار اوقات واقعی شهر با ویجت صفحه اصلی اندروید
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform() || !times || !nextPrayer) return;
+    const prayerNameMap: Record<string, string> = {
+      fajr: 'اذان صبح',
+      sunrise: 'طلوع آفتاب',
+      dhuhr: 'اذان ظهر',
+      asr: 'اذان عصر',
+      maghrib: 'اذان مغرب',
+      isha: 'اذان عشاء',
+      midnight: 'نیمه‌شب شرعی',
+    };
+    const nextLabel = prayerNameMap[nextPrayer.key] || nextPrayer.nameLabel || 'اذان بعدی';
+    void NoorAlarm.updatePrayerWidget({
+      titleText: 'افق ' + cityDisplayLabel,
+      nextPrayerText: nextLabel + ': ' + toFaDigits(nextPrayer.time || ''),
+      subtitleText: toFaDigits(cityDisplayLabel),
+      fajr: toFaDigits(times.fajr || ''),
+      sunrise: toFaDigits(times.sunrise || ''),
+      dhuhr: toFaDigits(times.dhuhr || ''),
+      maghrib: toFaDigits(times.maghrib || ''),
+      midnight: toFaDigits(times.midnight || ''),
+    }).catch(() => {});
+  }, [cityDisplayLabel, times, nextPrayer]);
 
   const scheduleNativeLockscreenAdhanForPrayer = async (
     prayerKey: string,

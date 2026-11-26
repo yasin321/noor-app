@@ -112,6 +112,64 @@ function shortestDelta(fromDeg: number, toDegVal: number): number {
   return ((toDegVal - fromDeg + 540) % 360) - 180;
 }
 
+// محاسبه نجومی زاویه دقیق خورشید (در روز) و ماه (در شب) — ۱۰۰٪ آفلاین برای گوشی‌های فاقد مغناطیس‌سنج
+export function calculateCelestialAzimuth(
+  latDeg: number,
+  lngDeg: number,
+  date: Date = new Date()
+): { body: 'sun' | 'moon'; labelFa: string; azimuthDeg: number; altitudeDeg: number } {
+  const rad = Math.PI / 180;
+  const deg = 180 / Math.PI;
+  const jd = date.getTime() / 86400000 + 2440587.5;
+  const d = jd - 2451545.0;
+
+  const g = (357.529 + 0.98560028 * d) * rad;
+  const q = 280.459 + 0.98564736 * d;
+  const L = (q + 1.915 * Math.sin(g) + 0.02 * Math.sin(2 * g)) * rad;
+  const e = (23.439 - 0.00000036 * d) * rad;
+  const raSun = Math.atan2(Math.cos(e) * Math.sin(L), Math.cos(L));
+  const decSun = Math.asin(Math.sin(e) * Math.sin(L));
+
+  const gmst = (18.697374558 + 24.06570982441908 * d) % 24;
+  const lst = ((gmst * 15 + lngDeg) % 360 + 360) % 360;
+  const phi = latDeg * rad;
+
+  const haSun = ((lst - raSun * deg + 540) % 360 - 180) * rad;
+  const altSun = Math.asin(
+    Math.max(-1, Math.min(1, Math.sin(phi) * Math.sin(decSun) + Math.cos(phi) * Math.cos(decSun) * Math.cos(haSun)))
+  );
+  const azSun = (Math.atan2(-Math.sin(haSun), Math.tan(decSun) * Math.cos(phi) - Math.sin(phi) * Math.cos(haSun)) * deg + 360) % 360;
+
+  if (altSun * deg > -2) {
+    return {
+      body: 'sun',
+      labelFa: 'خورشید',
+      azimuthDeg: Math.round(azSun),
+      altitudeDeg: Math.round(altSun * deg),
+    };
+  }
+
+  const Lmoon = (218.316 + 13.176396 * d) * rad;
+  const Mmoon = (134.963 + 13.064993 * d) * rad;
+  const Fmoon = (93.272 + 13.22935 * d) * rad;
+  const lonM = Lmoon + 6.289 * rad * Math.sin(Mmoon);
+  const latM = 5.128 * rad * Math.sin(Fmoon);
+  const raMoon = Math.atan2(Math.sin(lonM) * Math.cos(e) - Math.tan(latM) * Math.sin(e), Math.cos(lonM));
+  const decMoon = Math.asin(Math.sin(latM) * Math.cos(e) + Math.cos(latM) * Math.sin(e) * Math.sin(lonM));
+  const haMoon = ((lst - raMoon * deg + 540) % 360 - 180) * rad;
+  const altMoon = Math.asin(
+    Math.max(-1, Math.min(1, Math.sin(phi) * Math.sin(decMoon) + Math.cos(phi) * Math.cos(decMoon) * Math.cos(haMoon)))
+  );
+  const azMoon = (Math.atan2(-Math.sin(haMoon), Math.tan(decMoon) * Math.cos(phi) - Math.sin(phi) * Math.cos(haMoon)) * deg + 360) % 360;
+
+  return {
+    body: 'moon',
+    labelFa: 'ماه',
+    azimuthDeg: Math.round(azMoon),
+    altitudeDeg: Math.round(altMoon * deg),
+  };
+}
+
 function cardinalLabelFa(deg: number): string {
   const d = normalize360(deg);
   if (d >= 337.5 || d < 22.5) return 'شمال';
@@ -235,7 +293,12 @@ export function QiblaCompass(props: QiblaCompassProps) {
     [locationInfo.lat, locationInfo.lng]
   );
 
-  const distanceKm = useMemo(
+  const celestial = useMemo(
+    () => calculateCelestialAzimuth(locationInfo.lat, locationInfo.lng, new Date()),
+    [locationInfo.lat, locationInfo.lng]
+  );
+
+    const distanceKm = useMemo(
     () => calculateDistanceToKaabaKm(locationInfo.lat, locationInfo.lng),
     [locationInfo.lat, locationInfo.lng]
   );
@@ -931,7 +994,7 @@ export function QiblaCompass(props: QiblaCompassProps) {
               <div className="flex items-center justify-between text-[11px]">
                 <span className="text-amber-200 font-bold">
                   {hardwareUnsupported
-                    ? 'این مدل گوشی سخت‌افزار مغناطیس‌سنج (قطب‌نما) ندارد — از زاویه دقیق و راهنما استفاده کنید'
+                    ? 'این گوشی تراشه مغناطیس‌سنج ندارد — از قبله‌یاب نجومی (خورشید/ماه) یا نقشه زیر استفاده کنید'
                     : `در انتظار دریافت سنسور${sensorDiagText ? ' (' + sensorDiagText + ')' : ''}`}
                 </span>
                 <span className="text-emerald-200 font-black">{toFaDigits(manualPreviewDeg)}°</span>
@@ -945,6 +1008,37 @@ export function QiblaCompass(props: QiblaCompassProps) {
                 aria-label="چرخش آزمایشی قطب‌نما"
                 className="w-full accent-amber-400 cursor-pointer"
               />
+                <div className="grid grid-cols-2 gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setManualPreviewDeg(celestial.azimuthDeg);
+                      props.onToast?.('بالای گوشی را به سمت ' + celestial.labelFa + ' واقعی بگیرید؛ عقربه طلایی دقیقاً قبله است.');
+                    }}
+                    className="py-2 px-2.5 rounded-xl text-[11px] font-black border text-center transition-transform active:scale-95"
+                    style={{
+                      background: 'rgba(251, 191, 36, 0.16)',
+                      borderColor: 'rgba(251, 191, 36, 0.5)',
+                      color: '#FEF08A',
+                    }}
+                  >
+                    هم‌ترازی با {celestial.labelFa} ({toFaDigits(celestial.azimuthDeg)}°)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      window.open('https://qiblafinder.withgoogle.com/', '_blank', 'noopener,noreferrer');
+                    }}
+                    className="py-2 px-2.5 rounded-xl text-[11px] font-black border text-center transition-transform active:scale-95"
+                    style={{
+                      background: 'rgba(16, 185, 129, 0.16)',
+                      borderColor: 'rgba(52, 211, 153, 0.48)',
+                      color: '#A7F3D0',
+                    }}
+                  >
+                    قبله‌یاب روی نقشه
+                  </button>
+                </div>
             </div>
           )}
 

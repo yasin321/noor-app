@@ -97,6 +97,12 @@ export const SURAH_NATIVE_AUDIO_MAP: Record<number, SurahAudioDescriptor> = {
     remoteUrl: 'https://server8.mp3quran.net/afs/097.mp3',
     fallbackUrl: 'https://download.quranicaudio.com/quran/mishaari_raashid_al_3afaasee/097.mp3',
   },
+  115: {
+    adhanId: 'post_zarrab_esfahani',
+    bundledPath: '/adhans/post_zarrab_esfahani.mp3',
+    remoteUrl: 'https://file.erfan.ir/files/sound/mafatih/1489_1.mp3',
+    fallbackUrl: 'https://file.erfan.ir/files/sound/mafatih/1489_1.mp3',
+  },
   112: {
     adhanId: 'full_surah_112',
     remoteUrl: 'https://server8.mp3quran.net/afs/112.mp3',
