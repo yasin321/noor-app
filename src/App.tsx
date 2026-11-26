@@ -45,7 +45,7 @@ function AppContent() {
   const FIRST_RUN_TUTORIAL_KEY = 'noor_tutorial_seen_v1';
   const [showFirstTimeGuide, setShowFirstTimeGuide] = useState<boolean>(() => {
     try {
-      return localStorage.getItem(FIRST_RUN_TUTORIAL_KEY) !== '1';
+      return localStorage.getItem(FIRST_RUN_TUTORIAL_KEY) !== '1' && localStorage.getItem(FIRST_RUN_TUTORIAL_KEY) !== 'true';
     } catch {
       return false;
     }

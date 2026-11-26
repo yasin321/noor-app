@@ -9,7 +9,7 @@ async function expectNoHorizontalOverflow(page: Page) {
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
-    localStorage.setItem('noor_tutorial_seen_v1', 'true');
+    localStorage.setItem('noor_tutorial_seen_v1', '1');
     localStorage.setItem('noor_notif_onboarding_prompted_v1', 'true');
   });
 });
