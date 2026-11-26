@@ -9,6 +9,8 @@ export type HeroCategoryKey =
   | 'prayer_times'
   | 'occ_ramadan_mahdi'
   | 'muharram_safar'
+  | 'iranian_occasions'
+  | 'nature_cosmos'
   | 'islamic_arch';
 
 export interface HeroArtDesign {
@@ -37,13 +39,15 @@ export interface HeroArtDesign {
   isFeatured?: boolean;
 }
 
-export const HERO_RELIGIOUS_CATEGORIES: { id: HeroCategoryKey; labelFa: string; icon: string }[] = [
-  { id: 'all', labelFa: 'همه (۲۵)', icon: '✨' },
-  { id: 'shrines', labelFa: 'حرم‌های مطهر', icon: '🕋' },
-  { id: 'prayer_times', labelFa: 'اوقات نماز', icon: '🕌' },
-  { id: 'occ_ramadan_mahdi', labelFa: 'رمضان و اعیاد', icon: '🌙' },
-  { id: 'muharram_safar', labelFa: 'محرم و صفر', icon: '🏴' },
-  { id: 'islamic_arch', labelFa: 'مساجد و شهرها', icon: '🏛️' },
+export const HERO_RELIGIOUS_CATEGORIES: { id: HeroCategoryKey; labelFa: string }[] = [
+  { id: 'all', labelFa: 'همه (۴۰)' },
+  { id: 'shrines', labelFa: 'حرم‌های مطهر' },
+  { id: 'nature_cosmos', labelFa: 'طبیعت و کیهان' },
+  { id: 'iranian_occasions', labelFa: 'آیین‌های ایرانی' },
+  { id: 'occ_ramadan_mahdi', labelFa: 'رجب، شعبان و رمضان' },
+  { id: 'prayer_times', labelFa: 'اوقات نماز' },
+  { id: 'muharram_safar', labelFa: 'محرم و صفر' },
+  { id: 'islamic_arch', labelFa: 'مساجد و شهرها' },
 ];
 
 export const HERO_30_DESIGNS: HeroArtDesign[] = [
@@ -223,7 +227,7 @@ export const HERO_30_DESIGNS: HeroArtDesign[] = [
     hasMoon: true,
   },
 
-  // === ۳. رمضان، جمعه مهدوی و اعیاد اسلامی (occ_ramadan_mahdi) ===
+  // === ۳. رجب، شعبان، رمضان، جمعه مهدوی و اعیاد اسلامی (occ_ramadan_mahdi) ===
   {
     id: 'occ_friday_mahdi',
     order: 11,
@@ -247,7 +251,7 @@ export const HERO_30_DESIGNS: HeroArtDesign[] = [
     titleFa: '۱۲. ضیافت ماه رمضان',
     subtitleFa: 'حال‌وهوای تلاوت قرآن و انس با کتاب خدا در ماه رمضان',
     dhikrFa: 'شَهْرُ رَمَضَانَ الَّذِي أُنْزِلَ فِيهِ الْقُرْآنُ — اللَّهُمَّ رَبَّ شَهْرِ رَمَضَانَ',
-    usageGuideFa: 'مناسب برای کل ماه مبارک رمضان، افطار، سحر و دعای افتتاح و ابوحمزه',
+    usageGuideFa: 'مناسب برای کل ماه مبارک رمضان، تلاوت روزانه و دعای افتتاح',
     category: 'occ_ramadan_mahdi',
     skyTop: '#06152D',
     skyMid: '#0F2C59',
@@ -282,7 +286,7 @@ export const HERO_30_DESIGNS: HeroArtDesign[] = [
     titleFa: '۱۴. عید غدیر و اعیاد',
     subtitleFa: 'چراغانی طلایی و باشکوه حرم در جشن ولایت و اعیاد اسلامی',
     dhikrFa: 'الْحَمْدُ لِلَّهِ الَّذِي جَعَلَنَا مِنَ الْمُتَمَسِّكِينَ بِوِلاَيَةِ أَمِيرِ الْمُؤْمِنِينَ وَ الأَئِمَّةِ (ع)',
-    usageGuideFa: 'مناسب برای عید غدیر، عید فطر، مبعث، میلاد ائمه اطهار (ع) و اعیاد شعبانیه',
+    usageGuideFa: 'مناسب برای عید غدیر، عید فطر، مبعث و میلاد ائمه اطهار (ع)',
     category: 'occ_ramadan_mahdi',
     skyTop: '#05261F',
     skyMid: '#0C5242',
@@ -384,7 +388,7 @@ export const HERO_30_DESIGNS: HeroArtDesign[] = [
     titleFa: '۲۰. مسجد نصیرالملک شیراز',
     subtitleFa: 'تلالو نور صبحگاهی از شیشه‌های هفت‌رنگ بر فرش سجده‌گاه',
     dhikrFa: 'سُبْحَانَ رَبِّيَ الْأَعْلَى وَ بِحَمْدِهِ — اللَّهُمَّ نَوِّرْ قُلُوبَنَا بِالْقُرْآنِ',
-    usageGuideFa: 'مناسب برای نمازهای صبحگاهی و علاقه‌مندان به معماری رنگین‌کمانی شیراز',
+    usageGuideFa: 'تصویر پیش‌فرض نور؛ مناسب برای نمازهای صبحگاهی و معماری رنگین‌کمانی شیراز',
     category: 'islamic_arch',
     skyTop: '#091E1C',
     skyMid: '#134742',
@@ -479,9 +483,255 @@ export const HERO_30_DESIGNS: HeroArtDesign[] = [
     archType: 'shrine_gold',
     hasStars: true,
   },
+
+  // === ۶. آیین‌های سنتی و فصلی ایران (iranian_occasions) ===
+  {
+    id: 'occ_iran_nowruz',
+    order: 26,
+    titleFa: '۲۶. نوروز و هفت‌سین بهاری',
+    subtitleFa: 'آغاز بهار طبیعت و سال نو ایرانی با دعای تحویل سال',
+    dhikrFa: 'يَا مُقَلِّبَ الْقُلُوبِ وَ الْأَبْصَارِ، يَا مُدَبِّرَ اللَّيْلِ وَ النَّهَارِ، حَوِّلْ حَالَنَا إِلَى أَحْسَنِ الْحَالِ',
+    usageGuideFa: 'نمایش خودکار در ایام عید نوروز (۱ تا ۱۲ فروردین) و طراوت بهاری',
+    category: 'iranian_occasions',
+    skyTop: '#062619',
+    skyMid: '#0F4D34',
+    skyBottom: '#1C7852',
+    accent: '#4ADE80',
+    glow: 'rgba(74, 222, 128, 0.45)',
+    archType: 'mahdi_dawn',
+    hasBirds: true,
+  },
+  {
+    id: 'occ_iran_chaharshanbe',
+    order: 27,
+    titleFa: '۲۷. چهارشنبه‌سوری و آیین نور',
+    subtitleFa: 'آیین کهن آخرین چهارشنبه سال و استقبال از بهار',
+    dhikrFa: 'رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَ فِي الْآخِرَةِ حَسَنَةً — اللَّهُمَّ بَارِكْ لَنَا فِي خِتَامِ عَامِنَا',
+    usageGuideFa: 'نمایش خودکار در شب چهارشنبه‌سوری (آخرین سه‌شنبه اسفند هر سال)',
+    category: 'iranian_occasions',
+    skyTop: '#1F0C05',
+    skyMid: '#4A1D0A',
+    skyBottom: '#783210',
+    accent: '#FB923C',
+    glow: 'rgba(251, 146, 60, 0.48)',
+    archType: 'ramadan_lanterns',
+    hasStars: true,
+  },
+  {
+    id: 'occ_iran_sizdah_bedar',
+    order: 28,
+    titleFa: '۲۸. سیزده‌به‌در و روز طبیعت',
+    subtitleFa: 'دشت سرسبز بهاری و شکرگزاری از نعمت طبیعت ایران',
+    dhikrFa: 'سُبْحَانَ الَّذِي خَلَقَ الْأَزْوَاجَ كُلَّهَا مِمَّا تُنْبِتُ الْأَرْضُ — الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ',
+    usageGuideFa: 'نمایش خودکار در ۱۳ فروردین (روز طبیعت) و روزهای بهاری',
+    category: 'iranian_occasions',
+    skyTop: '#05241C',
+    skyMid: '#0E4E3D',
+    skyBottom: '#1D7C62',
+    accent: '#34D399',
+    glow: 'rgba(52, 211, 153, 0.45)',
+    archType: 'mahdi_dawn',
+    hasBirds: true,
+  },
+  {
+    id: 'occ_iran_yalda',
+    order: 29,
+    titleFa: '۲۹. شب یلدا و انار ایرانی',
+    subtitleFa: 'بلندترین شب سال، صله رحم، دورهمی خانواده و برکت زمستان',
+    dhikrFa: 'اللَّهُمَّ بَارِكْ لَنَا فِي أَهْلِنَا وَ أَحِبَّتِنَا — رَبِّ زِدْنِي عِلْماً وَ رَحْمَةً',
+    usageGuideFa: 'نمایش خودکار در شب یلدا (۳۰ آذر) و حال‌وهوای گرم زمستان',
+    category: 'iranian_occasions',
+    skyTop: '#1F050B',
+    skyMid: '#450B18',
+    skyBottom: '#6E1328',
+    accent: '#F87171',
+    glow: 'rgba(248, 113, 113, 0.45)',
+    archType: 'ramadan_lanterns',
+    hasLanterns: true,
+  },
+
+  // === ۷. ماه رجب، اعیاد شعبانیه و رمضان بیشتر (occ_ramadan_mahdi) ===
+  {
+    id: 'occ_rajab_raghaib',
+    order: 30,
+    titleFa: '۳۰. ماه رجب و لیلةالرغائب',
+    subtitleFa: 'ماه استغفار، مناجات شبانه، شب آرزوها و عید مبعث',
+    dhikrFa: 'أَسْتَغْفِرُ اللَّهَ وَ أَسْأَلُهُ التَّوْبَةَ — يَا مَنْ أَرْجُوهُ لِكُلِّ خَيْرٍ',
+    usageGuideFa: 'نمایش خودکار در سراسر ماه رجب، لیلةالرغائب، ۱۳ رجب و مبعث',
+    category: 'occ_ramadan_mahdi',
+    skyTop: '#071429',
+    skyMid: '#122E59',
+    skyBottom: '#1F4B8A',
+    accent: '#FBBF24',
+    glow: 'rgba(251, 191, 36, 0.45)',
+    archType: 'ramadan_lanterns',
+    hasLanterns: true,
+    hasStars: true,
+  },
+  {
+    id: 'occ_shaban_celebration',
+    order: 31,
+    titleFa: '۳۱. اعیاد شعبانیه و نیمه‌شعبان',
+    subtitleFa: 'چراغانی و سرور ماه شعبان، مناجات شعبانیه و میلاد منجی',
+    dhikrFa: 'إِلَهِي هَبْ لِي كَمَالَ الانْقِطَاعِ إِلَيْكَ — اللَّهُمَّ صَلِّ عَلَى مُحَمَّدٍ وَ آلِ مُحَمَّدٍ',
+    usageGuideFa: 'نمایش خودکار در ماه مبارک شعبان، اعیاد شعبانیه و نیمه شعبان',
+    category: 'occ_ramadan_mahdi',
+    skyTop: '#06241C',
+    skyMid: '#0F4F3E',
+    skyBottom: '#1A7D63',
+    accent: '#FDE047',
+    glow: 'rgba(253, 224, 71, 0.5)',
+    archType: 'shrine_gold',
+    hasStars: true,
+  },
+  {
+    id: 'occ_ramadan_iftar',
+    order: 32,
+    titleFa: '۳۲. مهتاب و افطار ماه رمضان',
+    subtitleFa: 'آرامش لحظه افطار و نیایش شبانه در ماه میهمانی خدا',
+    dhikrFa: 'اللَّهُمَّ لَكَ صُمْنَا وَ عَلَى رِزْقِكَ أَفْطَرْنَا فَتَقَبَّلْ مِنَّا إِنَّكَ أَنْتَ السَّمِيعُ الْعَلِيمُ',
+    usageGuideFa: 'نمایش خودکار در غروب و شب‌های ماه رمضان (وقت افطار و مغرب)',
+    category: 'occ_ramadan_mahdi',
+    skyTop: '#050C1D',
+    skyMid: '#102347',
+    skyBottom: '#1D3C75',
+    accent: '#FDE047',
+    glow: 'rgba(253, 224, 71, 0.45)',
+    archType: 'ramadan_lanterns',
+    hasMoon: true,
+    hasStars: true,
+  },
+  {
+    id: 'occ_ramadan_crescent',
+    order: 33,
+    titleFa: '۳۳. هلال ماه مبارک رمضان',
+    subtitleFa: 'رویت هلال نورانی ماه رمضان در آسمان بیکران',
+    dhikrFa: 'اللَّهُمَّ أَهِلَّهُ عَلَيْنَا بِالْأَمْنِ وَ الْإِيمَانِ وَ السَّلَامَةِ وَ الْإِسْلَامِ',
+    usageGuideFa: 'نمایش خودکار در آغاز ماه رمضان و سحرگاهان ماه مبارک',
+    category: 'occ_ramadan_mahdi',
+    skyTop: '#030817',
+    skyMid: '#0B1A3D',
+    skyBottom: '#16316B',
+    accent: '#93C5FD',
+    glow: 'rgba(147, 197, 253, 0.48)',
+    archType: 'mosque_turquoise',
+    hasMoon: true,
+    hasStars: true,
+  },
+
+  // === ۸. شکوه طبیعت و اعماق کیهان — یادآور عظمت آفریدگار (nature_cosmos) ===
+  {
+    id: 'nature_damavand_peak',
+    order: 34,
+    titleFa: '۳۴. شکوه کوهستان و قله دماوند',
+    subtitleFa: 'عظمت کوه‌های استوار به عنوان نشانه‌ای از قدرت آفریدگار',
+    dhikrFa: 'وَالْجِبَالَ أَوْتَاداً — فَتَبَارَكَ اللَّهُ أَحْسَنُ الْخَالِقِينَ',
+    usageGuideFa: 'یادآور عظمت و استواری آفرینش خداوند در کوهستان‌های بلند',
+    category: 'nature_cosmos',
+    skyTop: '#071929',
+    skyMid: '#123859',
+    skyBottom: '#1F5A8C',
+    accent: '#7DD3FC',
+    glow: 'rgba(125, 211, 252, 0.45)',
+    archType: 'mahdi_dawn',
+    hasBirds: true,
+  },
+  {
+    id: 'nature_mirror_lake',
+    order: 35,
+    titleFa: '۳۵. دریاچه آینه‌ای کوهستان',
+    subtitleFa: 'آرامش زلال آب و انعکاس آسمان در سکوت طبیعت',
+    dhikrFa: 'أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ — فَبِأَيِّ آلَاءِ رَبِّكُمَا تُكَذِّبَانِ',
+    usageGuideFa: 'مناسب برای لحظات آرامش، تفکر و حس حضور در طبیعت بکر',
+    category: 'nature_cosmos',
+    skyTop: '#041C24',
+    skyMid: '#0B4052',
+    skyBottom: '#146985',
+    accent: '#38BDF8',
+    glow: 'rgba(56, 189, 248, 0.45)',
+    archType: 'mosque_turquoise',
+  },
+  {
+    id: 'nature_forest_waterfall',
+    order: 36,
+    titleFa: '۳۶. جنگل مه‌آلود و آبشار بهشتی',
+    subtitleFa: 'جریان آب زنده در میان درختان سرسبز و نعمت‌های الهی',
+    dhikrFa: 'وَجَعَلْنَا مِنَ الْمَاءِ كُلَّ شَيْءٍ حَيٍّ — سُبْحَانَ اللَّهِ وَ بِحَمْدِهِ',
+    usageGuideFa: 'مناسب برای حس طراوت، شکرگزاری و یادآوری رحمت گسترده خداوند',
+    category: 'nature_cosmos',
+    skyTop: '#041F17',
+    skyMid: '#0B4736',
+    skyBottom: '#167056',
+    accent: '#34D399',
+    glow: 'rgba(52, 211, 153, 0.45)',
+    archType: 'mahdi_dawn',
+  },
+  {
+    id: 'nature_aurora_sky',
+    order: 37,
+    titleFa: '۳۷. شفق قطبی و آسمان شب',
+    subtitleFa: 'رقص نور زمردی در آسمان شب و شگفتی آفرینش الهی',
+    dhikrFa: 'اللَّهُ نُورُ السَّمَاوَاتِ وَ الْأَرْضِ — سُبْحَانَ رَبِّيَ الْعَظِيمِ',
+    usageGuideFa: 'جلوه‌ای شگفت‌انگیز از نور و رنگ در آسمان شب آفرینش',
+    category: 'nature_cosmos',
+    skyTop: '#031418',
+    skyMid: '#08333D',
+    skyBottom: '#0F5763',
+    accent: '#2DD4BF',
+    glow: 'rgba(45, 212, 191, 0.5)',
+    archType: 'mosque_turquoise',
+    hasStars: true,
+  },
+  {
+    id: 'nature_ocean_sunrise',
+    order: 38,
+    titleFa: '۳۸. اقیانوس بیکران و طلوع آفتاب',
+    subtitleFa: 'گستردگی دریاها و طلوع امیدبخش خورشید بر پهنه آب',
+    dhikrFa: 'وَإِنْ تَعُدُّوا نِعْمَةَ اللَّهِ لَا تُحْصُوهَا — الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ',
+    usageGuideFa: 'مناسب برای صبح‌های پرانرژی و حس وسعت بی‌کران رحمت الهی',
+    category: 'nature_cosmos',
+    skyTop: '#1A1124',
+    skyMid: '#4A2838',
+    skyBottom: '#8A4B38',
+    accent: '#FBBF24',
+    glow: 'rgba(251, 191, 36, 0.48)',
+    archType: 'mahdi_dawn',
+  },
+  {
+    id: 'cosmos_milkyway_stars',
+    order: 39,
+    titleFa: '۳۹. کهکشان راه شیری و ستارگان',
+    subtitleFa: 'میلیاردها ستاره در پهنه آسمان؛ نشانه‌ای از بزرگی بی‌انتهای خدا',
+    dhikrFa: 'تَبَارَكَ الَّذِي جَعَلَ فِي السَّمَاءِ بُرُوجاً — إِنَّ فِي خَلْقِ السَّمَاوَاتِ وَ الْأَرْضِ لَآيَاتٍ لِأُولِي الْأَلْبَابِ',
+    usageGuideFa: 'تفکر در بزرگی کیهان و ستارگان؛ یادآور عظمت بی‌حد آفریدگار',
+    category: 'nature_cosmos',
+    skyTop: '#020612',
+    skyMid: '#0A1633',
+    skyBottom: '#172C5C',
+    accent: '#93C5FD',
+    glow: 'rgba(147, 197, 253, 0.5)',
+    archType: 'mosque_turquoise',
+    hasStars: true,
+  },
+  {
+    id: 'cosmos_jameswebb_nebula',
+    order: 40,
+    titleFa: '۴۰. اعماق کیهان و سحابی (جیمز وب)',
+    subtitleFa: 'تصویر واقعی تلسکوپ جیمز وب از زادگاه ستارگان در سحابی کارینا',
+    dhikrFa: 'سَنُرِيهِمْ آيَاتِنَا فِي الْآفَاقِ وَ فِي أَنْفُسِهِمْ — وَالسَّمَاءَ بَنَيْنَاهَا بِأَيْدٍ وَإِنَّا لَمُوسِعُونَ',
+    usageGuideFa: 'شاهکار واقعی اعماق کیهان؛ یادآور اینکه خدا بی‌نهایت بزرگ‌تر از تصور ماست',
+    category: 'nature_cosmos',
+    skyTop: '#0A0714',
+    skyMid: '#241433',
+    skyBottom: '#4A2736',
+    accent: '#FBBF24',
+    glow: 'rgba(251, 191, 36, 0.52)',
+    archType: 'mosque_turquoise',
+    hasStars: true,
+  },
 ];
 
-// نقشه دقیق و ۱۰۰٪ یکتای تصاویر آفلاین (۲۵ عنوان = ۲۵ فایل مجزا بدون هیچ تکرار)
+// نقشه دقیق و ۱۰۰٪ یکتای تصاویر آفلاین (۴۰ عنوان = ۴۰ فایل مجزا بدون هیچ تکرار)
 export const OFFLINE_SHRINE_IMAGE_MAP: Record<string, string> = {
   shrine_mashhad_reza: '/shrines/mashhad.jpg',
   shrine_karbala_hussein: '/shrines/karbala.jpg',
@@ -508,6 +758,21 @@ export const OFFLINE_SHRINE_IMAGE_MAP: Record<string, string> = {
   city_yazd_jameh: '/shrines/yazd.jpg',
   city_kerman_jameh: '/shrines/kerman.jpg',
   city_shiraz_shahcheragh: '/shrines/shahcheragh.jpg',
+  occ_iran_nowruz: '/shrines/nowruz.jpg',
+  occ_iran_chaharshanbe: '/shrines/chaharshanbe.jpg',
+  occ_iran_sizdah_bedar: '/shrines/sizdah_bedar.jpg',
+  occ_iran_yalda: '/shrines/yalda.jpg',
+  occ_rajab_raghaib: '/shrines/rajab.jpg',
+  occ_shaban_celebration: '/shrines/shaban.jpg',
+  occ_ramadan_iftar: '/shrines/ramadan_iftar.jpg',
+  occ_ramadan_crescent: '/shrines/ramadan_crescent.jpg',
+  nature_damavand_peak: '/shrines/nature_damavand.jpg',
+  nature_mirror_lake: '/shrines/nature_lake.jpg',
+  nature_forest_waterfall: '/shrines/nature_forest_waterfall.jpg',
+  nature_aurora_sky: '/shrines/nature_aurora.jpg',
+  nature_ocean_sunrise: '/shrines/nature_ocean_sunrise.jpg',
+  cosmos_milkyway_stars: '/shrines/cosmos_milkyway.jpg',
+  cosmos_jameswebb_nebula: '/shrines/cosmos_nebula.jpg',
 };
 
 export function getOfflineIranSafeImage(designId: string | number): string {
@@ -515,7 +780,7 @@ export function getOfflineIranSafeImage(designId: string | number): string {
   if (OFFLINE_SHRINE_IMAGE_MAP[key]) {
     return OFFLINE_SHRINE_IMAGE_MAP[key];
   }
-  return '/shrines/mashhad.jpg';
+  return '/shrines/shiraz.jpg';
 }
 
 export type HeroSelectionMode = 'auto_occasion' | 'auto_city' | 'manual';
@@ -548,7 +813,7 @@ export function saveHeroConfig(cfg: HeroUserConfig): void {
 function mapRemoteWallpaperCategory(cat: string): Exclude<HeroCategoryKey, 'all'> {
   if (cat === 'mosque') return 'islamic_arch';
   if (cat === 'occasion') return 'occ_ramadan_mahdi';
-  if (cat === 'nature') return 'prayer_times';
+  if (cat === 'nature') return 'nature_cosmos';
   return 'shrines';
 }
 
@@ -598,6 +863,34 @@ export function getAllHeroDesigns(): HeroArtDesign[] {
   return [...remoteWallpapers, ...themeWallpapers, ...HERO_30_DESIGNS];
 }
 
+// تبدیل دقیق تاریخ میلادی به شمسی (مستقل از Intl، ۱۰۰٪ سازگار با اندروید ۷ تا ۱۶)
+export function gregorianToJalali(gyInput: number, gm: number, gd: number): { jy: number; jm: number; jd: number } {
+  const gdm = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
+  let gy = gyInput;
+  let jy = gy <= 1600 ? 0 : 979;
+  gy -= gy <= 1600 ? 621 : 1600;
+  const gy2 = gm > 2 ? gy + 1 : gy;
+  let days =
+    365 * gy +
+    Math.floor((gy2 + 3) / 4) -
+    Math.floor((gy2 + 99) / 100) +
+    Math.floor((gy2 + 399) / 400) -
+    80 +
+    gd +
+    gdm[gm - 1];
+  jy += 33 * Math.floor(days / 12053);
+  days %= 12053;
+  jy += 4 * Math.floor(days / 1461);
+  days %= 1461;
+  if (days > 365) {
+    jy += Math.floor((days - 1) / 365);
+    days = (days - 1) % 365;
+  }
+  const jm = days < 186 ? 1 + Math.floor(days / 31) : 7 + Math.floor((days - 186) / 30);
+  const jd = 1 + (days < 186 ? days % 31 : (days - 186) % 30);
+  return { jy, jm, jd };
+}
+
 function getHijriMonthDaySafe(date: Date): { month: number; day: number } | null {
   try {
     const parts = new Intl.DateTimeFormat('en-u-ca-islamic-umalqura', {
@@ -637,6 +930,61 @@ export function resolveCityMatchedHeroDesign(cityName: string): HeroArtDesign | 
   return bestDesign;
 }
 
+export function resolveOccasionHeroDesign(
+  now: Date = new Date(),
+  nextPrayerKey: string = 'fajr',
+  hijriOverride?: { month: number; day: number } | null
+): HeroArtDesign {
+  const byId = (id: string) => HERO_30_DESIGNS.find((d) => d.id === id) || HERO_30_DESIGNS[0];
+
+  // ۱. مناسبت‌های کلیدی هجری قمری (عاشورا، محرم، اربعین، قدر، رمضان، رجب، شعبان، غدیر و حج)
+  const hijri = hijriOverride !== undefined ? hijriOverride : getHijriMonthDaySafe(now);
+  if (hijri) {
+    if (hijri.month === 1 && hijri.day === 10) return byId('muharram_ashura_candles');
+    if (hijri.month === 1 && hijri.day >= 1 && hijri.day <= 13) return byId('muharram_golden_dome_flag');
+    if (hijri.month === 2 && hijri.day >= 15 && hijri.day <= 22) return byId('safar_arbaeen_walk');
+    if (hijri.month === 9 && (hijri.day === 19 || hijri.day === 21 || hijri.day === 23)) return byId('occ_laylat_al_qadr');
+    if (hijri.month === 9) {
+      if (nextPrayerKey === 'maghrib' || nextPrayerKey === 'isha') return byId('occ_ramadan_iftar');
+      if (hijri.day <= 3 || nextPrayerKey === 'fajr') return byId('occ_ramadan_crescent');
+      return byId('occ_ramadan_lanterns');
+    }
+    if ((hijri.month === 12 && hijri.day === 18) || (hijri.month === 10 && hijri.day <= 2)) {
+      return byId('occ_eid_ghadir_shaban');
+    }
+    if (hijri.month === 12 && hijri.day >= 8 && hijri.day <= 12) return byId('shrine_makkah_kaaba');
+  }
+
+  // ۲. آیین‌های سنتی و فصلی ایران (نوروز، سیزده‌به‌در، شب یلدا، چهارشنبه‌سوری)
+  const jalali = gregorianToJalali(now.getFullYear(), now.getMonth() + 1, now.getDate());
+  if (jalali.jm === 1 && jalali.jd === 13) return byId('occ_iran_sizdah_bedar');
+  if (jalali.jm === 1 && jalali.jd >= 1 && jalali.jd <= 12) return byId('occ_iran_nowruz');
+  if ((jalali.jm === 9 && jalali.jd === 30) || (jalali.jm === 10 && jalali.jd === 1 && now.getHours() < 6)) {
+    return byId('occ_iran_yalda');
+  }
+  if (jalali.jm === 12 && (now.getDay() === 2 || (now.getDay() === 3 && now.getHours() < 12))) {
+    const plusDays = now.getDay() === 2 ? 7 : 6;
+    const probe = new Date(now.getFullYear(), now.getMonth(), now.getDate() + plusDays);
+    const probeJ = gregorianToJalali(probe.getFullYear(), probe.getMonth() + 1, probe.getDate());
+    if (probeJ.jm === 1) return byId('occ_iran_chaharshanbe');
+  }
+
+  // ۳. ماه‌های پر فضیلت رجب و شعبان (اعیاد شعبانیه، نیمه شعبان، لیلةالرغائب و مبعث)
+  if (hijri) {
+    if (hijri.month === 8) return byId('occ_shaban_celebration');
+    if (hijri.month === 7) return byId('occ_rajab_raghaib');
+  }
+
+  // ۴. شب جمعه (کربلا)، روز جمعه (جمکران) و اوقات نماز شبانه‌روز
+  if (now.getDay() === 4 && now.getHours() >= 18) return byId('shrine_karbala_hussein');
+  if (now.getDay() === 5) return byId('occ_friday_mahdi');
+  if (now.getHours() < 4) return byId('prayer_tahajjud_sahar');
+  if (nextPrayerKey === 'fajr') return byId('prayer_fajr_horizon');
+  if (nextPrayerKey === 'dhuhr' || nextPrayerKey === 'asr') return byId('prayer_dhuhr_emerald');
+  if (nextPrayerKey === 'maghrib' || nextPrayerKey === 'isha') return byId('prayer_maghrib_golden');
+  return byId('arch_shiraz_nasir_al_mulk');
+}
+
 export function resolveActiveHeroDesign(cityName: string = 'مشهد', nextPrayerKey: string = 'fajr'): HeroArtDesign {
   const cfg = loadHeroConfig();
   const allDesigns = getAllHeroDesigns();
@@ -647,53 +995,7 @@ export function resolveActiveHeroDesign(cityName: string = 'مشهد', nextPraye
     const matched = resolveCityMatchedHeroDesign(cityName);
     if (matched) return matched;
   }
-
-  // auto_occasion: تطبیق هوشمند با مناسبت‌های تقویم هجری قمری + شب جمعه + جمعه مهدوی + وقت نماز
-  const now = new Date();
-  const hijri = getHijriMonthDaySafe(now);
-  if (hijri) {
-    if (hijri.month === 1 && hijri.day === 10) {
-      return HERO_30_DESIGNS.find((d) => d.id === 'muharram_ashura_candles') || HERO_30_DESIGNS[0];
-    }
-    if (hijri.month === 1 && hijri.day >= 1 && hijri.day <= 13) {
-      return HERO_30_DESIGNS.find((d) => d.id === 'muharram_golden_dome_flag') || HERO_30_DESIGNS[0];
-    }
-    if (hijri.month === 2 && hijri.day >= 15 && hijri.day <= 22) {
-      return HERO_30_DESIGNS.find((d) => d.id === 'safar_arbaeen_walk') || HERO_30_DESIGNS[0];
-    }
-    if (hijri.month === 9 && (hijri.day === 19 || hijri.day === 21 || hijri.day === 23)) {
-      return HERO_30_DESIGNS.find((d) => d.id === 'occ_laylat_al_qadr') || HERO_30_DESIGNS[0];
-    }
-    if (hijri.month === 9) {
-      return HERO_30_DESIGNS.find((d) => d.id === 'occ_ramadan_lanterns') || HERO_30_DESIGNS[0];
-    }
-    if ((hijri.month === 12 && hijri.day === 18) || (hijri.month === 10 && hijri.day <= 2) || (hijri.month === 8 && hijri.day === 15)) {
-      return HERO_30_DESIGNS.find((d) => d.id === 'occ_eid_ghadir_shaban') || HERO_30_DESIGNS[0];
-    }
-    if (hijri.month === 12 && hijri.day >= 8 && hijri.day <= 12) {
-      return HERO_30_DESIGNS.find((d) => d.id === 'shrine_makkah_kaaba') || HERO_30_DESIGNS[0];
-    }
-  }
-
-  if (now.getDay() === 4 && now.getHours() >= 18) {
-    return HERO_30_DESIGNS.find((d) => d.id === 'shrine_karbala_hussein') || HERO_30_DESIGNS[0];
-  }
-  if (now.getDay() === 5) {
-    return HERO_30_DESIGNS.find((d) => d.id === 'occ_friday_mahdi') || HERO_30_DESIGNS[0];
-  }
-  if (now.getHours() < 4) {
-    return HERO_30_DESIGNS.find((d) => d.id === 'prayer_tahajjud_sahar') || HERO_30_DESIGNS[0];
-  }
-  if (nextPrayerKey === 'fajr') {
-    return HERO_30_DESIGNS.find((d) => d.id === 'prayer_fajr_horizon') || HERO_30_DESIGNS[0];
-  }
-  if (nextPrayerKey === 'dhuhr' || nextPrayerKey === 'asr') {
-    return HERO_30_DESIGNS.find((d) => d.id === 'prayer_dhuhr_emerald') || HERO_30_DESIGNS[0];
-  }
-  if (nextPrayerKey === 'maghrib' || nextPrayerKey === 'isha') {
-    return HERO_30_DESIGNS.find((d) => d.id === 'prayer_maghrib_golden') || HERO_30_DESIGNS[0];
-  }
-  return HERO_30_DESIGNS[0];
+  return resolveOccasionHeroDesign(new Date(), nextPrayerKey);
 }
 
 export function RenderHeroArtworkScene({ design }: { design: HeroArtDesign }) {
@@ -792,13 +1094,18 @@ export function Hero30SelectorModal({
         {/* هدر مدال */}
         <div className="flex items-center justify-between pb-3 border-b" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
           <div className="flex items-center gap-2.5">
-            <span className="text-xl">🎨</span>
+            <div
+              className="w-9 h-9 rounded-2xl flex items-center justify-center border shrink-0"
+              style={{ background: 'rgba(251, 191, 36, 0.14)', borderColor: 'rgba(251, 191, 36, 0.38)' }}
+            >
+              <Sparkles size={17} color="#FBBF24" />
+            </div>
             <div>
               <h3 className="text-sm font-black text-white">
                 تصویر بالای صفحه خانه
               </h3>
               <p className="text-[11px] text-emerald-100/65 mt-0.5">
-                ۲۵ منظره واقعی و آفلاین از حرم‌ها، مساجد و شهرهای ایران
+                ۴۰ منظره مستند آفلاین از حرم‌ها، آیین‌های ایرانی، طبیعت و کیهان
               </p>
             </div>
           </div>
@@ -843,7 +1150,7 @@ export function Hero30SelectorModal({
               <span className="text-[11px] font-black text-white">خودکار مناسبت</span>
               <Sparkles size={12} color="#34D399" />
             </div>
-            <p className="text-[10px] opacity-70 leading-snug">تغییر با تقویم هجری و اوقات نماز</p>
+            <p className="text-[10px] opacity-70 leading-snug">مناسبت‌های شمسی، قمری و اوقات نماز</p>
           </button>
 
           <button
@@ -886,14 +1193,13 @@ export function Hero30SelectorModal({
                   color: isActive ? '#041511' : '#ECFDF5',
                 }}
               >
-                <span>{cat.icon}</span>
                 <span>{cat.labelFa}</span>
               </button>
             );
           })}
         </div>
 
-        {/* شبکه کارت‌های پیش‌نمایش ۲۵ تصویر یکتای آفلاین */}
+        {/* شبکه کارت‌های پیش‌نمایش ۴۰ تصویر یکتای آفلاین */}
         <div className="grid grid-cols-2 auto-rows-max gap-2.5 overflow-y-auto py-2 pr-0.5 flex-1">
           {filteredDesigns.map((d) => {
             const isSelected = cfg.selectedId === d.id && cfg.mode === 'manual';
@@ -916,7 +1222,7 @@ export function Hero30SelectorModal({
                       className="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[9px] font-black shadow"
                       style={{ background: 'rgba(16, 185, 129, 0.92)', color: '#041511' }}
                     >
-                      ✨ جدید
+                      جدید
                     </span>
                   )}
                   {isSelected && (

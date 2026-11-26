@@ -130,7 +130,7 @@ function ThemeHeroSelectorCard({ theme, cityName }: { theme: { surface: string; 
             style={{ background: 'rgba(2, 12, 9, 0.84)', color: '#FEF08A' }}
           >
             <span className="truncate">{currentHeroDesign.titleFa}</span>
-            <span className="text-[10px] text-emerald-300 shrink-0 mr-2">۲۵ منظره ←</span>
+            <span className="text-[10px] text-emerald-300 shrink-0 mr-2">۴۰ منظره ←</span>
           </div>
         </div>
       </div>
