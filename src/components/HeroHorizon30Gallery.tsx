@@ -38,12 +38,12 @@ export interface HeroArtDesign {
 }
 
 export const HERO_RELIGIOUS_CATEGORIES: { id: HeroCategoryKey; labelFa: string; icon: string }[] = [
-  { id: 'all', labelFa: 'همه (۲۰)', icon: '✨' },
+  { id: 'all', labelFa: 'همه (۲۵)', icon: '✨' },
   { id: 'shrines', labelFa: 'حرم‌های مطهر', icon: '🕋' },
   { id: 'prayer_times', labelFa: 'اوقات نماز', icon: '🕌' },
   { id: 'occ_ramadan_mahdi', labelFa: 'رمضان و اعیاد', icon: '🌙' },
   { id: 'muharram_safar', labelFa: 'محرم و صفر', icon: '🏴' },
-  { id: 'islamic_arch', labelFa: 'مساجد ایران', icon: '🏛️' },
+  { id: 'islamic_arch', labelFa: 'مساجد و شهرها', icon: '🏛️' },
 ];
 
 export const HERO_30_DESIGNS: HeroArtDesign[] = [
@@ -56,7 +56,7 @@ export const HERO_30_DESIGNS: HeroArtDesign[] = [
     dhikrFa: 'اللَّهُمَّ صَلِّ عَلَى عَلِيِّ بْنِ مُوسَى الرِّضَا الْمُرْتَضَى (ع)',
     usageGuideFa: 'مناسب برای همه ایام سال، چهارشنبه‌های امام رضایی و افق مشهد مقدس',
     category: 'shrines',
-    cityMatch: ['مشهد', ' نیشابور', 'سبزوار', 'تربت'],
+    cityMatch: ['مشهد', 'نیشابور', 'سبزوار', 'تربت', 'بجنورد', 'بیرجند'],
     skyTop: '#041B15',
     skyMid: '#0B3B2D',
     skyBottom: '#165B46',
@@ -141,11 +141,11 @@ export const HERO_30_DESIGNS: HeroArtDesign[] = [
     id: 'shrine_qom_jamkaran',
     order: 6,
     titleFa: '۶. حرم حضرت معصومه (س)',
-    subtitleFa: 'گنبد طلایی کریمه اهل‌بیت (س) و فیروزه مهدوی جمکران',
+    subtitleFa: 'گنبد طلایی کریمه اهل‌بیت (س) و فیروزه مهدوی قم',
     dhikrFa: 'يَا فَاطِمَةُ اشْفَعِي لِي فِي الْجَنَّةِ — يَا صَاحِبَ الزَّمَانِ أَدْرِكْنِي',
-    usageGuideFa: 'مناسب برای شب‌های چهارشنبه (جمکران)، دهه کرامت و افق شهر قم',
+    usageGuideFa: 'مناسب برای شب‌های چهارشنبه، دهه کرامت و افق شهر مقدس قم',
     category: 'shrines',
-    cityMatch: ['قم'],
+    cityMatch: ['قم', 'ساوه'],
     skyTop: '#061B24',
     skyMid: '#0E3E52',
     skyBottom: '#166280',
@@ -155,14 +155,14 @@ export const HERO_30_DESIGNS: HeroArtDesign[] = [
     hasStars: true,
   },
 
-  // === ۲. اوقات نماز شبانه (prayer_times) ===
+  // === ۲. اوقات نماز شبانه‌روز (prayer_times) ===
   {
     id: 'prayer_tahajjud_sahar',
     order: 7,
     titleFa: '۷. خلوت سحر و نماز شب',
-    subtitleFa: 'آسمان پرستاره سحر و محراب فیروزه‌ای در آرامش شب',
+    subtitleFa: 'آرامش شبانگاهی صحن و ایوان در وقت نماز شب',
     dhikrFa: 'إِلَهِي هَبْ لِي كَمَالَ الانْقِطَاعِ إِلَيْكَ وَ أَنِرْ أَبْصَارَ قُلُوبِنَا بِضِيَاءِ نَظَرِهَا إِلَيْكَ',
-    usageGuideFa: 'مناسب برای سحرگاه، نماز شب، استغفار سحر و آرامش شبانگاهی',
+    usageGuideFa: 'مناسب برای سحرگاه، نماز شب، استغفار سحر و خلوت شبانگاهی',
     category: 'prayer_times',
     skyTop: '#030B17',
     skyMid: '#091E3A',
@@ -193,7 +193,7 @@ export const HERO_30_DESIGNS: HeroArtDesign[] = [
     id: 'prayer_dhuhr_emerald',
     order: 9,
     titleFa: '۹. افق اذان ظهر',
-    subtitleFa: 'طنین اذان ظهر در صحن فیروزه‌ای و آسمان زلال',
+    subtitleFa: 'طنین اذان ظهر در روشنایی صحن و آسمان زلال',
     dhikrFa: 'حَيَّ عَلَى الصَّلَاةِ — حَيَّ عَلَى خَيْرِ الْعَمَلِ',
     usageGuideFa: 'مناسب برای وقت اذان ظهر و عصر و یادآوری اول وقت نماز',
     category: 'prayer_times',
@@ -227,8 +227,8 @@ export const HERO_30_DESIGNS: HeroArtDesign[] = [
   {
     id: 'occ_friday_mahdi',
     order: 11,
-    titleFa: '۱۱. صبح جمعه و انتظار',
-    subtitleFa: 'افق سبز و طلایی انتظار با دعای سلامتی امام زمان (عج)',
+    titleFa: '۱۱. صبح جمعه و انتظار (جمکران)',
+    subtitleFa: 'مسجد مقدس جمکران با دعای سلامتی امام زمان (عج)',
     dhikrFa: 'اللَّهُمَّ كُنْ لِوَلِيِّكَ الْحُجَّةِ بْنِ الْحَسَنِ صَلَوَاتُكَ عَلَيْهِ وَ عَلَى آبَائِهِ',
     usageGuideFa: 'مناسب برای روزهای جمعه (دعای ندبه و سمات)، نیمه شعبان و عهد مهدوی',
     category: 'occ_ramadan_mahdi',
@@ -245,7 +245,7 @@ export const HERO_30_DESIGNS: HeroArtDesign[] = [
     id: 'occ_ramadan_lanterns',
     order: 12,
     titleFa: '۱۲. ضیافت ماه رمضان',
-    subtitleFa: 'فانوس‌های طلایی آویزان در ایوان مسجد و هلال رمضان',
+    subtitleFa: 'حال‌وهوای تلاوت قرآن و انس با کتاب خدا در ماه رمضان',
     dhikrFa: 'شَهْرُ رَمَضَانَ الَّذِي أُنْزِلَ فِيهِ الْقُرْآنُ — اللَّهُمَّ رَبَّ شَهْرِ رَمَضَانَ',
     usageGuideFa: 'مناسب برای کل ماه مبارک رمضان، افطار، سحر و دعای افتتاح و ابوحمزه',
     category: 'occ_ramadan_mahdi',
@@ -280,7 +280,7 @@ export const HERO_30_DESIGNS: HeroArtDesign[] = [
     id: 'occ_eid_ghadir_shaban',
     order: 14,
     titleFa: '۱۴. عید غدیر و اعیاد',
-    subtitleFa: 'چراغانی طلایی و فیروزه‌ای حرم در جشن ولایت و امامت',
+    subtitleFa: 'چراغانی طلایی و باشکوه حرم در جشن ولایت و اعیاد اسلامی',
     dhikrFa: 'الْحَمْدُ لِلَّهِ الَّذِي جَعَلَنَا مِنَ الْمُتَمَسِّكِينَ بِوِلاَيَةِ أَمِيرِ الْمُؤْمِنِينَ وَ الأَئِمَّةِ (ع)',
     usageGuideFa: 'مناسب برای عید غدیر، عید فطر، مبعث، میلاد ائمه اطهار (ع) و اعیاد شعبانیه',
     category: 'occ_ramadan_mahdi',
@@ -299,7 +299,7 @@ export const HERO_30_DESIGNS: HeroArtDesign[] = [
     id: 'muharram_golden_dome_flag',
     order: 15,
     titleFa: '۱۵. محرم و بیرق حسینی',
-    subtitleFa: 'پرچم یا حسین (ع) بر فراز گنبد طلایی در آسمان سرخ محرم',
+    subtitleFa: 'شور عزاداری حسینی و پرچم سیدالشهدا (ع) در ماه محرم',
     dhikrFa: 'السَّلَامُ عَلَيْكَ يَا أَبَا عَبْدِ اللَّهِ وَ عَلَى الْأَرْوَاحِ الَّتِي حَلَّتْ بِفِنَائِكَ',
     usageGuideFa: 'مناسب برای دهه اول محرم، قرائت زیارت عاشورا و ایام عزاداری سیدالشهدا (ع)',
     category: 'muharram_safar',
@@ -315,7 +315,7 @@ export const HERO_30_DESIGNS: HeroArtDesign[] = [
     id: 'muharram_ashura_candles',
     order: 16,
     titleFa: '۱۶. شام غریبان عاشورا',
-    subtitleFa: 'فانوس‌ها و شمع‌های سوگواری در تاریکی شب عاشورا',
+    subtitleFa: 'سوگواری و شمع‌های شام غریبان در غم سیدالشهدا (ع)',
     dhikrFa: 'صَلَّى اللَّهُ عَلَيْكَ يَا أَبَا عَبْدِ اللَّهِ — يَا لَيْتَنَا كُنَّا مَعَكُمْ فَنَفُوزَ فَوْزاً عَظِيماً',
     usageGuideFa: 'مناسب برای تاسوعا و عاشورای حسینی، شهادت ائمه (ع) و ایام فاطمیه',
     category: 'muharram_safar',
@@ -331,7 +331,7 @@ export const HERO_30_DESIGNS: HeroArtDesign[] = [
     id: 'safar_arbaeen_walk',
     order: 17,
     titleFa: '۱۷. مسیر اربعین حسینی',
-    subtitleFa: 'عمودهای مسیر نجف تا کربلا و افق گنبد سیدالشهدا (ع)',
+    subtitleFa: 'کاروان زائران و پیاده‌روی اربعین حسینی به سوی کربلا',
     dhikrFa: 'اللَّهُمَّ ارْزُقْنِي شَفَاعَةَ الْحُسَيْنِ يَوْمَ الْوُرُودِ وَ ثَبِّتْ لِي قَدَمَ صِدْقٍ عِنْدَكَ',
     usageGuideFa: 'مناسب برای ماه صفر، ایام پیاده‌روی اربعین و زیارت از راه دور',
     category: 'muharram_safar',
@@ -344,16 +344,15 @@ export const HERO_30_DESIGNS: HeroArtDesign[] = [
     hasMoon: true,
   },
 
-  // === ۵. مساجد تاریخی و معماری اسلامی ایران (islamic_arch) ===
+  // === ۵. مساجد تاریخی و آثار شاخص شهرهای ایران (islamic_arch) ===
   {
     id: 'arch_goharshad_mashhad',
     order: 18,
     titleFa: '۱۸. مسجد جامع گوهرشاد',
-    subtitleFa: 'شاهکار معماری اسلامی و کتیبه‌های قرآنی در جوار حرم رضوی',
+    subtitleFa: 'ایوان مقصوره و کاشی‌کاری فیروزه‌ای در جوار حرم رضوی',
     dhikrFa: 'إِنَّمَا يَعْمُرُ مَسَاجِدَ اللَّهِ مَنْ آمَنَ بِاللَّهِ وَ الْيَوْمِ الْآخِرِ وَ أَقَامَ الصَّلَاةَ',
     usageGuideFa: 'مناسب برای علاقه‌مندان به معماری اصیل مساجد ایرانی و کاشی‌کاری فیروزه‌ای',
     category: 'islamic_arch',
-    cityMatch: ['مشهد'],
     skyTop: '#041E24',
     skyMid: '#0A4552',
     skyBottom: '#136B7D',
@@ -365,12 +364,12 @@ export const HERO_30_DESIGNS: HeroArtDesign[] = [
   {
     id: 'arch_isfahan_lotfollah',
     order: 19,
-    titleFa: '۱۹. مسجد شیخ لطف‌الله',
+    titleFa: '۱۹. مسجد شیخ لطف‌الله اصفهان',
     subtitleFa: 'نقوش اسلیمی طلایی و گنبد لاجوردی نصف جهان',
     dhikrFa: 'اللَّهُ نُورُ السَّمَاوَاتِ وَ الْأَرْضِ مَثَلُ نُورِهِ كَمِشْكَاةٍ فِيهَا مِصْبَاحٌ',
-    usageGuideFa: 'مناسب برای افق اصفهان و دوستداران هنر اسلیمی و محراب‌های فیروزه‌ای',
+    usageGuideFa: 'مناسب برای افق اصفهان، کاشان و دوستداران هنر اسلیمی و محراب‌های فیروزه‌ای',
     category: 'islamic_arch',
-    cityMatch: ['اصفهان', 'کاشان'],
+    cityMatch: ['اصفهان', 'کاشان', 'شهرکرد', 'نجف‌آباد'],
     skyTop: '#06182E',
     skyMid: '#103663',
     skyBottom: '#1B5799',
@@ -385,9 +384,8 @@ export const HERO_30_DESIGNS: HeroArtDesign[] = [
     titleFa: '۲۰. مسجد نصیرالملک شیراز',
     subtitleFa: 'تلالو نور صبحگاهی از شیشه‌های هفت‌رنگ بر فرش سجده‌گاه',
     dhikrFa: 'سُبْحَانَ رَبِّيَ الْأَعْلَى وَ بِحَمْدِهِ — اللَّهُمَّ نَوِّرْ قُلُوبَنَا بِالْقُرْآنِ',
-    usageGuideFa: 'مناسب برای افق شیراز، حرم حضرت احمد بن موسی شاهچراغ (ع) و نمازهای روزانه',
+    usageGuideFa: 'مناسب برای نمازهای صبحگاهی و علاقه‌مندان به معماری رنگین‌کمانی شیراز',
     category: 'islamic_arch',
-    cityMatch: ['شیراز', 'یزد', 'کرمان'],
     skyTop: '#091E1C',
     skyMid: '#134742',
     skyBottom: '#21736B',
@@ -396,7 +394,129 @@ export const HERO_30_DESIGNS: HeroArtDesign[] = [
     archType: 'mosque_turquoise',
     hasLanterns: true,
   },
+  {
+    id: 'city_tehran_abdolazim',
+    order: 21,
+    titleFa: '۲۱. حرم شاه‌عبدالعظیم (ع) تهران',
+    subtitleFa: 'بارگاه ملکوتی حضرت عبدالعظیم حسنی (ع) در شهرری و افق تهران',
+    dhikrFa: 'السَّلَامُ عَلَيْكَ يَا أَبَا الْقَاسِمِ بْنَ السِّبْطِ الْمُنْتَجَبِ الْمُجْتَبَى',
+    usageGuideFa: 'مناسب برای افق تهران، شهرری، کرج و استان البرز',
+    category: 'islamic_arch',
+    cityMatch: ['تهران', 'شهرری', 'کرج', 'البرز', 'سمنان', 'قزوین', 'همدان', 'اراک'],
+    skyTop: '#051D21',
+    skyMid: '#0D3E45',
+    skyBottom: '#18636B',
+    accent: '#FBBF24',
+    glow: 'rgba(251, 191, 36, 0.42)',
+    archType: 'shrine_gold',
+    hasStars: true,
+  },
+  {
+    id: 'city_tabriz_blue_mosque',
+    order: 22,
+    titleFa: '۲۲. مسجد کبود تبریز',
+    subtitleFa: 'فیروزه جهان اسلام و سردر تاریخی کاشی‌معرق آذربایجان',
+    dhikrFa: 'رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَ فِي الْآخِرَةِ حَسَنَةً',
+    usageGuideFa: 'مناسب برای افق تبریز، اردبیل، ارومیه، زنجان و خطه آذربایجان',
+    category: 'islamic_arch',
+    cityMatch: ['تبریز', 'ارومیه', 'اردبیل', 'زنجان', 'مراغه', 'رشت', 'ساری', 'گرگان'],
+    skyTop: '#07182B',
+    skyMid: '#12365E',
+    skyBottom: '#1F568F',
+    accent: '#38BDF8',
+    glow: 'rgba(56, 189, 248, 0.42)',
+    archType: 'persian_mihrab',
+    hasBirds: true,
+  },
+  {
+    id: 'city_yazd_jameh',
+    order: 23,
+    titleFa: '۲۳. مسجد جامع کبیر یزد',
+    subtitleFa: 'مناره‌های سربه‌فلک‌کشیده و ایوان باشکوه دارالعباده یزد',
+    dhikrFa: 'فَاذْكُرُونِي أَذْكُرْكُمْ وَ اشْكُرُوا لِي وَ لَا تَكْفُرُونِ',
+    usageGuideFa: 'مناسب برای افق یزد، میبد، اردکان و شهرهای تاریخی کویر',
+    category: 'islamic_arch',
+    cityMatch: ['یزد', 'میبد', 'اردکان'],
+    skyTop: '#16110B',
+    skyMid: '#362717',
+    skyBottom: '#594025',
+    accent: '#FBBF24',
+    glow: 'rgba(251, 191, 36, 0.4)',
+    archType: 'persian_mihrab',
+    hasStars: true,
+  },
+  {
+    id: 'city_kerman_jameh',
+    order: 24,
+    titleFa: '۲۴. مسجد جامع کرمان',
+    subtitleFa: 'کاشی‌کاری معرق صفوی و صحن آرامش‌بخش مسجد جامع کرمان',
+    dhikrFa: 'وَمَنْ يَتَوَكَّلْ عَلَى اللَّهِ فَهُوَ حَسْبُهُ',
+    usageGuideFa: 'مناسب برای افق کرمان، رفسنجان، زاهدان، بندرعباس و جنوب شرق ایران',
+    category: 'islamic_arch',
+    cityMatch: ['کرمان', 'رفسنجان', 'زاهدان', 'بندرعباس', 'چابهار'],
+    skyTop: '#071D26',
+    skyMid: '#104154',
+    skyBottom: '#1B6885',
+    accent: '#38BDF8',
+    glow: 'rgba(56, 189, 248, 0.42)',
+    archType: 'persian_mihrab',
+    hasBirds: true,
+  },
+  {
+    id: 'city_shiraz_shahcheragh',
+    order: 25,
+    titleFa: '۲۵. حرم مطهر شاهچراغ (ع) شیراز',
+    subtitleFa: 'سومین حرم اهل‌بیت (ع) در ایران، آستان مقدس حضرت احمد بن موسی (ع)',
+    dhikrFa: 'السَّلَامُ عَلَيْكَ يَا سَيِّدَ السَّادَاتِ أَحْمَدَ بْنَ مُوسَى الْكَاظِمِ (ع)',
+    usageGuideFa: 'مناسب برای افق شیراز، بوشهر، یاسوج، اهواز و جنوب ایران',
+    category: 'shrines',
+    cityMatch: ['شیراز', 'بوشهر', 'یاسوج', 'اهواز', 'آبادان', 'خرم‌آباد', 'کرمانشاه', 'سنندج', 'ایلام'],
+    skyTop: '#051E19',
+    skyMid: '#0D453A',
+    skyBottom: '#176E5D',
+    accent: '#FDE047',
+    glow: 'rgba(253, 224, 71, 0.45)',
+    archType: 'shrine_gold',
+    hasStars: true,
+  },
 ];
+
+// نقشه دقیق و ۱۰۰٪ یکتای تصاویر آفلاین (۲۵ عنوان = ۲۵ فایل مجزا بدون هیچ تکرار)
+export const OFFLINE_SHRINE_IMAGE_MAP: Record<string, string> = {
+  shrine_mashhad_reza: '/shrines/mashhad.jpg',
+  shrine_karbala_hussein: '/shrines/karbala.jpg',
+  shrine_najaf_ali: '/shrines/najaf.jpg',
+  shrine_makkah_kaaba: '/shrines/makkah.jpg',
+  shrine_madinah_prophet: '/shrines/madinah.jpg',
+  shrine_qom_jamkaran: '/shrines/qom.jpg',
+  prayer_tahajjud_sahar: '/shrines/sahar.jpg',
+  prayer_fajr_horizon: '/shrines/fajr.jpg',
+  prayer_dhuhr_emerald: '/shrines/dhuhr.jpg',
+  prayer_maghrib_golden: '/shrines/maghrib.jpg',
+  occ_friday_mahdi: '/shrines/jamkaran.jpg',
+  occ_ramadan_lanterns: '/shrines/ramadan.jpg',
+  occ_laylat_al_qadr: '/shrines/qadr.jpg',
+  occ_eid_ghadir_shaban: '/shrines/ghadir.jpg',
+  muharram_golden_dome_flag: '/shrines/muharram.jpg',
+  muharram_ashura_candles: '/shrines/ashura.jpg',
+  safar_arbaeen_walk: '/shrines/arbaeen.jpg',
+  arch_goharshad_mashhad: '/shrines/goharshad.jpg',
+  arch_isfahan_lotfollah: '/shrines/isfahan.jpg',
+  arch_shiraz_nasir_al_mulk: '/shrines/shiraz.jpg',
+  city_tehran_abdolazim: '/shrines/tehran.jpg',
+  city_tabriz_blue_mosque: '/shrines/tabriz.jpg',
+  city_yazd_jameh: '/shrines/yazd.jpg',
+  city_kerman_jameh: '/shrines/kerman.jpg',
+  city_shiraz_shahcheragh: '/shrines/shahcheragh.jpg',
+};
+
+export function getOfflineIranSafeImage(designId: string | number): string {
+  const key = String(designId).trim();
+  if (OFFLINE_SHRINE_IMAGE_MAP[key]) {
+    return OFFLINE_SHRINE_IMAGE_MAP[key];
+  }
+  return '/shrines/mashhad.jpg';
+}
 
 export type HeroSelectionMode = 'auto_occasion' | 'auto_city' | 'manual';
 
@@ -440,7 +560,7 @@ export function getAllHeroDesigns(): HeroArtDesign[] {
       order: idx + 1,
       titleFa: w.title_fa,
       subtitleFa: w.subtitle_fa || 'والپیپر جدید آنلاین',
-      dhikrFa: w.occasion_tag || '✨ اضافه شده از همگام‌سازی سراسری نور',
+      dhikrFa: w.occasion_tag || 'اضافه شده از همگام‌سازی سراسری نور',
       usageGuideFa: w.subtitle_fa || 'تصویر جدید و باکیفیت دریافت‌شده از سرور نور',
       category: mapRemoteWallpaperCategory(w.category),
       imageUrl: w.image_url,
@@ -454,7 +574,6 @@ export function getAllHeroDesigns(): HeroArtDesign[] {
       isFeatured: Boolean(w.is_featured),
     }));
 
-  // والپیپرهای اختصاصی متصل به تم‌های مناسبتی آنلاین
   const themeWallpapers: HeroArtDesign[] = getCachedRemoteThemes()
     .filter((t) => Boolean(t.wallpaper_url))
     .map((t, idx) => ({
@@ -494,6 +613,30 @@ function getHijriMonthDaySafe(date: Date): { month: number; day: number } | null
   return null;
 }
 
+export function resolveCityMatchedHeroDesign(cityName: string): HeroArtDesign | null {
+  const cleanCity = (cityName || '').trim();
+  if (!cleanCity) return null;
+
+  let bestDesign: HeroArtDesign | null = null;
+  let bestScore = 0;
+
+  for (const design of HERO_30_DESIGNS) {
+    if (!design.cityMatch) continue;
+    for (const rawToken of design.cityMatch) {
+      const token = rawToken.trim();
+      if (!token) continue;
+      if (cleanCity === token) {
+        return design;
+      }
+      if (cleanCity.includes(token) && token.length > bestScore) {
+        bestScore = token.length;
+        bestDesign = design;
+      }
+    }
+  }
+  return bestDesign;
+}
+
 export function resolveActiveHeroDesign(cityName: string = 'مشهد', nextPrayerKey: string = 'fajr'): HeroArtDesign {
   const cfg = loadHeroConfig();
   const allDesigns = getAllHeroDesigns();
@@ -501,7 +644,7 @@ export function resolveActiveHeroDesign(cityName: string = 'مشهد', nextPraye
     return allDesigns.find((d) => d.id === cfg.selectedId) || HERO_30_DESIGNS[0];
   }
   if (cfg.mode === 'auto_city') {
-    const matched = HERO_30_DESIGNS.find((d) => d.cityMatch?.some((c) => cityName.includes(c.trim())));
+    const matched = resolveCityMatchedHeroDesign(cityName);
     if (matched) return matched;
   }
 
@@ -532,7 +675,6 @@ export function resolveActiveHeroDesign(cityName: string = 'مشهد', nextPraye
     }
   }
 
-  // شب جمعه (پنج‌شنبه شب) -> کربلا | روز جمعه -> صبح جمعه مهدوی
   if (now.getDay() === 4 && now.getHours() >= 18) {
     return HERO_30_DESIGNS.find((d) => d.id === 'shrine_karbala_hussein') || HERO_30_DESIGNS[0];
   }
@@ -552,46 +694,6 @@ export function resolveActiveHeroDesign(cityName: string = 'مشهد', nextPraye
     return HERO_30_DESIGNS.find((d) => d.id === 'prayer_maghrib_golden') || HERO_30_DESIGNS[0];
   }
   return HERO_30_DESIGNS[0];
-}
-
-// رندرکننده گرافیکی برداری و سه‌بعدی (۱۰۰٪ آفلاین، بدون هیچ عکس شکسته و بسیار سریع)
-const PHOTO_URLS: Record<string, string> = {
-  "shrine_mashhad_reza": "https://images.unsplash.com/photo-1564769625905-50e93615e769?auto=format&fit=crop&w=900&q=80",
-  "shrine_karbala_hussein": "https://images.unsplash.com/photo-1584551246679-0daf3d275d0f?auto=format&fit=crop&w=900&q=80",
-  "shrine_najaf_ali": "https://images.unsplash.com/photo-1542816417-0983c9c9ad53?auto=format&fit=crop&w=900&q=80",
-  "shrine_makkah_kaaba": "https://images.unsplash.com/photo-1565552645632-d725f8bfc19a?auto=format&fit=crop&w=900&q=80",
-  "shrine_madinah_prophet": "https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?auto=format&fit=crop&w=900&q=80",
-  "shrine_qom_jamkaran": "https://images.unsplash.com/photo-1519817650390-64a93db51149?auto=format&fit=crop&w=900&q=80",
-  "prayer_tahajjud_sahar": "https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=900&q=80",
-  "prayer_fajr_horizon": "https://images.unsplash.com/photo-1470252649378-9c29740c9fa8?auto=format&fit=crop&w=900&q=80",
-  "prayer_dhuhr_emerald": "https://images.unsplash.com/photo-1584551246679-0daf3d275d0f?auto=format&fit=crop&w=900&q=80",
-  "prayer_maghrib_golden": "https://images.unsplash.com/photo-1519817650390-64a93db51149?auto=format&fit=crop&w=900&q=80",
-  "occ_friday_mahdi": "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=900&q=80",
-  "occ_ramadan_lanterns": "https://images.unsplash.com/photo-1564769625905-50e93615e769?auto=format&fit=crop&w=900&q=80",
-  "occ_laylat_al_qadr": "https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=900&q=80",
-  "occ_eid_ghadir_shaban": "https://images.unsplash.com/photo-1542816417-0983c9c9ad53?auto=format&fit=crop&w=900&q=80",
-  "muharram_golden_dome_flag": "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=900&q=80",
-  "muharram_ashura_candles": "https://images.unsplash.com/photo-1508615039623-a25605d2b022?auto=format&fit=crop&w=900&q=80",
-  "safar_arbaeen_walk": "https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?auto=format&fit=crop&w=900&q=80",
-  "arch_goharshad_mashhad": "https://images.unsplash.com/photo-1564769625905-50e93615e769?auto=format&fit=crop&w=900&q=80",
-  "arch_isfahan_lotfollah": "https://images.unsplash.com/photo-1584551246679-0daf3d275d0f?auto=format&fit=crop&w=900&q=80",
-  "arch_shiraz_nasir_al_mulk": "https://images.unsplash.com/photo-1542816417-0983c9c9ad53?auto=format&fit=crop&w=900&q=80"
-};
-
-
-function getOfflineIranSafeImage(designId: string | number): string {
-  const s = String(designId).toLowerCase();
-  const n = parseInt(s.replace(/\D/g, ''), 10) || 0;
-  if (n === 6 || s.includes('qom') || s.includes('masoumeh')) return '/shrines/qom.jpg';
-  if (n === 5 || s.includes('madinah') || s.includes('nabawi')) return '/shrines/madinah.jpg';
-  if (n === 19 || s.includes('lotfollah') || s.includes('isfahan')) return '/shrines/isfahan.jpg';
-  if (n === 20 || s.includes('nasir') || s.includes('shiraz')) return '/shrines/shiraz.jpg';
-  if (s.includes('karbala') || s.includes('hossein') || s.includes('muharram') || [2, 15, 16, 17].includes(n)) return '/shrines/karbala.jpg';
-  if (s.includes('najaf') || s.includes('ali') || s.includes('ghadir') || [3, 14].includes(n)) return '/shrines/najaf.jpg';
-  if (s.includes('makkah') || s.includes('kaaba') || [4].includes(n)) return '/shrines/makkah.jpg';
-  if (s.includes('fajr') || s.includes('sahar') || s.includes('friday') || [7, 8, 9, 10, 11].includes(n)) return '/shrines/fajr.jpg';
-  if (s.includes('qadr') || s.includes('ramadan') || [12, 13].includes(n)) return '/shrines/qadr.jpg';
-  return '/shrines/mashhad.jpg';
 }
 
 export function RenderHeroArtworkScene({ design }: { design: HeroArtDesign }) {
@@ -616,8 +718,9 @@ export function RenderHeroArtworkScene({ design }: { design: HeroArtDesign }) {
         <img
           src={src}
           alt=""
+          loading="lazy"
           className="absolute inset-0 w-full h-full object-cover object-center transition-opacity duration-300"
-          style={{ filter: 'brightness(0.96) contrast(1.07) saturate(1.14)' }}
+          style={{ filter: 'brightness(0.96) contrast(1.06) saturate(1.12)' }}
           onError={() => {
             if (src !== localSafeImg) {
               setSrc(localSafeImg);
@@ -695,7 +798,7 @@ export function Hero30SelectorModal({
                 تصویر بالای صفحه خانه
               </h3>
               <p className="text-[11px] text-emerald-100/65 mt-0.5">
-                انتخاب منظره حرم‌ها، مساجد و مناسبت‌ها
+                ۲۵ منظره واقعی و آفلاین از حرم‌ها، مساجد و شهرهای ایران
               </p>
             </div>
           </div>
@@ -709,7 +812,7 @@ export function Hero30SelectorModal({
           </button>
         </div>
 
-        {/* ۳ کارت حالت انتخاب (انتخاب دستی / خودکار مناسبتی و اوقات نماز / متناسب با شهر) */}
+        {/* ۳ کارت حالت انتخاب */}
         <div className="grid grid-cols-3 gap-2 my-3">
           <button
             type="button"
@@ -737,10 +840,10 @@ export function Hero30SelectorModal({
             }}
           >
             <div className="flex items-center justify-between mb-1">
-              <span className="text-[11px] font-black text-white">خودکار زمانی</span>
+              <span className="text-[11px] font-black text-white">خودکار مناسبت</span>
               <Sparkles size={12} color="#34D399" />
             </div>
-            <p className="text-[10px] opacity-70 leading-snug">تغییر در صبح، ظهر، مغرب و جمعه</p>
+            <p className="text-[10px] opacity-70 leading-snug">تغییر با تقویم هجری و اوقات نماز</p>
           </button>
 
           <button
@@ -760,8 +863,15 @@ export function Hero30SelectorModal({
           </button>
         </div>
 
-        {/* تب‌های دسته‌بندی کارشناسی مذهبی */}
-        <div className="flex flex-nowrap items-center gap-2 overflow-x-auto pb-2.5 pt-0.5 shrink-0 no-scrollbar">
+        {/* تب‌های دسته‌بندی (ایزوله در برابر سوایپ تعویض تب) */}
+        <div
+          data-no-swipe="true"
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchMove={(e) => e.stopPropagation()}
+          onTouchEnd={(e) => e.stopPropagation()}
+          className="flex flex-nowrap items-center gap-2 overflow-x-auto pb-2.5 pt-0.5 shrink-0 touch-pan-x"
+          style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}
+        >
           {HERO_RELIGIOUS_CATEGORIES.map((cat) => {
             const isActive = activeCategory === cat.id;
             return (
@@ -783,7 +893,7 @@ export function Hero30SelectorModal({
           })}
         </div>
 
-        {/* شبکه کارت‌های پیش‌نمایش زنده (بدون هیچ عکس شکسته!) + نمایش توضیح کاربرد مذهبی هر طرح */}
+        {/* شبکه کارت‌های پیش‌نمایش ۲۵ تصویر یکتای آفلاین */}
         <div className="grid grid-cols-2 auto-rows-max gap-2.5 overflow-y-auto py-2 pr-0.5 flex-1">
           {filteredDesigns.map((d) => {
             const isSelected = cfg.selectedId === d.id && cfg.mode === 'manual';
@@ -799,7 +909,6 @@ export function Hero30SelectorModal({
                   boxShadow: isSelected ? '0 0 0 2px rgba(251, 191, 36, 0.35)' : 'none',
                 }}
               >
-                {/* تصویر گرافیکی زنده بالای کارت (بدون تگ img شکسته!) */}
                 <div className="w-full h-24 relative overflow-hidden">
                   <RenderHeroArtworkScene design={d} />
                   {d.isRemoteOta && (
@@ -820,8 +929,7 @@ export function Hero30SelectorModal({
                   )}
                 </div>
 
-                {/* مشخصات و راهنمای مناسبت هر طرح */}
-                <div className="p-2.5 space-y-1 flex-1 flex flex-col justify-between h-[184px] min-h-[184px] shrink-0">
+                <div className="p-2.5 space-y-1 flex-1 flex flex-col justify-between h-[156px] min-h-[156px] shrink-0">
                   <div>
                     <div className="text-[11px] font-black text-white leading-snug line-clamp-1">
                       {d.titleFa}
@@ -831,10 +939,10 @@ export function Hero30SelectorModal({
                     </div>
                   </div>
                   <div
-                    className="text-[9px] px-1.5 py-1 rounded-lg mt-1 leading-relaxed"
-                    style={{ background: 'rgba(255,255,255,0.04)', color: 'rgba(209, 250, 229, 0.75)' }}
+                    className="text-[9px] px-1.5 py-1 rounded-lg mt-1 leading-relaxed line-clamp-3"
+                    style={{ background: 'rgba(255,255,255,0.04)', color: 'rgba(209, 250, 229, 0.78)' }}
                   >
-                    💡 {d.usageGuideFa}
+                    {d.usageGuideFa}
                   </div>
                 </div>
               </button>
