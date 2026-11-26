@@ -4,7 +4,7 @@ import { ThemePatternWatermark } from '@/components/FigmaLuxuryElements';
 import { getTemperatureUnit, setTemperatureUnit, type TempUnit } from '@/lib/weatherService';
 
 
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback, lazy, Suspense } from 'react';
 import {
   Palette, Volume2, Bell, LogOut, User, Check, LogIn, MapPin,
   AlertCircle, Type, LayoutGrid, Crown, HelpCircle, ChevronLeft,
@@ -20,7 +20,7 @@ import { OCCASION_MOTIFS, getSelectedOccasionMotif, setSelectedOccasionMotif, ty
 import { useAuth } from '@/hooks/useAuth';
 import { useBackHandler } from '@/lib/backNavigation';
 import { applyDisplayScale } from '@/lib/displayScale';
-import { checkFullScreenIntentPermission, openFullScreenIntentSettings, type FullScreenPermissionStatus } from '@/lib/nativeAlarmPermissions';
+import { checkFullScreenIntentPermission, openFullScreenIntentSettings, openAppNotificationSettings, checkExactAlarmPermission, openExactAlarmSettings, type FullScreenPermissionStatus, type ExactAlarmPermissionStatus } from '@/lib/nativeAlarmPermissions';
 import { NOOR_PRIVACY_POLICY_URL, NOOR_SUPPORT_EMAIL, NOOR_SUPPORT_TELEGRAM_URL } from '@/lib/storeChannel';
 import { themes, getAllThemes } from '@/lib/themes';
 import {
@@ -39,7 +39,7 @@ import { getNeshanApiKey, setNeshanApiKey } from '@/lib/neshanMosqueService';
 import { runFullUserCloudSync } from '@/lib/cloudSyncService';
 import { getCachedGlobalSyncSnapshot } from '@/lib/globalSyncService';
 import { GlobalSyncHubModal } from '@/components/GlobalSyncHubModal';
-import { AppTutorialModal } from '@/components/AppTutorialModal';
+const AppTutorialModal = lazy(() => import('@/components/AppTutorialModal').then((m) => ({ default: m.AppTutorialModal })));
 import { AdhanStudioAndTravelModal } from '@/components/AdhanStudioAndTravelModal';
 import { VipAndAnalyticsModal } from '@/components/VipAndAnalyticsModal';
 import { getDiagnosticLogs, clearDiagnosticLogs, type AppLogEntry } from '@/lib/logger';
@@ -49,7 +49,7 @@ const GUEST_NOTIF_KEY = 'noor_guest_notif_enabled';
 const GUEST_ADHAN_KEY = 'noor_guest_adhan_id';
 
 function getGuestAdhanId(): string {
-  try { return localStorage.getItem(GUEST_ADHAN_KEY) || 'mahur_saeed'; } catch { return 'mahur_saeed'; }
+  try { return localStorage.getItem(GUEST_ADHAN_KEY) || 'ahlolbait_30'; } catch { return 'ahlolbait_30'; }
 }
 
 function getGuestNotifEnabled(): boolean {
@@ -440,22 +440,74 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
     apiLevel: 0,
     needsSettings: false,
   });
+  const [exactAlarmPerm, setExactAlarmPerm] = useState<ExactAlarmPermissionStatus>({
+    granted: true,
+    apiLevel: 0,
+  });
+  const [notifPermState, setNotifPermState] = useState<'granted' | 'denied' | 'prompt'>('granted');
+  const [permFeedback, setPermFeedback] = useState<string | null>(null);
+
+  const refreshAllPermissions = useCallback(() => {
+    void checkFullScreenIntentPermission().then(setFullScreenPerm);
+    void checkExactAlarmPermission().then(setExactAlarmPerm);
+    void checkPermission().then((st) => {
+      if (st === 'granted') setNotifPermState('granted');
+      else if (st === 'denied') setNotifPermState('denied');
+      else setNotifPermState('prompt');
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
-    const refreshFullScreenPerm = () => {
-      void checkFullScreenIntentPermission().then(setFullScreenPerm);
-    };
-    refreshFullScreenPerm();
+    refreshAllPermissions();
     const onVis = () => {
-      if (document.visibilityState === 'visible') refreshFullScreenPerm();
+      if (document.visibilityState === 'visible') refreshAllPermissions();
     };
     document.addEventListener('visibilitychange', onVis);
-    window.addEventListener('focus', refreshFullScreenPerm);
+    window.addEventListener('focus', refreshAllPermissions);
     return () => {
       document.removeEventListener('visibilitychange', onVis);
-      window.removeEventListener('focus', refreshFullScreenPerm);
+      window.removeEventListener('focus', refreshAllPermissions);
     };
-  }, []);
+  }, [refreshAllPermissions]);
+
+  const handleRequestOrOpenNotifPermission = async () => {
+    setPermFeedback(null);
+    if (!Capacitor.isNativePlatform()) {
+      setPermFeedback('این مجوز روی نسخه اندروید گوشی قابل تنظیم است.');
+      return;
+    }
+    try {
+      const current = await checkPermission();
+      if (current === 'granted') {
+        setNotifPermState('granted');
+        if (profile) await updateProfile({ notif_enabled: true });
+        else {
+          setGuestNotifEnabled(true);
+          setGuestNotif(true);
+        }
+        await rescheduleAllReminders(true);
+        setPermFeedback('مجوز اعلان فعال است و تمام اذان‌ها و سوره‌ها زمان‌بندی شدند.');
+        return;
+      }
+      const next = await requestPermission();
+      if (next === 'granted') {
+        setNotifPermState('granted');
+        if (profile) await updateProfile({ notif_enabled: true });
+        else {
+          setGuestNotifEnabled(true);
+          setGuestNotif(true);
+        }
+        await rescheduleAllReminders(true);
+        setPermFeedback('مجوز اعلان با موفقیت فعال و اذان‌ها زمان‌بندی شدند.');
+      } else {
+        setNotifPermState('denied');
+        setPermFeedback('در حال باز کردن صفحه اعلان‌های نور در تنظیمات گوشی...');
+        await openAppNotificationSettings();
+      }
+    } catch {
+      await openAppNotificationSettings();
+    }
+  };
 
   useBackHandler(section !== 'main', () => setSection('main'));
   useBackHandler(showManualOffsets, () => setShowManualOffsets(false));
@@ -1426,7 +1478,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
             <button
               type="button"
               onClick={async () => {
-                const chosenId = localStorage.getItem('noor_guest_adhan_id') || 'moazenzadeh_ardabili';
+                const chosenId = localStorage.getItem('noor_guest_adhan_id') || 'ahlolbait_30';
                 const chosenObj = allAdhans.find((a) => a.id === chosenId) || adhans[0];
                 const durSec = getAdhanDurationSeconds(durationMode);
                 const durLabel = durSec === 10 ? '۱۰ ثانیه اول' : durSec === 30 ? '۳۰ ثانیه اول' : 'اذان کامل';
@@ -1717,7 +1769,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
 
   return (
     <div className="w-full max-w-xl mx-auto px-3.5 pt-4 pb-28 animate-fade-in" dir={dir}>
-      {showGuide && <AppTutorialModal onClose={() => setShowGuide(false)} />}
+      {showGuide && <Suspense fallback={null}><AppTutorialModal onClose={() => setShowGuide(false)} /></Suspense>}
       {showPreAdhanModal && <AdhanStudioAndTravelModal initialSection="studio" onClose={() => setShowPreAdhanModal(false)} />}
       {showVipModal && <VipAndAnalyticsModal initialTab="vip" onClose={() => setShowVipModal(false)} />}
       {showGlobalSyncHub && (
@@ -1914,6 +1966,152 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
               <AlertCircle size={13} color={theme.accent} />
               <span>{t('settings.notifAndroidOnly')}</span>
             </div>
+          )}
+        </div>
+
+        {/* کارت دائمی بازگردانی و مدیریت مجوزهای اعلان، اذان و صفحه قفل (اندروید ۷ تا ۱۶) */}
+        <div
+          data-permission-manager="true"
+          className="card-flat p-4 space-y-3"
+          style={{
+            borderColor:
+              notifPermState !== 'granted' || !exactAlarmPerm.granted || !fullScreenPerm.granted
+                ? 'rgba(251, 191, 36, 0.55)'
+                : theme.border,
+            background:
+              notifPermState !== 'granted'
+                ? 'rgba(245, 158, 11, 0.1)'
+                : theme.surface,
+          }}
+        >
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-center gap-2.5">
+              <div
+                className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                style={{
+                  background:
+                    notifPermState === 'granted'
+                      ? 'rgba(16, 185, 129, 0.16)'
+                      : 'rgba(251, 191, 36, 0.18)',
+                }}
+              >
+                <Shield size={18} color={notifPermState === 'granted' ? theme.primary : theme.accent} />
+              </div>
+              <div>
+                <p className="text-xs sm:text-sm font-black text-app">
+                  مدیریت مجوزهای اعلان، اذان و سوره
+                </p>
+                <p className="text-[11px] text-muted mt-0.5 leading-snug">
+                  اگر در ورود اول اجازه اعلان را رد کرده‌اید، از اینجا دوباره فعال کنید
+                </p>
+              </div>
+            </div>
+            <span
+              className="px-2 py-0.5 rounded-full text-[10px] font-black shrink-0"
+              style={{
+                background:
+                  notifPermState === 'granted' && exactAlarmPerm.granted && fullScreenPerm.granted
+                    ? 'rgba(16, 185, 129, 0.18)'
+                    : 'rgba(251, 191, 36, 0.2)',
+                color:
+                  notifPermState === 'granted' && exactAlarmPerm.granted && fullScreenPerm.granted
+                    ? '#34D399'
+                    : '#FBBF24',
+              }}
+            >
+              {notifPermState === 'granted' && exactAlarmPerm.granted && fullScreenPerm.granted
+                ? 'تکمیل'
+                : 'نیازمند بررسی'}
+            </span>
+          </div>
+
+          <div className="space-y-2">
+            <div
+              className="rounded-xl px-3 py-2.5 border flex items-center justify-between gap-2"
+              style={{ borderColor: theme.border, background: theme.bg }}
+            >
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-app">مجوز اعلان‌های اذان و سوره</p>
+                <p className="text-[10.5px] text-muted mt-0.5">
+                  {notifPermState === 'granted'
+                    ? 'فعال · آماده پخش سر وقت'
+                    : 'غیرفعال · برای پخش اذان ضروری است'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => void handleRequestOrOpenNotifPermission()}
+                className="px-3 py-1.5 rounded-xl text-[11px] font-black shrink-0 transition-transform active:scale-95"
+                style={{
+                  background: notifPermState === 'granted' ? 'rgba(16, 185, 129, 0.16)' : theme.accent,
+                  color: notifPermState === 'granted' ? theme.primary : theme.bg,
+                }}
+              >
+                {notifPermState === 'granted' ? 'بررسی مجدد' : 'درخواست مجوز'}
+              </button>
+            </div>
+
+            {Capacitor.isNativePlatform() && !exactAlarmPerm.granted && (
+              <div
+                className="rounded-xl px-3 py-2.5 border flex items-center justify-between gap-2"
+                style={{ borderColor: 'rgba(251, 191, 36, 0.45)', background: theme.bg }}
+              >
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-app">آلارم دقیق (اندروید ۱۲ به بالا)</p>
+                  <p className="text-[10.5px] text-muted mt-0.5">برای جلوگیری از تأخیر در پخش اذان</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void openExactAlarmSettings()}
+                  className="px-3 py-1.5 rounded-xl text-[11px] font-black shrink-0"
+                  style={{ background: theme.accent, color: theme.bg }}
+                >
+                  فعال‌سازی
+                </button>
+              </div>
+            )}
+
+            {Capacitor.isNativePlatform() && (fullScreenPerm.needsSettings || fullScreenPerm.apiLevel >= 34) && !fullScreenPerm.granted && (
+              <div
+                className="rounded-xl px-3 py-2.5 border flex items-center justify-between gap-2"
+                style={{ borderColor: 'rgba(251, 191, 36, 0.45)', background: theme.bg }}
+              >
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-app">نمایش تمام‌صفحه روی قفل گوشی</p>
+                  <p className="text-[10.5px] text-muted mt-0.5">برای باز شدن صفحه اذان و دکمه توقف روی قفل</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void openFullScreenIntentSettings()}
+                  className="px-3 py-1.5 rounded-xl text-[11px] font-black shrink-0"
+                  style={{ background: theme.accent, color: theme.bg }}
+                >
+                  تنظیم مجوز
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center justify-between gap-2 pt-0.5">
+            <button
+              type="button"
+              onClick={() => void openAppNotificationSettings()}
+              className="text-[11px] font-bold underline"
+              style={{ color: theme.primary }}
+            >
+              باز کردن تنظیمات اعلان گوشی
+            </button>
+            <button
+              type="button"
+              onClick={refreshAllPermissions}
+              className="text-[11px] font-bold text-muted"
+            >
+              بروزرسانی وضعیت
+            </button>
+          </div>
+
+          {permFeedback && (
+            <p className="text-[11px] font-bold text-primary leading-relaxed">{permFeedback}</p>
           )}
         </div>
 

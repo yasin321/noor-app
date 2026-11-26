@@ -179,24 +179,24 @@ const SYNC_EVENT_NAME = 'noor-tawashih-config-synced';
 
 const DEFAULT_CONFIG: AllPrayersTawashihMap = {
   fajr: {
-    before: { enabled: true, minutesOffset: 15, mode: 'audio', trackId: 'rabbana_shajarian', speed: 1.0 },
-    after: { enabled: true, minutesOffset: 10, mode: 'audio', trackId: 'surah_waqiah', speed: 1.0 },
+    before: { enabled: false, minutesOffset: 15, mode: 'audio', trackId: 'rabbana_shajarian', speed: 1.0 },
+    after: { enabled: false, minutesOffset: 10, mode: 'audio', trackId: 'surah_waqiah', speed: 1.0 },
   },
   dhuhr: {
-    before: { enabled: true, minutesOffset: 10, mode: 'audio', trackId: 'nadali_alifani', speed: 1.0 },
-    after: { enabled: true, minutesOffset: 10, mode: 'audio', trackId: 'surah_yasin', speed: 1.0 },
+    before: { enabled: false, minutesOffset: 10, mode: 'audio', trackId: 'nadali_alifani', speed: 1.0 },
+    after: { enabled: false, minutesOffset: 10, mode: 'audio', trackId: 'surah_yasin', speed: 1.0 },
   },
   asr: {
     before: { enabled: false, minutesOffset: 10, mode: 'audio', trackId: 'salawat_reza', speed: 1.0 },
     after: { enabled: false, minutesOffset: 10, mode: 'audio', trackId: 'ayat_kursi', speed: 1.0 },
   },
   maghrib: {
-    before: { enabled: true, minutesOffset: 15, mode: 'audio', trackId: 'rabbana_shajarian', speed: 1.0 },
-    after: { enabled: true, minutesOffset: 10, mode: 'audio', trackId: 'surah_rahman', speed: 1.0 },
+    before: { enabled: false, minutesOffset: 15, mode: 'audio', trackId: 'rabbana_shajarian', speed: 1.0 },
+    after: { enabled: false, minutesOffset: 10, mode: 'audio', trackId: 'surah_rahman', speed: 1.0 },
   },
   isha: {
     before: { enabled: false, minutesOffset: 10, mode: 'audio', trackId: 'munajat_sahar', speed: 1.0 },
-    after: { enabled: true, minutesOffset: 15, mode: 'audio', trackId: 'surah_mulk', speed: 1.0 },
+    after: { enabled: false, minutesOffset: 15, mode: 'audio', trackId: 'surah_mulk', speed: 1.0 },
   },
 };
 

@@ -1083,6 +1083,65 @@ public class NoorAlarmPlugin extends Plugin {
         activeCompassMode = "none";
     }
 
+    @PluginMethod
+    public void openAppNotificationSettings(PluginCall call) {
+        try {
+            Context ctx = getContext();
+            Intent intent;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                intent = new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS);
+                intent.putExtra(Settings.EXTRA_APP_PACKAGE, ctx.getPackageName());
+            } else {
+                intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                intent.setData(Uri.parse("package:" + ctx.getPackageName()));
+            }
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            ctx.startActivity(intent);
+        } catch (Exception e) {
+            try {
+                Context ctx = getContext();
+                Intent fallback = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                fallback.setData(Uri.parse("package:" + ctx.getPackageName()));
+                fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                ctx.startActivity(fallback);
+            } catch (Exception ignored) {}
+        }
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void checkExactAlarmPermission(PluginCall call) {
+        boolean granted = true;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            try {
+                AlarmManager am = (AlarmManager) getContext().getSystemService(Context.ALARM_SERVICE);
+                granted = am != null && am.canScheduleExactAlarms();
+            } catch (Exception ignored) {}
+        }
+        JSObject ret = new JSObject();
+        ret.put("granted", granted);
+        ret.put("apiLevel", Build.VERSION.SDK_INT);
+        call.resolve(ret);
+    }
+
+    @PluginMethod
+    public void openExactAlarmSettings(PluginCall call) {
+        try {
+            Context ctx = getContext();
+            Intent intent;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                intent = new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM);
+                intent.setData(Uri.parse("package:" + ctx.getPackageName()));
+            } else {
+                intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                intent.setData(Uri.parse("package:" + ctx.getPackageName()));
+            }
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            ctx.startActivity(intent);
+        } catch (Exception ignored) {}
+        call.resolve();
+    }
+
     @Override
     protected void handleOnDestroy() {
         compassMainHandler.post(this::stopCompassInternal);

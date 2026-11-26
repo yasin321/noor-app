@@ -535,7 +535,7 @@ export function loadHeroConfig(): HeroUserConfig {
       if (parsed && parsed.mode && parsed.selectedId) return parsed;
     }
   } catch {}
-  return { mode: 'manual', selectedId: 'shrine_mashhad_reza' };
+  return { mode: 'manual', selectedId: 'arch_shiraz_nasir_al_mulk' };
 }
 
 export function saveHeroConfig(cfg: HeroUserConfig): void {

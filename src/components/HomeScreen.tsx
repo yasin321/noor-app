@@ -30,7 +30,6 @@ import { logEvent } from '@/lib/logger';
 import { QiblaCompassModal } from '@/components/QiblaCompassModal';
 const CalendarModal = lazy(() => import('@/components/CalendarModal').then((m) => ({ default: m.CalendarModal })));
 import { WeatherCuteHeaderWidget } from '@/components/WeatherCuteCard';
-import { AppTutorialModal, TUTORIAL_SEEN_KEY } from '@/components/AppTutorialModal';
 import { InboxModal } from '@/components/InboxAndBirthdayModal';
 import { getUnreadInboxCount, INBOX_UPDATED_EVENT } from '@/lib/inboxService';
 import type { Tab } from '@/components/BottomNav';
@@ -46,9 +45,9 @@ export interface HomeModulesVisibility {
 
 const HOME_MODULES_KEY = 'noor_home_modules_visibility_v1';
 const DEFAULT_HOME_MODULES: HomeModulesVisibility = {
-  showDeenWidgets: true,
-  showContextualTip: true,
-  showDailySummary: true,
+  showDeenWidgets: false,
+  showContextualTip: false,
+  showDailySummary: false,
   showAsrPrayer: true,
   showIshaPrayer: true,
   showMidnightTime: true,
@@ -480,7 +479,6 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
   const [showStudioAndTravel, setShowStudioAndTravel] = useState(false);
   const [showQibla, setShowQibla] = useState(false);
   const [showBiModal, setShowBiModal] = useState(false);
-  const [showQuickGuide, setShowQuickGuide] = useState(false);
   const [showInbox, setShowInbox] = useState(false);
   const [unreadInboxCount, setUnreadInboxCount] = useState(() => getUnreadInboxCount());
   const [showCityPicker, setShowCityPicker] = useState(false);
@@ -495,7 +493,6 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
   });
   useBackHandler(showStudioAndTravel, () => setShowStudioAndTravel(false));
   useBackHandler(showBiModal, () => setShowBiModal(false));
-  useBackHandler(showQuickGuide, () => setShowQuickGuide(false));
   useBackHandler(showInbox, () => setShowInbox(false));
   const [modulesVis, setModulesVis] = useState(() => getHomeModulesVisibility());
 
@@ -615,7 +612,7 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
         target.setDate(target.getDate() + 1);
       }
 
-      const selectedAdhanId = localStorage.getItem('noor_guest_adhan_id') || 'moazenzadeh_ardabili';
+      const selectedAdhanId = localStorage.getItem('noor_guest_adhan_id') || 'ahlolbait_30';
       const durSec = getAdhanDurationSeconds(getAdhanDurationMode());
 
       await NoorAlarm.scheduleNativeAlarm({
@@ -671,7 +668,7 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
     void rescheduleAll();
 
     if (nextVal) {
-      const selectedAdhanId = localStorage.getItem('noor_guest_adhan_id') || 'moazenzadeh_ardabili';
+      const selectedAdhanId = localStorage.getItem('noor_guest_adhan_id') || 'ahlolbait_30';
       void playAdhanPreview(adhans.find((a) => a.id === selectedAdhanId) || adhans[0]);
       setTimeout(() => stopAdhanPreview(), 7000);
       showQuickToast(t('home.toastBellOn') + ' ' + labelStr + ' (' + formatDigits(timeStr) + ')');
@@ -720,7 +717,7 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
         <DynamicShrineHorizonArt cityName={city.nameFa} themeId={theme.id} nextPrayerKey={nextPrayer.key} />
 
         <div className="absolute top-2.5 inset-x-0 z-20 max-w-lg mx-auto px-4 space-y-2.5">
-          <NastaliqMahdiCrown onOpenGuide={() => setShowQuickGuide(true)} />
+          <NastaliqMahdiCrown />
 
           <div className="flex items-center justify-between gap-2 pt-0.5">
             <button
@@ -786,7 +783,6 @@ export function HomeScreen({ onNavigate }: { onNavigate: (tab: any) => void }) {
         </div>
       )}
 
-      {showQuickGuide && <AppTutorialModal onClose={() => setShowQuickGuide(false)} />}
       {showInbox && <InboxModal onClose={() => setShowInbox(false)} onNavigate={onNavigate} />}
       {showBiModal && <Suspense fallback={null}><VipAnalyticsModal onClose={() => setShowBiModal(false)} /></Suspense>}
 

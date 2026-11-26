@@ -42,7 +42,20 @@ function AppContent() {
   const [tab, setTab] = useState<Tab>('home');
   const [navigationDirection, setNavigationDirection] = useState<'forward' | 'backward'>('forward');
   const [showAuth, setShowAuth] = useState(false);
-  const [showFirstTimeGuide, setShowFirstTimeGuide] = useState<boolean>(false);
+  const FIRST_RUN_TUTORIAL_KEY = 'noor_tutorial_seen_v1';
+  const [showFirstTimeGuide, setShowFirstTimeGuide] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(FIRST_RUN_TUTORIAL_KEY) !== '1';
+    } catch {
+      return false;
+    }
+  });
+  const dismissFirstTimeGuide = () => {
+    try {
+      localStorage.setItem(FIRST_RUN_TUTORIAL_KEY, '1');
+    } catch {}
+    setShowFirstTimeGuide(false);
+  };
   const [livePopupMsg, setLivePopupMsg] = useState<InboxMessage | null>(null);
   const [showBirthdayModal, setShowBirthdayModal] = useState<boolean>(false);
 
@@ -194,7 +207,7 @@ function AppContent() {
   }, []);
 
   useBackHandler(tab !== 'home', () => navigateTo('home'));
-  useBackHandler(showFirstTimeGuide, () => setShowFirstTimeGuide(false));
+  useBackHandler(showFirstTimeGuide, dismissFirstTimeGuide);
   useBackHandler(Boolean(livePopupMsg), () => setLivePopupMsg(null));
   useBackHandler(showBirthdayModal, () => setShowBirthdayModal(false));
   useBackHandler(showAuth && !user, () => setShowAuth(false));
@@ -215,8 +228,8 @@ function AppContent() {
       onTouchMoveCapture={handleTouchMove}
       onTouchEndCapture={handleTouchEnd}
     >
-      {showFirstTimeGuide && <Suspense fallback={null}><AppTutorialModal onClose={() => setShowFirstTimeGuide(false)} /></Suspense>}
-      <NotificationPermissionModal />
+      {showFirstTimeGuide && <Suspense fallback={null}><AppTutorialModal onClose={dismissFirstTimeGuide} /></Suspense>}
+      {!showFirstTimeGuide && <NotificationPermissionModal />}
       <GlobalUpdateBanner />
       {livePopupMsg && (
         <LiveNotificationPopup
