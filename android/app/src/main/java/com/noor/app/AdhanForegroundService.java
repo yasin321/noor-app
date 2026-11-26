@@ -103,7 +103,7 @@ public class AdhanForegroundService extends Service {
                 : "adhan";
         String adhanId = intent != null && intent.getStringExtra("adhanId") != null
                 ? intent.getStringExtra("adhanId")
-                : "mahur_saeed";
+                : "ahlolbait_30";
         int durationSeconds = intent != null ? intent.getIntExtra("durationSeconds", 0) : 0;
         float playbackRate = intent != null ? intent.getFloatExtra("playbackRate", 1.0f) : 1.0f;
         int volumePercent = intent != null ? intent.getIntExtra("volumePercent", 100) : 100;
@@ -249,7 +249,7 @@ public class AdhanForegroundService extends Service {
             return;
         }
         if (adhanId == null || adhanId.trim().isEmpty()) {
-            adhanId = "mahur_saeed";
+            adhanId = "ahlolbait_30";
         }
         adhanId = adhanId
                 .replace("/adhans/", "")
@@ -258,7 +258,8 @@ public class AdhanForegroundService extends Service {
                 .replace(".ogg", "")
                 .trim();
 
-        if (adhanId.equals("post_surah_waqiah") || adhanId.equals("surah_waqiah") || adhanId.equals("waqiah")) adhanId = "post_waqiah";
+        if (adhanId.equals("salawat_zarrab_esfahani") || adhanId.equals("zarrab_esfahani") || adhanId.equals("zarrab")) adhanId = "post_zarrab_esfahani";
+        else if (adhanId.equals("post_surah_waqiah") || adhanId.equals("surah_waqiah") || adhanId.equals("waqiah")) adhanId = "post_waqiah";
         else if (adhanId.equals("post_surah_yasin") || adhanId.equals("surah_yasin") || adhanId.equals("yasin")) adhanId = "post_yasin";
         else if (adhanId.equals("post_surah_mulk") || adhanId.equals("surah_mulk") || adhanId.equals("mulk")) adhanId = "post_mulk";
         else if (adhanId.equals("post_surah_dhariyat") || adhanId.equals("surah_dhariyat") || adhanId.equals("dhariyat")) adhanId = "post_dhariyat";
@@ -307,6 +308,8 @@ public class AdhanForegroundService extends Service {
 
                 if (!loaded) {
                     String mappedAssetPath = null;
+                    if ("post_zarrab_esfahani".equals(adhanId)) mappedAssetPath = "public/adhans/post_zarrab_esfahani.mp3";
+                    if ("ahlolbait_30".equals(adhanId)) mappedAssetPath = "public/adhans/ahlolbait_30.mp3";
                     if ("moazenzadeh_ardabili".equals(adhanId)) mappedAssetPath = "public/adhans/ahlolbait_01.mp3";
                     if ("ahlolbait_2".equals(adhanId)) mappedAssetPath = "public/adhans/ahlolbait_02.mp3";
                     if ("ahlolbait_3".equals(adhanId)) mappedAssetPath = "public/adhans/ahlolbait_03.mp3";

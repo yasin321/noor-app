@@ -88,6 +88,14 @@ export const PRE_ADHAN_TRACKS: TrackOption[] = [
 
 export const POST_ADHAN_TRACKS: TrackOption[] = [
   {
+    id: 'salawat_zarrab_esfahani',
+    titleFa: 'صلوات ابوالحسن ضراب اصفهانی',
+    subtitleFa: 'ویژه عصر جمعه · استاد محسن فرهمند آزاد',
+    durationFa: 'عصر جمعه',
+    audioFile: '/adhans/post_zarrab_esfahani.mp3',
+    audioAdhanId: 'post_zarrab_esfahani',
+  },
+  {
     id: 'surah_waqiah',
     titleFa: 'سوره واقعه',
     subtitleFa: 'برکت و وسعت رزق',
@@ -204,6 +212,7 @@ function normalizeTrackId(id: string, isAfter: boolean): string {
   const s = (id || '').toLowerCase();
   if (!s) return isAfter ? 'surah_waqiah' : 'rabbana_shajarian';
   if (isAfter) {
+    if (s.includes('zarrab') || s.includes('zarab')) return 'salawat_zarrab_esfahani';
     if (s.includes('waqiah')) return 'surah_waqiah';
     if (s.includes('yasin')) return 'surah_yasin';
     if (s.includes('rahman')) return 'surah_rahman';
@@ -527,7 +536,7 @@ export function TawashihAndAdhanReminderSection({
       return;
     }
     stopLocalAudio();
-    const selectedAdhanId = localStorage.getItem('noor_guest_adhan_id') || 'moazenzadeh_ardabili';
+    const selectedAdhanId = localStorage.getItem('noor_guest_adhan_id') || 'ahlolbait_30';
     const found = getAllAdhans().find((a) => a.id === selectedAdhanId) || adhans[0];
     setPlayingTrackId('main_adhan_preview');
     void playAdhanPreview(found, 0, 100, () => {

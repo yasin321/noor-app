@@ -42,7 +42,7 @@ function buildLocalProfile(userId: string, displayName: string): Profile {
     calculation_method: 'tehran',
     theme_id: 'emerald',
     notif_enabled: true,
-    adhan_id: (typeof localStorage !== 'undefined' && localStorage.getItem('noor_guest_adhan_id')) || 'moazenzadeh_ardabili',
+    adhan_id: (typeof localStorage !== 'undefined' && localStorage.getItem('noor_guest_adhan_id')) || 'ahlolbait_30',
   };
 }
 

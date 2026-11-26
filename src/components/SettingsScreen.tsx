@@ -858,7 +858,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
 
           <div className="card-flat p-4 space-y-3">
             <p className="text-xs font-bold text-app">۲. اندازه نوشته‌ها (مناسب گروه‌های سنی مختلف):</p>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               {[{ id: 'compact', label: 'کوچک / فشرده' }, 
                 { id: 'normal', label: 'عادی (استاندارد)' },
                 { id: 'medium', label: 'متوسط (خوانا)' },

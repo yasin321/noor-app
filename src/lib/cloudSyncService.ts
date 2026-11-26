@@ -158,7 +158,7 @@ export async function syncLocalStateToCloud(userId: string | null | undefined): 
       .from('profiles')
       .update({
         city_id: getGuestCityId(),
-        adhan_id: localStorage.getItem('noor_guest_adhan_id') || 'moazenzadeh_ardabili',
+        adhan_id: localStorage.getItem('noor_guest_adhan_id') || 'ahlolbait_30',
         theme_id: activeThemeId,
         app_settings: appSettings,
         quran_state: quranState,

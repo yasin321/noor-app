@@ -445,15 +445,15 @@ export const adhans: Adhan[] = [
   },
   {
     "id": "ahlolbait_30",
+    "bundledOffline": true,
     "name": "Ahlolbait Adhan 30",
     "nameFa": "۳۰. استاد کریم منصوری",
     "reciter": "استاد کریم منصوری",
-    "originFa": "پخش آنلاین · شماره ۳۰",
-    "audioUrl": "https://static.ahlolbait.com/files/ahlolbait/old/u12/13950331000618.mp3",
+    "originFa": "پخش آفلاین · پیش‌فرض نور",
+    "audioUrl": "/adhans/ahlolbait_30.mp3",
     "fallbackUrls": [
       "https://static.ahlolbait.com/files/ahlolbait/old/u12/13950331000618.mp3"
     ],
-    "bundledOffline": false,
     "license": "مؤسسه تحقیقات و نشر معارف اهل‌البیت (ع)"
   },
   {

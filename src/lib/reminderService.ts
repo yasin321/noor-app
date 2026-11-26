@@ -60,7 +60,7 @@ function resolvePrayerAlarmParams(
 ): { soundType: string; adhanId: string; audioUrl?: string; durationSeconds: number; volumePercent: number; playbackRate?: number } {
   const studio = loadAdhanStudio();
   const prof = studio.profiles[studio.activeProfile];
-  const selectedAdhan = localStorage.getItem('noor_guest_adhan_id') || 'moazenzadeh_ardabili';
+  const selectedAdhan = localStorage.getItem('noor_guest_adhan_id') || 'ahlolbait_30';
   const matchedAdhanObj = adhans.find((a) => a.id === selectedAdhan);
   const selectedAdhanAudioUrl = (Object.values((matchedAdhanObj || {}) as Record<string, unknown>).find((v): v is string => typeof v === 'string' && v.includes('/adhans/')) || '');
   const globalDurSec = getAdhanDurationSeconds(getAdhanDurationMode());

@@ -164,7 +164,7 @@ public class NoorAlarmPlugin extends Plugin {
                             obj.optString("title", "وقت اذان و نیایش"),
                             obj.optString("body", "حَیَّ عَلَی الصَّلَاة"),
                             obj.optString("soundType", "adhan"),
-                            obj.optString("adhanId", "mahur_saeed"),
+                            obj.optString("adhanId", "ahlolbait_30"),
                             obj.optInt("durationSeconds", 0),
                             obj.optInt("volumePercent", 100)
                     );
@@ -220,7 +220,7 @@ public class NoorAlarmPlugin extends Plugin {
         String title = call.getString("title", "وقت اذان و نیایش");
         String body = call.getString("body", "حَیَّ عَلَی الصَّلَاة");
         String soundType = call.getString("soundType", "adhan");
-        String adhanId = call.getString("adhanId", "mahur_saeed");
+        String adhanId = call.getString("adhanId", "ahlolbait_30");
         String audioUrl = call.getString("audioUrl", "");
         Integer durationObj = call.getInt("durationSeconds", 0);
         int durationSeconds = durationObj != null ? durationObj : 0;
@@ -481,7 +481,7 @@ public class NoorAlarmPlugin extends Plugin {
 
     @PluginMethod
     public void downloadAdhanAudio(PluginCall call) {
-        final String adhanId = call.getString("adhanId", "mahur_saeed");
+        final String adhanId = call.getString("adhanId", "ahlolbait_30");
         final String audioUrl = call.getString("audioUrl", "");
         final String fallbackUrl = call.getString("fallbackUrl", "");
         if (audioUrl == null || audioUrl.isEmpty()) {
@@ -552,7 +552,7 @@ public class NoorAlarmPlugin extends Plugin {
 
     @PluginMethod
     public void previewAdhanAudio(PluginCall call) {
-        String adhanId = call.getString("adhanId", "mahur_saeed");
+        String adhanId = call.getString("adhanId", "ahlolbait_30");
         Integer durationSeconds = call.getInt("durationSeconds", 15);
         Integer volumePercent = call.getInt("volumePercent", 95);
         Context ctx = getContext();

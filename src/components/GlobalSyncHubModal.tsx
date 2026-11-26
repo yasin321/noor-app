@@ -76,9 +76,9 @@ export function GlobalSyncHubModal({ onClose, onOpenAuth, onAppliedAdhan }: Prop
   const [activeHeroId, setActiveHeroId] = useState<string>(() => loadHeroConfig().selectedId);
   const [activeAdhanId, setActiveAdhanId] = useState<string>(() => {
     try {
-      return localStorage.getItem('noor_guest_adhan_id') || 'moazenzadeh_ardabili';
+      return localStorage.getItem('noor_guest_adhan_id') || 'ahlolbait_30';
     } catch {
-      return 'moazenzadeh_ardabili';
+      return 'ahlolbait_30';
     }
   });
   const audioRef = useRef<HTMLAudioElement | null>(null);

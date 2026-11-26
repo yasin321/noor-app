@@ -310,11 +310,20 @@ function getDynamicDailyHourlySuggestion(now: Date): DailyHourlySuggestion {
     };
   }
   if (hour >= 15 && hour < 18) {
+    if (day === 5) {
+      return {
+        badgeFa: 'پیشنهاد ویژه عصر جمعه · مفاتیح‌الجنان (مأثور از امام زمان عج)',
+        titleFa: 'صلوات ابوالحسن ضراب اصفهانی (با نوای استاد محسن فرهمند)',
+        arabicFa: 'اللَّهُمَّ صَلِّ عَلَى مُحَمَّدٍ سَيِّدِ الْمُرْسَلِينَ وَخَاتَمِ النَّبِيِّينَ',
+        actionType: 'dhikr',
+        dhikrId: 'salawat_zarrab_esfahani',
+        targetCount: 1,
+        ctaLabel: '▶ قرائت و ذکر عصر جمعه',
+      };
+    }
     return {
       badgeFa: `پیشنهاد عصر ${dInfo.dayFa} · ${dInfo.masoomFa}`,
-      titleFa: day === 5
-        ? 'استغفار عصرگاهی (۷۰ مرتبه) — ویژه عصر جمعه'
-        : `استغفار عصرگاهی (۷۰ مرتبه) · ${dInfo.dayFa}`,
+      titleFa: `استغفار عصرگاهی (۷۰ مرتبه) · ${dInfo.dayFa}`,
       arabicFa: 'أَسْتَغْفِرُ اللَّهَ رَبِّي وَأَتُوبُ إِلَيْهِ',
       actionType: 'dhikr',
       dhikrId: 'asr_istighfar_70',
