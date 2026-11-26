@@ -479,6 +479,21 @@ export function getAllHeroDesigns(): HeroArtDesign[] {
   return [...remoteWallpapers, ...themeWallpapers, ...HERO_30_DESIGNS];
 }
 
+function getHijriMonthDaySafe(date: Date): { month: number; day: number } | null {
+  try {
+    const parts = new Intl.DateTimeFormat('en-u-ca-islamic-umalqura', {
+      month: 'numeric',
+      day: 'numeric',
+    }).formatToParts(date);
+    const m = Number(parts.find((p) => p.type === 'month')?.value);
+    const d = Number(parts.find((p) => p.type === 'day')?.value);
+    if (Number.isFinite(m) && Number.isFinite(d) && m >= 1 && m <= 12 && d >= 1 && d <= 30) {
+      return { month: m, day: d };
+    }
+  } catch {}
+  return null;
+}
+
 export function resolveActiveHeroDesign(cityName: string = 'مشهد', nextPrayerKey: string = 'fajr'): HeroArtDesign {
   const cfg = loadHeroConfig();
   const allDesigns = getAllHeroDesigns();
@@ -489,10 +504,43 @@ export function resolveActiveHeroDesign(cityName: string = 'مشهد', nextPraye
     const matched = HERO_30_DESIGNS.find((d) => d.cityMatch?.some((c) => cityName.includes(c.trim())));
     if (matched) return matched;
   }
-  // auto_occasion: انتخاب هوشمند بر اساس روز هفته (جمعه مهدوی) و وقت نماز
+
+  // auto_occasion: تطبیق هوشمند با مناسبت‌های تقویم هجری قمری + شب جمعه + جمعه مهدوی + وقت نماز
   const now = new Date();
+  const hijri = getHijriMonthDaySafe(now);
+  if (hijri) {
+    if (hijri.month === 1 && hijri.day === 10) {
+      return HERO_30_DESIGNS.find((d) => d.id === 'muharram_ashura_candles') || HERO_30_DESIGNS[0];
+    }
+    if (hijri.month === 1 && hijri.day >= 1 && hijri.day <= 13) {
+      return HERO_30_DESIGNS.find((d) => d.id === 'muharram_golden_dome_flag') || HERO_30_DESIGNS[0];
+    }
+    if (hijri.month === 2 && hijri.day >= 15 && hijri.day <= 22) {
+      return HERO_30_DESIGNS.find((d) => d.id === 'safar_arbaeen_walk') || HERO_30_DESIGNS[0];
+    }
+    if (hijri.month === 9 && (hijri.day === 19 || hijri.day === 21 || hijri.day === 23)) {
+      return HERO_30_DESIGNS.find((d) => d.id === 'occ_laylat_al_qadr') || HERO_30_DESIGNS[0];
+    }
+    if (hijri.month === 9) {
+      return HERO_30_DESIGNS.find((d) => d.id === 'occ_ramadan_lanterns') || HERO_30_DESIGNS[0];
+    }
+    if ((hijri.month === 12 && hijri.day === 18) || (hijri.month === 10 && hijri.day <= 2) || (hijri.month === 8 && hijri.day === 15)) {
+      return HERO_30_DESIGNS.find((d) => d.id === 'occ_eid_ghadir_shaban') || HERO_30_DESIGNS[0];
+    }
+    if (hijri.month === 12 && hijri.day >= 8 && hijri.day <= 12) {
+      return HERO_30_DESIGNS.find((d) => d.id === 'shrine_makkah_kaaba') || HERO_30_DESIGNS[0];
+    }
+  }
+
+  // شب جمعه (پنج‌شنبه شب) -> کربلا | روز جمعه -> صبح جمعه مهدوی
+  if (now.getDay() === 4 && now.getHours() >= 18) {
+    return HERO_30_DESIGNS.find((d) => d.id === 'shrine_karbala_hussein') || HERO_30_DESIGNS[0];
+  }
   if (now.getDay() === 5) {
     return HERO_30_DESIGNS.find((d) => d.id === 'occ_friday_mahdi') || HERO_30_DESIGNS[0];
+  }
+  if (now.getHours() < 4) {
+    return HERO_30_DESIGNS.find((d) => d.id === 'prayer_tahajjud_sahar') || HERO_30_DESIGNS[0];
   }
   if (nextPrayerKey === 'fajr') {
     return HERO_30_DESIGNS.find((d) => d.id === 'prayer_fajr_horizon') || HERO_30_DESIGNS[0];

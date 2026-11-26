@@ -6,6 +6,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.res.Configuration;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.LinearGradient;
@@ -68,6 +69,19 @@ public class AdhanAlarmActivity extends AppCompatActivity {
             finishAndRemoveTask();
         }
     };
+
+    @Override
+    protected void attachBaseContext(Context newBase) {
+        try {
+            Configuration config = new Configuration(newBase.getResources().getConfiguration());
+            if (config.fontScale != 1.0f) {
+                config.fontScale = 1.0f;
+                super.attachBaseContext(newBase.createConfigurationContext(config));
+                return;
+            }
+        } catch (Exception ignored) {}
+        super.attachBaseContext(newBase);
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -142,16 +156,16 @@ public class AdhanAlarmActivity extends AppCompatActivity {
         LinearLayout container = new LinearLayout(this);
         container.setOrientation(LinearLayout.VERTICAL);
         container.setGravity(Gravity.CENTER_HORIZONTAL);
-        container.setPadding(dp(22), dp(42), dp(22), dp(34));
+        container.setPadding(dp(18), dp(20), dp(18), dp(18));
 
         // ردیف بالا: کپسول دسته‌بندی رویداد
         TextView topPill = new TextView(this);
         topPill.setText(profile.topBadge);
         topPill.setTextColor(profile.accentGold);
-        topPill.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12.5f);
+        topPill.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 11.5f);
         topPill.setTypeface(Typeface.DEFAULT_BOLD);
         topPill.setGravity(Gravity.CENTER);
-        topPill.setPadding(dp(18), dp(7), dp(18), dp(7));
+        topPill.setPadding(dp(14), dp(5), dp(14), dp(5));
         GradientDrawable pillBg = new GradientDrawable();
         pillBg.setColor(Color.argb(46, Color.red(profile.accentGold), Color.green(profile.accentGold), Color.blue(profile.accentGold)));
         pillBg.setStroke(dp(1), Color.argb(135, Color.red(profile.accentGold), Color.green(profile.accentGold), Color.blue(profile.accentGold)));
@@ -161,20 +175,20 @@ public class AdhanAlarmActivity extends AppCompatActivity {
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        pillLp.bottomMargin = dp(18);
+        pillLp.bottomMargin = dp(10);
         container.addView(topPill, pillLp);
 
         // نشان طلایی محراب نور (Vector Canvas — بدون ایموجی خراب)
         GoldenEmblemView emblem = new GoldenEmblemView(this, profile.accentGold, profile.accentSecondary);
-        LinearLayout.LayoutParams embLp = new LinearLayout.LayoutParams(dp(86), dp(86));
-        embLp.bottomMargin = dp(10);
+        LinearLayout.LayoutParams embLp = new LinearLayout.LayoutParams(dp(60), dp(60));
+        embLp.bottomMargin = dp(6);
         container.addView(emblem, embLp);
 
         // ساعت زنده با ارقام فارسی
         clockView = new TextView(this);
         clockView.setText(formatNowPersianClock());
         clockView.setTextColor(Color.parseColor("#F8FAFC"));
-        clockView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 40f);
+        clockView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 32f);
         clockView.setTypeface(Typeface.create("sans-serif-light", Typeface.BOLD));
         clockView.setGravity(Gravity.CENTER);
         clockView.setLetterSpacing(0.06f);
@@ -182,7 +196,7 @@ public class AdhanAlarmActivity extends AppCompatActivity {
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        clockLp.bottomMargin = dp(6);
+        clockLp.bottomMargin = dp(4);
         container.addView(clockView, clockLp);
 
         // اکولایزر زنده ۷ ستونه + وضعیت پویا
@@ -205,7 +219,7 @@ public class AdhanAlarmActivity extends AppCompatActivity {
         TextView eqLabel = new TextView(this);
         eqLabel.setText(profile.equalizerStatus);
         eqLabel.setTextColor(Color.parseColor("#E2E8F0"));
-        eqLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f);
+        eqLabel.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 11.5f);
         eqLabel.setTypeface(Typeface.DEFAULT_BOLD);
         eqRow.addView(eqLabel);
 
@@ -213,14 +227,14 @@ public class AdhanAlarmActivity extends AppCompatActivity {
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        eqRowLp.bottomMargin = dp(22);
+        eqRowLp.bottomMargin = dp(12);
         container.addView(eqRow, eqRowLp);
 
         // کارت شیشه‌ای کلاسیک با قاب طلایی
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setGravity(Gravity.CENTER_HORIZONTAL);
-        card.setPadding(dp(22), dp(24), dp(22), dp(24));
+        card.setPadding(dp(16), dp(14), dp(16), dp(14));
         GradientDrawable cardBg = new GradientDrawable(
                 GradientDrawable.Orientation.TOP_BOTTOM,
                 new int[]{ profile.cardTop, profile.cardBottom }
@@ -236,7 +250,7 @@ public class AdhanAlarmActivity extends AppCompatActivity {
         TextView titleView = new TextView(this);
         titleView.setText(cleanTitle);
         titleView.setTextColor(profile.titleColor);
-        titleView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 23f);
+        titleView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 18.5f);
         titleView.setTypeface(Typeface.DEFAULT_BOLD);
         titleView.setGravity(Gravity.CENTER);
         titleView.setLineSpacing(dp(4), 1.08f);
@@ -247,16 +261,16 @@ public class AdhanAlarmActivity extends AppCompatActivity {
 
         // خط جداکننده تزئینی کلاسیک
         TextView divider = new TextView(this);
-        divider.setText("────────  ✦  ────────");
+        divider.setText("────  ✦  ────");
         divider.setTextColor(Color.argb(175, Color.red(profile.accentGold), Color.green(profile.accentGold), Color.blue(profile.accentGold)));
-        divider.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f);
+        divider.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 11f);
         divider.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams divLp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        divLp.topMargin = dp(12);
-        divLp.bottomMargin = dp(12);
+        divLp.topMargin = dp(7);
+        divLp.bottomMargin = dp(7);
         card.addView(divider, divLp);
 
         // آیه یا فراز عربی اختصاصی همان سوره / اذان / تواشیح
@@ -264,11 +278,11 @@ public class AdhanAlarmActivity extends AppCompatActivity {
             TextView verseView = new TextView(this);
             verseView.setText(profile.classicalVerse);
             verseView.setTextColor(Color.parseColor("#FEF9C3"));
-            verseView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18.5f);
+            verseView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 15.5f);
             verseView.setTypeface(Typeface.SERIF, Typeface.BOLD);
             verseView.setGravity(Gravity.CENTER);
             verseView.setLineSpacing(dp(5), 1.15f);
-            verseView.setPadding(dp(12), dp(10), dp(12), dp(10));
+            verseView.setPadding(dp(10), dp(7), dp(10), dp(7));
             GradientDrawable verseBg = new GradientDrawable();
             verseBg.setColor(Color.argb(30, Color.red(profile.accentGold), Color.green(profile.accentGold), Color.blue(profile.accentGold)));
             verseBg.setCornerRadius(dp(16));
@@ -277,7 +291,7 @@ public class AdhanAlarmActivity extends AppCompatActivity {
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT
             );
-            verseLp.bottomMargin = dp(12);
+            verseLp.bottomMargin = dp(8);
             card.addView(verseView, verseLp);
         }
 
@@ -285,7 +299,7 @@ public class AdhanAlarmActivity extends AppCompatActivity {
         TextView bodyView = new TextView(this);
         bodyView.setText(cleanBody);
         bodyView.setTextColor(Color.parseColor("#E2E8F0"));
-        bodyView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14.5f);
+        bodyView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 12.5f);
         bodyView.setGravity(Gravity.CENTER);
         bodyView.setLineSpacing(dp(4), 1.15f);
         card.addView(bodyView, new LinearLayout.LayoutParams(
@@ -297,7 +311,7 @@ public class AdhanAlarmActivity extends AppCompatActivity {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        cardLp.bottomMargin = dp(26);
+        cardLp.bottomMargin = dp(14);
         container.addView(card, cardLp);
 
         // دکمه اصلی توقف (گرادیان طلایی کلاسیک)
@@ -305,7 +319,7 @@ public class AdhanAlarmActivity extends AppCompatActivity {
         stopBtn.setText(profile.stopButtonLabel);
         stopBtn.setAllCaps(false);
         stopBtn.setTextColor(Color.parseColor("#0B131E"));
-        stopBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f);
+        stopBtn.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14.5f);
         stopBtn.setTypeface(Typeface.DEFAULT_BOLD);
         GradientDrawable stopBg = new GradientDrawable(
                 GradientDrawable.Orientation.LEFT_RIGHT,
@@ -313,7 +327,7 @@ public class AdhanAlarmActivity extends AppCompatActivity {
         );
         stopBg.setCornerRadius(dp(20));
         stopBtn.setBackground(stopBg);
-        stopBtn.setPadding(dp(24), dp(15), dp(24), dp(15));
+        stopBtn.setPadding(dp(18), dp(12), dp(18), dp(12));
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             stopBtn.setElevation(dp(8));
         }
@@ -321,7 +335,7 @@ public class AdhanAlarmActivity extends AppCompatActivity {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        stopLp.bottomMargin = dp(12);
+        stopLp.bottomMargin = dp(8);
         stopBtn.setOnClickListener(v -> stopPlaybackAndDismiss());
         container.addView(stopBtn, stopLp);
 
@@ -330,14 +344,14 @@ public class AdhanAlarmActivity extends AppCompatActivity {
         openAppBtn.setText(profile.openButtonLabel);
         openAppBtn.setAllCaps(false);
         openAppBtn.setTextColor(profile.accentSecondary);
-        openAppBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14.5f);
+        openAppBtn.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13f);
         openAppBtn.setTypeface(Typeface.DEFAULT_BOLD);
         GradientDrawable openBg = new GradientDrawable();
         openBg.setColor(Color.parseColor("#2A0F2922"));
         openBg.setStroke(dp(1), Color.argb(165, Color.red(profile.accentSecondary), Color.green(profile.accentSecondary), Color.blue(profile.accentSecondary)));
         openBg.setCornerRadius(dp(20));
         openAppBtn.setBackground(openBg);
-        openAppBtn.setPadding(dp(24), dp(14), dp(24), dp(14));
+        openAppBtn.setPadding(dp(18), dp(11), dp(18), dp(11));
         openAppBtn.setOnClickListener(v -> {
             stopPlaybackQuietly();
             Intent mainIntent = new Intent(this, MainActivity.class);
@@ -354,13 +368,13 @@ public class AdhanAlarmActivity extends AppCompatActivity {
         TextView brandFooter = new TextView(this);
         brandFooter.setText("توقف سریع: فشردن دکمه‌های صدا (ولوم) یا قفل گوشی  •  همراه معنوی نور");
         brandFooter.setTextColor(Color.argb(120, 226, 232, 240));
-        brandFooter.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f);
+        brandFooter.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 10.5f);
         brandFooter.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams footLp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        footLp.topMargin = dp(20);
+        footLp.topMargin = dp(10);
         container.addView(brandFooter, footLp);
 
         scroll.addView(container);
@@ -369,10 +383,10 @@ public class AdhanAlarmActivity extends AppCompatActivity {
                     WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout()
             );
             container.setPadding(
-                    dp(22) + bars.left,
-                    dp(42) + bars.top,
-                    dp(22) + bars.right,
-                    dp(34) + bars.bottom
+                    dp(18) + bars.left,
+                    dp(16) + bars.top,
+                    dp(18) + bars.right,
+                    dp(18) + bars.bottom
             );
             return insets;
         });

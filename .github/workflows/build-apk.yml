@@ -5,13 +5,22 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      build_mode:
+        description: 'Build mode: test (1 fast APK) or store_release (CafeBazaar + Myket + Direct + GitHub Release)'
+        required: true
+        default: 'store_release'
+        type: choice
+        options:
+          - test
+          - store_release
 
 permissions:
   contents: write
 
 jobs:
   build-android:
-    name: Build Signed Store Releases (CafeBazaar, Myket & Direct)
+    name: Build Noor Android APK
     runs-on: ubuntu-latest
 
     steps:
@@ -62,18 +71,26 @@ jobs:
           done
           du -sh public/adhans
 
-      - name: Prepare Dynamic Version & Signing State
+      - name: Prepare Dynamic Version & Build Mode
         id: meta
         env:
           HAS_KS: ${{ secrets.NOOR_KEYSTORE_BASE64 != '' }}
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_MODE: ${{ github.event.inputs.build_mode }}
         run: |
           VERSION_CODE=$((360 + ${{ github.run_number }}))
           VERSION_NAME="3.0.${{ github.run_number }}"
           VERSION_TAG="v${VERSION_NAME}"
+          if [ "$EVENT_NAME" = "workflow_dispatch" ] && [ "$INPUT_MODE" = "store_release" ]; then
+            BUILD_ALL_STORES="true"
+          else
+            BUILD_ALL_STORES="false"
+          fi
           echo "version_code=$VERSION_CODE" >> $GITHUB_OUTPUT
           echo "version_name=$VERSION_NAME" >> $GITHUB_OUTPUT
           echo "version_tag=$VERSION_TAG" >> $GITHUB_OUTPUT
           echo "signed_release=$HAS_KS" >> $GITHUB_OUTPUT
+          echo "build_all_stores=$BUILD_ALL_STORES" >> $GITHUB_OUTPUT
           RECENT_COMMITS=$(git log -n 5 --pretty=format:"- %s (`%h`)" || echo "- بهبود عملکرد و رابط کاربری")
           EOF_MARKER="EOF_$$"
           echo "changelog<<$EOF_MARKER" >> $GITHUB_OUTPUT
@@ -88,7 +105,7 @@ jobs:
           echo "$NOOR_KEYSTORE_BASE64" | base64 --decode > android/app/noor-upload-release.jks
           ls -lh android/app/noor-upload-release.jks
 
-      - name: Build Direct Channel (GitHub Release APK)
+      - name: Build Fast Single APK (Test / Direct)
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
@@ -112,8 +129,8 @@ jobs:
             cp app/build/outputs/apk/debug/app-debug.apk "../Noor-Direct-${{ steps.meta.outputs.version_tag }}-debug.apk"
           fi
 
-      - name: Build CafeBazaar & Myket Signed Release APKs
-        if: steps.meta.outputs.signed_release == 'true'
+      - name: Build CafeBazaar & Myket Signed Store APKs (Manual Store Release Only)
+        if: steps.meta.outputs.build_all_stores == 'true' && steps.meta.outputs.signed_release == 'true'
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
@@ -136,23 +153,23 @@ jobs:
           done
           ls -lh Noor-*.apk
 
-      - name: Upload Store Release APKs (CafeBazaar + Myket + Direct)
+      - name: Upload Built APK Artifact(s)
         uses: actions/upload-artifact@v4
         with:
-          name: Noor-Store-APKs-${{ steps.meta.outputs.version_tag }}
+          name: Noor-APK-${{ steps.meta.outputs.version_tag }}
           path: Noor-*.apk
 
-      - name: Publish Direct GitHub Release
+      - name: Publish Direct GitHub Release (Manual Store Release Only)
         uses: softprops/action-gh-release@v2
-        if: github.ref == 'refs/heads/main'
+        if: steps.meta.outputs.build_all_stores == 'true'
         with:
           tag_name: ${{ steps.meta.outputs.version_tag }}
-          name: "🕌 نسخه ${{ steps.meta.outputs.version_tag }} اپلیکیشن همراه معنوی نور"
+          name: "نسخه ${{ steps.meta.outputs.version_tag }} اپلیکیشن همراه معنوی نور"
           body: |
-            ## ✨ انتشار رسمی نسخه `${{ steps.meta.outputs.version_tag }}` همراه معنوی نور
+            ## انتشار رسمی نسخه `${{ steps.meta.outputs.version_tag }}` همراه معنوی نور
             **شناسه بسته:** `ir.noorcompanion.app`
 
-            ### 🛠️ آخرین تغییرات
+            ### آخرین تغییرات
             ${{ steps.meta.outputs.changelog }}
           files: Noor-Direct-*.apk
           draft: false

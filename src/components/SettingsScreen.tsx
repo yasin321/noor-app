@@ -73,7 +73,7 @@ const FONT_OPTIONS = [
 
 
 
-function ThemeHeroSelectorCard({ theme }: { theme: { surface: string; primary: string; bg: string; border: string } }) {
+function ThemeHeroSelectorCard({ theme, cityName }: { theme: { surface: string; primary: string; bg: string; border: string }; cityName: string }) {
   const [showHeroGalleryModal, setShowHeroGalleryModal] = useState(false);
   useBackHandler(showHeroGalleryModal, () => setShowHeroGalleryModal(false));
   const [heroCfg, setHeroCfg] = useState(() => loadHeroConfig());
@@ -82,13 +82,13 @@ function ThemeHeroSelectorCard({ theme }: { theme: { surface: string; primary: s
     window.addEventListener('noor-hero-config-changed', syncHero);
     return () => window.removeEventListener('noor-hero-config-changed', syncHero);
   }, []);
-  const currentHeroDesign = resolveActiveHeroDesign('مشهد', 'fajr');
+  const currentHeroDesign = resolveActiveHeroDesign(cityName, 'fajr');
 
   return (
     <>
       {showHeroGalleryModal && (
         <Hero30SelectorModal
-          cityName="مشهد"
+          cityName={cityName}
           onClose={() => setShowHeroGalleryModal(false)}
           onSelectConfig={(next) => setHeroCfg(next)}
         />
@@ -1011,7 +1011,7 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
     return (
       <div className="w-full max-w-xl mx-auto px-3.5 pt-4 pb-28 animate-fade-in" dir={dir}>
         <SubHeader title="پوسته و ظاهر" />
-          <ThemeHeroSelectorCard theme={theme} />
+          <ThemeHeroSelectorCard theme={theme} cityName={getCityDisplayName(currentCity, lang)} />
         <div className="grid grid-cols-2 gap-3">
           {allThemes.map((t) => (
             <button
@@ -1517,9 +1517,9 @@ export function SettingsScreen({ onExitGuest }: { onExitGuest?: () => void }) {
             style={{ background: theme.bg, border: `1px solid ${theme.border}` }}
           >
             {[
-              { id: 'full' as AdhanPlaybackDurationMode, title: '🕌 اذان کامل', sub: 'پخش تا انتها' },
-              { id: '10s' as AdhanPlaybackDurationMode, title: '⚡ ۱۰ ثانیه اول', sub: 'فقط تکبیر اول' },
-              { id: '30s' as AdhanPlaybackDurationMode, title: '🌿 ۳۰ ثانیه اول', sub: 'نیمه اول اذان' },
+              { id: 'full' as AdhanPlaybackDurationMode, title: 'اذان کامل', sub: 'پخش تا انتها' },
+              { id: '10s' as AdhanPlaybackDurationMode, title: '۱۰ ثانیه اول', sub: 'فقط تکبیر اول' },
+              { id: '30s' as AdhanPlaybackDurationMode, title: '۳۰ ثانیه اول', sub: 'نیمه اول اذان' },
             ].map((opt) => {
               const active = durationMode === opt.id;
               return (

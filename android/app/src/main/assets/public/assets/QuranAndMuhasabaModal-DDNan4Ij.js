@@ -1,4 +1,4 @@
-import{c as ze,u as $e,b as Ue,r as c,E as et,N as Y,T as ne,br as Fe,j as e,B as Ae,X as tt,A as y,I as rt,V as at,ak as st,bi as we,bs as nt,d as ot,L as lt,z as ct,a7 as it,a6 as ut,bt as dt,bu as mt,bv as xt,bw as bt}from"./index-lIEQYpiY.js";import{f as pt}from"./quranCatalog-BKTUrfHv.js";import{B as K}from"./bookmark-eFqyEW6v.js";import{P as ht}from"./play-BK-AXYZc.js";import{C as ft}from"./chevron-right-Bsb0fSfw.js";import{C as yt}from"./chevron-left-U3cHvqMd.js";import{L as gt}from"./lock-Dael2EtW.js";/**
+import{c as ze,u as $e,b as Ue,r as c,E as et,N as Y,T as ne,br as Fe,j as e,B as Ae,X as tt,A as y,I as rt,V as at,ak as st,bi as we,bs as nt,d as ot,L as lt,z as ct,a7 as it,a6 as ut,bt as dt,bu as mt,bv as xt,bw as bt}from"./index-X224oMzQ.js";import{f as pt}from"./quranCatalog-BKTUrfHv.js";import{B as K}from"./bookmark-3QUJpmes.js";import{P as ht}from"./play-D_kGNmb1.js";import{C as ft}from"./chevron-right-Cad8YESN.js";import{C as yt}from"./chevron-left-C7is2n3F.js";import{L as gt}from"./lock-CCcuWcXx.js";/**
  * @license lucide-react v0.446.0 - ISC
  *
  * This source code is licensed under the ISC license.

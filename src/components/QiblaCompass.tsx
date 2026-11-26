@@ -31,6 +31,19 @@ interface NativeCompassBridge {
     declination?: number;
   }>;
   stopCompass(): Promise<void>;
+  getCompassSnapshot(): Promise<{
+    hasSample: boolean;
+    heading: number;
+    pitch: number;
+    roll: number;
+    accuracy: number;
+    samples: number;
+    mode: string;
+    hasMag: boolean;
+    hasUncalMag: boolean;
+    hasGyro: boolean;
+    hasRotVec: boolean;
+  }>;
   addListener(
     eventName: 'compassHeading',
     listenerFunc: (data: NativeCompassEvent) => void
@@ -229,6 +242,7 @@ export function QiblaCompass(props: QiblaCompassProps) {
 
   const [sensorActive, setSensorActive] = useState(false);
   const [hardwareUnsupported, setHardwareUnsupported] = useState(false);
+  const [sensorDiagText, setSensorDiagText] = useState<string>('');
   const nativeStreamActiveRef = useRef(false);
   const [needsIosPermission, setNeedsIosPermission] = useState(false);
   const [isAligned, setIsAligned] = useState(false);
@@ -413,11 +427,16 @@ export function QiblaCompass(props: QiblaCompassProps) {
     let disposed = false;
     let listenerHandle: PluginListenerHandle | null = null;
 
+    let pollTimer: number | null = null;
+    let pushReceived = false;
+
     const bootNativeCompass = async () => {
       try {
         listenerHandle = await NoorCompass.addListener('compassHeading', (data) => {
           if (disposed) return;
+          pushReceived = true;
           nativeStreamActiveRef.current = true;
+          if (data.mode) setSensorDiagText(data.mode);
           feedCompassSample(data.heading, data.pitch ?? 0, data.roll ?? 0, data.accuracy);
         });
         const res = await NoorCompass.startCompass({
@@ -427,10 +446,32 @@ export function QiblaCompass(props: QiblaCompassProps) {
         if (disposed) return;
         if (res && (!res.available || res.mode === 'no_magnetometer')) {
           setHardwareUnsupported(true);
+          setSensorDiagText('no_magnetometer');
           setShowCalibModal(false);
+          return;
         }
+        if (res?.mode) setSensorDiagText(res.mode);
+
+        // پشتیبان Pull-Snapshot برای گوشی‌هایی که رویداد Push در WebView اندروید ۱۵ به تأخیر می‌افتد
+        pollTimer = window.setInterval(() => {
+          if (disposed || pushReceived) return;
+          void NoorCompass.getCompassSnapshot()
+            .then((snap) => {
+              if (disposed || pushReceived || !snap) return;
+              if (snap.mode) setSensorDiagText(snap.mode);
+              if (snap.hasSample) {
+                nativeStreamActiveRef.current = true;
+                feedCompassSample(snap.heading, snap.pitch ?? 0, snap.roll ?? 0, snap.accuracy);
+              } else if (!snap.hasMag && !snap.hasUncalMag) {
+                setHardwareUnsupported(true);
+                setSensorDiagText('no_magnetometer');
+                setShowCalibModal(false);
+              }
+            })
+            .catch(() => {});
+        }, 70);
       } catch {
-        // در صورت عدم دسترسی به پلاگین، fallback مرورگر فعال می‌ماند
+        // fallback مرورگر فعال می‌ماند
       }
     };
 
@@ -439,6 +480,7 @@ export function QiblaCompass(props: QiblaCompassProps) {
     return () => {
       disposed = true;
       nativeStreamActiveRef.current = false;
+      if (pollTimer !== null) window.clearInterval(pollTimer);
       if (listenerHandle) {
         void listenerHandle.remove();
       }
@@ -889,8 +931,8 @@ export function QiblaCompass(props: QiblaCompassProps) {
               <div className="flex items-center justify-between text-[11px]">
                 <span className="text-amber-200 font-bold">
                   {hardwareUnsupported
-                    ? 'این گوشی سنسور مغناطیس‌سنج (قطب‌نما) ندارد'
-                    : 'حالت پیش‌نمایش (در انتظار حرکت سنسور)'}
+                    ? 'این مدل گوشی سخت‌افزار مغناطیس‌سنج (قطب‌نما) ندارد — از زاویه دقیق و راهنما استفاده کنید'
+                    : `در انتظار دریافت سنسور${sensorDiagText ? ' (' + sensorDiagText + ')' : ''}`}
                 </span>
                 <span className="text-emerald-200 font-black">{toFaDigits(manualPreviewDeg)}°</span>
               </div>
