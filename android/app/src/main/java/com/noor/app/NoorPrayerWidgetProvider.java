@@ -79,7 +79,7 @@ public class NoorPrayerWidgetProvider extends AppWidgetProvider {
                     .putString("title", title)
                     .putString("nextPrayer", nextPrayer)
                     .putString("subtitle", subtitle)
-                    .apply();
+                    .commit();
             }
             String savedTitle = prefs.getString("title", "📍 به افق شهر شما");
             String savedNext = prefs.getString("nextPrayer", "اذان بعدی: در حال محاسبه");

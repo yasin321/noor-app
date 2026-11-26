@@ -37,8 +37,8 @@ describe('Final Release Gate — Offline Defaults, Quran Zarrab, Large Widget & 
       path.join(process.cwd(), 'android/app/src/main/res/layout/noor_prayer_widget.xml'),
       'utf8'
     );
-    expect(xml).toContain('android:textSize="19dp"');
-    expect(xml).toContain('android:textSize="15.5dp"');
+    expect(xml).toContain('android:textSize="21dp"');
+    expect(xml).toContain('android:textSize="17dp"');
 
     const home = fs.readFileSync(path.join(process.cwd(), 'src/components/HomeScreen.tsx'), 'utf8');
     expect(home).toContain('NoorAlarm.updatePrayerWidget');

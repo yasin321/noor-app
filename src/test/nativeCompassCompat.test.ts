@@ -25,7 +25,7 @@ describe('Native 3-Tier Qibla Compass & Android 7-16 Universal Compatibility', (
     expect(plugin).toContain('Sensor.TYPE_ACCELEROMETER');
     expect(plugin).toContain('Sensor.TYPE_MAGNETIC_FIELD');
     expect(plugin).toContain('GeomagneticField');
-    expect(plugin).toContain('SensorManager.SENSOR_DELAY_UI');
+    expect(plugin).toContain('SensorManager.SENSOR_DELAY_GAME');
     expect(plugin).not.toContain('SENSOR_DELAY_FASTEST');
     expect(plugin).toContain('handleOnDestroy');
   });
