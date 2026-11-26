@@ -11,25 +11,28 @@ import {
   RotateCw,
   RotateCcw,
   ShieldCheck,
-  Sun,
-  Moon,
-  Map as MapIcon,
   Navigation,
+  Map as MapIcon,
   Plus,
   Minus,
+  Layers,
 } from 'lucide-react';
 import { Capacitor, registerPlugin, type PluginListenerHandle } from '@capacitor/core';
 import { getCityById, getGuestCityId, getCustomGpsCoords, CITIES } from '@/lib/cities';
 import { useBackHandler } from '@/lib/backNavigation';
 
 interface NativeCompassEvent {
-  heading: number;
-  pitch: number;
-  roll: number;
+  heading?: number;
+  pitch?: number;
+  roll?: number;
   accuracy?: number;
   mode?: string;
   isMagnetic?: boolean;
-  isRelativeGyro?: boolean;
+  isGpsBearing?: boolean;
+  gpsOnly?: boolean;
+  gpsLat?: number;
+  gpsLng?: number;
+  gpsAccuracy?: number;
   sensorSummary?: string;
 }
 
@@ -37,7 +40,9 @@ interface NativeCompassBridge {
   startCompass(opts: { lat: number; lng: number }): Promise<{
     available: boolean;
     isMagnetic?: boolean;
-    isRelativeGyro?: boolean;
+    isGpsBearing?: boolean;
+    needsLocationPermission?: boolean;
+    fopActive?: boolean;
     mode?: string;
     declination?: number;
     hasMag?: boolean;
@@ -47,10 +52,15 @@ interface NativeCompassBridge {
     hasRotVec?: boolean;
     hasGeoRot?: boolean;
     hasGameRot?: boolean;
-    fopActive?: boolean;
     sensorSummary?: string;
   }>;
   stopCompass(): Promise<void>;
+  requestAndGetLocation(): Promise<{
+    hasCoords: boolean;
+    lat?: number;
+    lng?: number;
+    accuracy?: number;
+  }>;
   getCompassSnapshot(): Promise<{
     hasSample: boolean;
     heading: number;
@@ -60,7 +70,9 @@ interface NativeCompassBridge {
     samples: number;
     mode: string;
     isMagnetic?: boolean;
-    isRelativeGyro?: boolean;
+    isGpsBearing?: boolean;
+    needsLocationPermission?: boolean;
+    fopActive?: boolean;
     hasMag: boolean;
     hasUncalMag: boolean;
     hasAccel?: boolean;
@@ -68,7 +80,9 @@ interface NativeCompassBridge {
     hasRotVec: boolean;
     hasGeoRot?: boolean;
     hasGameRot?: boolean;
-    fopActive?: boolean;
+    gpsLat?: number;
+    gpsLng?: number;
+    gpsAccuracy?: number;
     sensorSummary?: string;
   }>;
   addListener(
@@ -139,7 +153,6 @@ function shortestDelta(fromDeg: number, toDegVal: number): number {
   return ((toDegVal - fromDeg + 540) % 360) - 180;
 }
 
-// محاسبه نجومی زاویه دقیق خورشید (در روز) و ماه (در شب) — ۱۰۰٪ آفلاین برای همه گوشی‌ها
 export function calculateCelestialAzimuth(
   latDeg: number,
   lngDeg: number,
@@ -238,15 +251,6 @@ function computeTiltCompensatedHeading(
   return normalize360(heading);
 }
 
-function computeBearingDeg(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const phi1 = toRad(lat1);
-  const phi2 = toRad(lat2);
-  const dLng = toRad(lng2 - lng1);
-  const y = Math.sin(dLng) * Math.cos(phi2);
-  const x = Math.cos(phi1) * Math.sin(phi2) - Math.sin(phi1) * Math.cos(phi2) * Math.cos(dLng);
-  return (toDeg(Math.atan2(y, x)) + 360) % 360;
-}
-
 function latLngToTileXY(lat: number, lng: number, zoom: number): { x: number; y: number; fracX: number; fracY: number } {
   const n = 2 ** zoom;
   const xExact = ((lng + 180) / 360) * n;
@@ -300,18 +304,21 @@ export function resolveQiblaLocationLabel(
 }
 
 export function QiblaCompass(props: QiblaCompassProps) {
+  const [liveGps, setLiveGps] = useState<{ lat: number; lng: number; accuracy?: number } | null>(null);
+
   const locationInfo = useMemo(() => {
     const savedCity = getCityById(getGuestCityId());
-    const gps = getCustomGpsCoords();
+    const gps = liveGps ?? getCustomGpsCoords();
     const lat =
-      props.lat ?? props.latitude ?? props.cityLat ?? props.city?.lat ?? gps?.lat ?? savedCity.lat;
+      liveGps?.lat ?? props.lat ?? props.latitude ?? props.cityLat ?? props.city?.lat ?? gps?.lat ?? savedCity.lat;
     const lng =
-      props.lng ?? props.longitude ?? props.cityLng ?? props.city?.lng ?? gps?.lng ?? savedCity.lng;
+      liveGps?.lng ?? props.lng ?? props.longitude ?? props.cityLng ?? props.city?.lng ?? gps?.lng ?? savedCity.lng;
     const explicitCityLabel =
       props.cityNameFa ?? props.cityName ?? props.city?.nameFa ?? props.city?.name;
     const cityLabel = resolveQiblaLocationLabel(lat, lng, explicitCityLabel, savedCity);
-    return { lat, lng, cityLabel };
+    return { lat, lng, cityLabel, hasLiveGps: Boolean(liveGps) };
   }, [
+    liveGps,
     props.lat,
     props.lng,
     props.latitude,
@@ -342,18 +349,15 @@ export function QiblaCompass(props: QiblaCompassProps) {
   );
 
   const [activeTab, setActiveTab] = useState<'compass' | 'map'>('compass');
-  const [mapZoom, setMapZoom] = useState<number>(16);
-  const [sensorMode, setSensorMode] = useState<'magnetic' | 'gyro_relative' | 'celestial_manual'>('celestial_manual');
-  const [hardwareNoMag, setHardwareNoMag] = useState(false);
-  const [sensorSummary, setSensorSummary] = useState<string>('');
+  const [mapLayer, setMapLayer] = useState<'satellite' | 'street'>('satellite');
+  const [mapZoom, setMapZoom] = useState<number>(17);
+  const [compassSource, setCompassSource] = useState<'detecting' | 'magnetic' | 'gps_waiting' | 'gps_locked'>('detecting');
+  const [needsLocationPerm, setNeedsLocationPerm] = useState(false);
+  const [bootNonce, setBootNonce] = useState(0);
   const [needsIosPermission, setNeedsIosPermission] = useState(false);
   const [isAligned, setIsAligned] = useState(false);
   const [stability, setStability] = useState<'high' | 'medium' | 'low'>('high');
   const [displayHeading, setDisplayHeading] = useState(0);
-  const [manualPreviewDeg, setManualPreviewDeg] = useState(0);
-  const [gpsWalkActive, setGpsWalkActive] = useState(false);
-  const [gpsWalkHint, setGpsWalkHint] = useState<string>('');
-  const [celestialHint, setCelestialHint] = useState<string>('');
 
   const [showCalibModal, setShowCalibModal] = useState<boolean>(() => {
     try {
@@ -368,9 +372,7 @@ export function QiblaCompass(props: QiblaCompassProps) {
 
   const handleCloseQibla = useCallback(() => {
     setLocalOpen(false);
-    if (props.onClose) {
-      props.onClose();
-    }
+    if (props.onClose) props.onClose();
   }, [props]);
 
   useBackHandler(!props.embedded && localOpen, handleCloseQibla);
@@ -383,19 +385,11 @@ export function QiblaCompass(props: QiblaCompassProps) {
     return () => window.removeEventListener('keydown', onKey);
   }, [handleCloseQibla]);
 
-  // رف‌های موتور GPU ۶۰فریمی (بدون ری‌رندر React حین چرخش)
   const dialSvgRef = useRef<SVGSVGElement | null>(null);
   const cardinalTextRefs = useRef<Array<SVGTextElement | null>>([null, null, null, null]);
-  const dialContainerRef = useRef<HTMLDivElement | null>(null);
-  const dragStartRef = useRef<{ startAngle: number; startHeading: number } | null>(null);
 
   const nativeStreamActiveRef = useRef(false);
-  const hasAbsoluteRef = useRef(false);
-  const sensorModeRef = useRef<'magnetic' | 'gyro_relative' | 'celestial_manual'>('celestial_manual');
-  const latestRawGyroRef = useRef<number>(0);
-  const gyroOffsetRef = useRef<number>(0);
-  const manualPreviewRef = useRef<number>(0);
-
+  const compassSourceRef = useRef<'detecting' | 'magnetic' | 'gps_waiting' | 'gps_locked'>('detecting');
   const vecXRef = useRef(0);
   const vecYRef = useRef(1);
   const vecInitRef = useRef(false);
@@ -414,12 +408,8 @@ export function QiblaCompass(props: QiblaCompassProps) {
   }, [showCalibModal, calibDone]);
 
   useEffect(() => {
-    sensorModeRef.current = sensorMode;
-  }, [sensorMode]);
-
-  useEffect(() => {
-    manualPreviewRef.current = manualPreviewDeg;
-  }, [manualPreviewDeg]);
+    compassSourceRef.current = compassSource;
+  }, [compassSource]);
 
   const finishCalibration = useCallback(() => {
     setCalibProgress(100);
@@ -434,7 +424,7 @@ export function QiblaCompass(props: QiblaCompassProps) {
     }
     window.setTimeout(() => {
       setShowCalibModal(false);
-    }, 550);
+    }, 500);
   }, []);
 
   const openCalibrationPopup = useCallback(() => {
@@ -445,65 +435,35 @@ export function QiblaCompass(props: QiblaCompassProps) {
     setShowCalibModal(true);
   }, []);
 
-  const alignToReferenceHeading = useCallback(
-    (refDeg: number, message: string) => {
-      const cleanRef = normalize360(refDeg);
-      if (sensorModeRef.current === 'gyro_relative') {
-        gyroOffsetRef.current = normalize360(cleanRef - latestRawGyroRef.current);
-        const rad = toRad(cleanRef);
-        vecXRef.current = Math.sin(rad);
-        vecYRef.current = Math.cos(rad);
-        targetHeadingRef.current = cleanRef;
-        vecInitRef.current = true;
-      } else {
-        setManualPreviewDeg(Math.round(cleanRef));
-        manualPreviewRef.current = cleanRef;
-      }
-      setCelestialHint(message);
-      props.onToast?.(message);
-    },
-    [props]
-  );
-
-  const feedCompassSample = useCallback(
+  const feedLiveHeading = useCallback(
     (
       rawHeading: number,
       curPitch: number,
       curRoll: number,
-      nativeAccuracy?: number,
-      isRelativeGyro = false
+      source: 'magnetic' | 'gps_locked',
+      nativeAccuracy?: number
     ) => {
       if (!Number.isFinite(rawHeading)) return;
+      const effectiveHeading = normalize360(rawHeading);
 
-      let effectiveHeading: number;
-      if (isRelativeGyro) {
-        latestRawGyroRef.current = normalize360(rawHeading);
-        effectiveHeading = normalize360(latestRawGyroRef.current + gyroOffsetRef.current);
-        if (sensorModeRef.current !== 'gyro_relative') {
-          sensorModeRef.current = 'gyro_relative';
-          setSensorMode('gyro_relative');
-          setHardwareNoMag(true);
+      if (compassSourceRef.current !== source) {
+        compassSourceRef.current = source;
+        setCompassSource(source);
+        if (source === 'gps_locked') {
           setShowCalibModal(false);
-        }
-      } else {
-        effectiveHeading = normalize360(rawHeading);
-        if (sensorModeRef.current !== 'magnetic') {
-          sensorModeRef.current = 'magnetic';
-          setSensorMode('magnetic');
-          setHardwareNoMag(false);
         }
       }
 
-      if (!isRelativeGyro && showCalibRef.current && !calibDoneRef.current) {
+      if (source === 'magnetic' && showCalibRef.current && !calibDoneRef.current) {
         const prev = lastOrientationRef.current;
         if (prev) {
           const dA = Math.abs(shortestDelta(prev.a, effectiveHeading));
           const dB = Math.abs(curPitch - prev.b);
           const dG = Math.abs(curRoll - prev.g);
-          const stepMotion = Math.min(32, dA * 0.65 + dB * 1.15 + dG * 1.15);
-          if (stepMotion > 0.7) {
+          const stepMotion = Math.min(32, dA * 0.75 + dB * 1.15 + dG * 1.15);
+          if (stepMotion > 0.6) {
             calibMotionAccRef.current += stepMotion;
-            const threshold = nativeAccuracy === 3 ? 260 : 340;
+            const threshold = nativeAccuracy === 3 ? 220 : 300;
             const pct = Math.min(100, Math.round((calibMotionAccRef.current / threshold) * 100));
             setCalibProgress(pct);
             if (pct >= 100) {
@@ -530,7 +490,7 @@ export function QiblaCompass(props: QiblaCompassProps) {
       const prevFiltered = targetHeadingRef.current;
       const diff = Math.abs(shortestDelta(prevFiltered, effectiveHeading));
 
-      if (!isRelativeGyro) {
+      if (source === 'magnetic') {
         if (typeof nativeAccuracy === 'number' && nativeAccuracy >= 0) {
           if (nativeAccuracy <= 1) setStability('low');
           else if (nativeAccuracy === 2) setStability('medium');
@@ -544,49 +504,36 @@ export function QiblaCompass(props: QiblaCompassProps) {
           else if (avgJitter > 4.5) setStability('medium');
           else setStability('high');
         }
+      } else {
+        setStability('high');
       }
 
       if (diff < 0.35) return;
 
       const alphaFactor =
-        diff < 2.0 ? 0.14 : diff < 8 ? 0.24 : diff < 22 ? 0.36 : 0.48;
+        source === 'gps_locked'
+          ? 0.45
+          : diff < 2.0 ? 0.14 : diff < 8 ? 0.24 : diff < 22 ? 0.36 : 0.48;
 
       vecXRef.current = vecXRef.current * (1 - alphaFactor) + nx * alphaFactor;
       vecYRef.current = vecYRef.current * (1 - alphaFactor) + ny * alphaFactor;
-
       targetHeadingRef.current = normalize360(toDeg(Math.atan2(vecXRef.current, vecYRef.current)));
     },
     [finishCalibration]
   );
 
-  const handleOrientationEvent = useCallback(
-    (ev: DeviceOrientationWithWebkit, isAbsoluteStream: boolean) => {
-      if (nativeStreamActiveRef.current) return;
-      if (isAbsoluteStream && typeof ev.alpha === 'number') {
-        hasAbsoluteRef.current = true;
-      } else if (!isAbsoluteStream && hasAbsoluteRef.current && typeof ev.webkitCompassHeading !== 'number') {
-        return;
+  const handleRequestNativeLocation = async () => {
+    try {
+      const res = await NoorCompass.requestAndGetLocation();
+      if (res && res.hasCoords && typeof res.lat === 'number' && typeof res.lng === 'number') {
+        setLiveGps({ lat: res.lat, lng: res.lng, accuracy: res.accuracy });
+        setNeedsLocationPerm(false);
+        setBootNonce((n) => n + 1);
       }
+    } catch {}
+  };
 
-      let rawHeading: number | null = null;
-      if (typeof ev.webkitCompassHeading === 'number' && Number.isFinite(ev.webkitCompassHeading)) {
-        rawHeading = normalize360(ev.webkitCompassHeading);
-        if (typeof ev.webkitCompassAccuracy === 'number' && ev.webkitCompassAccuracy > 28) {
-          setStability('low');
-        }
-      } else if (typeof ev.alpha === 'number' && Number.isFinite(ev.alpha)) {
-        // در اندروید بدون رویداد absolute (وقتی مغناطیس‌سنج نیست)، جهت نسبی است نه مغناطیسی
-        rawHeading = computeTiltCompensatedHeading(ev.alpha, ev.beta, ev.gamma);
-      }
-
-      if (rawHeading === null) return;
-      const isRelative = !isAbsoluteStream && typeof ev.webkitCompassHeading !== 'number';
-      feedCompassSample(rawHeading, ev.beta ?? 0, ev.gamma ?? 0, undefined, isRelative);
-    },
-    [feedCompassSample]
-  );
-
-  // موتور سخت‌افزاری نیتیو اندروید (۷لایه ۵۰ هرتز + Pull Snapshot)
+  // موتور نیتیو اندروید: Google FOP (ایستاده) + SensorManager + GPS Bearing نیتیو (عین نشان)
   useEffect(() => {
     if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'android') return;
     let disposed = false;
@@ -594,19 +541,21 @@ export function QiblaCompass(props: QiblaCompassProps) {
     let pollTimer: number | null = null;
     let pushReceived = false;
 
-    const bootNativeCompass = async () => {
+    const bootNative = async () => {
       try {
         listenerHandle = await NoorCompass.addListener('compassHeading', (data) => {
           if (disposed) return;
-          pushReceived = true;
-          nativeStreamActiveRef.current = true;
-          feedCompassSample(
-            data.heading,
-            data.pitch ?? 0,
-            data.roll ?? 0,
-            data.accuracy,
-            Boolean(data.isRelativeGyro)
-          );
+          if (typeof data.gpsLat === 'number' && typeof data.gpsLng === 'number') {
+            setLiveGps({ lat: data.gpsLat, lng: data.gpsLng, accuracy: data.gpsAccuracy });
+            setNeedsLocationPerm(false);
+          }
+          if (data.gpsOnly) return;
+          if (typeof data.heading === 'number' && Number.isFinite(data.heading)) {
+            pushReceived = true;
+            nativeStreamActiveRef.current = true;
+            const src = data.isGpsBearing ? 'gps_locked' : 'magnetic';
+            feedLiveHeading(data.heading, data.pitch ?? 0, data.roll ?? 0, src, data.accuracy);
+          }
         });
 
         const res = await NoorCompass.startCompass({
@@ -615,18 +564,15 @@ export function QiblaCompass(props: QiblaCompassProps) {
         });
         if (disposed) return;
 
-        if (res?.sensorSummary) setSensorSummary(res.sensorSummary);
-        if (!res || !res.available || res.mode === 'no_magnetometer') {
-          setHardwareNoMag(true);
-          setSensorMode('celestial_manual');
-          setShowCalibModal(false);
-          return;
+        if (res?.needsLocationPermission) {
+          setNeedsLocationPerm(true);
         }
 
-        if (res.isRelativeGyro) {
-          setHardwareNoMag(true);
-          setSensorMode('gyro_relative');
+        if (!res?.isMagnetic || res?.mode === 'no_magnetometer') {
+          // گوشی فاقد تراشه مغناطیسی -> ورود فوری به حالت GPS زنده + نقشه ماهواره‌ای (عین نشان)
           setShowCalibModal(false);
+          compassSourceRef.current = 'gps_waiting';
+          setCompassSource('gps_waiting');
         }
 
         pollTimer = window.setInterval(() => {
@@ -634,30 +580,32 @@ export function QiblaCompass(props: QiblaCompassProps) {
           void NoorCompass.getCompassSnapshot()
             .then((snap) => {
               if (disposed || pushReceived || !snap) return;
-              if (snap.sensorSummary) setSensorSummary(snap.sensorSummary);
+              if (typeof snap.gpsLat === 'number' && typeof snap.gpsLng === 'number') {
+                setLiveGps({ lat: snap.gpsLat, lng: snap.gpsLng, accuracy: snap.gpsAccuracy });
+              }
+              if (snap.needsLocationPermission) {
+                setNeedsLocationPerm(true);
+              }
               if (snap.hasSample) {
                 nativeStreamActiveRef.current = true;
-                feedCompassSample(
-                  snap.heading,
-                  snap.pitch ?? 0,
-                  snap.roll ?? 0,
-                  snap.accuracy,
-                  Boolean(snap.isRelativeGyro)
-                );
-              } else if (!snap.hasMag && !snap.hasUncalMag && !snap.hasGeoRot && !snap.hasRotVec && !snap.hasGyro && !snap.hasGameRot) {
-                setHardwareNoMag(true);
-                setSensorMode('celestial_manual');
+                const src = snap.isGpsBearing ? 'gps_locked' : 'magnetic';
+                feedLiveHeading(snap.heading, snap.pitch ?? 0, snap.roll ?? 0, src, snap.accuracy);
+              } else if (!snap.isMagnetic && compassSourceRef.current === 'detecting') {
                 setShowCalibModal(false);
+                compassSourceRef.current = 'gps_waiting';
+                setCompassSource('gps_waiting');
               }
             })
             .catch(() => {});
-        }, 65);
+        }, 70);
       } catch {
-        // پشتیبان مرورگر فعال می‌ماند
+        setShowCalibModal(false);
+        compassSourceRef.current = 'gps_waiting';
+        setCompassSource('gps_waiting');
       }
     };
 
-    void bootNativeCompass();
+    void bootNative();
 
     return () => {
       disposed = true;
@@ -666,33 +614,47 @@ export function QiblaCompass(props: QiblaCompassProps) {
       if (listenerHandle) void listenerHandle.remove();
       void NoorCompass.stopCompass().catch(() => {});
     };
-  }, [locationInfo.lat, locationInfo.lng, feedCompassSample]);
+  }, [bootNonce, feedLiveHeading]);
 
-  // پشتیبان وب و iOS — دکمه مجوز iOS هرگز روی اندروید نمایش داده نمی‌شود!
+  // پشتیبان وب و iOS
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const isAndroidNative = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android';
-    const isIosUa = /iPad|iPhone|iPod/.test(navigator.userAgent || '');
+    if (isAndroidNative) return;
 
+    const isIosUa = /iPad|iPhone|iPod/.test(navigator.userAgent || '');
     const DOE = window.DeviceOrientationEvent as unknown as {
       requestPermission?: () => Promise<'granted' | 'denied'>;
     };
-    if (!isAndroidNative && isIosUa && DOE && typeof DOE.requestPermission === 'function') {
+    if (isIosUa && DOE && typeof DOE.requestPermission === 'function') {
       setNeedsIosPermission(true);
       return;
     }
 
-    const onAbs = (e: Event) => handleOrientationEvent(e as DeviceOrientationWithWebkit, true);
-    const onRel = (e: Event) => handleOrientationEvent(e as DeviceOrientationWithWebkit, false);
-
+    const onAbs = (e: Event) => {
+      const ev = e as DeviceOrientationWithWebkit;
+      if (typeof ev.webkitCompassHeading === 'number' && Number.isFinite(ev.webkitCompassHeading)) {
+        feedLiveHeading(ev.webkitCompassHeading, ev.beta ?? 0, ev.gamma ?? 0, 'magnetic');
+      } else if (typeof ev.alpha === 'number' && Number.isFinite(ev.alpha)) {
+        feedLiveHeading(computeTiltCompensatedHeading(ev.alpha, ev.beta, ev.gamma), ev.beta ?? 0, ev.gamma ?? 0, 'magnetic');
+      }
+    };
     window.addEventListener('deviceorientationabsolute', onAbs, true);
-    window.addEventListener('deviceorientation', onRel, true);
+
+    const webTimer = window.setTimeout(() => {
+      if (compassSourceRef.current === 'detecting') {
+        setShowCalibModal(false);
+        compassSourceRef.current = 'gps_waiting';
+        setCompassSource('gps_waiting');
+        setActiveTab('map');
+      }
+    }, 1800);
 
     return () => {
       window.removeEventListener('deviceorientationabsolute', onAbs, true);
-      window.removeEventListener('deviceorientation', onRel, true);
+      window.clearTimeout(webTimer);
     };
-  }, [handleOrientationEvent]);
+  }, [feedLiveHeading]);
 
   const requestIosCompassPermission = async () => {
     try {
@@ -703,51 +665,22 @@ export function QiblaCompass(props: QiblaCompassProps) {
         const res = await DOE.requestPermission();
         if (res === 'granted') {
           setNeedsIosPermission(false);
-          const onRel = (e: Event) => handleOrientationEvent(e as DeviceOrientationWithWebkit, false);
-          window.addEventListener('deviceorientation', onRel, true);
+          window.addEventListener(
+            'deviceorientation',
+            (e) => {
+              const ev = e as DeviceOrientationWithWebkit;
+              if (typeof ev.webkitCompassHeading === 'number') {
+                feedLiveHeading(ev.webkitCompassHeading, ev.beta ?? 0, ev.gamma ?? 0, 'magnetic');
+              }
+            },
+            true
+          );
         }
       }
     } catch {}
   };
 
-  // قطب‌نمای حرکتی GPS برای فضای باز (روی گوشی‌های بدون مغناطیس‌سنج)
-  useEffect(() => {
-    if (!gpsWalkActive || typeof navigator === 'undefined' || !navigator.geolocation) return;
-    let lastPos: { lat: number; lng: number } | null = null;
-    setGpsWalkHint('در فضای باز ۵ قدم مستقیم راه بروید تا شمال واقعی قفل شود...');
-
-    const watchId = navigator.geolocation.watchPosition(
-      (pos) => {
-        const { latitude, longitude, heading, speed } = pos.coords;
-        if (typeof heading === 'number' && Number.isFinite(heading) && (speed ?? 0) >= 0.6) {
-          alignToReferenceHeading(heading, 'شمال واقعی از طریق حرکت GPS قفل شد.');
-          setGpsWalkHint('جهت حرکت GPS قفل شد (' + toFaDigits(Math.round(heading)) + '°)');
-          return;
-        }
-        if (lastPos) {
-          const movedMeters = approxDistanceKm(lastPos.lat, lastPos.lng, latitude, longitude) * 1000;
-          if (movedMeters >= 4) {
-            const bearing = computeBearingDeg(lastPos.lat, lastPos.lng, latitude, longitude);
-            alignToReferenceHeading(bearing, 'شمال واقعی از مسیر حرکت GPS قفل شد.');
-            setGpsWalkHint('شمال واقعی از حرکت شما قفل شد (' + toFaDigits(Math.round(bearing)) + '°)');
-            lastPos = { lat: latitude, lng: longitude };
-          }
-        } else {
-          lastPos = { lat: latitude, lng: longitude };
-        }
-      },
-      () => {
-        setGpsWalkHint('GPS در فضای باز فعال نشد؛ از خورشید/ماه یا نقشه قبله استفاده کنید.');
-      },
-      { enableHighAccuracy: true, maximumAge: 1000, timeout: 12000 }
-    );
-
-    return () => {
-      navigator.geolocation.clearWatch(watchId);
-    };
-  }, [gpsWalkActive, alignToReferenceHeading]);
-
-  // حلقه GPU ۶۰fps بدون Re-render اضافی (مثل ساعت ژاپنی بدون کوچک‌ترین لگ)
+  // حلقه GPU ۶۰fps بدون ری‌رندر (چرخش خودکار از مغناطیس‌سنج یا GPS Bearing نیتیو)
   useEffect(() => {
     let rafId = 0;
     let lastTextCommitMs = 0;
@@ -755,62 +688,54 @@ export function QiblaCompass(props: QiblaCompassProps) {
     const cardinalAngles = [0, 90, 180, 270];
 
     const tick = (now: number) => {
-      const mode = sensorModeRef.current;
-      const activeTargetHeading =
-        mode === 'magnetic' || mode === 'gyro_relative'
-          ? targetHeadingRef.current
-          : manualPreviewRef.current;
+      const src = compassSourceRef.current;
+      if (src === 'magnetic' || src === 'gps_locked') {
+        const desiredDialRotation = -targetHeadingRef.current;
+        const cur = smoothContinuousRef.current;
+        const delta = shortestDelta(normalize360(cur), normalize360(desiredDialRotation));
 
-      const desiredDialRotation = -activeTargetHeading;
-      const cur = smoothContinuousRef.current;
-      const delta = shortestDelta(normalize360(cur), normalize360(desiredDialRotation));
-
-      if (Math.abs(delta) > 0.03) {
-        smoothContinuousRef.current = cur + delta * 0.22;
-      }
-
-      const dialDeg = smoothContinuousRef.current;
-
-      // به‌روزرسانی مستقیم GPU Transform روی SVG بدون ری‌رندر React
-      if (dialSvgRef.current) {
-        dialSvgRef.current.style.transform = `rotate3d(0, 0, 1, ${dialDeg.toFixed(2)}deg)`;
-      }
-      for (let i = 0; i < 4; i++) {
-        const txtEl = cardinalTextRefs.current[i];
-        if (txtEl) {
-          txtEl.setAttribute('transform', `rotate(${(-(cardinalAngles[i] + dialDeg)).toFixed(1)} 130 42)`);
-        }
-      }
-
-      // به‌روزرسانی متن عدد زاویه فقط وقتی عدد تغییر کند (حداکثر هر 90ms)
-      if (now - lastTextCommitMs >= 90) {
-        const visualHeading = normalize360(-dialDeg);
-        const rounded = Math.round(visualHeading) % 360;
-        if (rounded !== lastRoundedHeading) {
-          lastRoundedHeading = rounded;
-          lastTextCommitMs = now;
-          setDisplayHeading(rounded);
+        if (Math.abs(delta) > 0.03) {
+          smoothContinuousRef.current = cur + delta * 0.22;
         }
 
-        const errAbs = Math.abs(shortestDelta(visualHeading, qiblaAngle));
-        const nextAligned = lastAlignedRef.current ? errAbs <= 7.5 : errAbs <= 5.0;
-        if (nextAligned !== lastAlignedRef.current) {
-          lastAlignedRef.current = nextAligned;
-          setIsAligned(nextAligned);
-          if (
-            nextAligned &&
-            mode !== 'celestial_manual' &&
-            !showCalibRef.current &&
-            typeof navigator !== 'undefined' &&
-            typeof navigator.vibrate === 'function'
-          ) {
-            try {
-              navigator.vibrate([30, 30, 65]);
-            } catch {}
+        const dialDeg = smoothContinuousRef.current;
+        if (dialSvgRef.current) {
+          dialSvgRef.current.style.transform = `rotate3d(0, 0, 1, ${dialDeg.toFixed(2)}deg)`;
+        }
+        for (let i = 0; i < 4; i++) {
+          const txtEl = cardinalTextRefs.current[i];
+          if (txtEl) {
+            txtEl.setAttribute('transform', `rotate(${(-(cardinalAngles[i] + dialDeg)).toFixed(1)} 130 42)`);
+          }
+        }
+
+        if (now - lastTextCommitMs >= 80) {
+          const visualHeading = normalize360(-dialDeg);
+          const rounded = Math.round(visualHeading) % 360;
+          if (rounded !== lastRoundedHeading) {
+            lastRoundedHeading = rounded;
+            lastTextCommitMs = now;
+            setDisplayHeading(rounded);
+          }
+
+          const errAbs = Math.abs(shortestDelta(visualHeading, qiblaAngle));
+          const nextAligned = lastAlignedRef.current ? errAbs <= 7.5 : errAbs <= 5.0;
+          if (nextAligned !== lastAlignedRef.current) {
+            lastAlignedRef.current = nextAligned;
+            setIsAligned(nextAligned);
+            if (
+              nextAligned &&
+              !showCalibRef.current &&
+              typeof navigator !== 'undefined' &&
+              typeof navigator.vibrate === 'function'
+            ) {
+              try {
+                navigator.vibrate([30, 30, 65]);
+              } catch {}
+            }
           }
         }
       }
-
       rafId = window.requestAnimationFrame(tick);
     };
 
@@ -818,54 +743,23 @@ export function QiblaCompass(props: QiblaCompassProps) {
     return () => window.cancelAnimationFrame(rafId);
   }, [qiblaAngle]);
 
-  // چرخش لمسی مستقیم روی خود دایره قطب‌نما در حالت بدون مغناطیس‌سنج
-  const getPointerAngleFromCenter = (clientX: number, clientY: number): number | null => {
-    const el = dialContainerRef.current;
-    if (!el) return null;
-    const rect = el.getBoundingClientRect();
-    const cx = rect.left + rect.width / 2;
-    const cy = rect.top + rect.height / 2;
-    return toDeg(Math.atan2(clientY - cy, clientX - cx));
-  };
-
-  const handleDialPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (sensorMode === 'magnetic') return;
-    const ang = getPointerAngleFromCenter(e.clientX, e.clientY);
-    if (ang === null) return;
-    dragStartRef.current = {
-      startAngle: ang,
-      startHeading: sensorMode === 'gyro_relative' ? targetHeadingRef.current : manualPreviewRef.current,
-    };
-  };
-
-  const handleDialPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!dragStartRef.current || sensorMode === 'magnetic') return;
-    const ang = getPointerAngleFromCenter(e.clientX, e.clientY);
-    if (ang === null) return;
-    const deltaAng = ang - dragStartRef.current.startAngle;
-    const nextHeading = normalize360(dragStartRef.current.startHeading - deltaAng);
-    if (sensorMode === 'gyro_relative') {
-      gyroOffsetRef.current = normalize360(nextHeading - latestRawGyroRef.current);
-      targetHeadingRef.current = nextHeading;
-    } else {
-      manualPreviewRef.current = nextHeading;
-      setManualPreviewDeg(Math.round(nextHeading));
-    }
-  };
-
-  const handleDialPointerUp = () => {
-    dragStartRef.current = null;
-  };
-
   const turnDelta = shortestDelta(displayHeading, qiblaAngle);
   const absTurn = Math.round(Math.abs(turnDelta));
 
+  const hasLiveHeading = compassSource === 'magnetic' || compassSource === 'gps_locked';
+
   const guidance = useMemo(() => {
-    if (isAligned) {
+    if (compassSource === 'detecting') {
+      return { text: 'در حال اتصال به سنسور و GPS گوشی...', dir: 'wait' as const };
+    }
+    if (compassSource === 'gps_waiting') {
       return {
-        text: 'دقیقاً رو به قبله هستید (کعبه معظمه)',
-        dir: 'locked' as const,
+        text: 'جهت‌یابی خودکار با GPS آماده است — ۵ قدم راه بروید یا نقشه ماهواره‌ای را ببینید',
+        dir: 'gps' as const,
       };
+    }
+    if (isAligned) {
+      return { text: 'دقیقاً رو به قبله هستید (کعبه معظمه)', dir: 'locked' as const };
     }
     if (absTurn >= 150) {
       return {
@@ -883,7 +777,7 @@ export function QiblaCompass(props: QiblaCompassProps) {
       text: absTurn <= 20 ? `کمی به چپ بچرخید (${toFaDigits(absTurn)}°)` : `به سمت چپ بچرخید (${toFaDigits(absTurn)}°)`,
       dir: 'left' as const,
     };
-  }, [isAligned, absTurn, turnDelta]);
+  }, [compassSource, isAligned, absTurn, turnDelta]);
 
   const dialTicks = useMemo(() => {
     const items: { angle: number; major: boolean; cardinal?: string; cardinalIndex?: number }[] = [];
@@ -899,7 +793,6 @@ export function QiblaCompass(props: QiblaCompassProps) {
     return items;
   }, []);
 
-  // کاشی‌های نقشه داخلی (۳×۳ OpenStreetMap — باز بدون فیلترشکن در ایران)
   const mapGrid = useMemo(() => {
     const t = latLngToTileXY(locationInfo.lat, locationInfo.lng, mapZoom);
     const maxTile = 2 ** mapZoom;
@@ -908,12 +801,11 @@ export function QiblaCompass(props: QiblaCompassProps) {
       for (let dx = -1; dx <= 1; dx++) {
         const tx = ((t.x + dx) % maxTile + maxTile) % maxTile;
         const ty = Math.max(0, Math.min(maxTile - 1, t.y + dy));
-        tiles.push({
-          dx,
-          dy,
-          key: `${mapZoom}_${tx}_${ty}`,
-          url: `https://tile.openstreetmap.org/${mapZoom}/${tx}/${ty}.png`,
-        });
+        const url =
+          mapLayer === 'satellite'
+            ? `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${mapZoom}/${ty}/${tx}`
+            : `https://tile.openstreetmap.org/${mapZoom}/${tx}/${ty}.png`;
+        tiles.push({ dx, dy, key: `${mapLayer}_${mapZoom}_${tx}_${ty}`, url });
       }
     }
     return {
@@ -921,23 +813,23 @@ export function QiblaCompass(props: QiblaCompassProps) {
       offsetX: (0.5 - t.fracX) * 256,
       offsetY: (0.5 - t.fracY) * 256,
     };
-  }, [locationInfo.lat, locationInfo.lng, mapZoom]);
+  }, [locationInfo.lat, locationInfo.lng, mapZoom, mapLayer]);
 
   const calibStrokeDash = 2 * Math.PI * 52;
   const calibStrokeOffset = calibStrokeDash * (1 - calibProgress / 100);
 
-  if (!props.embedded && !localOpen) {
-    return null;
-  }
+  if (!props.embedded && !localOpen) return null;
+
+  const showLiveGlow = hasLiveHeading && isAligned && activeTab === 'compass' && !showCalibModal;
 
   const cardBody = (
     <div
       className="w-full max-w-md rounded-[30px] p-4 border shadow-2xl space-y-3 relative overflow-hidden select-none max-h-[93vh] overflow-y-auto"
       style={{
-        background: isAligned && activeTab === 'compass'
+        background: showLiveGlow
           ? 'linear-gradient(170deg, rgba(6, 56, 42, 0.99) 0%, rgba(4, 24, 19, 1) 100%)'
           : 'linear-gradient(170deg, rgba(8, 28, 34, 0.99) 0%, rgba(4, 15, 20, 1) 100%)',
-        borderColor: isAligned && activeTab === 'compass' ? 'rgba(52, 211, 153, 0.65)' : 'rgba(251, 191, 36, 0.32)',
+        borderColor: showLiveGlow ? 'rgba(52, 211, 153, 0.65)' : 'rgba(251, 191, 36, 0.32)',
         transition: 'background 350ms ease, border-color 350ms ease',
       }}
       dir="rtl"
@@ -949,9 +841,9 @@ export function QiblaCompass(props: QiblaCompassProps) {
           <div
             className="w-10 h-10 rounded-2xl flex items-center justify-center border shrink-0"
             style={{
-              background: isAligned ? 'rgba(52, 211, 153, 0.2)' : 'rgba(251, 191, 36, 0.14)',
-              borderColor: isAligned ? '#34D399' : 'rgba(251, 191, 36, 0.4)',
-              color: isAligned ? '#34D399' : '#FBBF24',
+              background: showLiveGlow ? 'rgba(52, 211, 153, 0.2)' : 'rgba(251, 191, 36, 0.14)',
+              borderColor: showLiveGlow ? '#34D399' : 'rgba(251, 191, 36, 0.4)',
+              color: showLiveGlow ? '#34D399' : '#FBBF24',
             }}
           >
             <Compass size={20} />
@@ -968,7 +860,7 @@ export function QiblaCompass(props: QiblaCompassProps) {
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
-          {!showCalibModal && sensorMode === 'magnetic' && (
+          {!showCalibModal && compassSource === 'magnetic' && (
             <button
               type="button"
               onClick={openCalibrationPopup}
@@ -996,7 +888,7 @@ export function QiblaCompass(props: QiblaCompassProps) {
         </div>
       </div>
 
-      {/* دو تب جهانی: قطب‌نما (سنسور + خورشید/ماه) و نقشه قبله داخلی */}
+      {/* دو تب اصلی: قطب‌نمای خودکار (سنسور / GPS) و نقشه ماهواره‌ای زنده (عین نشان) */}
       {!showCalibModal && (
         <div className="grid grid-cols-2 gap-1.5 p-1 rounded-2xl border border-white/10 bg-white/[0.04]">
           <button
@@ -1008,8 +900,8 @@ export function QiblaCompass(props: QiblaCompassProps) {
               color: activeTab === 'compass' ? '#041511' : '#E2E8F0',
             }}
           >
-            <Compass size={14} />
-            <span>قطب‌نما و {celestial.labelFa}</span>
+            <Navigation size={14} />
+            <span>{compassSource === 'magnetic' ? 'قطب‌نمای خودکار' : 'قطب‌نمای GPS زنده'}</span>
           </button>
           <button
             type="button"
@@ -1021,17 +913,30 @@ export function QiblaCompass(props: QiblaCompassProps) {
             }}
           >
             <MapIcon size={14} />
-            <span>نقشه قبله (همه گوشی‌ها)</span>
+            <span>نقشه ماهواره‌ای قبله</span>
           </button>
         </div>
       )}
 
-      {/* مرحله کالیبره ∞ (فقط برای گوشی‌های دارای مغناطیس‌سنج) */}
-      {showCalibModal ? (
+      {/* دکمه فعال‌سازی مجوز لوکیشن نیتیو در صورت نبود دسترسی GPS */}
+      {!showCalibModal && needsLocationPerm && (
+        <button
+          type="button"
+          onClick={() => { void handleRequestNativeLocation(); }}
+          className="w-full py-2.5 px-3 rounded-2xl font-black text-xs shadow-lg flex items-center justify-center gap-2"
+          style={{ background: 'linear-gradient(135deg, #38BDF8 0%, #0284C7 100%)', color: '#041511' }}
+        >
+          <MapPin size={15} />
+          <span>فعال‌سازی دسترسی GPS برای جهت‌یابی خودکار</span>
+        </button>
+      )}
+
+      {/* مرحله کالیبره ∞ (فقط روی گوشی‌های دارای سنسور مغناطیسی) */}
+      {showCalibModal && compassSource !== 'gps_waiting' && compassSource !== 'gps_locked' ? (
         <div className="space-y-4 py-1">
           <div className="flex items-center gap-2 text-amber-300 text-xs font-black">
             <Sparkles size={15} />
-            <span>کالیبره قطب‌نما برای دقت بالا و حذف لرزش</span>
+            <span>کالیبره خودکار قطب‌نما برای دقت بالا</span>
           </div>
 
           <div className="flex flex-col items-center justify-center py-2">
@@ -1095,7 +1000,7 @@ export function QiblaCompass(props: QiblaCompassProps) {
                   {calibDone ? 'کالیبره انجام شد! ورود به قبله‌نما...' : 'گوشی را به شکل ∞ حرکت دهید'}
                 </div>
                 <p className="text-[11px] text-emerald-100/75 leading-relaxed">
-                  ۳ ثانیه گوشی را در هوا مانند عدد ۸ انگلیسی بچرخانید و از فلز دور نگه دارید.
+                  ۳ ثانیه گوشی را در هوا به شکل عدد ۸ انگلیسی بچرخانید تا کالیبره خودکار کامل شود.
                 </p>
               </div>
             </div>
@@ -1123,19 +1028,12 @@ export function QiblaCompass(props: QiblaCompassProps) {
           </div>
         </div>
       ) : activeTab === 'map' ? (
-        /* تب ۲: نقشه قبله داخلی (۱۰۰٪ دقیق برای همه گوشی‌ها — حتی بدون مغناطیس‌سنج و داخل خانه) */
+        /* تب ۲: نقشه ماهواره‌ای HD و خیابان زنده با GPS و خط مستقیم کعبه (عین نشان) */
         <div className="space-y-3 animate-fade-in">
-          <div className="rounded-2xl px-3 py-2 border border-emerald-400/30 bg-emerald-500/10 text-[11px] text-emerald-100 leading-relaxed text-right">
-            گوشی را هم‌جهت خیابان یا ساختمان روی نقشه قرار دهید؛ <strong className="text-amber-300">خط طلایی</strong> دقیقاً جهت کعبه ({toFaDigits(Math.round(qiblaAngle))}° {cardinalLabelFa(qiblaAngle)}) است.
-          </div>
-
           <div
-            className="relative w-full h-64 rounded-2xl overflow-hidden border border-amber-400/35 shadow-inner"
-            style={{
-              background: 'radial-gradient(circle at 50% 50%, #0D2D26 0%, #051613 100%)',
-            }}
+            className="relative w-full h-64 rounded-2xl overflow-hidden border border-amber-400/40 shadow-inner"
+            style={{ background: 'radial-gradient(circle at 50% 50%, #0D2D26 0%, #051613 100%)' }}
           >
-            {/* لایه کاشی‌های OpenStreetMap (۳×۳ حول موقعیت کاربر) */}
             <div
               className="absolute left-1/2 top-1/2 pointer-events-none"
               style={{
@@ -1154,7 +1052,7 @@ export function QiblaCompass(props: QiblaCompassProps) {
                   style={{
                     left: (tile.dx + 1) * 256,
                     top: (tile.dy + 1) * 256,
-                    filter: 'brightness(0.84) contrast(1.06)',
+                    filter: mapLayer === 'satellite' ? 'brightness(0.92) contrast(1.08)' : 'brightness(0.86) contrast(1.06)',
                   }}
                   onError={(e) => {
                     (e.currentTarget as HTMLImageElement).style.opacity = '0';
@@ -1163,35 +1061,24 @@ export function QiblaCompass(props: QiblaCompassProps) {
               ))}
             </div>
 
-            {/* گرید جهت‌یاب پشتیبان + خط مستقیم طلایی قبله */}
             <svg viewBox="0 0 320 260" className="absolute inset-0 w-full h-full pointer-events-none">
-              <circle cx="160" cy="130" r="95" fill="none" stroke="rgba(251,191,36,0.28)" strokeWidth="1.2" strokeDasharray="4 4" />
+              <circle cx="160" cy="130" r="96" fill="none" stroke="rgba(251,191,36,0.35)" strokeWidth="1.2" strokeDasharray="4 4" />
               <text x="160" y="18" textAnchor="middle" fill="#FCA5A5" fontSize="12" fontWeight="900">شمال (ش)</text>
-              <text x="160" y="250" textAnchor="middle" fill="#D1FAE5" fontSize="11" fontWeight="800">جنوب (ج)</text>
-              <text x="302" y="134" textAnchor="middle" fill="#D1FAE5" fontSize="11" fontWeight="800">ق</text>
-              <text x="18" y="134" textAnchor="middle" fill="#D1FAE5" fontSize="11" fontWeight="800">غ</text>
+              <text x="160" y="250" textAnchor="middle" fill="#FFFFFF" fontSize="11" fontWeight="800">جنوب (ج)</text>
+              <text x="302" y="134" textAnchor="middle" fill="#FFFFFF" fontSize="11" fontWeight="800">ق</text>
+              <text x="18" y="134" textAnchor="middle" fill="#FFFFFF" fontSize="11" fontWeight="800">غ</text>
 
               <g transform={`rotate(${qiblaAngle.toFixed(2)} 160 130)`}>
-                <line
-                  x1="160"
-                  y1="130"
-                  x2="160"
-                  y2="16"
-                  stroke="#FBBF24"
-                  strokeWidth="4"
-                  strokeLinecap="round"
-                  strokeDasharray="7 5"
-                />
-                <polygon points="160,6 151,24 169,24" fill="#FBBF24" />
+                <line x1="160" y1="130" x2="160" y2="16" stroke="#FBBF24" strokeWidth="4.5" strokeLinecap="round" strokeDasharray="8 5" />
+                <polygon points="160,5 150,24 170,24" fill="#FBBF24" />
                 <circle cx="160" cy="34" r="11" fill="#0B0F14" stroke="#FBBF24" strokeWidth="2" />
                 <rect x="155" y="29" width="10" height="10" rx="1.5" fill="#111827" stroke="#FDE68A" strokeWidth="1" />
                 <line x1="155" y1="32.5" x2="165" y2="32.5" stroke="#FBBF24" strokeWidth="1.8" />
               </g>
-
-              <circle cx="160" cy="130" r="8" fill="#10B981" stroke="#FFFFFF" strokeWidth="2.5" />
+              <circle cx="160" cy="130" r="9" fill="#0EA5E9" stroke="#FFFFFF" strokeWidth="3" />
             </svg>
 
-            {/* دکمه‌های زوم نقشه */}
+            {/* دکمه‌های زوم و تغییر لایه ماهواره/خیابان */}
             <div className="absolute top-2.5 left-2.5 flex flex-col gap-1.5 z-10">
               <button
                 type="button"
@@ -1209,37 +1096,53 @@ export function QiblaCompass(props: QiblaCompassProps) {
               >
                 <Minus size={15} />
               </button>
+              <button
+                type="button"
+                onClick={() => setMapLayer((m) => (m === 'satellite' ? 'street' : 'satellite'))}
+                className="w-8 h-8 rounded-xl bg-[#041511]/90 border border-amber-400/50 text-amber-300 flex items-center justify-center shadow"
+                aria-label="تغییر نمای ماهواره‌ای و خیابان"
+                title={mapLayer === 'satellite' ? 'نمای خیابان' : 'نمای ماهواره‌ای'}
+              >
+                <Layers size={15} />
+              </button>
+            </div>
+
+            <div className="absolute top-2.5 right-2.5 px-2.5 py-1 rounded-full bg-[#041511]/90 border border-emerald-400/45 text-[10px] font-black text-emerald-200">
+              {locationInfo.hasLiveGps ? 'GPS زنده قفل شد' : locationInfo.cityLabel} · {mapLayer === 'satellite' ? 'ماهواره‌ای' : 'خیابان'}
             </div>
 
             <div className="absolute bottom-2 right-2 px-2.5 py-1 rounded-full bg-[#041511]/90 border border-amber-400/35 text-[10px] font-black text-amber-200">
-              {locationInfo.cityLabel} · {toFaDigits(Math.round(qiblaAngle))}° {cardinalLabelFa(qiblaAngle)}
+              خط طلایی: {toFaDigits(Math.round(qiblaAngle))}° {cardinalLabelFa(qiblaAngle)}
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('compass')}
-            className="w-full py-2.5 rounded-2xl text-xs font-black border border-amber-400/40 bg-amber-400/15 text-amber-200"
-          >
-            بازگشت به نمای قطب‌نما و {celestial.labelFa}
-          </button>
+          <p className="text-[11px] text-emerald-100/85 text-center leading-relaxed">
+            ساختمان و خیابان محل خود را با تصویر ماهواره‌ای تطبیق دهید؛ خط طلایی مستقیم به سمت کعبه است.
+          </p>
         </div>
       ) : (
-        /* تب ۱: قطب‌نمای ۶۰fps + نشانگر زنده خورشید/ماه روی دایره + ژیروسکوپ زنده / GPS */
+        /* تب ۱: قطب‌نمای ۶۰fps تمام‌خودکار (با سنسور مغناطیسی درجا یا GPS Bearing نیتیو عین نشان) */
         <div className="space-y-3 animate-fade-in">
           <div
             className="rounded-2xl px-3.5 py-2.5 border flex items-center justify-center gap-2 text-center transition-all duration-300"
             style={{
-              background: isAligned
+              background: showLiveGlow
                 ? 'linear-gradient(90deg, rgba(16, 185, 129, 0.28) 0%, rgba(251, 191, 36, 0.22) 100%)'
+                : compassSource === 'gps_waiting'
+                ? 'rgba(14, 165, 233, 0.14)'
                 : 'rgba(255, 255, 255, 0.04)',
-              borderColor: isAligned ? '#34D399' : 'rgba(255, 255, 255, 0.1)',
+              borderColor: showLiveGlow
+                ? '#34D399'
+                : compassSource === 'gps_waiting'
+                ? 'rgba(56, 189, 248, 0.45)'
+                : 'rgba(255, 255, 255, 0.1)',
             }}
           >
             {guidance.dir === 'locked' && <CheckCircle2 size={17} className="text-emerald-300 shrink-0" />}
             {guidance.dir === 'right' && <RotateCw size={16} className="text-amber-300 shrink-0" />}
             {guidance.dir === 'left' && <RotateCcw size={16} className="text-amber-300 shrink-0" />}
-            <span className="text-xs font-black" style={{ color: isAligned ? '#A7F3D0' : '#FEF3C7' }}>
+            {guidance.dir === 'gps' && <Navigation size={16} className="text-sky-300 shrink-0" />}
+            <span className="text-xs font-black leading-relaxed" style={{ color: showLiveGlow ? '#A7F3D0' : '#FEF3C7' }}>
               {guidance.text}
             </span>
           </div>
@@ -1259,7 +1162,7 @@ export function QiblaCompass(props: QiblaCompassProps) {
             <div
               className="absolute w-72 h-72 rounded-full pointer-events-none transition-all duration-500"
               style={{
-                background: isAligned
+                background: showLiveGlow
                   ? 'radial-gradient(circle, rgba(52, 211, 153, 0.28) 0%, rgba(251, 191, 36, 0.14) 45%, transparent 72%)'
                   : 'radial-gradient(circle, rgba(251, 191, 36, 0.10) 0%, transparent 65%)',
               }}
@@ -1269,37 +1172,28 @@ export function QiblaCompass(props: QiblaCompassProps) {
               <div
                 className="w-3.5 h-3.5 rotate-45 rounded-[3px] shadow-lg transition-colors duration-300"
                 style={{
-                  background: isAligned ? '#34D399' : '#FBBF24',
-                  boxShadow: isAligned ? '0 0 14px #34D399' : '0 0 10px rgba(251,191,36,0.7)',
+                  background: showLiveGlow ? '#34D399' : '#FBBF24',
+                  boxShadow: showLiveGlow ? '0 0 14px #34D399' : '0 0 10px rgba(251,191,36,0.7)',
                 }}
               />
               <div
                 className="w-0.5 h-4 -mt-1 transition-colors duration-300"
-                style={{ background: isAligned ? '#34D399' : 'rgba(251, 191, 36, 0.8)' }}
+                style={{ background: showLiveGlow ? '#34D399' : 'rgba(251, 191, 36, 0.8)' }}
               />
             </div>
 
             <div
-              ref={dialContainerRef}
-              onPointerDown={handleDialPointerDown}
-              onPointerMove={handleDialPointerMove}
-              onPointerUp={handleDialPointerUp}
-              onPointerCancel={handleDialPointerUp}
-              className="relative w-64 h-64 rounded-full p-2 shadow-2xl border-2 touch-none"
+              className="relative w-64 h-64 rounded-full p-2 shadow-2xl border-2"
               style={{
                 background: 'radial-gradient(circle at 50% 45%, #0D2C26 0%, #051613 78%, #020B09 100%)',
-                borderColor: isAligned ? '#34D399' : 'rgba(251, 191, 36, 0.42)',
-                boxShadow: isAligned
+                borderColor: showLiveGlow ? '#34D399' : 'rgba(251, 191, 36, 0.42)',
+                boxShadow: showLiveGlow
                   ? '0 0 36px rgba(52, 211, 153, 0.32), inset 0 0 24px rgba(52, 211, 153, 0.18)'
                   : '0 16px 36px rgba(0, 0, 0, 0.55), inset 0 0 24px rgba(251, 191, 36, 0.08)',
                 transition: 'border-color 300ms ease, box-shadow 300ms ease',
               }}
             >
-              <svg
-                ref={dialSvgRef}
-                viewBox="0 0 260 260"
-                className="w-full h-full will-change-transform"
-              >
+              <svg ref={dialSvgRef} viewBox="0 0 260 260" className="w-full h-full will-change-transform">
                 <circle cx="130" cy="130" r="118" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
                 <circle cx="130" cy="130" r="92" fill="none" stroke="rgba(251,191,36,0.14)" strokeWidth="1" strokeDasharray="3 5" />
 
@@ -1331,16 +1225,15 @@ export function QiblaCompass(props: QiblaCompassProps) {
                   </g>
                 ))}
 
-                {/* نشانگر زنده خورشید (روز) یا ماه (شب) روی رینگ قطب‌نما */}
+                {/* نشانگر لحظه‌ای خورشید/ماه روی رینگ قطب‌نما */}
                 <g transform={`rotate(${celestial.azimuthDeg} 130 130)`}>
-                  <line x1="130" y1="62" x2="130" y2="122" stroke={celestial.body === 'sun' ? 'rgba(251,191,36,0.38)' : 'rgba(147,197,253,0.4)'} strokeWidth="1.5" strokeDasharray="3 3" />
                   <circle
                     cx="130"
                     cy="58"
-                    r="11"
+                    r="10"
                     fill={celestial.body === 'sun' ? '#F59E0B' : '#1E3A8A'}
                     stroke={celestial.body === 'sun' ? '#FEF08A' : '#93C5FD'}
-                    strokeWidth="2"
+                    strokeWidth="1.8"
                   />
                   <text
                     x="130"
@@ -1348,128 +1241,42 @@ export function QiblaCompass(props: QiblaCompassProps) {
                     textAnchor="middle"
                     dominantBaseline="central"
                     fill={celestial.body === 'sun' ? '#041511' : '#E0F2FE'}
-                    fontSize="9"
+                    fontSize="8.5"
                     fontWeight="900"
                   >
                     {celestial.body === 'sun' ? 'خ' : 'م'}
                   </text>
                 </g>
 
-                {/* عقربه طلایی قبله و کعبه */}
                 <g transform={`rotate(${qiblaAngle.toFixed(2)} 130 130)`}>
-                  <path
-                    d="M130 34 L138 130 L130 144 L122 130 Z"
-                    fill={isAligned ? '#34D399' : '#FBBF24'}
-                    fillOpacity="0.92"
-                  />
-                  <path
-                    d="M130 144 L134 188 L130 198 L126 188 Z"
-                    fill="rgba(255,255,255,0.18)"
-                  />
+                  <path d="M130 34 L138 130 L130 144 L122 130 Z" fill={showLiveGlow ? '#34D399' : '#FBBF24'} fillOpacity="0.92" />
+                  <path d="M130 144 L134 188 L130 198 L126 188 Z" fill="rgba(255,255,255,0.18)" />
                   <g transform="translate(130, 26)">
-                    <circle
-                      r="14"
-                      fill={isAligned ? '#065F46' : '#1E1B10'}
-                      stroke={isAligned ? '#34D399' : '#FBBF24'}
-                      strokeWidth="2"
-                    />
+                    <circle r="14" fill={showLiveGlow ? '#065F46' : '#1E1B10'} stroke={showLiveGlow ? '#34D399' : '#FBBF24'} strokeWidth="2" />
                     <rect x="-6.5" y="-6.5" width="13" height="13" rx="2" fill="#0B0F14" stroke="#FDE68A" strokeWidth="1" />
                     <line x1="-6.5" y1="-2" x2="6.5" y2="-2" stroke="#FBBF24" strokeWidth="2.2" />
                   </g>
                 </g>
 
-                <circle cx="130" cy="130" r="9" fill="#041511" stroke={isAligned ? '#34D399' : '#FBBF24'} strokeWidth="2.5" />
-                <circle cx="130" cy="130" r="3" fill={isAligned ? '#34D399' : '#FDE68A'} />
+                <circle cx="130" cy="130" r="9" fill="#041511" stroke={showLiveGlow ? '#34D399' : '#FBBF24'} strokeWidth="2.5" />
+                <circle cx="130" cy="130" r="3" fill={showLiveGlow ? '#34D399' : '#FDE68A'} />
               </svg>
 
               <div className="absolute -bottom-3.5 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-[#041511]/95 border border-amber-400/35 text-[10px] font-black text-emerald-100 shadow-lg whitespace-nowrap">
-                جهت فعلی: {toFaDigits(displayHeading)}°
+                {hasLiveHeading ? `جهت فعلی: ${toFaDigits(displayHeading)}°` : 'در انتظار حرکت GPS...'}
               </div>
             </div>
           </div>
 
-          {/* پنل هوشمند برای گوشی‌های بدون مغناطیس‌سنج (خورشید/ماه + ژیروسکوپ زنده + GPS حرکتی + نقشه) */}
-          {sensorMode !== 'magnetic' && (
-            <div className="rounded-2xl p-3 border border-amber-400/25 bg-white/[0.04] space-y-2.5">
-              <div className="text-[11px] text-amber-200 font-bold leading-relaxed text-right">
-                {sensorMode === 'gyro_relative'
-                  ? 'حالت ژیروسکوپ زنده فعال است: بالای گوشی را به سمت ' + celestial.labelFa + ' بگیرید و دکمه هم‌ترازی را بزنید تا با چرخش دست، قبله دقیق نشان داده شود.'
-                  : hardwareNoMag
-                  ? 'تراشه مغناطیس‌سنج روی این گوشی وجود ندارد' + (sensorSummary ? ' (سنسور موجود: ' + sensorSummary + ')' : '') + ' — از هم‌ترازی دقیق ' + celestial.labelFa + '، GPS حرکتی یا نقشه قبله استفاده کنید:'
-                  : 'با کشیدن انگشت روی قطب‌نما یا هم‌ترازی ' + celestial.labelFa + ' جهت قبله را دقیق ببینید:'}
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() =>
-                    alignToReferenceHeading(
-                      celestial.azimuthDeg,
-                      'بالای گوشی را به سمت ' + celestial.labelFa + ' واقعی بگیرید؛ عقربه طلایی دقیقاً قبله است.'
-                    )
-                  }
-                  className="py-2.5 px-2 rounded-xl text-[11px] font-black border flex items-center justify-center gap-1.5 transition-transform active:scale-95"
-                  style={{
-                    background: 'rgba(251, 191, 36, 0.18)',
-                    borderColor: 'rgba(251, 191, 36, 0.55)',
-                    color: '#FEF08A',
-                  }}
-                >
-                  {celestial.body === 'sun' ? <Sun size={14} /> : <Moon size={14} />}
-                  <span>هم‌ترازی با {celestial.labelFa} ({toFaDigits(celestial.azimuthDeg)}°)</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('map')}
-                  className="py-2.5 px-2 rounded-xl text-[11px] font-black border flex items-center justify-center gap-1.5 transition-transform active:scale-95"
-                  style={{
-                    background: 'rgba(16, 185, 129, 0.18)',
-                    borderColor: 'rgba(52, 211, 153, 0.5)',
-                    color: '#A7F3D0',
-                  }}
-                >
-                  <MapIcon size={14} />
-                  <span>نقشه قبله (داخل خانه)</span>
-                </button>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setGpsWalkActive((v) => !v)}
-                className="w-full py-2 px-3 rounded-xl text-[11px] font-bold border flex items-center justify-center gap-1.5 transition-all"
-                style={{
-                  background: gpsWalkActive ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255, 255, 255, 0.04)',
-                  borderColor: gpsWalkActive ? '#38BDF8' : 'rgba(255, 255, 255, 0.14)',
-                  color: gpsWalkActive ? '#BAE6FD' : '#CBD5E1',
-                }}
-              >
-                <Navigation size={13} />
-                <span>{gpsWalkActive ? 'توقف قبله‌یاب حرکتی GPS' : 'قبله‌یاب حرکتی GPS (فضای باز)'}</span>
-              </button>
-
-              {(gpsWalkHint || celestialHint) && (
-                <p className="text-[10.5px] text-emerald-200/90 text-center leading-relaxed">
-                  {gpsWalkActive && gpsWalkHint ? gpsWalkHint : celestialHint}
-                </p>
-              )}
-
-              {sensorMode === 'celestial_manual' && (
-                <input
-                  type="range"
-                  min={0}
-                  max={359}
-                  value={manualPreviewDeg}
-                  onChange={(e) => {
-                    const v = Number(e.target.value);
-                    manualPreviewRef.current = v;
-                    setManualPreviewDeg(v);
-                  }}
-                  aria-label="تنظیم زاویه قطب‌نما"
-                  className="w-full accent-amber-400 cursor-pointer"
-                />
-              )}
-            </div>
+          {compassSource === 'gps_waiting' && (
+            <button
+              type="button"
+              onClick={() => setActiveTab('map')}
+              className="w-full py-2.5 rounded-2xl text-xs font-black border border-emerald-400/45 bg-emerald-500/15 text-emerald-200 flex items-center justify-center gap-2"
+            >
+              <MapIcon size={15} />
+              <span>داخل خانه هستید؟ مشاهده خط قبله روی نقشه ماهواره‌ای</span>
+            </button>
           )}
         </div>
       )}
@@ -1489,25 +1296,25 @@ export function QiblaCompass(props: QiblaCompassProps) {
             </div>
 
             <div className="rounded-2xl p-2.5 border border-white/10 bg-white/[0.03]">
-              <div className="text-[10px] text-emerald-100/60">حالت قبله‌یاب</div>
+              <div className="text-[10px] text-emerald-100/60">منبع جهت‌یابی</div>
               <div
                 className="text-xs font-black mt-0.5 flex items-center justify-center gap-1"
                 style={{
                   color:
-                    sensorMode === 'magnetic'
+                    compassSource === 'magnetic'
                       ? stability === 'high' ? '#34D399' : stability === 'medium' ? '#FBBF24' : '#FB7185'
-                      : sensorMode === 'gyro_relative'
+                      : compassSource === 'gps_locked'
                       ? '#38BDF8'
                       : '#FBBF24',
                 }}
               >
-                {sensorMode === 'magnetic' && stability === 'low' ? <AlertTriangle size={12} /> : <ShieldCheck size={12} />}
+                {compassSource === 'magnetic' && stability === 'low' ? <AlertTriangle size={12} /> : <ShieldCheck size={12} />}
                 <span>
-                  {sensorMode === 'magnetic'
-                    ? stability === 'high' ? 'مغناطیسی دقیق' : stability === 'medium' ? 'متوسط' : 'نیاز به کالیبره'
-                    : sensorMode === 'gyro_relative'
-                    ? 'ژیروسکوپ زنده'
-                    : 'نجومی و نقشه'}
+                  {compassSource === 'magnetic'
+                    ? stability === 'high' ? 'قطب‌نما دقیق' : stability === 'medium' ? 'متوسط' : 'نیاز به کالیبره'
+                    : compassSource === 'gps_locked'
+                    ? 'GPS زنده قفل'
+                    : 'GPS + نقشه'}
                 </span>
               </div>
             </div>
@@ -1527,13 +1334,8 @@ export function QiblaCompass(props: QiblaCompassProps) {
     </div>
   );
 
-  if (props.embedded) {
-    return cardBody;
-  }
-
-  if (typeof document === 'undefined') {
-    return cardBody;
-  }
+  if (props.embedded) return cardBody;
+  if (typeof document === 'undefined') return cardBody;
 
   return createPortal(
     <div
