@@ -27,6 +27,11 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
+import android.hardware.display.DisplayManager;
+import android.os.HandlerThread;
+import android.view.Display;
+import android.view.Surface;
+import android.view.WindowManager;
 import android.provider.Settings;
 import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
@@ -761,10 +766,14 @@ public class NoorAlarmPlugin extends Plugin {
 
 
     // =========================================================================
-    // موتور قطب‌نمای جهانی: Google FOP (ایستاده) + ۷لایه SensorManager + GPS Bearing نیتیو (عین نشان)
+    // موتور قطب‌نمای جهانی ترکیبی (اندروید ۷ تا ۱۶):
+    // شروع موازی Native (HandlerThread) + Google FOP با موتور داوری (Orientation Arbitration)
+    // remapCoordinateSystem استاندارد + استخراج pitch/roll واقعی از FOP getAttitude()
     // =========================================================================
     private SensorManager compassSensorManager = null;
     private SensorEventListener compassListener = null;
+    private HandlerThread compassSensorThread = null;
+    private Handler compassSensorHandler = null;
     private FusedOrientationProviderClient fusedOrientationClient = null;
     private DeviceOrientationListener fusedOrientationListener = null;
     private FusedLocationProviderClient compassGpsClient = null;
@@ -778,8 +787,9 @@ public class NoorAlarmPlugin extends Plugin {
     private boolean hasCompassAccel = false;
     private boolean hasCompassMag = false;
     private long lastCompassEmitMs = 0L;
-    private long lastGyroTimestampNs = 0L;
-    private double integratedGyroYawDeg = 0.0;
+    private volatile long lastFopFreshMs = 0L;
+    private volatile float lastFopErrorDeg = 180f;
+    private volatile int nativeSampleCount = 0;
     private volatile int compassSampleCount = 0;
     private volatile double latestCompassHeading = -1.0;
     private volatile double latestCompassPitch = 0.0;
@@ -789,8 +799,9 @@ public class NoorAlarmPlugin extends Plugin {
     private volatile float latestGpsAccuracy = -1f;
     private volatile int lastCompassAccuracy = SensorManager.SENSOR_STATUS_ACCURACY_MEDIUM;
     private volatile String activeCompassMode = "none";
+    private volatile String activeNorthRef = "MAGNETIC";
+    private volatile String activeConfidenceState = "INITIALIZING";
     private volatile boolean activeCompassIsMagnetic = false;
-    private volatile boolean activeCompassIsRelative = false;
     private volatile boolean activeCompassIsGps = false;
     private volatile boolean diagFopActive = false;
     private volatile boolean diagGpsActive = false;
@@ -801,7 +812,6 @@ public class NoorAlarmPlugin extends Plugin {
     private volatile boolean diagHasGyro = false;
     private volatile boolean diagHasRotVec = false;
     private volatile boolean diagHasGeoRot = false;
-    private volatile boolean diagHasGameRot = false;
     private volatile String diagSensorSummary = "";
 
     private Sensor findFirstSensor(SensorManager sm, int sensorType) {
@@ -814,56 +824,111 @@ public class NoorAlarmPlugin extends Plugin {
         return null;
     }
 
+    // خواندن چرخش صفحه سازگار با API 24 تا 36 (بدون getDefaultDisplay منسوخ در API 30+)
     @SuppressWarnings("deprecation")
-    private int getDisplayRotationDegrees() {
+    private int getScreenSurfaceRotation() {
         try {
-            if (getActivity() != null && getActivity().getWindowManager() != null) {
-                android.view.Display d = getActivity().getWindowManager().getDefaultDisplay();
-                if (d != null) {
-                    int rot = d.getRotation();
-                    if (rot == android.view.Surface.ROTATION_90) return 90;
-                    if (rot == android.view.Surface.ROTATION_180) return 180;
-                    if (rot == android.view.Surface.ROTATION_270) return 270;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                Display d = getActivity() != null ? getActivity().getDisplay() : null;
+                if (d != null) return d.getRotation();
+                DisplayManager dm = (DisplayManager) getContext().getSystemService(Context.DISPLAY_SERVICE);
+                if (dm != null) {
+                    Display def = dm.getDisplay(Display.DEFAULT_DISPLAY);
+                    if (def != null) return def.getRotation();
+                }
+            } else {
+                WindowManager wm = (WindowManager) getContext().getSystemService(Context.WINDOW_SERVICE);
+                if (wm != null && wm.getDefaultDisplay() != null) {
+                    return wm.getDefaultDisplay().getRotation();
                 }
             }
         } catch (Exception ignored) {}
-        return 0;
+        return Surface.ROTATION_0;
     }
 
-    private void emitCompassReading(
+    // تبدیل استاندارد محورها بر اساس چرخش نمایشگر (Portrait / Landscape / Upside-down)
+    private void remapForScreenRotation(float[] inR, float[] outR) {
+        int rotation = getScreenSurfaceRotation();
+        boolean ok;
+        switch (rotation) {
+            case Surface.ROTATION_90:
+                ok = SensorManager.remapCoordinateSystem(inR, SensorManager.AXIS_Y, SensorManager.AXIS_MINUS_X, outR);
+                break;
+            case Surface.ROTATION_180:
+                ok = SensorManager.remapCoordinateSystem(inR, SensorManager.AXIS_MINUS_X, SensorManager.AXIS_MINUS_Y, outR);
+                break;
+            case Surface.ROTATION_270:
+                ok = SensorManager.remapCoordinateSystem(inR, SensorManager.AXIS_MINUS_Y, SensorManager.AXIS_X, outR);
+                break;
+            case Surface.ROTATION_0:
+            default:
+                ok = SensorManager.remapCoordinateSystem(inR, SensorManager.AXIS_X, SensorManager.AXIS_Y, outR);
+                break;
+        }
+        if (!ok) {
+            System.arraycopy(inR, 0, outR, 0, 9);
+        }
+    }
+
+    private String computeConfidenceState(int acc, float headingErrDeg) {
+        if (headingErrDeg >= 0f && headingErrDeg <= 22f) return "STABLE";
+        if (acc >= SensorManager.SENSOR_STATUS_ACCURACY_HIGH) return "STABLE";
+        if (acc == SensorManager.SENSOR_STATUS_ACCURACY_MEDIUM && (headingErrDeg < 0f || headingErrDeg <= 35f)) {
+            return "STABLE";
+        }
+        return "LOW_CONFIDENCE";
+    }
+
+    // موتور داوری مرکزی (Orientation Arbitration Engine)
+    private synchronized void arbitrateAndEmit(
             double trueHeading,
             double pitchDeg,
             double rollDeg,
             int acc,
-            String mode,
+            String source,
+            String northRef,
+            float headingErrDeg,
             boolean isMagnetic,
-            boolean isRelative,
             boolean isGps
     ) {
         if (Double.isNaN(trueHeading)) return;
+        long nowMs = android.os.SystemClock.elapsedRealtime();
+
+        // اگر FOP تازه و دقیق (<1.5 ثانیه و خطای <= 25 درجه) فعال است، نمونه نیتیو را جایگزین آن نکن
+        if (isMagnetic && !"GOOGLE_FOP".equals(source)) {
+            boolean fopFreshAndStrong = diagFopActive
+                    && (nowMs - lastFopFreshMs < 1500L)
+                    && lastFopErrorDeg <= 25f;
+            if (fopFreshAndStrong) {
+                return;
+            }
+        }
+
         double cleanHeading = (trueHeading % 360.0 + 360.0) % 360.0;
         latestCompassHeading = cleanHeading;
         latestCompassPitch = pitchDeg;
         latestCompassRoll = rollDeg;
         lastCompassAccuracy = acc;
-        activeCompassMode = mode;
+        activeCompassMode = source;
+        activeNorthRef = northRef;
+        activeConfidenceState = isGps ? "STABLE" : computeConfidenceState(acc, headingErrDeg);
         activeCompassIsMagnetic = isMagnetic;
-        activeCompassIsRelative = isRelative;
         activeCompassIsGps = isGps;
         compassSampleCount++;
 
-        long nowMs = android.os.SystemClock.elapsedRealtime();
         if (!isGps && compassSampleCount > 1 && (nowMs - lastCompassEmitMs < 20L)) return;
         lastCompassEmitMs = nowMs;
 
-        JSObject payload = new JSObject();
+        final JSObject payload = new JSObject();
         payload.put("heading", cleanHeading);
         payload.put("pitch", pitchDeg);
         payload.put("roll", rollDeg);
         payload.put("accuracy", acc);
-        payload.put("mode", mode);
+        payload.put("headingErrorDegrees", headingErrDeg >= 0f ? headingErrDeg : -1f);
+        payload.put("confidence", activeConfidenceState);
+        payload.put("northReference", northRef);
+        payload.put("mode", source);
         payload.put("isMagnetic", isMagnetic);
-        payload.put("isRelativeGyro", isRelative);
         payload.put("isGpsBearing", isGps);
         payload.put("samples", compassSampleCount);
         payload.put("sensorSummary", diagSensorSummary);
@@ -872,14 +937,14 @@ public class NoorAlarmPlugin extends Plugin {
             payload.put("gpsLng", latestGpsLng);
             payload.put("gpsAccuracy", latestGpsAccuracy);
         }
-        notifyListeners("compassHeading", payload);
+        compassMainHandler.post(() -> notifyListeners("compassHeading", payload));
     }
 
     private void emitGpsPositionOnly(double lat, double lng, float accMeters) {
         latestGpsLat = lat;
         latestGpsLng = lng;
         latestGpsAccuracy = accMeters;
-        JSObject payload = new JSObject();
+        final JSObject payload = new JSObject();
         payload.put("gpsLat", lat);
         payload.put("gpsLng", lng);
         payload.put("gpsAccuracy", accMeters);
@@ -887,13 +952,13 @@ public class NoorAlarmPlugin extends Plugin {
         payload.put("isGpsBearing", true);
         payload.put("gpsOnly", true);
         payload.put("sensorSummary", diagSensorSummary);
-        notifyListeners("compassHeading", payload);
+        compassMainHandler.post(() -> notifyListeners("compassHeading", payload));
     }
 
     private String buildHardwareSensorSummary() {
         StringBuilder sb = new StringBuilder();
         if (diagHasMag || diagHasUncalMag) sb.append("مغناطیس‌سنج");
-        if (diagHasGyro || diagHasGameRot) {
+        if (diagHasGyro) {
             if (sb.length() > 0) sb.append(" + ");
             sb.append("ژیروسکوپ");
         }
@@ -905,11 +970,11 @@ public class NoorAlarmPlugin extends Plugin {
             if (sb.length() > 0) sb.append(" + ");
             sb.append("شتاب‌سنج");
         }
-        if (sb.length() == 0) return "GPS و لوکیشن";
+        if (sb.length() == 0) return "بدون سنسور مغناطیسی";
         return sb.toString();
     }
 
-    // موتور نیتیو GPS Bearing (دقیقاً مشابه نشان و گوگل‌مپ روی گوشی‌های فاقد مغناطیس‌سنج)
+    // موتور نیتیو لوکیشن/GPS برای مختصات زنده نقشه + GPS Bearing کمکی فضای باز
     private boolean startNativeGpsHeading(final Context ctx) {
         boolean fine = ContextCompat.checkSelfPermission(ctx, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
         boolean coarse = ContextCompat.checkSelfPermission(ctx, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
@@ -924,7 +989,6 @@ public class NoorAlarmPlugin extends Plugin {
             compassGpsClient = LocationServices.getFusedLocationProviderClient(ctx);
             lastCompassGpsLoc = null;
 
-            // دریافت فوری آخرین مختصات برای قفل لحظه‌ای نقشه و زاویه قبله
             compassGpsClient.getLastLocation().addOnSuccessListener(loc -> {
                 if (loc != null) {
                     emitGpsPositionOnly(loc.getLatitude(), loc.getLongitude(), loc.hasAccuracy() ? loc.getAccuracy() : 25f);
@@ -932,9 +996,9 @@ public class NoorAlarmPlugin extends Plugin {
                 }
             });
 
-            LocationRequest gpsReq = new LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 500L)
-                    .setMinUpdateIntervalMillis(250L)
-                    .setMinUpdateDistanceMeters(0.5f)
+            LocationRequest gpsReq = new LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000L)
+                    .setMinUpdateIntervalMillis(500L)
+                    .setMinUpdateDistanceMeters(1.0f)
                     .build();
 
             compassGpsCallback = new LocationCallback() {
@@ -946,18 +1010,18 @@ public class NoorAlarmPlugin extends Plugin {
                     latestGpsLng = loc.getLongitude();
                     latestGpsAccuracy = loc.hasAccuracy() ? loc.getAccuracy() : 20f;
 
-                    // اگر سنسور مغناطیسی فعال است، فقط مختصات دقیق را برای نقشه/قبله می‌فرستیم
-                    if (activeCompassIsMagnetic && compassSampleCount > 0) {
+                    if (activeCompassIsMagnetic) {
+                        emitGpsPositionOnly(loc.getLatitude(), loc.getLongitude(), latestGpsAccuracy);
                         return;
                     }
 
                     double bearingDeg = -1.0;
-                    if (loc.hasBearing() && (!loc.hasSpeed() || loc.getSpeed() >= 0.45f)) {
+                    if (loc.hasBearing() && (!loc.hasSpeed() || loc.getSpeed() >= 0.55f)) {
                         bearingDeg = (loc.getBearing() + 360.0) % 360.0;
                         lastCompassGpsLoc = loc;
                     } else if (lastCompassGpsLoc != null) {
                         float distM = lastCompassGpsLoc.distanceTo(loc);
-                        if (distM >= 2.5f && (!loc.hasAccuracy() || loc.getAccuracy() <= 35f)) {
+                        if (distM >= 3.0f && (!loc.hasAccuracy() || loc.getAccuracy() <= 35f)) {
                             bearingDeg = (lastCompassGpsLoc.bearingTo(loc) + 360.0) % 360.0;
                             lastCompassGpsLoc = loc;
                         }
@@ -966,15 +1030,10 @@ public class NoorAlarmPlugin extends Plugin {
                     }
 
                     if (bearingDeg >= 0.0) {
-                        emitCompassReading(
-                                bearingDeg,
-                                0.0,
-                                0.0,
+                        arbitrateAndEmit(
+                                bearingDeg, 0.0, 0.0,
                                 SensorManager.SENSOR_STATUS_ACCURACY_HIGH,
-                                "gps_bearing",
-                                false,
-                                false,
-                                true
+                                "gps_bearing", "TRUE", -1f, false, true
                         );
                     } else {
                         emitGpsPositionOnly(loc.getLatitude(), loc.getLongitude(), latestGpsAccuracy);
@@ -1003,17 +1062,13 @@ public class NoorAlarmPlugin extends Plugin {
         diagGpsActive = false;
     }
 
-    @SuppressWarnings("deprecation")
-    private boolean registerRawSensorFallback(
+    private boolean registerNativeSensorEngine(
             final SensorManager sm,
             final Sensor rotSensor,
             final Sensor geoRotSensor,
             final Sensor accelSensor,
             final Sensor magSensor,
             final Sensor uncalMagSensor,
-            final Sensor legacyOrientSensor,
-            final Sensor gameRotSensor,
-            final Sensor gyroSensor,
             final boolean skipPrimaryRot
     ) {
         if (sm == null) return false;
@@ -1021,121 +1076,109 @@ public class NoorAlarmPlugin extends Plugin {
             try { compassSensorManager.unregisterListener(compassListener); } catch (Exception ignored) {}
         }
 
+        if (compassSensorThread == null) {
+            compassSensorThread = new HandlerThread("NoorQiblaSensor");
+            compassSensorThread.start();
+            compassSensorHandler = new Handler(compassSensorThread.getLooper());
+        }
+
         compassSensorManager = sm;
         hasCompassAccel = false;
         hasCompassMag = false;
-        lastGyroTimestampNs = 0L;
-        integratedGyroYawDeg = 0.0;
+        nativeSampleCount = 0;
 
         compassListener = new SensorEventListener() {
             private final float[] rotMatrix = new float[9];
+            private final float[] remappedMatrix = new float[9];
             private final float[] inclMatrix = new float[9];
+            private final float[] orientRad = new float[3];
             private final float[] truncatedRot = new float[4];
 
             @Override
             public void onSensorChanged(SensorEvent event) {
                 if (event == null || event.values == null) return;
                 int type = event.sensor.getType();
-                double trueHeading = -1.0;
-                double pitchDeg = 0.0;
-                double rollDeg = 0.0;
-                boolean headingReady = false;
-                int displayRotDeg = getDisplayRotationDegrees();
+                boolean matrixReady = false;
+                float estErrDeg = -1f;
+                String sourceName = activeCompassMode;
 
-                if (type == Sensor.TYPE_GYROSCOPE && event.values.length >= 3) {
-                    if (lastGyroTimestampNs != 0L) {
-                        double dtSec = (event.timestamp - lastGyroTimestampNs) * 1e-9;
-                        if (dtSec > 0.0 && dtSec < 0.25) {
-                            double yawRateRad = event.values[2];
-                            if (Math.abs(yawRateRad) > 0.004) {
-                                integratedGyroYawDeg = (integratedGyroYawDeg - Math.toDegrees(yawRateRad * dtSec) + 360.0) % 360.0;
-                            }
-                        }
+                if (type == Sensor.TYPE_ROTATION_VECTOR || type == Sensor.TYPE_GEOMAGNETIC_ROTATION_VECTOR) {
+                    sourceName = (type == Sensor.TYPE_ROTATION_VECTOR) ? "ROTATION_VECTOR" : "GEOMAGNETIC_VECTOR";
+                    // استخراج تخمین خطای Heading از values[4] (برحسب رادیان) طبق مستندات اندروید
+                    if (event.values.length >= 5 && event.values[4] >= 0f && !Float.isNaN(event.values[4])) {
+                        estErrDeg = (float) Math.toDegrees(event.values[4]);
                     }
-                    lastGyroTimestampNs = event.timestamp;
-                    trueHeading = (integratedGyroYawDeg + displayRotDeg + 360.0) % 360.0;
-                    headingReady = true;
-                } else if (type == Sensor.TYPE_ORIENTATION && event.values.length >= 3) {
-                    trueHeading = (event.values[0] + compassDeclinationDeg + displayRotDeg + 360.0) % 360.0;
-                    pitchDeg = event.values[1];
-                    rollDeg = event.values[2];
-                    headingReady = true;
-                } else {
-                    boolean matrixReady = false;
-                    if (type == Sensor.TYPE_ROTATION_VECTOR
-                            || type == Sensor.TYPE_GEOMAGNETIC_ROTATION_VECTOR
-                            || type == Sensor.TYPE_GAME_ROTATION_VECTOR) {
+                    try {
+                        if (event.values.length > 4) {
+                            System.arraycopy(event.values, 0, truncatedRot, 0, 4);
+                            SensorManager.getRotationMatrixFromVector(rotMatrix, truncatedRot);
+                        } else {
+                            SensorManager.getRotationMatrixFromVector(rotMatrix, event.values);
+                        }
+                        matrixReady = true;
+                    } catch (Exception ignored) {
                         try {
-                            if (event.values.length > 4) {
-                                System.arraycopy(event.values, 0, truncatedRot, 0, 4);
-                                SensorManager.getRotationMatrixFromVector(rotMatrix, truncatedRot);
-                            } else {
-                                SensorManager.getRotationMatrixFromVector(rotMatrix, event.values);
+                            if (event.values.length >= 3) {
+                                float[] v3 = new float[]{ event.values[0], event.values[1], event.values[2] };
+                                SensorManager.getRotationMatrixFromVector(rotMatrix, v3);
+                                matrixReady = true;
                             }
-                            matrixReady = true;
-                        } catch (Exception ignored) {
-                            try {
-                                if (event.values.length >= 3) {
-                                    float[] v3 = new float[]{ event.values[0], event.values[1], event.values[2] };
-                                    SensorManager.getRotationMatrixFromVector(rotMatrix, v3);
-                                    matrixReady = true;
-                                }
-                            } catch (Exception ignored2) {}
-                        }
-                    } else if ((type == Sensor.TYPE_ACCELEROMETER || type == Sensor.TYPE_GRAVITY) && event.values.length >= 3) {
-                        final float a = 0.25f;
-                        if (!hasCompassAccel) {
-                            System.arraycopy(event.values, 0, compassAccel, 0, 3);
-                            hasCompassAccel = true;
-                        } else {
-                            compassAccel[0] += a * (event.values[0] - compassAccel[0]);
-                            compassAccel[1] += a * (event.values[1] - compassAccel[1]);
-                            compassAccel[2] += a * (event.values[2] - compassAccel[2]);
-                        }
-                        if (hasCompassMag) {
-                            matrixReady = SensorManager.getRotationMatrix(rotMatrix, inclMatrix, compassAccel, compassMag);
-                        }
-                    } else if ((type == Sensor.TYPE_MAGNETIC_FIELD || type == Sensor.TYPE_MAGNETIC_FIELD_UNCALIBRATED) && event.values.length >= 3) {
-                        final float a = 0.25f;
-                        if (!hasCompassMag) {
-                            compassMag[0] = event.values[0];
-                            compassMag[1] = event.values[1];
-                            compassMag[2] = event.values[2];
-                            hasCompassMag = true;
-                        } else {
-                            compassMag[0] += a * (event.values[0] - compassMag[0]);
-                            compassMag[1] += a * (event.values[1] - compassMag[1]);
-                            compassMag[2] += a * (event.values[2] - compassMag[2]);
-                        }
-                        if (hasCompassAccel) {
-                            matrixReady = SensorManager.getRotationMatrix(rotMatrix, inclMatrix, compassAccel, compassMag);
-                        }
+                        } catch (Exception ignored2) {}
                     }
-
-                    if (matrixReady) {
-                        double r1 = rotMatrix[1];
-                        double r2 = rotMatrix[2];
-                        double r4 = rotMatrix[4];
-                        double r5 = rotMatrix[5];
-                        double r6 = rotMatrix[6];
-                        double r7 = rotMatrix[7];
-                        double r8 = rotMatrix[8];
-
-                        double east = r1 - r2 * r7;
-                        double north = r4 - r5 * r7;
-
-                        double azimuth = Math.toDegrees(Math.atan2(east, north));
-                        double decl = activeCompassIsRelative ? 0.0 : compassDeclinationDeg;
-                        trueHeading = (azimuth + decl + displayRotDeg + 360.0) % 360.0;
-                        pitchDeg = Math.toDegrees(Math.asin(Math.max(-1.0, Math.min(1.0, r7))));
-                        rollDeg = Math.toDegrees(Math.atan2(-r6, r8));
-                        headingReady = true;
+                } else if ((type == Sensor.TYPE_ACCELEROMETER || type == Sensor.TYPE_GRAVITY) && event.values.length >= 3) {
+                    final float a = 0.25f;
+                    if (!hasCompassAccel) {
+                        System.arraycopy(event.values, 0, compassAccel, 0, 3);
+                        hasCompassAccel = true;
+                    } else {
+                        compassAccel[0] += a * (event.values[0] - compassAccel[0]);
+                        compassAccel[1] += a * (event.values[1] - compassAccel[1]);
+                        compassAccel[2] += a * (event.values[2] - compassAccel[2]);
+                    }
+                    if (hasCompassMag) {
+                        matrixReady = SensorManager.getRotationMatrix(rotMatrix, inclMatrix, compassAccel, compassMag);
+                    }
+                } else if ((type == Sensor.TYPE_MAGNETIC_FIELD || type == Sensor.TYPE_MAGNETIC_FIELD_UNCALIBRATED) && event.values.length >= 3) {
+                    float mx = event.values[0];
+                    float my = event.values[1];
+                    float mz = event.values[2];
+                    // جبران سخت‌افزاری Bias برای سنسور Uncalibrated در صورت وجود ۶ مولفه
+                    if (type == Sensor.TYPE_MAGNETIC_FIELD_UNCALIBRATED && event.values.length >= 6) {
+                        mx -= event.values[3];
+                        my -= event.values[4];
+                        mz -= event.values[5];
+                    }
+                    final float a = 0.25f;
+                    if (!hasCompassMag) {
+                        compassMag[0] = mx;
+                        compassMag[1] = my;
+                        compassMag[2] = mz;
+                        hasCompassMag = true;
+                    } else {
+                        compassMag[0] += a * (mx - compassMag[0]);
+                        compassMag[1] += a * (my - compassMag[1]);
+                        compassMag[2] += a * (mz - compassMag[2]);
+                    }
+                    if (hasCompassAccel) {
+                        matrixReady = SensorManager.getRotationMatrix(rotMatrix, inclMatrix, compassAccel, compassMag);
                     }
                 }
 
-                if (!headingReady || Double.isNaN(trueHeading)) return;
+                if (!matrixReady) return;
+
+                // Remap استاندارد برای Portrait / Landscape (بدون فرمول دستی)
+                remapForScreenRotation(rotMatrix, remappedMatrix);
+                SensorManager.getOrientation(remappedMatrix, orientRad);
+
+                double magAzimuth = Math.toDegrees(orientRad[0]);
+                double pitchDeg = Math.toDegrees(orientRad[1]);
+                double rollDeg = Math.toDegrees(orientRad[2]);
+                // سنسور نیتیو شمال مغناطیسی است -> اضافه کردن Declination یک‌بار
+                double trueHeading = (magAzimuth + compassDeclinationDeg + 360.0) % 360.0;
+
+                nativeSampleCount++;
                 int acc = event.accuracy >= 0 ? event.accuracy : lastCompassAccuracy;
-                emitCompassReading(trueHeading, pitchDeg, rollDeg, acc, activeCompassMode, activeCompassIsMagnetic, activeCompassIsRelative, false);
+                arbitrateAndEmit(trueHeading, pitchDeg, rollDeg, acc, sourceName, "MAGNETIC", estErrDeg, true, false);
             }
 
             @Override
@@ -1146,47 +1189,87 @@ public class NoorAlarmPlugin extends Plugin {
 
         final int rate = SensorManager.SENSOR_DELAY_GAME;
         boolean registered = false;
-        activeCompassIsMagnetic = false;
-        activeCompassIsRelative = false;
-
         try {
             if (!skipPrimaryRot && rotSensor != null) {
-                registered = sm.registerListener(compassListener, rotSensor, rate, compassMainHandler);
-                if (registered) { activeCompassMode = "rotation_vector"; activeCompassIsMagnetic = true; }
+                registered = sm.registerListener(compassListener, rotSensor, rate, compassSensorHandler);
+                if (registered) activeCompassMode = "ROTATION_VECTOR";
             }
             if (!registered && geoRotSensor != null) {
-                registered = sm.registerListener(compassListener, geoRotSensor, rate, compassMainHandler);
-                if (registered) { activeCompassMode = "geomagnetic_rotation_vector"; activeCompassIsMagnetic = true; }
+                registered = sm.registerListener(compassListener, geoRotSensor, rate, compassSensorHandler);
+                if (registered) activeCompassMode = "GEOMAGNETIC_VECTOR";
             }
             if (!registered && accelSensor != null && magSensor != null) {
-                boolean r1 = sm.registerListener(compassListener, accelSensor, rate, compassMainHandler);
-                boolean r2 = sm.registerListener(compassListener, magSensor, rate, compassMainHandler);
+                boolean r1 = sm.registerListener(compassListener, accelSensor, rate, compassSensorHandler);
+                boolean r2 = sm.registerListener(compassListener, magSensor, rate, compassSensorHandler);
                 registered = r1 && r2;
-                if (registered) { activeCompassMode = skipPrimaryRot ? "accel_mag_watchdog" : "accel_mag"; activeCompassIsMagnetic = true; }
+                if (registered) activeCompassMode = skipPrimaryRot ? "accel_mag_watchdog" : "ACCEL_MAG";
             }
             if (!registered && accelSensor != null && uncalMagSensor != null) {
-                boolean r1 = sm.registerListener(compassListener, accelSensor, rate, compassMainHandler);
-                boolean r2 = sm.registerListener(compassListener, uncalMagSensor, rate, compassMainHandler);
+                boolean r1 = sm.registerListener(compassListener, accelSensor, rate, compassSensorHandler);
+                boolean r2 = sm.registerListener(compassListener, uncalMagSensor, rate, compassSensorHandler);
                 registered = r1 && r2;
-                if (registered) { activeCompassMode = "accel_uncal_mag"; activeCompassIsMagnetic = true; }
-            }
-            if (!registered && legacyOrientSensor != null) {
-                registered = sm.registerListener(compassListener, legacyOrientSensor, rate, compassMainHandler);
-                if (registered) { activeCompassMode = "legacy_orientation"; activeCompassIsMagnetic = true; }
+                if (registered) activeCompassMode = "ACCEL_UNCAL_MAG";
             }
         } catch (Exception ignored) {
             registered = false;
         }
-
-        if (!registered) {
-            activeCompassMode = diagGpsActive ? "gps_bearing" : "no_magnetometer";
-            activeCompassIsMagnetic = false;
-            activeCompassIsRelative = false;
-        }
         return registered;
     }
 
-    @SuppressWarnings("deprecation")
+    // شروع موازی Google FOP (با استخراج pitch/roll واقعی از getAttitude و بدون چرخش دوگانه)
+    private boolean startGoogleFopParallel(final Context ctx) {
+        try {
+            fusedOrientationClient = LocationServices.getFusedOrientationProviderClient(ctx);
+            DeviceOrientationRequest fopReq = new DeviceOrientationRequest.Builder(
+                    DeviceOrientationRequest.OUTPUT_PERIOD_DEFAULT
+            ).build();
+
+            final float[] fopRotMatrix = new float[9];
+            final float[] fopRemapped = new float[9];
+            final float[] fopOrient = new float[3];
+
+            fusedOrientationListener = (DeviceOrientation orientation) -> {
+                if (orientation == null) return;
+                float headingDeg = orientation.getHeadingDegrees();
+                // استفاده از getHeadingErrorDegrees به‌جای conservative (تا شروع اولیه روی ۱۸۰° بلاک نشود)
+                float errDeg = orientation.getHeadingErrorDegrees();
+                if (Float.isNaN(headingDeg) || errDeg >= 120.0f) return;
+
+                // استخراج واقعی pitch و roll از کواترنیون getAttitude()
+                double pitchDeg = 0.0;
+                double rollDeg = 0.0;
+                try {
+                    float[] attitude = orientation.getAttitude();
+                    if (attitude != null && attitude.length >= 4) {
+                        SensorManager.getRotationMatrixFromVector(fopRotMatrix, attitude);
+                        remapForScreenRotation(fopRotMatrix, fopRemapped);
+                        SensorManager.getOrientation(fopRemapped, fopOrient);
+                        pitchDeg = Math.toDegrees(fopOrient[1]);
+                        rollDeg = Math.toDegrees(fopOrient[2]);
+                    }
+                } catch (Exception ignored) {}
+
+                int acc = errDeg <= 15f
+                        ? SensorManager.SENSOR_STATUS_ACCURACY_HIGH
+                        : (errDeg <= 35f ? SensorManager.SENSOR_STATUS_ACCURACY_MEDIUM : SensorManager.SENSOR_STATUS_ACCURACY_LOW);
+
+                // FOP خودش چرخش صفحه و انحراف محلی را اعمال می‌کند -> عدم جمع مجدد!
+                diagFopActive = true;
+                lastFopFreshMs = android.os.SystemClock.elapsedRealtime();
+                lastFopErrorDeg = errDeg;
+                arbitrateAndEmit(headingDeg, pitchDeg, rollDeg, acc, "GOOGLE_FOP", "TRUE", errDeg, true, false);
+            };
+
+            java.util.concurrent.Executor mainExec = command -> compassMainHandler.post(command);
+            fusedOrientationClient.requestOrientationUpdates(fopReq, mainExec, fusedOrientationListener)
+                    .addOnFailureListener(e -> diagFopActive = false);
+            return true;
+        } catch (Exception ignored) {
+            diagFopActive = false;
+            return false;
+        }
+    }
+
     @PluginMethod
     public void startCompass(PluginCall call) {
         final Context ctx = getContext();
@@ -1230,8 +1313,6 @@ public class NoorAlarmPlugin extends Plugin {
             final Sensor accelSensor = accTmp;
             final Sensor magSensor = findFirstSensor(sm, Sensor.TYPE_MAGNETIC_FIELD);
             final Sensor uncalMagSensor = findFirstSensor(sm, Sensor.TYPE_MAGNETIC_FIELD_UNCALIBRATED);
-            final Sensor legacyOrientSensor = findFirstSensor(sm, Sensor.TYPE_ORIENTATION);
-            final Sensor gameRotSensor = findFirstSensor(sm, Sensor.TYPE_GAME_ROTATION_VECTOR);
             final Sensor gyroSensor = findFirstSensor(sm, Sensor.TYPE_GYROSCOPE);
 
             diagHasMag = magSensor != null;
@@ -1240,102 +1321,79 @@ public class NoorAlarmPlugin extends Plugin {
             diagHasGyro = gyroSensor != null;
             diagHasRotVec = rotSensor != null;
             diagHasGeoRot = geoRotSensor != null;
-            diagHasGameRot = gameRotSensor != null;
             diagSensorSummary = buildHardwareSensorSummary();
 
-            final boolean anyMagneticHardware = diagHasMag || diagHasUncalMag || diagHasGeoRot || diagHasRotVec || (legacyOrientSensor != null);
+            // تشخیص فوری سخت‌افزار مغناطیس‌سنج (در کمتر از ۵۰ میلی‌ثانیه — مستقل از مدل گوشی)
+            final boolean hasMagnetometer = diagHasMag || diagHasUncalMag || diagHasGeoRot;
+            final boolean hasNativeCompass = hasMagnetometer && (diagHasRotVec || diagHasGeoRot || diagHasAccel);
 
             compassSampleCount = 0;
+            nativeSampleCount = 0;
             latestCompassHeading = -1.0;
             lastCompassEmitMs = 0L;
+            lastFopFreshMs = 0L;
+            lastFopErrorDeg = 180f;
             lastCompassAccuracy = SensorManager.SENSOR_STATUS_ACCURACY_MEDIUM;
+            activeConfidenceState = "INITIALIZING";
             diagFopActive = false;
 
-            // همیشه موتور نیتیو لوکیشن/GPS گوگل را (عین نشان) برای موقعیت دقیق و GPS Bearing روشن کن
+            // شروع GPS نیتیو برای مختصات دقیق نقشه و شعاع خطا
             boolean gpsStarted = startNativeGpsHeading(ctx);
 
-            boolean fopAttempted = false;
-            if (anyMagneticHardware) {
-                try {
-                    fusedOrientationClient = LocationServices.getFusedOrientationProviderClient(ctx);
-                    DeviceOrientationRequest fopReq = new DeviceOrientationRequest.Builder(
-                            DeviceOrientationRequest.OUTPUT_PERIOD_DEFAULT
-                    ).build();
-                    fusedOrientationListener = (DeviceOrientation orientation) -> {
-                        if (orientation == null) return;
-                        float headingDeg = orientation.getHeadingDegrees();
-                        float errDeg = orientation.hasConservativeHeadingErrorDegrees()
-                                ? orientation.getConservativeHeadingErrorDegrees()
-                                : orientation.getHeadingErrorDegrees();
-                        if (Float.isNaN(headingDeg) || errDeg >= 179.0f) return;
-                        int acc = errDeg <= 15f
-                                ? SensorManager.SENSOR_STATUS_ACCURACY_HIGH
-                                : (errDeg <= 35f ? SensorManager.SENSOR_STATUS_ACCURACY_MEDIUM : SensorManager.SENSOR_STATUS_ACCURACY_LOW);
-                        double adjusted = (headingDeg + getDisplayRotationDegrees() + 360.0) % 360.0;
-                        diagFopActive = true;
-                        emitCompassReading(adjusted, 0.0, 0.0, acc, "google_fop", true, false, false);
-                    };
-                    java.util.concurrent.Executor mainExec = command -> compassMainHandler.post(command);
-                    fusedOrientationClient.requestOrientationUpdates(fopReq, mainExec, fusedOrientationListener)
-                            .addOnFailureListener(e -> {
-                                diagFopActive = false;
-                                if (compassSampleCount == 0) {
-                                    registerRawSensorFallback(sm, rotSensor, geoRotSensor, accelSensor, magSensor, uncalMagSensor, legacyOrientSensor, gameRotSensor, gyroSensor, false);
-                                }
-                            });
-                    fopAttempted = true;
-                    activeCompassMode = "google_fop";
-                    activeCompassIsMagnetic = true;
-                    activeCompassIsRelative = false;
-                    activeCompassIsGps = false;
-                } catch (Exception ignored) {
-                    fopAttempted = false;
-                    diagFopActive = false;
-                }
-            }
-
-            boolean magneticRegistered = fopAttempted;
-            if (!magneticRegistered && anyMagneticHardware) {
-                magneticRegistered = registerRawSensorFallback(
-                        sm, rotSensor, geoRotSensor, accelSensor, magSensor,
-                        uncalMagSensor, legacyOrientSensor, gameRotSensor, gyroSensor, false
-                );
-            }
-
-            if (!magneticRegistered) {
+            if (!hasNativeCompass) {
+                // دستگاه فاقد مغناطیس‌سنج (مثل Galaxy A05s) -> اعلام فوری no_magnetometer برای ورود مستقیم به Map Mode
                 activeCompassIsMagnetic = false;
                 activeCompassIsGps = gpsStarted;
-                activeCompassMode = gpsStarted ? "gps_bearing" : "no_magnetometer";
-            } else {
+                activeCompassMode = "no_magnetometer";
+                JSObject ret = new JSObject();
+                ret.put("available", false);
+                ret.put("isMagnetic", false);
+                ret.put("isGpsBearing", gpsStarted);
+                ret.put("needsLocationPermission", diagNeedsLocationPerm);
+                ret.put("fopActive", false);
+                ret.put("mode", "no_magnetometer");
+                ret.put("hasMag", false);
+                ret.put("hasUncalMag", false);
+                ret.put("hasAccel", diagHasAccel);
+                ret.put("hasGyro", diagHasGyro);
+                ret.put("hasRotVec", diagHasRotVec);
+                ret.put("hasGeoRot", diagHasGeoRot);
+                ret.put("sensorSummary", diagSensorSummary);
+                call.resolve(ret);
+                return;
+            }
+
+            // ۱. شروع فوری موتور Native (زیر ۲۰ms بدون انتظار برای گوگل)
+            boolean nativeRegistered = registerNativeSensorEngine(
+                    sm, rotSensor, geoRotSensor, accelSensor, magSensor, uncalMagSensor, false
+            );
+
+            // ۲. شروع موازی Google FOP برای ارتقای کیفیت در صورت دسترسی GMS
+            boolean fopRequested = startGoogleFopParallel(ctx);
+
+            activeCompassIsMagnetic = nativeRegistered || fopRequested;
+            activeCompassIsGps = false;
+
+            // Watchdog سلامت ۱.۲ ثانیه‌ای فقط اگر Rotation Vector در برخی رام‌های OEM هیچ خروجی نداد -> سوییچ به accel_mag_watchdog
+            if (nativeRegistered && "ROTATION_VECTOR".equals(activeCompassMode)) {
                 compassWatchdogRunnable = () -> {
-                    if (compassSampleCount == 0) {
-                        if (fusedOrientationClient != null && fusedOrientationListener != null) {
-                            try { fusedOrientationClient.removeOrientationUpdates(fusedOrientationListener); } catch (Exception ignored) {}
-                            fusedOrientationListener = null;
-                            diagFopActive = false;
-                        }
-                        boolean skipRot = "rotation_vector".equals(activeCompassMode);
-                        boolean switched = registerRawSensorFallback(
-                                sm, rotSensor, geoRotSensor, accelSensor, magSensor,
-                                uncalMagSensor, legacyOrientSensor, gameRotSensor, gyroSensor, skipRot
+                    if (nativeSampleCount == 0 && compassSensorManager != null) {
+                        registerNativeSensorEngine(
+                                sm, rotSensor, geoRotSensor, accelSensor, magSensor, uncalMagSensor, true
                         );
-                        if (!switched) {
-                            activeCompassIsMagnetic = false;
-                            activeCompassIsGps = diagGpsActive;
-                            activeCompassMode = diagGpsActive ? "gps_bearing" : "no_magnetometer";
-                        }
                     }
                 };
-                compassMainHandler.postDelayed(compassWatchdogRunnable, 1300L);
+                compassMainHandler.postDelayed(compassWatchdogRunnable, 1200L);
             }
 
             JSObject ret = new JSObject();
-            ret.put("available", magneticRegistered || gpsStarted);
+            ret.put("available", activeCompassIsMagnetic);
             ret.put("isMagnetic", activeCompassIsMagnetic);
-            ret.put("isGpsBearing", activeCompassIsGps);
+            ret.put("isGpsBearing", false);
             ret.put("needsLocationPermission", diagNeedsLocationPerm);
-            ret.put("fopActive", fopAttempted);
+            ret.put("fopActive", fopRequested);
             ret.put("mode", activeCompassMode);
+            ret.put("confidence", activeConfidenceState);
             ret.put("declination", compassDeclinationDeg);
             ret.put("hasMag", diagHasMag);
             ret.put("hasUncalMag", diagHasUncalMag);
@@ -1343,7 +1401,6 @@ public class NoorAlarmPlugin extends Plugin {
             ret.put("hasGyro", diagHasGyro);
             ret.put("hasRotVec", diagHasRotVec);
             ret.put("hasGeoRot", diagHasGeoRot);
-            ret.put("hasGameRot", diagHasGameRot);
             ret.put("sensorSummary", diagSensorSummary);
             call.resolve(ret);
         });
@@ -1357,6 +1414,8 @@ public class NoorAlarmPlugin extends Plugin {
         ret.put("pitch", latestCompassPitch);
         ret.put("roll", latestCompassRoll);
         ret.put("accuracy", lastCompassAccuracy);
+        ret.put("confidence", activeConfidenceState);
+        ret.put("northReference", activeNorthRef);
         ret.put("samples", compassSampleCount);
         ret.put("mode", activeCompassMode);
         ret.put("isMagnetic", activeCompassIsMagnetic);
@@ -1369,7 +1428,6 @@ public class NoorAlarmPlugin extends Plugin {
         ret.put("hasGyro", diagHasGyro);
         ret.put("hasRotVec", diagHasRotVec);
         ret.put("hasGeoRot", diagHasGeoRot);
-        ret.put("hasGameRot", diagHasGameRot);
         ret.put("sensorSummary", diagSensorSummary);
         if (!Double.isNaN(latestGpsLat) && !Double.isNaN(latestGpsLng)) {
             ret.put("gpsLat", latestGpsLat);
@@ -1407,9 +1465,18 @@ public class NoorAlarmPlugin extends Plugin {
         }
         compassListener = null;
         compassSensorManager = null;
+
+        if (compassSensorThread != null) {
+            try {
+                compassSensorThread.quitSafely();
+            } catch (Exception ignored) {}
+            compassSensorThread = null;
+            compassSensorHandler = null;
+        }
+
         activeCompassMode = "none";
+        activeConfidenceState = "INITIALIZING";
         activeCompassIsMagnetic = false;
-        activeCompassIsRelative = false;
         activeCompassIsGps = false;
     }
 

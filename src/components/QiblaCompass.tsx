@@ -359,13 +359,7 @@ export function QiblaCompass(props: QiblaCompassProps) {
   const [stability, setStability] = useState<'high' | 'medium' | 'low'>('high');
   const [displayHeading, setDisplayHeading] = useState(0);
 
-  const [showCalibModal, setShowCalibModal] = useState<boolean>(() => {
-    try {
-      return sessionStorage.getItem(CALIBRATION_SESSION_KEY) !== 'done';
-    } catch {
-      return true;
-    }
-  });
+  const [showCalibModal, setShowCalibModal] = useState<boolean>(false);
   const [calibProgress, setCalibProgress] = useState(0);
   const [calibDone, setCalibDone] = useState(false);
   const [localOpen, setLocalOpen] = useState(true);
@@ -569,10 +563,11 @@ export function QiblaCompass(props: QiblaCompassProps) {
         }
 
         if (!res?.isMagnetic || res?.mode === 'no_magnetometer') {
-          // گوشی فاقد تراشه مغناطیسی -> ورود فوری به حالت GPS زنده + نقشه ماهواره‌ای (عین نشان)
+          // گوشی فاقد تراشه مغناطیسی (مثل A05s) -> ورود فوری و مستقیم به نقشه قبله بدون دایره فریز و کالیبراسیون
           setShowCalibModal(false);
           compassSourceRef.current = 'gps_waiting';
           setCompassSource('gps_waiting');
+          setActiveTab('map');
         }
 
         pollTimer = window.setInterval(() => {
@@ -901,7 +896,7 @@ export function QiblaCompass(props: QiblaCompassProps) {
             }}
           >
             <Navigation size={14} />
-            <span>{compassSource === 'magnetic' ? 'قطب‌نمای خودکار' : 'قطب‌نمای GPS زنده'}</span>
+            <span>{compassSource === 'magnetic' ? 'قطب‌نمای خودکار' : 'مسیر GPS (فضای باز)'}</span>
           </button>
           <button
             type="button"
@@ -1108,7 +1103,7 @@ export function QiblaCompass(props: QiblaCompassProps) {
             </div>
 
             <div className="absolute top-2.5 right-2.5 px-2.5 py-1 rounded-full bg-[#041511]/90 border border-emerald-400/45 text-[10px] font-black text-emerald-200">
-              {locationInfo.hasLiveGps ? 'GPS زنده قفل شد' : locationInfo.cityLabel} · {mapLayer === 'satellite' ? 'ماهواره‌ای' : 'خیابان'}
+              {locationInfo.hasLiveGps ? ('GPS زنده' + (liveGps?.accuracy ? ' (±' + toFaDigits(Math.round(liveGps.accuracy)) + 'م)' : '')) : locationInfo.cityLabel} · {mapLayer === 'satellite' ? 'ماهواره‌ای' : 'خیابان'}
             </div>
 
             <div className="absolute bottom-2 right-2 px-2.5 py-1 rounded-full bg-[#041511]/90 border border-amber-400/35 text-[10px] font-black text-amber-200">
@@ -1146,6 +1141,17 @@ export function QiblaCompass(props: QiblaCompassProps) {
               {guidance.text}
             </span>
           </div>
+
+          {compassSource === 'magnetic' && stability === 'low' && (
+            <button
+              type="button"
+              onClick={openCalibrationPopup}
+              className="w-full py-2 px-3 rounded-xl border border-amber-400/50 bg-amber-500/15 text-[11px] font-black text-amber-200 flex items-center justify-center gap-1.5"
+            >
+              <RefreshCw size={13} />
+              <span>تداخل مغناطیسی شناسایی شد — برای کالیبره ∞ لمس کنید</span>
+            </button>
+          )}
 
           {needsIosPermission && (
             <button

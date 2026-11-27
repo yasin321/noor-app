@@ -48,6 +48,17 @@ describe('Final Release Gate — Offline Defaults, Quran Zarrab, Large Widget & 
     );
     expect(pluginJava).toContain('FusedOrientationProviderClient');
     expect(pluginJava).toContain('getHeadingDegrees');
+    expect(pluginJava).toContain('getAttitude');
+    expect(pluginJava).toContain('remapCoordinateSystem');
+    expect(pluginJava).toContain('HandlerThread');
+
+    const manifest = fs.readFileSync(
+      path.join(process.cwd(), 'android/app/src/main/AndroidManifest.xml'),
+      'utf8'
+    );
+    expect(manifest).toContain('android.hardware.sensor.compass');
+    expect(manifest).toContain('android.hardware.sensor.accelerometer');
+    expect(manifest).toContain('android.hardware.sensor.gyroscope');
   });
 
   it('computes valid offline Sun/Moon azimuth for magnetometer-less phones & keeps medium scale symmetric', () => {
