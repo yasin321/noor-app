@@ -234,8 +234,18 @@ function detectCategory(titleStr: string): NearbyMosque['category'] {
   return 'مسجد محله';
 }
 
+function isIranRegion(lat: number, lng: number): boolean {
+  return lat >= 24.5 && lat <= 40.2 && lng >= 43.5 && lng <= 63.8;
+}
+
+function isNonMuslimWorshipTitle(titleStr: string): boolean {
+  return /\b(church|cathedral|chapel|synagogue|temple|gurdwara|pagoda|monastery|abbey|basilica|parish|baptist|methodist|lutheran|presbyterian|orthodox|catholic|anglican|evangelical|kingdom hall)\b|کلیسا|كليسا|کنیسه|كنيسه|آتشکده|معبد/i.test(
+    titleStr || ''
+  );
+}
+
 function isMosqueLikeTitle(titleStr: string): boolean {
-  return /مسجد|حسینیه|حسينيه|مصلی|مصلي|مصلا|نمازخانه|حرم|امامزاده|آستان|مهدیه|مهديه|تکیه|تكيه|mosque|masjid|musalla|prayer/i.test(
+  return /مسجد|حسینیه|حسينيه|مصلی|مصلي|مصلا|نمازخانه|حرم|امامزاده|آستان|مهدیه|مهديه|تکیه|تكيه|جامع|mosque|masjid|musalla|prayer\s*room|islamic\s*cent(?:er|re)|cami(?:i)?|mescit|moschee|mosqu[eé]e|mezquita|mecset|mesjid|surau/i.test(
     titleStr || ''
   );
 }
@@ -600,12 +610,16 @@ async function fetchOsmDirectMapMosques(
         const amenity = String(tags.amenity || '').toLowerCase();
         const building = String(tags.building || '').toLowerCase();
         const religion = String(tags.religion || '').toLowerCase();
-        const rawName = String(tags['name:fa'] || tags.name || tags.official_name || '').trim();
-        const isNonMuslim = religion !== '' && religion !== 'muslim' && religion !== 'islam';
+        const rawName = String(tags['name:fa'] || tags.name || tags['name:en'] || tags.official_name || '').trim();
+        const isNonMuslim =
+          (religion !== '' && religion !== 'muslim' && religion !== 'islam') ||
+          isNonMuslimWorshipTitle(rawName);
+        const isMuslimTagged = religion === 'muslim' || religion === 'islam' || building === 'mosque';
+        const isUnlabeledLocalWorship = amenity === 'place_of_worship' && religion === '' && isIranRegion(lat, lng);
 
         const isMosque =
           !isNonMuslim &&
-          (amenity === 'place_of_worship' || building === 'mosque' || isMosqueLikeTitle(rawName));
+          (isMuslimTagged || isUnlabeledLocalWorship || isMosqueLikeTitle(rawName));
         if (!isMosque) continue;
 
         let mLat: number | null = null;
@@ -680,7 +694,9 @@ async function fetchPhotonNearbyMosques(
   const now = Date.now();
   const { dLat, dLng } = metersToLatLngDelta(lat, Math.max(radiusMeters, 800));
   const bbox = `${(lng - dLng).toFixed(5)},${(lat - dLat).toFixed(5)},${(lng + dLng).toFixed(5)},${(lat + dLat).toFixed(5)}`;
-  const terms = ['مسجد', 'حسینیه', 'نمازخانه', 'مصلی'];
+  const terms = isIranRegion(lat, lng)
+    ? ['مسجد', 'حسینیه', 'نمازخانه', 'مصلی']
+    : ['mosque', 'masjid', 'جامع', 'cami', 'مسجد'];
   const collected: NearbyMosque[] = [];
   let anySuccess = false;
 
@@ -700,8 +716,9 @@ async function fetchPhotonNearbyMosques(
           if (Number.isNaN(mLat) || Number.isNaN(mLng)) continue;
           const p = f.properties || {};
           const name = String(p.name || '').trim();
+          if (isNonMuslimWorshipTitle(name)) continue;
           const isWorship = p.osm_key === 'amenity' && p.osm_value === 'place_of_worship';
-          if (!isWorship && !isMosqueLikeTitle(name)) continue;
+          if (!isMosqueLikeTitle(name) && !(isWorship && isIranRegion(lat, lng))) continue;
 
           const dist = calculateHaversineMeters(lat, lng, mLat, mLng);
           if (dist > radiusMeters * 1.25) continue;
@@ -748,7 +765,7 @@ async function fetchNominatimViewboxMosques(
   const now = Date.now();
   const { dLat, dLng } = metersToLatLngDelta(lat, Math.max(radiusMeters, 700));
   const vbox = `${(lng - dLng).toFixed(5)},${(lat + dLat).toFixed(5)},${(lng + dLng).toFixed(5)},${(lat - dLat).toFixed(5)}`;
-  const terms = ['مسجد', 'حسینیه'];
+  const terms = isIranRegion(lat, lng) ? ['مسجد', 'حسینیه'] : ['mosque', 'masjid'];
   const collected: NearbyMosque[] = [];
   let anySuccess = false;
 
@@ -764,8 +781,9 @@ async function fetchNominatimViewboxMosques(
           const mLng = Number(item.lon);
           if (Number.isNaN(mLat) || Number.isNaN(mLng)) continue;
           const name = String(item.name || item.display_name?.split('،')[0] || '').trim();
+          if (isNonMuslimWorshipTitle(name)) continue;
           const isWorship = item.class === 'amenity' && item.type === 'place_of_worship';
-          if (!isWorship && !isMosqueLikeTitle(name)) continue;
+          if (!isMosqueLikeTitle(name) && !(isWorship && isIranRegion(lat, lng))) continue;
 
           const dist = calculateHaversineMeters(lat, lng, mLat, mLng);
           if (dist > radiusMeters * 1.2) continue;
@@ -849,7 +867,12 @@ async function fetchOverpassNearbyMosques(
       const mLng = typeof el.lon === 'number' ? el.lon : el.center?.lon;
       if (typeof mLat !== 'number' || typeof mLng !== 'number') continue;
       const tags = el.tags || {};
-      const name = String(tags['name:fa'] || tags.name || tags.official_name || 'مسجد محله').trim();
+      const rel = String(tags.religion || '').toLowerCase();
+      const bld = String(tags.building || '').toLowerCase();
+      const rawName = String(tags['name:fa'] || tags.name || tags['name:en'] || tags.official_name || '').trim();
+      if ((rel !== '' && rel !== 'muslim' && rel !== 'islam') || isNonMuslimWorshipTitle(rawName)) continue;
+      if (rel === '' && bld !== 'mosque' && !isIranRegion(lat, lng) && !isMosqueLikeTitle(rawName)) continue;
+      const name = rawName || 'مسجد محله';
       const street =
         [tags['addr:neighbourhood'], tags['addr:suburb'], tags['addr:street'], tags['addr:full'], tags['addr:Full']]
           .filter(Boolean)
@@ -921,6 +944,9 @@ async function fetchNeshanNearbyMosques(
   radiusMeters: number
 ): Promise<{ items: NearbyMosque[]; success: boolean; durationMs: number; statusCode?: number }> {
   const t0 = performance.now();
+  if (!isIranRegion(lat, lng)) {
+    return { items: [], success: false, durationMs: 0 };
+  }
   const apiKey = getInternalNeshanKey();
   const now = Date.now();
   const collected: NearbyMosque[] = [];
