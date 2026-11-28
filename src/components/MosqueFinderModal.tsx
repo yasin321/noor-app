@@ -78,6 +78,9 @@ function tileXYToLatLng(x: number, y: number, zoom: number) {
 
 function providerLabelFa(p: string): string {
   if (p === 'neshan') return 'نشان';
+  if (p === 'osm_map') return 'نقشه محله';
+  if (p === 'photon') return 'رادار جهانی';
+  if (p === 'nominatim') return 'نقشه خیابان';
   if (p === 'osm') return 'OSM';
   if (p === 'google') return 'گوگل';
   if (p === 'user') return 'ثبت شما';
@@ -307,6 +310,7 @@ export function MosqueFinderModal({ cityName, defaultLat, defaultLng, onClose, o
 
   const filteredMosques = useMemo(() => {
     return mosques.filter((m) => {
+      if (m.distanceMeters > searchRadius) return false;
       if (categoryFilter === 'all') return true;
       if (categoryFilter === 'mosque') return m.category === 'مسجد محله' || m.category === 'مسجد جامع';
       if (categoryFilter === 'prayer_room') return m.category === 'نمازخانه';
@@ -314,7 +318,7 @@ export function MosqueFinderModal({ cityName, defaultLat, defaultLng, onClose, o
       if (categoryFilter === 'shrine') return m.category === 'حرم و زیارتگاه';
       return true;
     });
-  }, [mosques, categoryFilter]);
+  }, [mosques, categoryFilter, searchRadius]);
 
   useEffect(() => {
     if (filteredMosques.length === 0) {
@@ -1028,12 +1032,17 @@ export function MosqueFinderModal({ cityName, defaultLat, defaultLng, onClose, o
               className="p-2.5 rounded-2xl border text-[10px] text-muted leading-relaxed"
               style={{ background: theme.bg, borderColor: theme.border }}
             >
-              نشان: <strong>{toFaDigits(diagnostics.sources.neshan.count)}</strong> · OSM:{' '}
-              <strong>{toFaDigits(diagnostics.sources.osm.count)}</strong> · گوگل:{' '}
-              <strong>{toFaDigits(diagnostics.sources.google.count)}</strong> · محلی:{' '}
-              <strong>{toFaDigits(diagnostics.sources.local.count)}</strong> | تکراری ادغام‌شده:{' '}
-              <strong>{toFaDigits(diagnostics.removedDuplicates)}</strong> · خارج از شعاع:{' '}
-              <strong>{toFaDigits(diagnostics.discardedOutOfRadius)}</strong>
+              نقشه محله: <strong>{toFaDigits(diagnostics.sources.osmMap.count)}</strong> · رادار:{' '}
+              <strong>{toFaDigits(diagnostics.sources.photon.count)}</strong> · خیابان:{' '}
+              <strong>{toFaDigits(diagnostics.sources.nominatim.count)}</strong> · Overpass:{' '}
+              <strong>{toFaDigits(diagnostics.sources.osm.count)}</strong> · نشان:{' '}
+              <strong>
+                {toFaDigits(diagnostics.sources.neshan.count)}
+                {diagnostics.sources.neshan.statusCode && diagnostics.sources.neshan.statusCode !== 200
+                  ? ' (کد ' + toFaDigits(diagnostics.sources.neshan.statusCode) + ')'
+                  : ''}
+              </strong>{' '}
+              | ادغام: <strong>{toFaDigits(diagnostics.removedDuplicates)}</strong>
               {diagnostics.usedCache ? ' (کش سریع)' : ''}
             </div>
           )}
